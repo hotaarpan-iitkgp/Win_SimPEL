@@ -272,6 +272,13 @@ void MainWindow::renderControlBar() {
     if (ImGui::Button("RESET", ImVec2(80, 30))) {
         simulator.reset();
     }
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.45f, 0.80f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
+    if (ImGui::Button("FIT SCHEMATIC (F)", ImVec2(145, 30))) {
+        canvas.fitToScreen(ImGui::GetIO().DisplaySize);
+    }
+    ImGui::PopStyleColor(2);
 
     ImGui::SameLine();
     ImGui::Spacing();

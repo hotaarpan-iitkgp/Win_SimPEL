@@ -326,19 +326,44 @@ void SchematicCanvas::redo() {
 }
 
 void SchematicCanvas::fitToScreen(ImVec2 canvasSize) {
-    if (design.components.empty()) return;
+    if (design.components.empty()) {
+        zoomLevel = 1.0f;
+        panOffset = ImVec2(canvasSize.x * 0.5f - 400.0f, canvasSize.y * 0.5f - 400.0f);
+        return;
+    }
     float minX = 1e9f, maxX = -1e9f, minY = 1e9f, maxY = -1e9f;
     for (const auto& c : design.components) {
-        minX = std::min(minX, c.x);
-        maxX = std::max(maxX, c.x);
-        minY = std::min(minY, c.y);
-        maxY = std::max(maxY, c.y);
+        minX = std::min(minX, c.x - 60.0f);
+        maxX = std::max(maxX, c.x + 60.0f);
+        minY = std::min(minY, c.y - 60.0f);
+        maxY = std::max(maxY, c.y + 60.0f);
     }
+    for (const auto& w : design.wires) {
+        if (w.to.isWireJunction) {
+            minX = std::min(minX, w.to.junctionX - 20.0f);
+            maxX = std::max(maxX, w.to.junctionX + 20.0f);
+            minY = std::min(minY, w.to.junctionY - 20.0f);
+            maxY = std::max(maxY, w.to.junctionY + 20.0f);
+        }
+    }
+    float width = maxX - minX;
+    float height = maxY - minY;
+    if (width < 200.0f) width = 200.0f;
+    if (height < 200.0f) height = 200.0f;
+
     float centerX = (minX + maxX) * 0.5f;
     float centerY = (minY + maxY) * 0.5f;
 
-    panOffset.x = canvasSize.x * 0.5f / zoomLevel - centerX;
-    panOffset.y = canvasSize.y * 0.5f / zoomLevel - centerY;
+    float zoomX = (canvasSize.x * 0.75f) / width;
+    float zoomY = (canvasSize.y * 0.75f) / height;
+    float newZoom = std::min(zoomX, zoomY);
+
+    if (newZoom < 0.2f) newZoom = 0.2f;
+    if (newZoom > 2.5f) newZoom = 2.5f;
+
+    zoomLevel = newZoom;
+    panOffset.x = (canvasSize.x * 0.5f) / zoomLevel - centerX;
+    panOffset.y = (canvasSize.y * 0.5f) / zoomLevel - centerY;
 }
 
 void SchematicCanvas::addComponent(const ComponentInstance& comp) {
