@@ -418,12 +418,15 @@ void MainWindow::renderComponentPalette() {
     }
     if (ImGui::Button("Pulse Generator")) {
         ComponentInstance comp;
-        comp.id = "PULSE_" + std::to_string(rand() % 1000);
-        comp.label = "Pulse Gen"; comp.type = ComponentType::PulseGenerator; comp.rawTypeStr = "PULSE";
+        comp.id = "PULSE_GEN_" + std::to_string(rand() % 1000);
+        comp.label = "Pulse Gen"; comp.type = ComponentType::PulseGenerator; comp.rawTypeStr = "PULSE_GEN";
+        comp.parameters["amplitude"] = "1";
+        comp.parameters["period"] = "1";
+        comp.parameters["width"] = "0.5";
+        comp.parameters["delay"] = "0";
         comp.parameters["frequency"] = "20000";
         comp.parameters["phase"] = "0";
         comp.parameters["duty"] = "50";
-        comp.parameters["amplitude"] = "1.0";
         canvas.addComponent(comp);
     }
     if (ImGui::Button("Triangle Carrier")) {
