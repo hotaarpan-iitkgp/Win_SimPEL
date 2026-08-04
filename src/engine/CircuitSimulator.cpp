@@ -205,6 +205,50 @@ void CircuitSimulator::step() {
         telemetry.voltages[pair.first].push_back(v);
     }
 
+    // Compute Branch Voltages (V_<ID>) and Branch Currents (I_<ID>) for every component
+    for (const auto& comp : design.components) {
+        std::string tName = comp.rawTypeStr;
+        std::transform(tName.begin(), tName.end(), tName.begin(), ::toupper);
+
+        double v1 = 0.0, v2 = 0.0;
+        if (comp.nodes.size() >= 1 && comp.nodes[0] != "0" && nodeToIdx.count(comp.nodes[0])) {
+            int idx1 = nodeToIdx[comp.nodes[0]] - 1;
+            if (idx1 >= 0 && idx1 < totalDim) v1 = X[idx1];
+        }
+        if (comp.nodes.size() >= 2 && comp.nodes[1] != "0" && nodeToIdx.count(comp.nodes[1])) {
+            int idx2 = nodeToIdx[comp.nodes[1]] - 1;
+            if (idx2 >= 0 && idx2 < totalDim) v2 = X[idx2];
+        }
+
+        double vBranch = v1 - v2;
+        telemetry.voltages["V_" + comp.id].push_back(vBranch);
+
+        double iBranch = 0.0;
+        if (tName == "L" || comp.type == ComponentType::Inductor) {
+            if (inductorToIdx.count(comp.id)) {
+                int lIdx = numNodes + numVoltageSources + inductorToIdx[comp.id];
+                if (lIdx >= 0 && lIdx < totalDim) iBranch = X[lIdx];
+            }
+        } else if (tName == "V" || tName == "AC_V" || comp.type == ComponentType::VoltageSource) {
+            if (vSourceToIdx.count(comp.id)) {
+                int vIdx = numNodes + vSourceToIdx[comp.id];
+                if (vIdx >= 0 && vIdx < totalDim) iBranch = X[vIdx];
+            }
+        } else if (tName == "R" || comp.type == ComponentType::Resistor) {
+            auto itR = comp.parameters.find("value");
+            double rVal = (itR != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itR->second) : 10.0;
+            if (rVal <= 1e-12) rVal = 1e-12;
+            iBranch = vBranch / rVal;
+        } else if (tName == "MOSFET" || tName == "S" || tName == "D") {
+            auto itRon = comp.parameters.find("Ron");
+            double rOn = (itRon != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRon->second) : 0.01;
+            if (rOn <= 1e-12) rOn = 0.01;
+            iBranch = vBranch / rOn;
+        }
+
+        telemetry.voltages["I_" + comp.id].push_back(iBranch);
+    }
+
     // Evaluate Control & Signal Generator Components (PULSE_GEN, PWM, CONST, etc.)
     for (const auto& comp : design.components) {
         std::string tName = comp.rawTypeStr;

@@ -601,7 +601,7 @@ void MainWindow::renderPropertyInspector() {
     if (isElectrical) {
         availableSignals.push_back("V_" + comp->id);
         availableSignals.push_back("I_" + comp->id);
-        if (t == "MOSFET" || t == "S" || t == "D") {
+        if (t == "MOSFET" || t == "S") {
             availableSignals.push_back("Ctrl_" + comp->id);
         }
     } else if (t != "SCOPE" && t != "PROBE") {
