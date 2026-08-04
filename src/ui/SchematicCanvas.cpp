@@ -796,6 +796,20 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         }
 
         if (foundFrom && foundTo) {
+            if (fromIsVertical) {
+                float distP1P2 = std::abs(p2.y - p1.y);
+                float distP1Stub = std::abs(p1_stub.y - p1.y);
+                if (distP1P2 <= distP1Stub) {
+                    p1_stub = p1;
+                }
+            } else {
+                float distP1P2 = std::abs(p2.x - p1.x);
+                float distP1Stub = std::abs(p1_stub.x - p1.x);
+                if (distP1P2 <= distP1Stub) {
+                    p1_stub = p1;
+                }
+            }
+
             ImVec2 c1(0, 0), c2(0, 0);
             bool hasCustomOffset = !wire.manualPath.empty();
 
