@@ -176,12 +176,18 @@ void CircuitSimulator::buildMNAMatrix() {
             if (rOn < 1e-6) rOn = 1e-6;
             if (rOff < 1e2) rOff = 1e2;
 
-            // Determine if Gate/Ctrl signal is ON
+            // Trace wire connecting to this component's Gate/Ctrl pin
             double ctrlVal = 0.0;
-            if (telemetry.voltages.count(comp.id + ".G") && !telemetry.voltages[comp.id + ".G"].empty()) {
-                ctrlVal = telemetry.voltages[comp.id + ".G"].back();
-            } else if (telemetry.voltages.count("PULSE_GEN_41.Out") && !telemetry.voltages["PULSE_GEN_41.Out"].empty()) {
-                ctrlVal = telemetry.voltages["PULSE_GEN_41.Out"].back();
+            std::string sigKey = "";
+            for (const auto& w : design.wires) {
+                if (w.to.compId == comp.id && (w.to.terminal == "G" || w.to.terminal == "Ctrl" || w.to.terminal == "g")) {
+                    sigKey = w.from.compId + "." + w.from.terminal;
+                    break;
+                }
+            }
+
+            if (!sigKey.empty() && telemetry.voltages.count(sigKey) && !telemetry.voltages[sigKey].empty()) {
+                ctrlVal = telemetry.voltages[sigKey].back();
             } else {
                 for (const auto& pair : telemetry.voltages) {
                     if (pair.first.find(".Out") != std::string::npos && !pair.second.empty()) {
@@ -409,10 +415,16 @@ void CircuitSimulator::step() {
             double rOff = (itRoff != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRoff->second) : 1e6;
 
             double ctrlVal = 0.0;
-            if (telemetry.voltages.count(comp.id + ".G") && !telemetry.voltages[comp.id + ".G"].empty()) {
-                ctrlVal = telemetry.voltages[comp.id + ".G"].back();
-            } else if (telemetry.voltages.count("PULSE_GEN_41.Out") && !telemetry.voltages["PULSE_GEN_41.Out"].empty()) {
-                ctrlVal = telemetry.voltages["PULSE_GEN_41.Out"].back();
+            std::string sigKey = "";
+            for (const auto& w : design.wires) {
+                if (w.to.compId == comp.id && (w.to.terminal == "G" || w.to.terminal == "Ctrl" || w.to.terminal == "g")) {
+                    sigKey = w.from.compId + "." + w.from.terminal;
+                    break;
+                }
+            }
+
+            if (!sigKey.empty() && telemetry.voltages.count(sigKey) && !telemetry.voltages[sigKey].empty()) {
+                ctrlVal = telemetry.voltages[sigKey].back();
             }
 
             double g = (ctrlVal > 0.5) ? (1.0 / rOn) : (1.0 / rOff);
