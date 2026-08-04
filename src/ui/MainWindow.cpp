@@ -426,6 +426,13 @@ void MainWindow::renderComponentPalette() {
         comp.parameters["delay"] = "0";
         canvas.addComponent(comp);
     }
+    if (ImGui::Button("Oscilloscope (SCOPE)")) {
+        ComponentInstance comp;
+        comp.id = "SCOPE_" + std::to_string(rand() % 1000);
+        comp.label = "Oscilloscope"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SCOPE";
+        comp.parameters["channels"] = "2";
+        canvas.addComponent(comp);
+    }
     if (ImGui::Button("Triangle Carrier")) {
         ComponentInstance comp;
         comp.id = "TRI_" + std::to_string(rand() % 1000);

@@ -13,7 +13,7 @@ namespace CircuitSim {
 enum class DomainType { Power, Control };
 
 struct TerminalDef {
-    const char* name;
+    std::string name;
     float x, y;
     float dx, dy;
     bool isControl = false;
@@ -69,7 +69,20 @@ static std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
         return {{"A", -20, -20, -1, 0, true}, {"B", -20, 20, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "SCOPE") {
-        return {{"In1", -16, -10, -1, 0, true}, {"In2", -16, 10, -1, 0, true}};
+        int numCh = 2;
+        if (comp.parameters.count("channels")) {
+            try { numCh = std::stoi(comp.parameters.at("channels")); } catch (...) {}
+        }
+        if (numCh < 1) numCh = 1;
+        if (numCh > 8) numCh = 8;
+
+        std::vector<TerminalDef> terms;
+        for (int i = 0; i < numCh; ++i) {
+            float yOff = (numCh > 1) ? (-10.0f * (numCh - 1) + 20.0f * i) : 0.0f;
+            std::string termName = "In" + std::to_string(i + 1);
+            terms.push_back({termName, -16.0f, yOff, -1.0f, 0.0f, true});
+        }
+        return terms;
     }
     if (t == "MUX") {
         return {{"In1", -20, -12, -1, 0, true}, {"In2", -20, 12, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
@@ -616,11 +629,36 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddPolyline(pulseW, 5, color, 0, 1.8f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "SCOPE") {
-        float hw = 16*s, hh = 20*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(15, 23, 42, 230), 4*s);
-        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        ImVec2 scW[] = {rotatePt(-8*s, -6*s, c.x, c.y, rot), rotatePt(-4*s, -6*s, c.x, c.y, rot), rotatePt(-4*s, 6*s, c.x, c.y, rot), rotatePt(4*s, 6*s, c.x, c.y, rot), rotatePt(4*s, -6*s, c.x, c.y, rot), rotatePt(8*s, -6*s, c.x, c.y, rot)};
-        drawList->AddPolyline(scW, 6, IM_COL32(56, 189, 248, 255), 0, 1.5f*s);
+        int numCh = 2;
+        if (comp.parameters.count("channels")) {
+            try { numCh = std::stoi(comp.parameters.at("channels")); } catch (...) {}
+        }
+        if (numCh < 1) numCh = 1;
+        float hw = 16.0f * s;
+        float hh = std::max(16.0f, numCh * 10.0f) * s;
+
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(15, 23, 42, 230), 4.0f * s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4.0f * s, 0, 2.0f * s);
+
+        ImVec2 scW[] = {
+            rotatePt(-8*s, -6*s, c.x, c.y, rot),
+            rotatePt(-4*s, -6*s, c.x, c.y, rot),
+            rotatePt(-4*s, 6*s, c.x, c.y, rot),
+            rotatePt(4*s, 6*s, c.x, c.y, rot),
+            rotatePt(4*s, -6*s, c.x, c.y, rot),
+            rotatePt(8*s, -6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(scW, 6, IM_COL32(56, 189, 248, 255), 0, 1.5f * s);
+
+        for (int i = 0; i < numCh; ++i) {
+            float yOff = (numCh > 1) ? (-10.0f * (numCh - 1) + 20.0f * i) : 0.0f;
+            ImVec2 arr[] = {
+                rotatePt(-hw, (yOff - 3.0f)*s, c.x, c.y, rot),
+                rotatePt(-hw + 4.0f*s, yOff*s, c.x, c.y, rot),
+                rotatePt(-hw, (yOff + 3.0f)*s, c.x, c.y, rot)
+            };
+            drawList->AddTriangleFilled(arr[0], arr[1], arr[2], color);
+        }
     } else if (t == "MUX") {
         ImVec2 mPts[] = {rotatePt(-20*s, -25*s, c.x, c.y, rot), rotatePt(20*s, -15*s, c.x, c.y, rot), rotatePt(20*s, 15*s, c.x, c.y, rot), rotatePt(-20*s, 25*s, c.x, c.y, rot)};
         drawList->AddConvexPolyFilled(mPts, 4, IM_COL32(38, 50, 70, 200));
@@ -1153,6 +1191,37 @@ void SchematicCanvas::renderModals() {
         }
     }
 
+    if (showScopeModal) {
+        ImGui::OpenPopup("Oscilloscope Configuration Modal");
+        if (ImGui::BeginPopupModal("Oscilloscope Configuration Modal", &showScopeModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Edit Oscilloscope Configuration:");
+            ImGui::Separator();
+            ImGui::InputText("Number of Channels (1..8)", scopeChannelsBuf, sizeof(scopeChannelsBuf));
+            ImGui::Spacing();
+            if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
+                pushUndoState();
+                if (scopeCompIdx >= 0 && scopeCompIdx < (int)design.components.size()) {
+                    int numCh = 2;
+                    try { numCh = std::stoi(scopeChannelsBuf); } catch (...) {}
+                    if (numCh < 1) numCh = 1;
+                    if (numCh > 8) numCh = 8;
+                    design.components[scopeCompIdx].parameters["channels"] = std::to_string(numCh);
+                    design.components[scopeCompIdx].label = "SCOPE (" + std::to_string(numCh) + " Ch)";
+                }
+                showScopeModal = false;
+                scopeCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 30))) {
+                showScopeModal = false;
+                scopeCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
     if (showPulseModal) {
         ImGui::OpenPopup("Pulse Generator Parameters Modal");
         if (ImGui::BeginPopupModal("Pulse Generator Parameters Modal", &showPulseModal, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -1460,6 +1529,11 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     strncpy(pulsePeriodBuf, period.c_str(), sizeof(pulsePeriodBuf));
                     strncpy(pulseWidthBuf, width.c_str(), sizeof(pulseWidthBuf));
                     strncpy(pulseDelayBuf, delay.c_str(), sizeof(pulseDelayBuf));
+                } else if (comp.rawTypeStr == "SCOPE") {
+                    showScopeModal = true;
+                    scopeCompIdx = (int)i;
+                    std::string ch = comp.parameters.count("channels") ? comp.parameters["channels"] : "2";
+                    strncpy(scopeChannelsBuf, ch.c_str(), sizeof(scopeChannelsBuf));
                 } else if (comp.rawTypeStr == "SUM_RECT" || comp.rawTypeStr == "SUM_ROUND" || comp.rawTypeStr == "PRODUCT_RECT") {
                     showConfigurator = true;
                     pendingConfigCompIdx = (int)i;

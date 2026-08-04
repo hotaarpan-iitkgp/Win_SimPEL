@@ -69,6 +69,10 @@ private:
     int cscriptCompIdx = -1;
     char cscriptCodeBuf[4096] = "";
 
+    bool showScopeModal = false;
+    int scopeCompIdx = -1;
+    char scopeChannelsBuf[32] = "2";
+
     bool showPulseModal = false;
     int pulseCompIdx = -1;
     char pulseAmpBuf[64] = "1";
