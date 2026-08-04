@@ -41,6 +41,8 @@ private:
     std::vector<double> X;
     
     std::unordered_map<std::string, ScriptBlockEngine> scriptEngines;
+    std::unordered_map<std::string, double> prevInductorCurrent;
+    std::unordered_map<std::string, double> prevCapVoltage;
     
     // Asynchronous solver thread state
     std::atomic<bool> isRunning{false};

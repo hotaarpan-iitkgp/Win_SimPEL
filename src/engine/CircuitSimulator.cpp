@@ -141,6 +141,7 @@ void CircuitSimulator::buildMNAMatrix() {
             auto it = comp.parameters.find("C");
             double cVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 1e-6;
             double gEq = cVal / h;
+            double iEq = gEq * prevCapVoltage[comp.id];
             
             if (n1 >= 0) K[n1 * totalDim + n1] += gEq;
             if (n2 >= 0) K[n2 * totalDim + n2] += gEq;
@@ -148,6 +149,8 @@ void CircuitSimulator::buildMNAMatrix() {
                 K[n1 * totalDim + n2] -= gEq;
                 K[n2 * totalDim + n1] -= gEq;
             }
+            if (n1 >= 0) B[n1] += iEq;
+            if (n2 >= 0) B[n2] -= iEq;
         } else if (comp.type == ComponentType::Inductor || tName == "L") {
             auto it = comp.parameters.find("L");
             double lVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 1e-4;
@@ -163,6 +166,7 @@ void CircuitSimulator::buildMNAMatrix() {
                     K[lIdx * totalDim + n2] -= 1.0;
                 }
                 K[lIdx * totalDim + lIdx] -= (lVal / h);
+                B[lIdx] -= (lVal / h) * prevInductorCurrent[comp.id];
             }
         } else if (comp.type == ComponentType::MOSFET || tName == "MOSFET" || comp.type == ComponentType::Switch || tName == "S") {
             auto itRon = comp.parameters.find("Ron");
@@ -255,16 +259,33 @@ void CircuitSimulator::buildMNAMatrix() {
 }
 
 void CircuitSimulator::step() {
-    buildMNAMatrix();
-    
-    // Step script engines
-    for (auto& pair : scriptEngines) {
-        std::vector<double> dummyIn = {0.0, 0.0};
-        pair.second.executeStep(currentTime, settings.stepSize, dummyIn);
+    // 5 Newton-Raphson sub-iterations for non-linear switch & diode convergence
+    for (int iter = 0; iter < 5; ++iter) {
+        buildMNAMatrix();
+        if (totalDim > 0) {
+            solveLU(totalDim, K, B, X);
+        }
     }
 
-    if (totalDim > 0) {
-        solveLU(totalDim, K, B, X);
+    // Update companion model history for Inductors and Capacitors
+    for (const auto& comp : design.components) {
+        std::string tName = comp.rawTypeStr;
+        std::transform(tName.begin(), tName.end(), tName.begin(), ::toupper);
+
+        if (comp.type == ComponentType::Inductor || tName == "L") {
+            if (inductorToIdx.count(comp.id)) {
+                int lIdx = numNodes + numVoltageSources + inductorToIdx[comp.id];
+                if (lIdx >= 0 && lIdx < totalDim) {
+                    prevInductorCurrent[comp.id] = X[lIdx];
+                }
+            }
+        } else if (comp.type == ComponentType::Capacitor || tName == "C") {
+            int n1 = (comp.nodes.size() > 0 && nodeToIdx.count(comp.nodes[0])) ? nodeToIdx[comp.nodes[0]] - 1 : -1;
+            int n2 = (comp.nodes.size() > 1 && nodeToIdx.count(comp.nodes[1])) ? nodeToIdx[comp.nodes[1]] - 1 : -1;
+            double v1 = (n1 >= 0 && n1 < totalDim) ? X[n1] : 0.0;
+            double v2 = (n2 >= 0 && n2 < totalDim) ? X[n2] : 0.0;
+            prevCapVoltage[comp.id] = v1 - v2;
+        }
     }
     
     double t = currentTime;
