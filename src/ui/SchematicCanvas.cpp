@@ -84,6 +84,25 @@ static std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
         }
         return terms;
     }
+    if (t == "PROBE") {
+        std::string sigStr = comp.parameters.count("selected_signals") ? comp.parameters.at("selected_signals") : "";
+        std::vector<std::string> sigs;
+        std::stringstream ss(sigStr);
+        std::string item;
+        while (std::getline(ss, item, ',')) { if (!item.empty()) sigs.push_back(item); }
+
+        std::vector<TerminalDef> terms;
+        if (sigs.empty()) {
+            terms.push_back({"Out", 30.0f, 0.0f, 1.0f, 0.0f, true});
+        } else {
+            int n = (int)sigs.size();
+            for (int i = 0; i < n; ++i) {
+                float yOff = (n > 1) ? (-15.0f * (n - 1) + 30.0f * i) : 0.0f;
+                terms.push_back({sigs[i], 30.0f, yOff, 1.0f, 0.0f, true});
+            }
+        }
+        return terms;
+    }
     if (t == "MUX") {
         return {{"In1", -20, -12, -1, 0, true}, {"In2", -20, 12, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
@@ -107,7 +126,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||
-        t == "CSCRIPT" || t == "SCOPE" || t == "MUX" || t == "DEMUX" || t == "KEY_TRIGGER") {
+        t == "CSCRIPT" || t == "SCOPE" || t == "PROBE" || t == "MUX" || t == "DEMUX" || t == "KEY_TRIGGER") {
         return DomainType::Control;
     }
 
@@ -659,6 +678,20 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
             };
             drawList->AddTriangleFilled(arr[0], arr[1], arr[2], color);
         }
+    } else if (t == "PROBE") {
+        std::string sigStr = comp.parameters.count("selected_signals") ? comp.parameters.at("selected_signals") : "";
+        std::vector<std::string> sigs;
+        std::stringstream ss(sigStr);
+        std::string item;
+        while (std::getline(ss, item, ',')) { if (!item.empty()) sigs.push_back(item); }
+
+        int numPins = std::max(1, (int)sigs.size());
+        float hw = 30.0f * s;
+        float hh = std::max(20.0f, numPins * 15.0f) * s;
+
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(14, 165, 233, 40), 4.0f * s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(14, 165, 233, 230), 4.0f * s, 0, 2.0f * s);
+        drawList->AddText(rotatePt(-18*s, -6*s, c.x, c.y, rot), IM_COL32(14, 165, 233, 255), "PROBE");
     } else if (t == "MUX") {
         ImVec2 mPts[] = {rotatePt(-20*s, -25*s, c.x, c.y, rot), rotatePt(20*s, -15*s, c.x, c.y, rot), rotatePt(20*s, 15*s, c.x, c.y, rot), rotatePt(-20*s, 25*s, c.x, c.y, rot)};
         drawList->AddConvexPolyFilled(mPts, 4, IM_COL32(38, 50, 70, 200));
@@ -1580,6 +1613,43 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
 
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+void SchematicCanvas::syncProbeSignals() {
+    std::vector<std::string> probedSignals;
+    std::vector<std::string> probedTargets;
+
+    for (const auto& comp : design.components) {
+        bool isProbed = (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1") ||
+                        (comp.parameters.count("plotI") && comp.parameters.at("plotI") == "1") ||
+                        (comp.parameters.count("plotV") && comp.parameters.at("plotV") == "1");
+        if (isProbed) {
+            probedTargets.push_back(comp.id);
+            if (comp.type == ComponentType::Inductor) {
+                probedSignals.push_back("I_" + comp.id);
+            } else {
+                probedSignals.push_back("V_" + comp.id);
+            }
+        }
+    }
+
+    std::string sigStr = "";
+    for (size_t i = 0; i < probedSignals.size(); ++i) {
+        if (i > 0) sigStr += ",";
+        sigStr += probedSignals[i];
+    }
+    std::string targetStr = "";
+    for (size_t i = 0; i < probedTargets.size(); ++i) {
+        if (i > 0) targetStr += ",";
+        targetStr += probedTargets[i];
+    }
+
+    for (auto& comp : design.components) {
+        if (comp.rawTypeStr == "PROBE") {
+            comp.parameters["selected_signals"] = sigStr;
+            comp.parameters["target"] = targetStr;
+        }
+    }
 }
 
 } // namespace CircuitSim

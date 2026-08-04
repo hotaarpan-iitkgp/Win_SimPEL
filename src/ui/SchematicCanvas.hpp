@@ -111,6 +111,8 @@ private:
 public:
     SchematicCanvas() = default;
 
+    void syncProbeSignals();
+
     void setCircuit(const CircuitDesign& circuit) { design = circuit; pushUndoState(); }
     const CircuitDesign& getCircuit() const { return design; }
     CircuitDesign& getCircuitRef() { return design; }

@@ -314,181 +314,216 @@ void MainWindow::renderControlBar() {
 void MainWindow::renderComponentPalette() {
     ImGui::Begin("Component Palette");
     
-    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Electrical Components");
-    if (ImGui::Button("Resistor (R)")) {
-        ComponentInstance comp;
-        comp.id = "R_" + std::to_string(rand() % 1000);
-        comp.label = "Resistor"; comp.type = ComponentType::Resistor; comp.rawTypeStr = "R";
-        comp.parameters["value"] = "1k";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Capacitor (C)")) {
-        ComponentInstance comp;
-        comp.id = "C_" + std::to_string(rand() % 1000);
-        comp.label = "Capacitor"; comp.type = ComponentType::Capacitor; comp.rawTypeStr = "C";
-        comp.parameters["C"] = "10u";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Inductor (L)")) {
-        ComponentInstance comp;
-        comp.id = "L_" + std::to_string(rand() % 1000);
-        comp.label = "Inductor"; comp.type = ComponentType::Inductor; comp.rawTypeStr = "L";
-        comp.parameters["L"] = "1m";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("DC Voltage Source (V)")) {
-        ComponentInstance comp;
-        comp.id = "V_" + std::to_string(rand() % 1000);
-        comp.label = "DC Source"; comp.type = ComponentType::VoltageSource; comp.rawTypeStr = "V";
-        comp.parameters["value"] = "12";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("AC Voltage Source")) {
-        ComponentInstance comp;
-        comp.id = "ACV_" + std::to_string(rand() % 1000);
-        comp.label = "AC Source"; comp.type = ComponentType::ACVoltageSource; comp.rawTypeStr = "AC_V";
-        comp.parameters["Vm"] = "325"; comp.parameters["f"] = "50";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Current Source (I)")) {
-        ComponentInstance comp;
-        comp.id = "I_" + std::to_string(rand() % 1000);
-        comp.label = "I Source"; comp.type = ComponentType::CurrentSource; comp.rawTypeStr = "I";
-        comp.parameters["value"] = "1";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Diode (D)")) {
-        ComponentInstance comp;
-        comp.id = "D_" + std::to_string(rand() % 1000);
-        comp.label = "Diode"; comp.type = ComponentType::Diode; comp.rawTypeStr = "D";
-        comp.parameters["Vf"] = "0.7"; comp.parameters["Ron"] = "10m";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("MOSFET")) {
-        ComponentInstance comp;
-        comp.id = "M_" + std::to_string(rand() % 1000);
-        comp.label = "MOSFET"; comp.type = ComponentType::MOSFET; comp.rawTypeStr = "MOSFET";
-        comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Switch (S)")) {
-        ComponentInstance comp;
-        comp.id = "S_" + std::to_string(rand() % 1000);
-        comp.label = "Switch"; comp.type = ComponentType::Switch; comp.rawTypeStr = "S";
-        comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Ground (GND)")) {
-        ComponentInstance comp;
-        comp.id = "GND_" + std::to_string(rand() % 1000);
-        comp.label = "GND"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "GND";
-        canvas.addComponent(comp);
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.15f, 0.23f, 0.35f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.2f, 0.3f, 0.45f, 1.0f));
+
+    if (ImGui::CollapsingHeader("⚡ Electrical Components", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Indent(8.0f);
+        if (ImGui::Button("Resistor (R)")) {
+            ComponentInstance comp;
+            comp.id = "R_" + std::to_string(rand() % 1000);
+            comp.label = "Resistor"; comp.type = ComponentType::Resistor; comp.rawTypeStr = "R";
+            comp.parameters["value"] = "1k";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Capacitor (C)")) {
+            ComponentInstance comp;
+            comp.id = "C_" + std::to_string(rand() % 1000);
+            comp.label = "Capacitor"; comp.type = ComponentType::Capacitor; comp.rawTypeStr = "C";
+            comp.parameters["C"] = "10u";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Inductor (L)")) {
+            ComponentInstance comp;
+            comp.id = "L_" + std::to_string(rand() % 1000);
+            comp.label = "Inductor"; comp.type = ComponentType::Inductor; comp.rawTypeStr = "L";
+            comp.parameters["L"] = "1m";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("DC Voltage Source (V)")) {
+            ComponentInstance comp;
+            comp.id = "V_" + std::to_string(rand() % 1000);
+            comp.label = "DC Source"; comp.type = ComponentType::VoltageSource; comp.rawTypeStr = "V";
+            comp.parameters["value"] = "12";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("AC Voltage Source")) {
+            ComponentInstance comp;
+            comp.id = "ACV_" + std::to_string(rand() % 1000);
+            comp.label = "AC Source"; comp.type = ComponentType::ACVoltageSource; comp.rawTypeStr = "AC_V";
+            comp.parameters["Vm"] = "325"; comp.parameters["f"] = "50";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Current Source (I)")) {
+            ComponentInstance comp;
+            comp.id = "I_" + std::to_string(rand() % 1000);
+            comp.label = "I Source"; comp.type = ComponentType::CurrentSource; comp.rawTypeStr = "I";
+            comp.parameters["value"] = "1";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Diode (D)")) {
+            ComponentInstance comp;
+            comp.id = "D_" + std::to_string(rand() % 1000);
+            comp.label = "Diode"; comp.type = ComponentType::Diode; comp.rawTypeStr = "D";
+            comp.parameters["Vf"] = "0.7"; comp.parameters["Ron"] = "10m";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("MOSFET")) {
+            ComponentInstance comp;
+            comp.id = "M_" + std::to_string(rand() % 1000);
+            comp.label = "MOSFET"; comp.type = ComponentType::MOSFET; comp.rawTypeStr = "MOSFET";
+            comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Switch (S)")) {
+            ComponentInstance comp;
+            comp.id = "S_" + std::to_string(rand() % 1000);
+            comp.label = "Switch"; comp.type = ComponentType::Switch; comp.rawTypeStr = "S";
+            comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Ground (GND)")) {
+            ComponentInstance comp;
+            comp.id = "GND_" + std::to_string(rand() % 1000);
+            comp.label = "GND"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "GND";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Voltmeter (VM)")) {
+            ComponentInstance comp;
+            comp.id = "VM_" + std::to_string(rand() % 1000);
+            comp.label = "Voltmeter"; comp.type = ComponentType::Voltmeter; comp.rawTypeStr = "VM";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Ammeter (AM)")) {
+            ComponentInstance comp;
+            comp.id = "AM_" + std::to_string(rand() % 1000);
+            comp.label = "Ammeter"; comp.type = ComponentType::Ammeter; comp.rawTypeStr = "AM";
+            canvas.addComponent(comp);
+        }
+        ImGui::Unindent(8.0f);
+        ImGui::Spacing();
     }
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Control & Math Blocks");
-    
-    if (ImGui::Button("Gain (K)")) {
-        ComponentInstance comp;
-        comp.id = "K_" + std::to_string(rand() % 1000);
-        comp.label = "Gain"; comp.type = ComponentType::Gain; comp.rawTypeStr = "GAIN";
-        comp.parameters["K"] = "1.0";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("PID Controller")) {
-        ComponentInstance comp;
-        comp.id = "PID_" + std::to_string(rand() % 1000);
-        comp.label = "PID"; comp.type = ComponentType::PI_Controller; comp.rawTypeStr = "PID";
-        comp.parameters["Kp"] = "1.0"; comp.parameters["Ki"] = "10"; comp.parameters["Kd"] = "0";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Comparator")) {
-        ComponentInstance comp;
-        comp.id = "CMP_" + std::to_string(rand() % 1000);
-        comp.label = "Comparator"; comp.type = ComponentType::Comparator; comp.rawTypeStr = "COMP";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("PWM Generator")) {
-        ComponentInstance comp;
-        comp.id = "PWM_" + std::to_string(rand() % 1000);
-        comp.label = "PWM"; comp.type = ComponentType::PWM_Generator; comp.rawTypeStr = "PWM";
-        comp.parameters["frequency"] = "20000";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Pulse Generator")) {
-        ComponentInstance comp;
-        comp.id = "PULSE_GEN_" + std::to_string(rand() % 1000);
-        comp.label = "Pulse Gen"; comp.type = ComponentType::PulseGenerator; comp.rawTypeStr = "PULSE_GEN";
-        comp.parameters["amplitude"] = "1";
-        comp.parameters["period"] = "1";
-        comp.parameters["width"] = "0.5";
-        comp.parameters["delay"] = "0";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Oscilloscope (SCOPE)")) {
-        ComponentInstance comp;
-        comp.id = "SCOPE_" + std::to_string(rand() % 1000);
-        comp.label = "Oscilloscope"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SCOPE";
-        comp.parameters["channels"] = "2";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Triangle Carrier")) {
-        ComponentInstance comp;
-        comp.id = "TRI_" + std::to_string(rand() % 1000);
-        comp.label = "Triangle"; comp.type = ComponentType::Triangle_Carrier; comp.rawTypeStr = "TRI";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Sum (SUM_RECT)")) {
-        ComponentInstance comp;
-        comp.id = "SUM_" + std::to_string(rand() % 1000);
-        comp.label = "Sum"; comp.type = ComponentType::SummingJunction; comp.rawTypeStr = "SUM_RECT";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Sum Round (SUM_ROUND)")) {
-        ComponentInstance comp;
-        comp.id = "SUM_" + std::to_string(rand() % 1000);
-        comp.label = "Sum (Round)"; comp.type = ComponentType::SummingJunction; comp.rawTypeStr = "SUM_ROUND";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Product (PRODUCT_RECT)")) {
-        ComponentInstance comp;
-        comp.id = "PROD_" + std::to_string(rand() % 1000);
-        comp.label = "Product"; comp.type = ComponentType::Product; comp.rawTypeStr = "PRODUCT_RECT";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("AND Gate")) {
-        ComponentInstance comp;
-        comp.id = "AND_" + std::to_string(rand() % 1000);
-        comp.label = "AND"; comp.type = ComponentType::AND_Gate; comp.rawTypeStr = "AND";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("OR Gate")) {
-        ComponentInstance comp;
-        comp.id = "OR_" + std::to_string(rand() % 1000);
-        comp.label = "OR"; comp.type = ComponentType::OR_Gate; comp.rawTypeStr = "OR";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("NOT Gate")) {
-        ComponentInstance comp;
-        comp.id = "NOT_" + std::to_string(rand() % 1000);
-        comp.label = "NOT"; comp.type = ComponentType::NOT_Gate; comp.rawTypeStr = "NOT";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("C-Script (CSCRIPT)")) {
-        ComponentInstance comp;
-        comp.id = "CS_" + ::std::to_string(rand() % 1000);
-        comp.label = "C-Script"; comp.type = ComponentType::CustomScript; comp.rawTypeStr = "CSCRIPT";
-        comp.parameters["code"] = "// Step code\noutputs[0] = inputs[0] * 2.0;\n";
-        canvas.addComponent(comp);
-    }
-    if (ImGui::Button("Subsystem Block")) {
-        ComponentInstance comp;
-        comp.id = "SUB_" + ::std::to_string(rand() % 1000);
-        comp.label = "Subsystem"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SUBSYSTEM";
-        canvas.addComponent(comp);
+    if (ImGui::CollapsingHeader("🎛️ Control & Math Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Indent(8.0f);
+        if (ImGui::Button("Gain (K)")) {
+            ComponentInstance comp;
+            comp.id = "K_" + std::to_string(rand() % 1000);
+            comp.label = "Gain"; comp.type = ComponentType::Gain; comp.rawTypeStr = "GAIN";
+            comp.parameters["K"] = "1.0";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("PID Controller")) {
+            ComponentInstance comp;
+            comp.id = "PID_" + std::to_string(rand() % 1000);
+            comp.label = "PID"; comp.type = ComponentType::PI_Controller; comp.rawTypeStr = "PID";
+            comp.parameters["Kp"] = "1.0"; comp.parameters["Ki"] = "10"; comp.parameters["Kd"] = "0";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Comparator")) {
+            ComponentInstance comp;
+            comp.id = "CMP_" + std::to_string(rand() % 1000);
+            comp.label = "Comparator"; comp.type = ComponentType::Comparator; comp.rawTypeStr = "COMP";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("PWM Generator")) {
+            ComponentInstance comp;
+            comp.id = "PWM_" + std::to_string(rand() % 1000);
+            comp.label = "PWM"; comp.type = ComponentType::PWM_Generator; comp.rawTypeStr = "PWM";
+            comp.parameters["frequency"] = "20000";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Pulse Generator")) {
+            ComponentInstance comp;
+            comp.id = "PULSE_GEN_" + std::to_string(rand() % 1000);
+            comp.label = "Pulse Gen"; comp.type = ComponentType::PulseGenerator; comp.rawTypeStr = "PULSE_GEN";
+            comp.parameters["amplitude"] = "1";
+            comp.parameters["period"] = "1";
+            comp.parameters["width"] = "0.5";
+            comp.parameters["delay"] = "0";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Triangle Carrier")) {
+            ComponentInstance comp;
+            comp.id = "TRI_" + std::to_string(rand() % 1000);
+            comp.label = "Triangle"; comp.type = ComponentType::Triangle_Carrier; comp.rawTypeStr = "TRI";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Sum (SUM_RECT)")) {
+            ComponentInstance comp;
+            comp.id = "SUM_" + std::to_string(rand() % 1000);
+            comp.label = "Sum"; comp.type = ComponentType::SummingJunction; comp.rawTypeStr = "SUM_RECT";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Sum Round (SUM_ROUND)")) {
+            ComponentInstance comp;
+            comp.id = "SUM_" + std::to_string(rand() % 1000);
+            comp.label = "Sum (Round)"; comp.type = ComponentType::SummingJunction; comp.rawTypeStr = "SUM_ROUND";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Product (PRODUCT_RECT)")) {
+            ComponentInstance comp;
+            comp.id = "PROD_" + std::to_string(rand() % 1000);
+            comp.label = "Product"; comp.type = ComponentType::Product; comp.rawTypeStr = "PRODUCT_RECT";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("AND Gate")) {
+            ComponentInstance comp;
+            comp.id = "AND_" + std::to_string(rand() % 1000);
+            comp.label = "AND"; comp.type = ComponentType::AND_Gate; comp.rawTypeStr = "AND";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("OR Gate")) {
+            ComponentInstance comp;
+            comp.id = "OR_" + std::to_string(rand() % 1000);
+            comp.label = "OR"; comp.type = ComponentType::OR_Gate; comp.rawTypeStr = "OR";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("NOT Gate")) {
+            ComponentInstance comp;
+            comp.id = "NOT_" + std::to_string(rand() % 1000);
+            comp.label = "NOT"; comp.type = ComponentType::NOT_Gate; comp.rawTypeStr = "NOT";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("C-Script (CSCRIPT)")) {
+            ComponentInstance comp;
+            comp.id = "CS_" + ::std::to_string(rand() % 1000);
+            comp.label = "C-Script"; comp.type = ComponentType::CustomScript; comp.rawTypeStr = "CSCRIPT";
+            comp.parameters["code"] = "// Step code\noutputs[0] = inputs[0] * 2.0;\n";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Subsystem Block")) {
+            ComponentInstance comp;
+            comp.id = "SUB_" + ::std::to_string(rand() % 1000);
+            comp.label = "Subsystem"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SUBSYSTEM";
+            canvas.addComponent(comp);
+        }
+        ImGui::Unindent(8.0f);
+        ImGui::Spacing();
     }
 
+    if (ImGui::CollapsingHeader("📊 Scope & Probe", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Indent(8.0f);
+        if (ImGui::Button("Oscilloscope (SCOPE)")) {
+            ComponentInstance comp;
+            comp.id = "SCOPE_" + std::to_string(rand() % 1000);
+            comp.label = "Oscilloscope"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SCOPE";
+            comp.parameters["channels"] = "2";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Active Probe (PROBE)")) {
+            ComponentInstance comp;
+            comp.id = "PROBE_" + std::to_string(rand() % 1000);
+            comp.label = "Active Probe"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "PROBE";
+            comp.parameters["target"] = "";
+            comp.parameters["selected_signals"] = "";
+            canvas.addComponent(comp);
+        }
+        ImGui::Unindent(8.0f);
+        ImGui::Spacing();
+    }
+
+    ImGui::PopStyleColor(2);
     ImGui::End();
 }
 
@@ -512,9 +547,26 @@ void MainWindow::renderPropertyInspector() {
     }
 
     ImGui::Spacing();
+
+    // Probe Signal Checkbox (matching Web Tool)
+    bool isProbed = (comp->parameters.count("probe_signal") && comp->parameters["probe_signal"] == "1") ||
+                    (comp->parameters.count("plotI") && comp->parameters["plotI"] == "1") ||
+                    (comp->parameters.count("plotV") && comp->parameters["plotV"] == "1");
+
+    if (ImGui::Checkbox("Probe Signal (Monitor Waveform)", &isProbed)) {
+        comp->parameters["probe_signal"] = isProbed ? "1" : "0";
+        if (comp->type == ComponentType::Resistor || comp->type == ComponentType::Inductor || comp->type == ComponentType::Capacitor) {
+            comp->parameters["plotI"] = isProbed ? "1" : "0";
+            comp->parameters["plotV"] = isProbed ? "1" : "0";
+        }
+        canvas.syncProbeSignals();
+    }
+
+    ImGui::Spacing();
     ImGui::Text("Parameters:");
     
     for (auto& pair : comp->parameters) {
+        if (pair.first == "probe_signal") continue;
         char valBuf[256];
         strncpy(valBuf, pair.second.c_str(), sizeof(valBuf));
         if (ImGui::InputText(pair.first.c_str(), valBuf, sizeof(valBuf))) {
