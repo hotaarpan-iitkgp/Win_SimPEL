@@ -1,4 +1,5 @@
 #include "NetlistSourceView.hpp"
+#include "engine/NetlistBuilder.hpp"
 #include "implot.h"
 #include <nlohmann/json.hpp>
 #include <windows.h>
@@ -12,54 +13,59 @@ using json = nlohmann::json;
 namespace CircuitSim {
 
 void NetlistSourceView::updateFromCircuit(const CircuitDesign& design) {
+    CircuitDesign tempDesign = design;
+    NetlistBuilder::buildNodesForCircuit(tempDesign);
+
     json root;
-    json compsArr = json::array();
-    for (const auto& comp : design.components) {
+
+    // 1. Simulation Parameters
+    json simParamsObj;
+    simParamsObj["stop_time"] = tempDesign.settings.stopTime;
+    simParamsObj["step_size"] = tempDesign.settings.stepSize;
+    simParamsObj["solver"] = tempDesign.settings.solverType;
+    simParamsObj["step_type"] = tempDesign.settings.stepType;
+    root["simulation_parameters"] = simParamsObj;
+
+    // 2. Physical Stage (Electrical Components & Resolved Nodes) and Control Loops
+    json physArr = json::array();
+    json ctrlArr = json::array();
+
+    for (const auto& comp : tempDesign.components) {
+        std::string t = comp.rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+        bool isElectrical = (t == "R" || t == "L" || t == "C" || t == "V" || t == "AC_V" || t == "I" || t == "S" || t == "D" || t == "MOSFET" || t == "VM" || t == "AM" || t == "GND");
+
         json cObj;
         cObj["id"] = comp.id;
         cObj["type"] = comp.rawTypeStr.empty() ? "UNKNOWN" : comp.rawTypeStr;
-        cObj["label"] = comp.label;
-        cObj["x"] = comp.x;
-        cObj["y"] = comp.y;
-        cObj["rotation"] = comp.rotation;
+        if (!comp.label.empty()) cObj["label"] = comp.label;
+
         json paramsObj = json::object();
         for (const auto& pair : comp.parameters) {
             paramsObj[pair.first] = pair.second;
         }
         cObj["parameters"] = paramsObj;
-        compsArr.push_back(cObj);
-    }
-    root["components"] = compsArr;
 
-    json wiresArr = json::array();
-    for (const auto& w : design.wires) {
-        json wObj;
-        wObj["id"] = w.id;
-        json fromObj;
-        fromObj["type"] = "pin";
-        fromObj["compId"] = w.from.compId;
-        fromObj["terminal"] = w.from.terminal;
-        wObj["from"] = fromObj;
-
-        json toObj;
-        if (w.to.isWireJunction) {
-            toObj["type"] = "wire";
-            toObj["wireId"] = w.to.targetWireId;
-            toObj["x"] = w.to.junctionX;
-            toObj["y"] = w.to.junctionY;
+        if (isElectrical) {
+            json nodesArr = json::array();
+            for (const auto& n : comp.nodes) {
+                nodesArr.push_back(n);
+            }
+            cObj["nodes"] = nodesArr;
+            physArr.push_back(cObj);
         } else {
-            toObj["type"] = "pin";
-            toObj["compId"] = w.to.compId;
-            toObj["terminal"] = w.to.terminal;
+            ctrlArr.push_back(cObj);
         }
-        wObj["to"] = toObj;
-        wiresArr.push_back(wObj);
     }
-    root["wires"] = wiresArr;
 
+    root["physical_stage"] = physArr;
+    root["control_loops"] = ctrlArr;
+
+    // 3. Plot Configuration
     json plotConfigObj = json::object();
     json plotsArr = json::array();
-    for (const auto& p : design.plotConfig.plots) {
+    for (const auto& p : tempDesign.plotConfig.plots) {
         json pObj;
         pObj["title"] = p.title;
         json varsArr = json::array();
@@ -69,13 +75,6 @@ void NetlistSourceView::updateFromCircuit(const CircuitDesign& design) {
     }
     plotConfigObj["plots"] = plotsArr;
     root["plotConfiguration"] = plotConfigObj;
-
-    json simSettingsObj = json::object();
-    simSettingsObj["stopTime"] = std::to_string(design.settings.stopTime);
-    simSettingsObj["stepSize"] = std::to_string(design.settings.stepSize);
-    simSettingsObj["solver"] = design.settings.solverType;
-    simSettingsObj["stepType"] = design.settings.stepType;
-    root["simulationSettings"] = simSettingsObj;
 
     lastGeneratedJson = root.dump(2);
     strncpy(jsonBuffer, lastGeneratedJson.c_str(), sizeof(jsonBuffer) - 1);
@@ -121,50 +120,54 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             isNetlistValid = true;
             netlistStatusMsg = "Valid Netlist";
 
-            if (root.contains("components") && root["components"].is_array()) {
-                design.components.clear();
-                for (const auto& item : root["components"]) {
+            auto parseCompList = [](const json& arr, std::vector<ComponentInstance>& outList) {
+                for (const auto& item : arr) {
                     ComponentInstance comp;
                     if (item.contains("id")) comp.id = item["id"].get<std::string>();
                     if (item.contains("type")) comp.rawTypeStr = item["type"].get<std::string>();
                     if (item.contains("label")) comp.label = item["label"].get<std::string>();
-                    if (item.contains("x")) comp.x = item["x"].get<float>();
-                    if (item.contains("y")) comp.y = item["y"].get<float>();
-                    if (item.contains("rotation")) comp.rotation = item["rotation"].get<int>();
-
+                    if (item.contains("nodes") && item["nodes"].is_array()) {
+                        for (const auto& n : item["nodes"]) comp.nodes.push_back(n.get<std::string>());
+                    }
                     if (item.contains("parameters") && item["parameters"].is_object()) {
                         for (auto& [pK, pV] : item["parameters"].items()) {
                             if (pV.is_string()) comp.parameters[pK] = pV.get<std::string>();
                             else if (pV.is_number()) comp.parameters[pK] = std::to_string(pV.get<double>());
                         }
                     }
-                    design.components.push_back(comp);
+                    outList.push_back(comp);
                 }
+            };
+
+            if (root.contains("physical_stage") || root.contains("control_loops")) {
+                design.components.clear();
+                if (root.contains("physical_stage") && root["physical_stage"].is_array()) {
+                    parseCompList(root["physical_stage"], design.components);
+                }
+                if (root.contains("control_loops") && root["control_loops"].is_array()) {
+                    parseCompList(root["control_loops"], design.components);
+                }
+            } else if (root.contains("components") && root["components"].is_array()) {
+                design.components.clear();
+                parseCompList(root["components"], design.components);
             }
 
-            if (root.contains("wires") && root["wires"].is_array()) {
-                design.wires.clear();
-                for (const auto& wItem : root["wires"]) {
-                    WireInstance wire;
-                    if (wItem.contains("id")) wire.id = wItem["id"].get<std::string>();
-                    if (wItem.contains("from") && wItem["from"].is_object()) {
-                        wire.from.compId = wItem["from"].value("compId", "");
-                        wire.from.terminal = wItem["from"].value("terminal", "");
+            if (root.contains("simulation_parameters") && root["simulation_parameters"].is_object()) {
+                const auto& sp = root["simulation_parameters"];
+                if (sp.contains("stop_time")) {
+                    if (sp["stop_time"].is_number()) design.settings.stopTime = sp["stop_time"].get<double>();
+                    else if (sp["stop_time"].is_string()) {
+                        try { design.settings.stopTime = std::stod(sp["stop_time"].get<std::string>()); } catch (...) {}
                     }
-                    if (wItem.contains("to") && wItem["to"].is_object()) {
-                        std::string toType = wItem["to"].value("type", "pin");
-                        if (toType == "wire") {
-                            wire.to.isWireJunction = true;
-                            wire.to.targetWireId = wItem["to"].value("wireId", "");
-                            wire.to.junctionX = wItem["to"].value("x", 0.0f);
-                            wire.to.junctionY = wItem["to"].value("y", 0.0f);
-                        } else {
-                            wire.to.isWireJunction = false;
-                            wire.to.compId = wItem["to"].value("compId", "");
-                            wire.to.terminal = wItem["to"].value("terminal", "");
-                        }
+                }
+                if (sp.contains("step_size")) {
+                    if (sp["step_size"].is_number()) design.settings.stepSize = sp["step_size"].get<double>();
+                    else if (sp["step_size"].is_string()) {
+                        try { design.settings.stepSize = std::stod(sp["step_size"].get<std::string>()); } catch (...) {}
                     }
-                    design.wires.push_back(wire);
+                }
+                if (sp.contains("solver") && sp["solver"].is_string()) {
+                    design.settings.solverType = sp["solver"].get<std::string>();
                 }
             }
         } catch (const std::exception& e) {
