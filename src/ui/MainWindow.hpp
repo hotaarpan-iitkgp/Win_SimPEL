@@ -2,16 +2,22 @@
 
 #include "SchematicCanvas.hpp"
 #include "OscilloscopeView.hpp"
+#include "NetlistSourceView.hpp"
 #include "engine/CircuitSimulator.hpp"
 #include "imgui.h"
 
 namespace CircuitSim {
 
+enum class WorkspaceMode { SchematicCAD, WaveformNetlist };
+
 class MainWindow {
 private:
     SchematicCanvas canvas;
     OscilloscopeView scopeView;
+    NetlistSourceView netlistSourceView;
     CircuitSimulator simulator;
+
+    WorkspaceMode activeWorkspace = WorkspaceMode::SchematicCAD;
 
     bool showSimParamsModal = false;
     char simStopTimeBuf[64] = "0.02";

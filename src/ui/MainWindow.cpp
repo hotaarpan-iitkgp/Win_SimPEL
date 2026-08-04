@@ -308,6 +308,27 @@ void MainWindow::renderControlBar() {
     ImGui::SameLine();
     ImGui::Text("Sim Time: %.5f s", simulator.getCurrentTime());
 
+    ImGui::SameLine();
+    ImGui::Spacing();
+    ImGui::SameLine();
+
+    bool isCadActive = (activeWorkspace == WorkspaceMode::SchematicCAD);
+    if (isCadActive) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.5f, 0.8f, 1.0f));
+    if (ImGui::Button("🎨 Schematic CAD Workspace", ImVec2(200, 30))) {
+        activeWorkspace = WorkspaceMode::SchematicCAD;
+    }
+    if (isCadActive) ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+    bool isNetlistActive = (activeWorkspace == WorkspaceMode::WaveformNetlist);
+    if (isNetlistActive) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.3f, 1.0f));
+    if (ImGui::Button("⚡ Waveform & Netlist Workspace", ImVec2(230, 30))) {
+        activeWorkspace = WorkspaceMode::WaveformNetlist;
+        netlistSourceView.updateFromCircuit(canvas.getCircuit());
+    }
+    if (isNetlistActive) ImGui::PopStyleColor();
+
     ImGui::End();
 }
 
@@ -651,12 +672,17 @@ void MainWindow::renderSimParamsModal() {
 void MainWindow::render() {
     renderMenuBar();
     renderControlBar();
-    renderComponentPalette();
-    renderPropertyInspector();
+
+    if (activeWorkspace == WorkspaceMode::SchematicCAD) {
+        renderComponentPalette();
+        renderPropertyInspector();
+        canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
+        scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
+    } else {
+        netlistSourceView.render("Waveform Solver & Raw Netlist Workspace", canvas.getCircuitRef(), simulator);
+    }
+
     renderSimParamsModal();
-    
-    canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
-    scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
 }
 
 } // namespace CircuitSim

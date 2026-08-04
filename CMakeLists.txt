@@ -21,6 +21,7 @@ set(SOURCES
     src/ui/ConfiguratorDialog.cpp
     src/ui/SchematicCanvas.cpp
     src/ui/OscilloscopeView.cpp
+    src/ui/NetlistSourceView.cpp
     src/ui/MainWindow.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -41,6 +42,7 @@ target_link_libraries(circuitsim_pro_win
     gdi32
     user32
     shell32
+    comdlg32
     dwmapi
     winmm
 )
