@@ -14,7 +14,7 @@ using json = nlohmann::json;
 namespace CircuitSim {
 
 MainWindow::MainWindow() {
-    loadPresetTemplate("1ph_inverter_hysteresis");
+    loadPresetTemplate("buck_converter");
 }
 
 void MainWindow::startSimulation() {
@@ -28,72 +28,65 @@ void MainWindow::loadPresetTemplate(const std::string& name) {
     cd.settings.stopTime = 0.05;
     cd.settings.stepSize = 1e-5;
 
-    if (name == "1ph_inverter_hysteresis") {
-        // Component positions use centered coordinates (x,y = center) matching the web SVG system
-        ComponentInstance v1;
-        v1.id = "V1"; v1.label = "V1 (DC 24V)"; v1.type = ComponentType::VoltageSource; v1.rawTypeStr = "V";
-        v1.x = -200; v1.y = 0;
-        v1.parameters["value"] = "24"; v1.nodes = {"node_vpos", "0"};
-        cd.components.push_back(v1);
+    // Default Buck Converter Preset Circuit
+    ComponentInstance v1;
+    v1.id = "V1"; v1.label = "V1 (100V)"; v1.type = ComponentType::VoltageSource; v1.rawTypeStr = "V";
+    v1.x = 220; v1.y = 160;
+    v1.parameters["value"] = "100";
+    cd.components.push_back(v1);
 
-        ComponentInstance m1;
-        m1.id = "M1"; m1.label = "MOSFET 1"; m1.type = ComponentType::MOSFET; m1.rawTypeStr = "MOSFET";
-        m1.x = 0; m1.y = -80;
-        m1.parameters["Ron"] = "10m"; m1.parameters["Roff"] = "1M"; m1.nodes = {"node_vpos", "node_legA"};
-        cd.components.push_back(m1);
+    ComponentInstance pulse1;
+    pulse1.id = "PULSE_GEN_41"; pulse1.label = "Pulse Gen (10kHz)"; pulse1.type = ComponentType::PulseGenerator; pulse1.rawTypeStr = "PULSE_GEN";
+    pulse1.x = 290; pulse1.y = 60;
+    pulse1.parameters["amplitude"] = "1"; pulse1.parameters["period"] = "1/10000"; pulse1.parameters["width"] = "0.5"; pulse1.parameters["delay"] = "0";
+    cd.components.push_back(pulse1);
 
-        ComponentInstance m2;
-        m2.id = "M2"; m2.label = "MOSFET 2"; m2.type = ComponentType::MOSFET; m2.rawTypeStr = "MOSFET";
-        m2.x = 0; m2.y = 80;
-        m2.parameters["Ron"] = "10m"; m2.parameters["Roff"] = "1M"; m2.nodes = {"node_legA", "0"};
-        cd.components.push_back(m2);
+    ComponentInstance m1;
+    m1.id = "MOSFET1"; m1.label = "MOSFET1"; m1.type = ComponentType::MOSFET; m1.rawTypeStr = "MOSFET";
+    m1.x = 380; m1.y = 60;
+    m1.parameters["Ron"] = "10m"; m1.parameters["Roff"] = "1M";
+    cd.components.push_back(m1);
 
-        ComponentInstance l1;
-        l1.id = "L1"; l1.label = "L1 (10mH)"; l1.type = ComponentType::Inductor; l1.rawTypeStr = "L";
-        l1.x = 160; l1.y = 0;
-        l1.parameters["L"] = "10m"; l1.nodes = {"node_legA", "node_out"};
-        cd.components.push_back(l1);
+    ComponentInstance d1;
+    d1.id = "D1"; d1.label = "D1 (Diode)"; d1.type = ComponentType::Diode; d1.rawTypeStr = "D";
+    d1.x = 380; d1.y = 220; d1.rotation = 180;
+    d1.parameters["Ron"] = "1m"; d1.parameters["Roff"] = "1M"; d1.parameters["Vd"] = "0.7";
+    cd.components.push_back(d1);
 
-        ComponentInstance r1;
-        r1.id = "R1"; r1.label = "R1 (10 Ohm)"; r1.type = ComponentType::Resistor; r1.rawTypeStr = "R";
-        r1.x = 300; r1.y = 0;
-        r1.parameters["value"] = "10"; r1.nodes = {"node_out", "0"};
-        cd.components.push_back(r1);
+    ComponentInstance l1;
+    l1.id = "L1"; l1.label = "L1 (100uH)"; l1.type = ComponentType::Inductor; l1.rawTypeStr = "L";
+    l1.x = 480; l1.y = 140; l1.rotation = 270;
+    l1.parameters["L"] = "100u"; l1.parameters["esr"] = "50m"; l1.parameters["iL0"] = "0";
+    cd.components.push_back(l1);
 
-        ComponentInstance gnd1;
-        gnd1.id = "GND1"; gnd1.label = "GND"; gnd1.type = ComponentType::Unknown; gnd1.rawTypeStr = "GND";
-        gnd1.x = -200; gnd1.y = 120;
-        cd.components.push_back(gnd1);
+    ComponentInstance c1;
+    c1.id = "C1"; c1.label = "C1 (100uF)"; c1.type = ComponentType::Capacitor; c1.rawTypeStr = "C";
+    c1.x = 560; c1.y = 220;
+    c1.parameters["C"] = "100u"; c1.parameters["esr"] = "10m"; c1.parameters["vC0"] = "0";
+    cd.components.push_back(c1);
 
-        // Wire connections between terminals
-        WireInstance w1; w1.id = "w1";
-        w1.from = {"V1", "A"}; w1.to = {"M1", "D"};
-        cd.wires.push_back(w1);
+    ComponentInstance r1;
+    r1.id = "R1"; r1.label = "R1 (10 Ohm)"; r1.type = ComponentType::Resistor; r1.rawTypeStr = "R";
+    r1.x = 620; r1.y = 220;
+    r1.parameters["value"] = "10"; r1.parameters["esr"] = "0";
+    cd.components.push_back(r1);
 
-        WireInstance w2; w2.id = "w2";
-        w2.from = {"M1", "S"}; w2.to = {"M2", "D"};
-        cd.wires.push_back(w2);
+    ComponentInstance gnd1;
+    gnd1.id = "GND1"; gnd1.label = "GND"; gnd1.type = ComponentType::Unknown; gnd1.rawTypeStr = "GND";
+    gnd1.x = 220; gnd1.y = 280;
+    cd.components.push_back(gnd1);
 
-        WireInstance w3; w3.id = "w3";
-        w3.from = {"M1", "S"}; w3.to = {"L1", "A"};
-        cd.wires.push_back(w3);
-
-        WireInstance w4; w4.id = "w4";
-        w4.from = {"L1", "B"}; w4.to = {"R1", "A"};
-        cd.wires.push_back(w4);
-
-        WireInstance w5; w5.id = "w5";
-        w5.from = {"V1", "B"}; w5.to = {"GND1", "Gnd"};
-        cd.wires.push_back(w5);
-
-        WireInstance w6; w6.id = "w6";
-        w6.from = {"M2", "S"}; w6.to = {"GND1", "Gnd"};
-        cd.wires.push_back(w6);
-
-        WireInstance w7; w7.id = "w7";
-        w7.from = {"R1", "B"}; w7.to = {"GND1", "Gnd"};
-        cd.wires.push_back(w7);
-    }
+    // Wires
+    WireInstance w1; w1.id = "w1"; w1.from = {"PULSE_GEN_41", "Out"}; w1.to = {"MOSFET1", "G"}; cd.wires.push_back(w1);
+    WireInstance w2; w2.id = "w2"; w2.from = {"V1", "A"}; w2.to = {"MOSFET1", "D"}; cd.wires.push_back(w2);
+    WireInstance w3; w3.id = "w3"; w3.from = {"MOSFET1", "S"}; w3.to = {"D1", "B"}; cd.wires.push_back(w3);
+    WireInstance w4; w4.id = "w4"; w4.from = {"MOSFET1", "S"}; w4.to = {"L1", "A"}; cd.wires.push_back(w4);
+    WireInstance w5; w5.id = "w5"; w5.from = {"V1", "B"}; w5.to = {"GND1", "Gnd"}; cd.wires.push_back(w5);
+    WireInstance w6; w6.id = "w6"; w6.from = {"D1", "A"}; w6.to = {"GND1", "Gnd"}; cd.wires.push_back(w6);
+    WireInstance w7; w7.id = "w7"; w7.from = {"C1", "B"}; w7.to = {"GND1", "Gnd"}; cd.wires.push_back(w7);
+    WireInstance w8; w8.id = "w8"; w8.from = {"R1", "B"}; w8.to = {"GND1", "Gnd"}; cd.wires.push_back(w8);
+    WireInstance w9; w9.id = "w9"; w9.from = {"L1", "B"}; w9.to = {"C1", "A"}; cd.wires.push_back(w9);
+    WireInstance w10; w10.id = "w10"; w10.from = {"C1", "A"}; w10.to = {"R1", "A"}; cd.wires.push_back(w10);
 
     NetlistBuilder::buildNodesForCircuit(cd);
     canvas.setCircuit(cd);
