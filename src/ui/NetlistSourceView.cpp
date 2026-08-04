@@ -223,20 +223,66 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
     if (data.timeHistory.empty()) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No simulation telemetry data. Click PLAY or Start Simulation (Ctrl+T) to plot waveforms.");
     } else {
-        if (ImPlot::BeginPlot("Simulated Waveforms (MNA Solver)", ImVec2(-1, -1))) {
-            ImPlot::SetupAxes("Time (s)", "Voltage / Current (V/A)");
+        struct SignalCat {
+            std::string title;
+            std::string yLabel;
+            std::vector<std::pair<std::string, std::vector<double>>> variables;
+        };
 
-            for (const auto& pair : data.voltages) {
-                const std::string& varName = pair.first;
-                const std::vector<double>& vals = pair.second;
+        SignalCat voltageCat{"Voltage Waveforms (V)", "Voltage (V)", {}};
+        SignalCat currentCat{"Current Waveforms (I)", "Current (A)", {}};
+        SignalCat controlCat{"Control & Pulse Signals", "Signal (V / State)", {}};
+        SignalCat otherCat{"Other Signals", "Magnitude", {}};
 
-                int count = (int)std::min(data.timeHistory.size(), vals.size());
-                if (count > 0) {
-                    ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count);
-                }
+        for (const auto& pair : data.voltages) {
+            const std::string& name = pair.first;
+            const std::vector<double>& vals = pair.second;
+            if (vals.empty()) continue;
+
+            if (name.rfind("I_", 0) == 0) {
+                currentCat.variables.push_back({name, vals});
+            } else if (name.rfind("V_", 0) == 0) {
+                voltageCat.variables.push_back({name, vals});
+            } else if (name.find(".Out") != std::string::npos || name.rfind("Ctrl_", 0) == 0 || name.rfind("PULSE", 0) != std::string::npos || name.rfind("PWM", 0) != std::string::npos) {
+                controlCat.variables.push_back({name, vals});
+            } else {
+                otherCat.variables.push_back({name, vals});
             }
+        }
 
-            ImPlot::EndPlot();
+        std::vector<SignalCat> categories;
+        if (!voltageCat.variables.empty()) categories.push_back(voltageCat);
+        if (!currentCat.variables.empty()) categories.push_back(currentCat);
+        if (!controlCat.variables.empty()) categories.push_back(controlCat);
+        if (!otherCat.variables.empty()) categories.push_back(otherCat);
+
+        if (!categories.empty()) {
+            if (ImGui::Button("Fit Waveforms / Reset Zoom")) {
+                ImPlot::SetNextAxesToFit();
+            }
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "| Tip: Drag box to zoom, scroll wheel over axis to zoom, right-click to pan.");
+
+            int numPanes = (int)categories.size();
+            if (ImPlot::BeginSubplots("Waveform Subplots", numPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
+                for (int i = 0; i < numPanes; ++i) {
+                    const auto& cat = categories[i];
+                    if (ImPlot::BeginPlot(cat.title.c_str())) {
+                        ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
+
+                        for (const auto& varPair : cat.variables) {
+                            const std::string& varName = varPair.first;
+                            const std::vector<double>& vals = varPair.second;
+                            int count = (int)std::min(data.timeHistory.size(), vals.size());
+                            if (count > 0) {
+                                ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count);
+                            }
+                        }
+                        ImPlot::EndPlot();
+                    }
+                }
+                ImPlot::EndSubplots();
+            }
         }
     }
 
