@@ -1,0 +1,13 @@
+build/
+bin/
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.ilk
+imgui.ini
+.vs/
+.vscode/
+*.user
