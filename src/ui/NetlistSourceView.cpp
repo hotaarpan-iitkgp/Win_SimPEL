@@ -12,77 +12,145 @@ using json = nlohmann::json;
 
 namespace CircuitSim {
 
-void NetlistSourceView::updateFromCircuit(const CircuitDesign& design) {
+std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) {
     CircuitDesign tempDesign = design;
     NetlistBuilder::buildNodesForCircuit(tempDesign);
 
     json root;
 
-    // 1. Simulation Parameters
-    json simParamsObj;
-    simParamsObj["stop_time"] = tempDesign.settings.stopTime;
-    simParamsObj["step_size"] = tempDesign.settings.stepSize;
-    simParamsObj["solver"] = tempDesign.settings.solverType;
-    simParamsObj["step_type"] = tempDesign.settings.stepType;
-    root["simulation_parameters"] = simParamsObj;
+    json physStageObj;
+    physStageObj["resistors"] = json::array();
+    physStageObj["inductors"] = json::array();
+    physStageObj["capacitors"] = json::array();
+    physStageObj["voltage_sources"] = json::array();
+    physStageObj["current_sources"] = json::array();
+    physStageObj["switches"] = json::array();
+    physStageObj["diodes"] = json::array();
+    physStageObj["analog_switches"] = json::array();
+    physStageObj["transformers"] = json::array();
+    physStageObj["voltmeters"] = json::array();
+    physStageObj["ammeters"] = json::array();
+    physStageObj["custom_eblocks"] = json::array();
 
-    // 2. Physical Stage (Electrical Components & Resolved Nodes) and Control Loops
-    json physArr = json::array();
-    json ctrlArr = json::array();
+    json ctrlLoopsObj;
+    ctrlLoopsObj["constants"] = json::array();
+    ctrlLoopsObj["gains"] = json::array();
+    ctrlLoopsObj["pi_controllers"] = json::array();
+    ctrlLoopsObj["pid_controllers"] = json::array();
+    ctrlLoopsObj["summing_junctions"] = json::array();
+    ctrlLoopsObj["pwm_generators"] = json::array();
+    ctrlLoopsObj["triangle_carriers"] = json::array();
+    ctrlLoopsObj["comparators"] = json::array();
+    ctrlLoopsObj["logic_gates"] = json::array();
+    ctrlLoopsObj["product_blocks"] = json::array();
+    ctrlLoopsObj["custom_functions"] = json::array();
+    ctrlLoopsObj["custom_scripts"] = json::array();
+    ctrlLoopsObj["signals_routing"] = json::array();
+    ctrlLoopsObj["plls"] = json::array();
+    ctrlLoopsObj["probes"] = json::array();
+    ctrlLoopsObj["pwm_masters"] = json::array();
 
     for (const auto& comp : tempDesign.components) {
         std::string t = comp.rawTypeStr;
         std::transform(t.begin(), t.end(), t.begin(), ::toupper);
 
-        bool isElectrical = (t == "R" || t == "L" || t == "C" || t == "V" || t == "AC_V" || t == "I" || t == "S" || t == "D" || t == "MOSFET" || t == "VM" || t == "AM" || t == "GND");
-
         json cObj;
         cObj["id"] = comp.id;
-        cObj["type"] = comp.rawTypeStr.empty() ? "UNKNOWN" : comp.rawTypeStr;
-        if (!comp.label.empty()) cObj["label"] = comp.label;
+        cObj["nodes"] = comp.nodes;
 
-        json paramsObj = json::object();
         for (const auto& pair : comp.parameters) {
-            paramsObj[pair.first] = pair.second;
-        }
-        cObj["parameters"] = paramsObj;
-
-        if (isElectrical) {
-            json nodesArr = json::array();
-            for (const auto& n : comp.nodes) {
-                nodesArr.push_back(n);
+            try {
+                double val = std::stod(pair.second);
+                cObj[pair.first] = val;
+            } catch (...) {
+                cObj[pair.first] = pair.second;
             }
-            cObj["nodes"] = nodesArr;
-            physArr.push_back(cObj);
-        } else {
-            ctrlArr.push_back(cObj);
+        }
+
+        if (t == "R" || t == "RESISTOR") {
+            if (!cObj.contains("value")) cObj["value"] = 10;
+            if (!cObj.contains("esr")) cObj["esr"] = 0;
+            cObj["src_type"] = "static";
+            physStageObj["resistors"].push_back(cObj);
+        } else if (t == "L" || t == "INDUCTOR") {
+            if (!cObj.contains("L")) cObj["L"] = 0.0001;
+            if (!cObj.contains("esr")) cObj["esr"] = 0.05;
+            if (!cObj.contains("iL0")) cObj["iL0"] = 0;
+            physStageObj["inductors"].push_back(cObj);
+        } else if (t == "C" || t == "CAPACITOR") {
+            if (!cObj.contains("C")) cObj["C"] = 0.0001;
+            if (!cObj.contains("esr")) cObj["esr"] = 0.01;
+            if (!cObj.contains("vC0")) cObj["vC0"] = 0;
+            physStageObj["capacitors"].push_back(cObj);
+        } else if (t == "V" || t == "VOLTAGESOURCE") {
+            if (!cObj.contains("value")) cObj["value"] = 100;
+            cObj["src_type"] = "dc";
+            physStageObj["voltage_sources"].push_back(cObj);
+        } else if (t == "D" || t == "DIODE") {
+            cObj["type"] = "Diode";
+            if (!cObj.contains("Vd")) cObj["Vd"] = 0.7;
+            if (!cObj.contains("Ron")) cObj["Ron"] = 0.001;
+            if (!cObj.contains("Roff")) cObj["Roff"] = 1000000;
+            physStageObj["diodes"].push_back(cObj);
+        } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET") {
+            cObj["type"] = "MOSFET";
+            cObj["control_node"] = comp.id + ".G";
+
+            std::string ctrlSig = "";
+            for (const auto& w : tempDesign.wires) {
+                if (w.to.compId == comp.id && (w.to.terminal == "G" || w.to.terminal == "Ctrl")) {
+                    ctrlSig = w.from.compId + "." + w.from.terminal;
+                    break;
+                }
+            }
+            if (ctrlSig.empty()) ctrlSig = "PULSE_GEN_41.Out";
+            cObj["control_signal"] = ctrlSig;
+
+            if (!cObj.contains("Ron")) cObj["Ron"] = 0.01;
+            if (!cObj.contains("Roff")) cObj["Roff"] = 1000000;
+            if (!cObj.contains("Vd")) cObj["Vd"] = 0.8;
+            if (!cObj.contains("Iholding")) cObj["Iholding"] = 0.01;
+            if (!cObj.contains("Vgt")) cObj["Vgt"] = 0.5;
+            physStageObj["analog_switches"].push_back(cObj);
+        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "CONSTANT") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = comp.rawTypeStr;
+            if (!cObj.contains("amplitude")) cObj["amplitude"] = 1;
+            if (!cObj.contains("delay")) cObj["delay"] = 0;
+            if (!cObj.contains("period")) cObj["period"] = 0.0001;
+            if (!cObj.contains("width")) cObj["width"] = 0.5;
+            if (!cObj.contains("value")) cObj["value"] = 1;
+            ctrlLoopsObj["constants"].push_back(cObj);
         }
     }
 
-    root["physical_stage"] = physArr;
-    root["control_loops"] = ctrlArr;
+    root["physical_stage"] = physStageObj;
+    root["control_loops"] = ctrlLoopsObj;
 
-    // 3. Plot Configuration
-    json plotConfigObj = json::object();
-    json plotsArr = json::array();
-    for (const auto& p : tempDesign.plotConfig.plots) {
-        json pObj;
-        pObj["title"] = p.title;
-        json varsArr = json::array();
-        for (const auto& v : p.variables) varsArr.push_back(v);
-        pObj["variables"] = varsArr;
-        plotsArr.push_back(pObj);
-    }
-    plotConfigObj["plots"] = plotsArr;
-    root["plotConfiguration"] = plotConfigObj;
+    json simParamsObj;
+    simParamsObj["stop_time"] = tempDesign.settings.stopTime;
+    simParamsObj["step_size"] = tempDesign.settings.stepSize;
+    simParamsObj["solver"] = tempDesign.settings.solverType;
+    simParamsObj["step_type"] = tempDesign.settings.stepType;
+    simParamsObj["solverMethod"] = "non-ideal";
+    simParamsObj["engine"] = "auto";
+    simParamsObj["enable_lu_cache"] = true;
+    simParamsObj["wanted_variables"] = json::array();
+    root["simulation_parameters"] = simParamsObj;
 
-    lastGeneratedJson = root.dump(2);
+    root["probes"] = json::array();
+
+    return root.dump(2);
+}
+
+void NetlistSourceView::updateFromCircuit(const CircuitDesign& design) {
+    lastGeneratedJson = generateNetlistJson(design);
     strncpy(jsonBuffer, lastGeneratedJson.c_str(), sizeof(jsonBuffer) - 1);
     isNetlistValid = true;
     netlistStatusMsg = "Valid Netlist";
 }
 
-void NetlistSourceView::render(const char* title, CircuitDesign& design, CircuitSimulator& simulator) {
+void NetlistSourceView::render(const char* title, CircuitDesign& design, CircuitSimEngine::CircuitSimulator& simulator) {
     if (jsonBuffer[0] == '\0') {
         updateFromCircuit(design);
     }
@@ -222,7 +290,7 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
     ImGui::Spacing();
 
-    TelemetryData data = simulator.getTelemetryCopy();
+    CircuitSimEngine::TelemetryData data = simulator.getTelemetryCopy();
     if (data.timeHistory.empty()) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No simulation telemetry data. Click PLAY or Start Simulation (Ctrl+T) to plot waveforms.");
     } else {

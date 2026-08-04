@@ -15,7 +15,7 @@ private:
 public:
     OscilloscopeView() = default;
 
-    void render(const char* title, CircuitSimulator& simulator);
+    void render(const char* title, CircuitSimEngine::CircuitSimulator& simulator);
 };
 
 } // namespace CircuitSim

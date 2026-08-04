@@ -18,8 +18,9 @@ private:
 public:
     NetlistSourceView() = default;
 
+    static std::string generateNetlistJson(const CircuitDesign& design);
     void updateFromCircuit(const CircuitDesign& design);
-    void render(const char* title, CircuitDesign& design, CircuitSimulator& simulator);
+    void render(const char* title, CircuitDesign& design, CircuitSimEngine::CircuitSimulator& simulator);
 };
 
 } // namespace CircuitSim

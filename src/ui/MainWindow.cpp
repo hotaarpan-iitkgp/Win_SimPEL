@@ -7,7 +7,9 @@
 #include <fstream>
 #include <windows.h>
 #include <commdlg.h>
+#include "engine/NetlistParser.hpp"
 #include "nlohmann/json.hpp"
+#include <algorithm>
 
 using json = nlohmann::json;
 
@@ -19,8 +21,18 @@ MainWindow::MainWindow() {
 
 void MainWindow::startSimulation() {
     NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
-    simulator.loadCircuit(canvas.getCircuit());
-    simulator.runAsync();
+
+    std::string jsonNetlist = NetlistSourceView::generateNetlistJson(canvas.getCircuit());
+
+    std::vector<CircuitSimEngine::ComponentModel> physComps;
+    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
+    CircuitSimEngine::SimulationConfig simCfg;
+
+    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
+
+    simulator.setup(physComps, ctrlComps, simCfg);
+    CircuitSimEngine::SimulationOutput output = simulator.runTransient();
+    simulator.setTelemetryOutput(output);
 }
 
 void MainWindow::loadPresetTemplate(const std::string& name) {

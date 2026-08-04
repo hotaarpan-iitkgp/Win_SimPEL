@@ -11,10 +11,10 @@ struct SignalCategory {
     std::vector<std::pair<std::string, std::vector<double>>> variables;
 };
 
-void OscilloscopeView::render(const char* title, CircuitSimulator& simulator) {
+void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimulator& simulator) {
     ImGui::Begin(title);
     
-    TelemetryData data = simulator.getTelemetryCopy();
+    CircuitSimEngine::TelemetryData data = simulator.getTelemetryCopy();
     
     if (data.timeHistory.empty()) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No simulation waveform data available. Press PLAY to run simulation.");

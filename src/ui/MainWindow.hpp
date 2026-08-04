@@ -15,7 +15,7 @@ private:
     SchematicCanvas canvas;
     OscilloscopeView scopeView;
     NetlistSourceView netlistSourceView;
-    CircuitSimulator simulator;
+    CircuitSimEngine::CircuitSimulator simulator;
 
     WorkspaceMode activeWorkspace = WorkspaceMode::SchematicCAD;
 

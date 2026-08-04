@@ -1,279 +1,261 @@
 #include "ExpressionEvaluator.hpp"
+#include <sstream>
+#include <cctype>
+#include <cmath>
+#include <algorithm>
+#include <vector>
+#include <stack>
 #include <iostream>
 
-namespace CircuitSim {
+namespace CircuitSimEngine {
 
 double ExpressionEvaluator::parseScientific(const std::string& str) {
     if (str.empty()) return 0.0;
     
     std::string s = str;
     // Trim whitespace
-    size_t first = s.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) return 0.0;
-    size_t last = s.find_last_not_of(" \t\r\n");
-    s = s.substr(first, (last - first + 1));
-    
-    // Handle division expressions like "1/10000"
-    size_t slashPos = s.find('/');
-    if (slashPos != std::string::npos) {
-        std::string left = s.substr(0, slashPos);
-        std::string right = s.substr(slashPos + 1);
-        double denom = parseScientific(right);
-        if (std::abs(denom) > 1e-18) {
-            return parseScientific(left) / denom;
-        }
+    s.erase(0, s.find_first_not_of(" \t\r\n"));
+    s.erase(s.find_last_not_of(" \t\r\n") + 1);
+    if (s.empty()) return 0.0;
+
+    if (s.length() >= 2 && (s.substr(s.length() - 2) == "Hz" || s.substr(s.length() - 2) == "hz")) {
+        s.pop_back();
+        s.pop_back();
+        return parseScientific(s);
     }
 
-    // Strip trailing unit names
-    std::string cleanS;
-    for (char c : s) {
-        cleanS += (char)tolower(c);
+    // Check for metric suffixes at the end
+    double multiplier = 1.0;
+    char last = s.back();
+
+    if (last == 'k' || last == 'K') { multiplier = 1e3; s.pop_back(); }
+    else if (last == 'M') { multiplier = 1e6; s.pop_back(); }
+    else if (last == 'G' || last == 'g') { multiplier = 1e9; s.pop_back(); }
+    else if (last == 'm') { multiplier = 1e-3; s.pop_back(); }
+    else if (last == 'u' || last == 'U') { multiplier = 1e-6; s.pop_back(); }
+    else if (last == 'n' || last == 'N') { multiplier = 1e-9; s.pop_back(); }
+    else if (last == 'p' || last == 'P') { multiplier = 1e-12; s.pop_back(); }
+    else if (last == 'f' || last == 'F') { multiplier = 1e-15; s.pop_back(); }
+    else if (last == 'V' || last == 'v' || last == 'A' || last == 'a' || last == 'O' || last == 'o') {
+        s.pop_back();
+        return parseScientific(s);
     }
-    
-    // Check suffix multipliers
-    double mult = 1.0;
-    if (!s.empty()) {
-        char lastC = s.back();
-        if (lastC == 'p') { mult = 1e-12; s.pop_back(); }
-        else if (lastC == 'n') { mult = 1e-9; s.pop_back(); }
-        else if (lastC == 'u') { mult = 1e-6; s.pop_back(); }
-        else if (lastC == 'm') { mult = 1e-3; s.pop_back(); }
-        else if (lastC == 'k') { mult = 1e3; s.pop_back(); }
-        else if (lastC == 'M') { mult = 1e6; s.pop_back(); }
-        else if (lastC == 'G') { mult = 1e9; s.pop_back(); }
-    }
-    
+
     try {
-        double val = std::stod(s);
-        return val * mult;
+        size_t idx = 0;
+        double val = std::stod(s, &idx);
+        return val * multiplier;
     } catch (...) {
         return 0.0;
     }
 }
 
-class Parser {
-    std::string expr;
-    size_t pos = 0;
-    const std::unordered_map<std::string, double>& vars;
+double ExpressionEvaluator::evaluateSimpleMath(const std::string& expr, const std::unordered_map<std::string, double>& vars) {
+    return evaluate(expr, vars);
+}
 
-    void skipWhitespace() {
-        while (pos < expr.length() && isspace(expr[pos])) pos++;
-    }
+static int precedence(const std::string& op) {
+    if (op == "||") return 1;
+    if (op == "&&") return 2;
+    if (op == "==" || op == "!=") return 3;
+    if (op == "<" || op == ">" || op == "<=" || op == ">=") return 4;
+    if (op == "+" || op == "-") return 5;
+    if (op == "*" || op == "/" || op == "%") return 6;
+    if (op == "UNARY") return 7;
+    return 0;
+}
 
-    char peek() {
-        skipWhitespace();
-        return pos < expr.length() ? expr[pos] : '\0';
-    }
+static bool isOperator(const std::string& op) {
+    return (op == "+" || op == "-" || op == "*" || op == "/" || op == "%" ||
+            op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=" ||
+            op == "&&" || op == "||");
+}
 
-    char get() {
-        skipWhitespace();
-        return pos < expr.length() ? expr[pos++] : '\0';
-    }
+double ExpressionEvaluator::evaluate(const std::string& exprStr, const std::unordered_map<std::string, double>& vars) {
+    std::string s = exprStr;
+    s.erase(0, s.find_first_not_of(" \t\r\n"));
+    s.erase(s.find_last_not_of(" \t\r\n") + 1);
+    if (s.empty()) return 0.0;
 
-public:
-    Parser(const std::string& e, const std::unordered_map<std::string, double>& v) : expr(e), vars(v) {}
+    // Direct variable lookup
+    auto it = vars.find(s);
+    if (it != vars.end()) return it->second;
 
-    double parseExpression() {
-        return parseTernary();
-    }
+    // Tokenize
+    std::vector<std::string> tokens;
+    size_t i = 0;
+    while (i < s.size()) {
+        if (std::isspace(s[i])) { i++; continue; }
 
-private:
-    double parseTernary() {
-        double cond = parseLogicalOr();
-        if (peek() == '?') {
-            get(); // skip '?'
-            double trueVal = parseTernary();
-            if (peek() == ':') get(); // skip ':'
-            double falseVal = parseTernary();
-            return (cond != 0.0) ? trueVal : falseVal;
-        }
-        return cond;
-    }
-
-    double parseLogicalOr() {
-        double left = parseLogicalAnd();
-        while (pos + 1 < expr.length() && expr[pos] == '|' && expr[pos + 1] == '|') {
-            pos += 2;
-            double right = parseLogicalAnd();
-            left = (left != 0.0 || right != 0.0) ? 1.0 : 0.0;
-        }
-        return left;
-    }
-
-    double parseLogicalAnd() {
-        double left = parseRelational();
-        while (pos + 1 < expr.length() && expr[pos] == '&' && expr[pos + 1] == '&') {
-            pos += 2;
-            double right = parseRelational();
-            left = (left != 0.0 && right != 0.0) ? 1.0 : 0.0;
-        }
-        return left;
-    }
-
-    double parseRelational() {
-        double left = parseAddSub();
-        skipWhitespace();
-        if (pos + 1 < expr.length()) {
-            std::string op2 = expr.substr(pos, 2);
-            if (op2 == ">=") { pos += 2; return (left >= parseAddSub()) ? 1.0 : 0.0; }
-            if (op2 == "<=") { pos += 2; return (left <= parseAddSub()) ? 1.0 : 0.0; }
-            if (op2 == "==") { pos += 2; return (left == parseAddSub()) ? 1.0 : 0.0; }
-            if (op2 == "!=") { pos += 2; return (left != parseAddSub()) ? 1.0 : 0.0; }
-        }
-        if (peek() == '>') { get(); return (left > parseAddSub()) ? 1.0 : 0.0; }
-        if (peek() == '<') { get(); return (left < parseAddSub()) ? 1.0 : 0.0; }
-        return left;
-    }
-
-    double parseAddSub() {
-        double left = parseMulDiv();
-        while (true) {
-            char c = peek();
-            if (c == '+') { get(); left += parseMulDiv(); }
-            else if (c == '-') { get(); left -= parseMulDiv(); }
-            else break;
-        }
-        return left;
-    }
-
-    double parseMulDiv() {
-        double left = parsePrimary();
-        while (true) {
-            char c = peek();
-            if (c == '*') { get(); left *= parsePrimary(); }
-            else if (c == '/') {
-                get();
-                double right = parsePrimary();
-                left = (right != 0.0) ? (left / right) : 0.0;
-            }
-            else break;
-        }
-        return left;
-    }
-
-    double parsePrimary() {
-        char c = peek();
-        if (c == '-') { get(); return -parsePrimary(); }
-        if (c == '+') { get(); return parsePrimary(); }
-        if (c == '!') { get(); return (parsePrimary() == 0.0) ? 1.0 : 0.0; }
-        if (c == '(') {
-            get();
-            double val = parseExpression();
-            if (peek() == ')') get();
-            return val;
-        }
-
-        if (isdigit(c) || c == '.') {
-            std::string numStr;
-            while (pos < expr.length() && (isdigit(expr[pos]) || expr[pos] == '.' || expr[pos] == 'e' || expr[pos] == 'E')) {
-                numStr += get();
-            }
-            try { return std::stod(numStr); } catch (...) { return 0.0; }
-        }
-
-        if (isalpha(c) || c == '_') {
-            std::string name;
-            while (pos < expr.length() && (isalnum(expr[pos]) || expr[pos] == '_' || expr[pos] == '[' || expr[pos] == ']')) {
-                name += get();
-            }
-
-            // Function calls
-            if (peek() == '(') {
-                get(); // skip '('
-                double arg1 = parseExpression();
-                double arg2 = 0.0;
-                if (peek() == ',') {
-                    get();
-                    arg2 = parseExpression();
+        if (s[i] == '+' || s[i] == '-' || s[i] == '*' || s[i] == '/' || s[i] == '%' || s[i] == '(' || s[i] == ')') {
+            // Check for 2-char comparison operators
+            if (i + 1 < s.size()) {
+                std::string sub2 = s.substr(i, 2);
+                if (sub2 == "==" || sub2 == "!=" || sub2 == "<=" || sub2 == ">=" || sub2 == "&&" || sub2 == "||") {
+                    tokens.push_back(sub2);
+                    i += 2;
+                    continue;
                 }
-                if (peek() == ')') get();
-
-                if (name == "sin") return std::sin(arg1);
-                if (name == "cos") return std::cos(arg1);
-                if (name == "tan") return std::tan(arg1);
-                if (name == "asin") return std::asin(arg1);
-                if (name == "acos") return std::acos(arg1);
-                if (name == "atan") return std::atan(arg1);
-                if (name == "abs" || name == "fabs") return std::fabs(arg1);
-                if (name == "sqrt") return std::sqrt(arg1);
-                if (name == "exp") return std::exp(arg1);
-                if (name == "log") return std::log(arg1);
-                if (name == "min") return std::min(arg1, arg2);
-                if (name == "max") return std::max(arg1, arg2);
             }
-
-            if (name == "PI" || name == "pi") return 3.14159265358979323846;
-
-            auto it = vars.find(name);
-            if (it != vars.end()) return it->second;
-            return 0.0;
+            tokens.push_back(std::string(1, s[i]));
+            i++;
+        } else if (s[i] == '<' || s[i] == '>' || s[i] == '!') {
+            if (i + 1 < s.size() && s[i + 1] == '=') {
+                tokens.push_back(s.substr(i, 2));
+                i += 2;
+            } else {
+                tokens.push_back(std::string(1, s[i]));
+                i++;
+            }
+        } else if (s[i] == '&' && i + 1 < s.size() && s[i + 1] == '&') {
+            tokens.push_back("&&");
+            i += 2;
+        } else if (s[i] == '|' && i + 1 < s.size() && s[i + 1] == '|') {
+            tokens.push_back("||");
+            i += 2;
+        } else {
+            // Identifier, variable, function, array indexing inputs[0], or numeric literal
+            size_t start = i;
+            int bracketDepth = 0;
+            while (i < s.size()) {
+                if (s[i] == '[') bracketDepth++;
+                else if (s[i] == ']') bracketDepth--;
+                else if (bracketDepth == 0 && (std::isspace(s[i]) || s[i] == '+' || s[i] == '-' || s[i] == '*' || s[i] == '/' || s[i] == '%' || s[i] == '(' || s[i] == ')' || s[i] == '<' || s[i] == '>' || s[i] == '=' || s[i] == '!' || s[i] == '&' || s[i] == '|' || s[i] == '?')) {
+                    break;
+                }
+                i++;
+            }
+            tokens.push_back(s.substr(start, i - start));
         }
+    }
 
+    // Shunting-Yard algorithm to evaluate infix tokens
+    std::stack<double> valStack;
+    std::stack<std::string> opStack;
+
+    auto applyOp = [](const std::string& op, double a, double b = 0.0) -> double {
+        if (op == "UNARY-") return -a;
+        if (op == "UNARY+") return +a;
+        if (op == "+") return a + b;
+        if (op == "-") return a - b;
+        if (op == "*") return a * b;
+        if (op == "/") return (std::abs(b) > 1e-15) ? (a / b) : 0.0;
+        if (op == "%") return (b != 0) ? std::fmod(a, b) : 0.0;
+        if (op == "<") return (a < b) ? 1.0 : 0.0;
+        if (op == ">") return (a > b) ? 1.0 : 0.0;
+        if (op == "<=") return (a <= b) ? 1.0 : 0.0;
+        if (op == ">=") return (a >= b) ? 1.0 : 0.0;
+        if (op == "==") return (std::abs(a - b) < 1e-9) ? 1.0 : 0.0;
+        if (op == "!=") return (std::abs(a - b) >= 1e-9) ? 1.0 : 0.0;
+        if (op == "&&") return (a != 0.0 && b != 0.0) ? 1.0 : 0.0;
+        if (op == "||") return (a != 0.0 || b != 0.0) ? 1.0 : 0.0;
         return 0.0;
-    }
-};
+    };
 
-double ExpressionEvaluator::evaluate(const std::string& expr, const std::unordered_map<std::string, double>& variables) {
-    if (expr.empty()) return 0.0;
-    Parser p(expr, variables);
-    return p.parseExpression();
-}
+    bool expectUnary = true;
 
-void ScriptBlockEngine::setScript(const std::string& code) {
-    scriptCode = code;
-}
+    for (size_t k = 0; k < tokens.size(); ++k) {
+        std::string tok = tokens[k];
 
-void ScriptBlockEngine::executeStep(double time, double dt, const std::vector<double>& inVals) {
-    inputs = inVals;
-    if (outputs.size() < 10) outputs.resize(10, 0.0);
-    
-    std::unordered_map<std::string, double> vars = stateVars;
-    vars["time"] = time;
-    vars["dt"] = dt;
-    vars["PI"] = 3.14159265358979323846;
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        vars["inputs[" + std::to_string(i) + "]"] = inputs[i];
-        vars["In" + std::to_string(i + 1)] = inputs[i];
-    }
-    for (size_t i = 0; i < outputs.size(); ++i) {
-        vars["outputs[" + std::to_string(i) + "]"] = outputs[i];
-        vars["Out" + std::to_string(i + 1)] = outputs[i];
-    }
+        if (tok == "(") {
+            opStack.push(tok);
+            expectUnary = true;
+        } else if (tok == ")") {
+            while (!opStack.empty() && opStack.top() != "(") {
+                std::string op = opStack.top();
+                opStack.pop();
 
-    std::stringstream ss(scriptCode);
-    std::string line;
-    while (std::getline(ss, line)) {
-        size_t commentIdx = line.find("//");
-        if (commentIdx != std::string::npos) line = line.substr(0, commentIdx);
-        
-        size_t eqIdx = line.find("=");
-        if (eqIdx != std::string::npos) {
-            std::string lhs = line.substr(0, eqIdx);
-            std::string rhs = line.substr(eqIdx + 1);
-            
-            // Cleanup lhs
-            size_t sc = rhs.find(";");
-            if (sc != std::string::npos) rhs = rhs.substr(0, sc);
-            
-            std::stringstream lhsSS(lhs);
-            std::string token, varName;
-            while (lhsSS >> token) {
-                if (token != "double" && token != "const" && token != "float" && token != "int") {
-                    varName = token;
+                if (op == "UNARY-" || op == "UNARY+") {
+                    if (!valStack.empty()) {
+                        double v = valStack.top(); valStack.pop();
+                        valStack.push(applyOp(op, v));
+                    }
+                } else if (op == "sin" || op == "cos" || op == "abs" || op == "sqrt") {
+                    if (!valStack.empty()) {
+                        double v = valStack.top(); valStack.pop();
+                        if (op == "sin") valStack.push(std::sin(v));
+                        else if (op == "cos") valStack.push(std::cos(v));
+                        else if (op == "abs") valStack.push(std::fabs(v));
+                        else if (op == "sqrt") valStack.push(std::sqrt(v));
+                    }
+                } else {
+                    if (valStack.size() >= 2) {
+                        double b = valStack.top(); valStack.pop();
+                        double a = valStack.top(); valStack.pop();
+                        valStack.push(applyOp(op, a, b));
+                    }
                 }
             }
-            if (!varName.empty()) {
-                double val = ExpressionEvaluator::evaluate(rhs, vars);
-                vars[varName] = val;
-                if (varName.rfind("outputs[", 0) == 0) {
-                    int idx = std::stoi(varName.substr(8, varName.find("]") - 8));
-                    if (idx >= 0 && idx < (int)outputs.size()) outputs[idx] = val;
-                } else {
-                    stateVars[varName] = val;
+            if (!opStack.empty() && opStack.top() == "(") opStack.pop();
+            expectUnary = false;
+        } else if (tok == "sin" || tok == "cos" || tok == "abs" || tok == "sqrt") {
+            opStack.push(tok);
+            expectUnary = true;
+        } else if (isOperator(tok)) {
+            if (expectUnary && (tok == "-" || tok == "+")) {
+                tok = (tok == "-") ? "UNARY-" : "UNARY+";
+            } else {
+                while (!opStack.empty() && precedence(opStack.top()) >= precedence(tok)) {
+                    std::string op = opStack.top();
+                    opStack.pop();
+
+                    if (op == "UNARY-" || op == "UNARY+") {
+                        if (!valStack.empty()) {
+                            double v = valStack.top(); valStack.pop();
+                            valStack.push(applyOp(op, v));
+                        }
+                    } else if (valStack.size() >= 2) {
+                        double b = valStack.top(); valStack.pop();
+                        double a = valStack.top(); valStack.pop();
+                        valStack.push(applyOp(op, a, b));
+                    }
                 }
+            }
+            opStack.push(tok);
+            expectUnary = true;
+        } else {
+            // Literal or Variable
+            double val = 0.0;
+            auto vIt = vars.find(tok);
+            if (vIt != vars.end()) {
+                val = vIt->second;
+            } else {
+                val = parseScientific(tok);
+            }
+            valStack.push(val);
+            expectUnary = false;
+        }
+    }
+
+    while (!opStack.empty()) {
+        std::string op = opStack.top();
+        opStack.pop();
+
+        if (op == "(" || op == ")") continue;
+
+        if (op == "UNARY-" || op == "UNARY+") {
+            if (!valStack.empty()) {
+                double v = valStack.top(); valStack.pop();
+                valStack.push(applyOp(op, v));
+            }
+        } else if (op == "sin" || op == "cos" || op == "abs" || op == "sqrt") {
+            if (!valStack.empty()) {
+                double v = valStack.top(); valStack.pop();
+                if (op == "sin") valStack.push(std::sin(v));
+                else if (op == "cos") valStack.push(std::cos(v));
+                else if (op == "abs") valStack.push(std::fabs(v));
+                else if (op == "sqrt") valStack.push(std::sqrt(v));
+            }
+        } else {
+            if (valStack.size() >= 2) {
+                double b = valStack.top(); valStack.pop();
+                double a = valStack.top(); valStack.pop();
+                valStack.push(applyOp(op, a, b));
             }
         }
     }
+
+    return !valStack.empty() ? valStack.top() : 0.0;
 }
 
-} // namespace CircuitSim
+} // namespace CircuitSimEngine

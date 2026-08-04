@@ -17,6 +17,8 @@ include_directories(
 set(SOURCES
     src/main.cpp
     src/engine/CircuitSimulator.cpp
+    src/engine/NetlistParser.cpp
+    src/engine/CScriptEngine.cpp
     src/engine/ExpressionEvaluator.cpp
     src/engine/NetlistBuilder.cpp
     src/ui/ConfiguratorDialog.cpp
