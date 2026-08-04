@@ -122,9 +122,12 @@ void CircuitSimulator::buildMNAMatrix() {
         int n1 = (comp.nodes.size() > 0 && nodeToIdx.count(comp.nodes[0])) ? nodeToIdx[comp.nodes[0]] - 1 : -1;
         int n2 = (comp.nodes.size() > 1 && nodeToIdx.count(comp.nodes[1])) ? nodeToIdx[comp.nodes[1]] - 1 : -1;
 
-        if (comp.type == ComponentType::Resistor) {
+        std::string tName = comp.rawTypeStr;
+        std::transform(tName.begin(), tName.end(), tName.begin(), ::toupper);
+
+        if (comp.type == ComponentType::Resistor || tName == "R") {
             auto it = comp.parameters.find("value");
-            double rVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 1000.0;
+            double rVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 10.0;
             if (rVal < 1e-6) rVal = 1e-6;
             double g = 1.0 / rVal;
             
@@ -134,10 +137,10 @@ void CircuitSimulator::buildMNAMatrix() {
                 K[n1 * totalDim + n2] -= g;
                 K[n2 * totalDim + n1] -= g;
             }
-        } else if (comp.type == ComponentType::Capacitor) {
+        } else if (comp.type == ComponentType::Capacitor || tName == "C") {
             auto it = comp.parameters.find("C");
             double cVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 1e-6;
-            double gEq = cVal / h; // Companion model resistor
+            double gEq = cVal / h;
             
             if (n1 >= 0) K[n1 * totalDim + n1] += gEq;
             if (n2 >= 0) K[n2 * totalDim + n2] += gEq;
@@ -145,37 +148,108 @@ void CircuitSimulator::buildMNAMatrix() {
                 K[n1 * totalDim + n2] -= gEq;
                 K[n2 * totalDim + n1] -= gEq;
             }
-        } else if (comp.type == ComponentType::VoltageSource) {
+        } else if (comp.type == ComponentType::Inductor || tName == "L") {
+            auto it = comp.parameters.find("L");
+            double lVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 1e-4;
+            if (lVal < 1e-9) lVal = 1e-9;
+            if (inductorToIdx.count(comp.id)) {
+                int lIdx = numNodes + numVoltageSources + inductorToIdx[comp.id];
+                if (n1 >= 0) {
+                    K[n1 * totalDim + lIdx] += 1.0;
+                    K[lIdx * totalDim + n1] += 1.0;
+                }
+                if (n2 >= 0) {
+                    K[n2 * totalDim + lIdx] -= 1.0;
+                    K[lIdx * totalDim + n2] -= 1.0;
+                }
+                K[lIdx * totalDim + lIdx] -= (lVal / h);
+            }
+        } else if (comp.type == ComponentType::MOSFET || tName == "MOSFET" || comp.type == ComponentType::Switch || tName == "S") {
+            auto itRon = comp.parameters.find("Ron");
+            auto itRoff = comp.parameters.find("Roff");
+            double rOn = (itRon != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRon->second) : 0.01;
+            double rOff = (itRoff != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRoff->second) : 1e6;
+            if (rOn < 1e-6) rOn = 1e-6;
+            if (rOff < 1e2) rOff = 1e2;
+
+            // Determine if Gate/Ctrl signal is ON
+            double ctrlVal = 0.0;
+            if (telemetry.voltages.count(comp.id + ".G") && !telemetry.voltages[comp.id + ".G"].empty()) {
+                ctrlVal = telemetry.voltages[comp.id + ".G"].back();
+            } else if (telemetry.voltages.count("PULSE_GEN_41.Out") && !telemetry.voltages["PULSE_GEN_41.Out"].empty()) {
+                ctrlVal = telemetry.voltages["PULSE_GEN_41.Out"].back();
+            } else {
+                for (const auto& pair : telemetry.voltages) {
+                    if (pair.first.find(".Out") != std::string::npos && !pair.second.empty()) {
+                        ctrlVal = pair.second.back();
+                        break;
+                    }
+                }
+            }
+
+            double g = (ctrlVal > 0.5) ? (1.0 / rOn) : (1.0 / rOff);
+
+            if (n1 >= 0) K[n1 * totalDim + n1] += g;
+            if (n2 >= 0) K[n2 * totalDim + n2] += g;
+            if (n1 >= 0 && n2 >= 0) {
+                K[n1 * totalDim + n2] -= g;
+                K[n2 * totalDim + n1] -= g;
+            }
+        } else if (comp.type == ComponentType::Diode || tName == "D") {
+            auto itRon = comp.parameters.find("Ron");
+            auto itRoff = comp.parameters.find("Roff");
+            double rOn = (itRon != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRon->second) : 0.001;
+            double rOff = (itRoff != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRoff->second) : 1e6;
+            if (rOn < 1e-6) rOn = 1e-6;
+            if (rOff < 1e2) rOff = 1e2;
+
+            double v1 = (n1 >= 0 && n1 < (int)X.size()) ? X[n1] : 0.0;
+            double v2 = (n2 >= 0 && n2 < (int)X.size()) ? X[n2] : 0.0;
+            double vDiode = v1 - v2;
+
+            double g = (vDiode > 0.7) ? (1.0 / rOn) : (1.0 / rOff);
+
+            if (n1 >= 0) K[n1 * totalDim + n1] += g;
+            if (n2 >= 0) K[n2 * totalDim + n2] += g;
+            if (n1 >= 0 && n2 >= 0) {
+                K[n1 * totalDim + n2] -= g;
+                K[n2 * totalDim + n1] -= g;
+            }
+        } else if (comp.type == ComponentType::VoltageSource || tName == "V") {
             auto it = comp.parameters.find("value");
-            double vVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 12.0;
-            int vIdx = numNodes + vSourceToIdx[comp.id];
-            
-            if (n1 >= 0) {
-                K[n1 * totalDim + vIdx] += 1.0;
-                K[vIdx * totalDim + n1] += 1.0;
+            double vVal = (it != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(it->second) : 100.0;
+            if (vSourceToIdx.count(comp.id)) {
+                int vIdx = numNodes + vSourceToIdx[comp.id];
+                
+                if (n1 >= 0) {
+                    K[n1 * totalDim + vIdx] += 1.0;
+                    K[vIdx * totalDim + n1] += 1.0;
+                }
+                if (n2 >= 0) {
+                    K[n2 * totalDim + vIdx] -= 1.0;
+                    K[vIdx * totalDim + n2] -= 1.0;
+                }
+                B[vIdx] = vVal;
             }
-            if (n2 >= 0) {
-                K[n2 * totalDim + vIdx] -= 1.0;
-                K[vIdx * totalDim + n2] -= 1.0;
-            }
-            B[vIdx] = vVal;
-        } else if (comp.type == ComponentType::ACVoltageSource) {
+        } else if (comp.type == ComponentType::ACVoltageSource || tName == "AC_V") {
             auto itV = comp.parameters.find("value");
             auto itF = comp.parameters.find("freq");
             double amplitude = (itV != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itV->second) : 24.0;
             double freq = (itF != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itF->second) : 50.0;
             double vVal = amplitude * std::sin(2.0 * 3.141592653589793 * freq * currentTime);
-            int vIdx = numNodes + vSourceToIdx[comp.id];
-            
-            if (n1 >= 0) {
-                K[n1 * totalDim + vIdx] += 1.0;
-                K[vIdx * totalDim + n1] += 1.0;
+            if (vSourceToIdx.count(comp.id)) {
+                int vIdx = numNodes + vSourceToIdx[comp.id];
+                
+                if (n1 >= 0) {
+                    K[n1 * totalDim + vIdx] += 1.0;
+                    K[vIdx * totalDim + n1] += 1.0;
+                }
+                if (n2 >= 0) {
+                    K[n2 * totalDim + vIdx] -= 1.0;
+                    K[vIdx * totalDim + n2] -= 1.0;
+                }
+                B[vIdx] = vVal;
             }
-            if (n2 >= 0) {
-                K[n2 * totalDim + vIdx] -= 1.0;
-                K[vIdx * totalDim + n2] -= 1.0;
-            }
-            B[vIdx] = vVal;
         }
     }
 }

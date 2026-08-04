@@ -39,23 +39,52 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
         }
     }
 
-    // Unite pins connected by wires
+    std::unordered_map<std::string, WireInstance> wireMap;
+    for (const auto& w : design.wires) {
+        wireMap[w.id] = w;
+    }
+
+    // Unite pins connected by wires and wire junctions
     for (const auto& wire : design.wires) {
         std::string pin1 = wire.from.compId + ":" + wire.from.terminal;
         if (!wire.to.isWireJunction) {
             std::string pin2 = wire.to.compId + ":" + wire.to.terminal;
             dsu.unite(pin1, pin2);
+        } else {
+            if (wireMap.count(wire.to.targetWireId)) {
+                const auto& targetW = wireMap[wire.to.targetWireId];
+                std::string targetPin = targetW.from.compId + ":" + targetW.from.terminal;
+                dsu.unite(pin1, targetPin);
+            }
         }
     }
 
-    // Identify Ground nodes (components of type GND / Ground)
+    // Identify Ground nodes (components of type GND / Ground or fallback to V1 negative terminal)
     std::string groundRoot = "";
     for (const auto& comp : design.components) {
         std::string t = comp.rawTypeStr;
         std::transform(t.begin(), t.end(), t.begin(), ::toupper);
         if (t == "GND" || t == "GROUND") {
-            groundRoot = dsu.find(comp.id + ":p");
+            groundRoot = dsu.find(comp.id + ":Gnd");
+            if (groundRoot.empty() || groundRoot == comp.id + ":Gnd") {
+                groundRoot = dsu.find(comp.id + ":p");
+            }
             break;
+        }
+    }
+
+    if (groundRoot.empty()) {
+        // Fallback: Default Ground to negative pin ("B" / "n") of first Voltage Source
+        for (const auto& comp : design.components) {
+            std::string t = comp.rawTypeStr;
+            std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+            if (t == "V" || t == "AC_V" || comp.type == ComponentType::VoltageSource) {
+                std::string pinB = dsu.find(comp.id + ":B");
+                if (!pinB.empty()) {
+                    groundRoot = pinB;
+                    break;
+                }
+            }
         }
     }
 
