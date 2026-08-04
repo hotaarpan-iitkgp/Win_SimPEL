@@ -250,11 +250,34 @@ void MainWindow::renderMenuBar() {
             if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(ImGui::GetIO().DisplaySize); }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Simulation")) {
+            if (ImGui::MenuItem("Start", "Ctrl+T")) {
+                simulator.runAsync();
+            }
+            if (ImGui::MenuItem("Pause", "Space")) {
+                simulator.pause();
+            }
+            if (ImGui::MenuItem("Simulation parameters...", "Ctrl+E")) {
+                showSimParamsModal = true;
+            }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Templates")) {
             if (ImGui::MenuItem("Single-Phase Inverter Hysteresis")) { loadPresetTemplate("1ph_inverter_hysteresis"); }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
+    }
+
+    // Global Hotkeys for Simulation Menu
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantCaptureKeyboard) {
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_T)) {
+            simulator.runAsync();
+        }
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_E)) {
+            showSimParamsModal = true;
+        }
     }
 }
 
@@ -495,11 +518,48 @@ void MainWindow::renderPropertyInspector() {
     ImGui::End();
 }
 
+void MainWindow::renderSimParamsModal() {
+    if (showSimParamsModal) {
+        ImGui::OpenPopup("Simulation Parameters Modal");
+        if (ImGui::BeginPopupModal("Simulation Parameters Modal", &showSimParamsModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Solver & Simulation Configuration");
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            ImGui::InputText("Stop Time (s)", simStopTimeBuf, sizeof(simStopTimeBuf));
+            ImGui::InputText("Step Size (s)", simStepSizeBuf, sizeof(simStepSizeBuf));
+            
+            const char* solverItems[] = { "Euler (Fixed Step)", "Trapezoidal (Gear/BE)", "Runge-Kutta 4th Order (RK4)" };
+            ImGui::Combo("Solver Method", &simSolverIdx, solverItems, IM_ARRAYSIZE(solverItems));
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImGui::Button("OK", ImVec2(120, 30))) {
+                auto& cd = canvas.getCircuitRef();
+                try { cd.settings.stopTime = std::stod(simStopTimeBuf); } catch (...) {}
+                cd.settings.solverType = (simSolverIdx == 0) ? "euler" : ((simSolverIdx == 1) ? "trapezoidal" : "rk4");
+                
+                showSimParamsModal = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 30))) {
+                showSimParamsModal = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+}
+
 void MainWindow::render() {
     renderMenuBar();
     renderControlBar();
     renderComponentPalette();
     renderPropertyInspector();
+    renderSimParamsModal();
     
     canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
     scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
