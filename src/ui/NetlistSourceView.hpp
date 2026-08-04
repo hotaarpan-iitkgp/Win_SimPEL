@@ -13,6 +13,7 @@ private:
     bool isNetlistValid = true;
     std::string netlistStatusMsg = "Valid Netlist";
     std::string lastGeneratedJson = "";
+    int numPanes = 1;
 
 public:
     NetlistSourceView() = default;

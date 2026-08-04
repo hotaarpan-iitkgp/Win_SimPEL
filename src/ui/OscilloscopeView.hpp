@@ -9,6 +9,9 @@
 namespace CircuitSim {
 
 class OscilloscopeView {
+private:
+    int numPanes = 1;
+
 public:
     OscilloscopeView() = default;
 
