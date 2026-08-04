@@ -120,12 +120,14 @@ public:
     void addComponent(const ComponentInstance& comp);
     void render(const char* title, ImVec2 size);
 
+    mutable ImVec2 lastRenderedCanvasSize{800.0f, 600.0f};
+
     void copySelected();
     void pasteSelected();
     void duplicateSelected();
     void flipHorizontal();
     void flipVertical();
-    void fitToScreen(ImVec2 canvasSize);
+    void fitToScreen(ImVec2 canvasSize = ImVec2(0.0f, 0.0f));
     
     void undo();
     void redo();

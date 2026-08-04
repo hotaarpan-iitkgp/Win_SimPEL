@@ -247,7 +247,7 @@ void MainWindow::renderMenuBar() {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("View")) {
-            if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(ImGui::GetIO().DisplaySize); }
+            if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(); }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Simulation")) {
@@ -299,7 +299,7 @@ void MainWindow::renderControlBar() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.45f, 0.80f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
     if (ImGui::Button("FIT SCHEMATIC (F)", ImVec2(145, 30))) {
-        canvas.fitToScreen(ImGui::GetIO().DisplaySize);
+        canvas.fitToScreen();
     }
     ImGui::PopStyleColor(2);
 
