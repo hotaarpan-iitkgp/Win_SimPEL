@@ -204,6 +204,59 @@ void CircuitSimulator::step() {
         double v = (idx >= 0 && idx < totalDim) ? X[idx] : 0.0;
         telemetry.voltages[pair.first].push_back(v);
     }
+
+    // Evaluate Control & Signal Generator Components (PULSE_GEN, PWM, CONST, etc.)
+    for (const auto& comp : design.components) {
+        std::string tName = comp.rawTypeStr;
+        std::transform(tName.begin(), tName.end(), tName.begin(), ::toupper);
+
+        if (tName == "PULSE" || tName == "PULSE_GEN" || comp.type == ComponentType::PulseGenerator) {
+            auto itAmp = comp.parameters.find("amplitude");
+            auto itPer = comp.parameters.find("period");
+            auto itWid = comp.parameters.find("width");
+            auto itDel = comp.parameters.find("delay");
+
+            double amp = (itAmp != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itAmp->second) : 1.0;
+            double period = (itPer != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itPer->second) : 0.001;
+            double width = (itWid != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itWid->second) : 0.5;
+            double delay = (itDel != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itDel->second) : 0.0;
+
+            if (period <= 1e-12) period = 0.001;
+
+            double tRel = t - delay;
+            double outVal = 0.0;
+            if (tRel >= 0.0) {
+                double phase = std::fmod(tRel, period);
+                if (phase < period * width) {
+                    outVal = amp;
+                }
+            }
+
+            telemetry.voltages[comp.id + ".Out"].push_back(outVal);
+            telemetry.voltages["V_" + comp.id].push_back(outVal);
+            telemetry.voltages[comp.id].push_back(outVal);
+        } else if (tName == "PWM" || comp.type == ComponentType::PWM_Generator) {
+            auto itFreq = comp.parameters.find("freq");
+            double freq = (itFreq != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itFreq->second) : 10000.0;
+            double period = (freq > 0.0) ? (1.0 / freq) : 0.0001;
+            double phase = std::fmod(t, period);
+            double triWave = (phase < period * 0.5) ? (4.0 * phase / period - 1.0) : (3.0 - 4.0 * phase / period);
+            double duty = 0.5;
+            double outVal = (duty > triWave) ? 1.0 : 0.0;
+
+            telemetry.voltages[comp.id + ".Out"].push_back(outVal);
+            telemetry.voltages["V_" + comp.id].push_back(outVal);
+            telemetry.voltages[comp.id].push_back(outVal);
+        } else if (tName == "CONST" || comp.type == ComponentType::Constant) {
+            auto itV = comp.parameters.find("k");
+            if (itV == comp.parameters.end()) itV = comp.parameters.find("value");
+            double val = (itV != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itV->second) : 1.0;
+
+            telemetry.voltages[comp.id + ".Out"].push_back(val);
+            telemetry.voltages["V_" + comp.id].push_back(val);
+            telemetry.voltages[comp.id].push_back(val);
+        }
+    }
     
     // Limit buffer length for smooth UI rendering
     if (telemetry.timeHistory.size() > 50000) {

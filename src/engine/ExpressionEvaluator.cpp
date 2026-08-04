@@ -13,6 +13,17 @@ double ExpressionEvaluator::parseScientific(const std::string& str) {
     size_t last = s.find_last_not_of(" \t\r\n");
     s = s.substr(first, (last - first + 1));
     
+    // Handle division expressions like "1/10000"
+    size_t slashPos = s.find('/');
+    if (slashPos != std::string::npos) {
+        std::string left = s.substr(0, slashPos);
+        std::string right = s.substr(slashPos + 1);
+        double denom = parseScientific(right);
+        if (std::abs(denom) > 1e-18) {
+            return parseScientific(left) / denom;
+        }
+    }
+
     // Strip trailing unit names
     std::string cleanS;
     for (char c : s) {
@@ -21,14 +32,16 @@ double ExpressionEvaluator::parseScientific(const std::string& str) {
     
     // Check suffix multipliers
     double mult = 1.0;
-    char lastC = s.back();
-    if (lastC == 'p') { mult = 1e-12; s.pop_back(); }
-    else if (lastC == 'n') { mult = 1e-9; s.pop_back(); }
-    else if (lastC == 'u') { mult = 1e-6; s.pop_back(); }
-    else if (lastC == 'm') { mult = 1e-3; s.pop_back(); }
-    else if (lastC == 'k') { mult = 1e3; s.pop_back(); }
-    else if (lastC == 'M') { mult = 1e6; s.pop_back(); }
-    else if (lastC == 'G') { mult = 1e9; s.pop_back(); }
+    if (!s.empty()) {
+        char lastC = s.back();
+        if (lastC == 'p') { mult = 1e-12; s.pop_back(); }
+        else if (lastC == 'n') { mult = 1e-9; s.pop_back(); }
+        else if (lastC == 'u') { mult = 1e-6; s.pop_back(); }
+        else if (lastC == 'm') { mult = 1e-3; s.pop_back(); }
+        else if (lastC == 'k') { mult = 1e3; s.pop_back(); }
+        else if (lastC == 'M') { mult = 1e6; s.pop_back(); }
+        else if (lastC == 'G') { mult = 1e9; s.pop_back(); }
+    }
     
     try {
         double val = std::stod(s);

@@ -84,6 +84,10 @@ void NetlistSourceView::updateFromCircuit(const CircuitDesign& design) {
 }
 
 void NetlistSourceView::render(const char* title, CircuitDesign& design, CircuitSimulator& simulator) {
+    if (jsonBuffer[0] == '\0') {
+        updateFromCircuit(design);
+    }
+
     ImGui::Begin(title);
 
     float availWidth = ImGui::GetContentRegionAvail().x;
@@ -112,6 +116,53 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             json root = json::parse(jsonBuffer);
             isNetlistValid = true;
             netlistStatusMsg = "Valid Netlist";
+
+            if (root.contains("components") && root["components"].is_array()) {
+                design.components.clear();
+                for (const auto& item : root["components"]) {
+                    ComponentInstance comp;
+                    if (item.contains("id")) comp.id = item["id"].get<std::string>();
+                    if (item.contains("type")) comp.rawTypeStr = item["type"].get<std::string>();
+                    if (item.contains("label")) comp.label = item["label"].get<std::string>();
+                    if (item.contains("x")) comp.x = item["x"].get<float>();
+                    if (item.contains("y")) comp.y = item["y"].get<float>();
+                    if (item.contains("rotation")) comp.rotation = item["rotation"].get<int>();
+
+                    if (item.contains("parameters") && item["parameters"].is_object()) {
+                        for (auto& [pK, pV] : item["parameters"].items()) {
+                            if (pV.is_string()) comp.parameters[pK] = pV.get<std::string>();
+                            else if (pV.is_number()) comp.parameters[pK] = std::to_string(pV.get<double>());
+                        }
+                    }
+                    design.components.push_back(comp);
+                }
+            }
+
+            if (root.contains("wires") && root["wires"].is_array()) {
+                design.wires.clear();
+                for (const auto& wItem : root["wires"]) {
+                    WireInstance wire;
+                    if (wItem.contains("id")) wire.id = wItem["id"].get<std::string>();
+                    if (wItem.contains("from") && wItem["from"].is_object()) {
+                        wire.from.compId = wItem["from"].value("compId", "");
+                        wire.from.terminal = wItem["from"].value("terminal", "");
+                    }
+                    if (wItem.contains("to") && wItem["to"].is_object()) {
+                        std::string toType = wItem["to"].value("type", "pin");
+                        if (toType == "wire") {
+                            wire.to.isWireJunction = true;
+                            wire.to.targetWireId = wItem["to"].value("wireId", "");
+                            wire.to.junctionX = wItem["to"].value("x", 0.0f);
+                            wire.to.junctionY = wItem["to"].value("y", 0.0f);
+                        } else {
+                            wire.to.isWireJunction = false;
+                            wire.to.compId = wItem["to"].value("compId", "");
+                            wire.to.terminal = wItem["to"].value("terminal", "");
+                        }
+                    }
+                    design.wires.push_back(wire);
+                }
+            }
         } catch (const std::exception& e) {
             isNetlistValid = false;
             netlistStatusMsg = std::string("JSON Syntax Error: ") + e.what();
