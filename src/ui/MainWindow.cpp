@@ -331,6 +331,7 @@ void MainWindow::renderComponentPalette() {
         ComponentInstance comp;
         comp.id = "D_" + std::to_string(rand() % 1000);
         comp.label = "Diode"; comp.type = ComponentType::Diode; comp.rawTypeStr = "D";
+        comp.parameters["Vf"] = "0.7"; comp.parameters["Ron"] = "10m";
         canvas.addComponent(comp);
     }
     if (ImGui::Button("MOSFET")) {
@@ -344,6 +345,7 @@ void MainWindow::renderComponentPalette() {
         ComponentInstance comp;
         comp.id = "S_" + std::to_string(rand() % 1000);
         comp.label = "Switch"; comp.type = ComponentType::Switch; comp.rawTypeStr = "S";
+        comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
         canvas.addComponent(comp);
     }
     if (ImGui::Button("Ground (GND)")) {
@@ -381,6 +383,7 @@ void MainWindow::renderComponentPalette() {
         ComponentInstance comp;
         comp.id = "PWM_" + std::to_string(rand() % 1000);
         comp.label = "PWM"; comp.type = ComponentType::PWM_Generator; comp.rawTypeStr = "PWM";
+        comp.parameters["frequency"] = "20000";
         canvas.addComponent(comp);
     }
     if (ImGui::Button("Pulse Generator")) {
