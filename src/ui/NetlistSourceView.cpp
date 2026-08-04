@@ -88,7 +88,11 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
         updateFromCircuit(design);
     }
 
-    ImGui::Begin(title);
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(0, 70), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y - 75), ImGuiCond_Always);
+
+    ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
     float availWidth = ImGui::GetContentRegionAvail().x;
     float leftWidth = availWidth * 0.45f;
@@ -221,7 +225,6 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
     } else {
         if (ImPlot::BeginPlot("Simulated Waveforms (MNA Solver)", ImVec2(-1, -1))) {
             ImPlot::SetupAxes("Time (s)", "Voltage / Current (V/A)");
-            ImPlot::SetupAxisLimits(ImAxis_X1, 0.0, simulator.getCurrentTime() + 1e-4, ImGuiCond_Always);
 
             for (const auto& pair : data.voltages) {
                 const std::string& varName = pair.first;
