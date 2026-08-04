@@ -59,7 +59,7 @@ static std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "GND") {
         return {{"Gnd", 0, -20, 0, -1, false}};
     }
-    if (t == "CONST" || t == "TRI" || t == "PULSE") {
+    if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK") {
         return {{"Out", 20, 0, 1, 0, true}};
     }
     if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT") {
@@ -90,7 +90,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
     if (t == "S" && (p == "CTRL" || p == "GATE")) return DomainType::Control;
     if ((t == "VM" || t == "AM") && (p == "OUT" || p == "V" || p == "I")) return DomainType::Control;
 
-    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "TRI" || t == "PULSE" || t == "CONST" ||
+    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||
@@ -1158,29 +1158,20 @@ void SchematicCanvas::renderModals() {
         if (ImGui::BeginPopupModal("Pulse Generator Parameters Modal", &showPulseModal, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Edit Pulse Generator Configuration:");
             ImGui::Separator();
-            ImGui::InputText("Switching Frequency (Hz)", pulseFreqBuf, sizeof(pulseFreqBuf));
-            ImGui::InputText("Phase Shift (Degrees)", pulsePhaseBuf, sizeof(pulsePhaseBuf));
-            ImGui::InputText("Duty Cycle (%)", pulseDutyBuf, sizeof(pulseDutyBuf));
-            ImGui::InputText("Signal Amplitude", pulseAmpBuf, sizeof(pulseAmpBuf));
+            ImGui::InputText("Amplitude", pulseAmpBuf, sizeof(pulseAmpBuf));
+            ImGui::InputText("Period (s)", pulsePeriodBuf, sizeof(pulsePeriodBuf));
+            ImGui::InputText("Pulse Width (0..1)", pulseWidthBuf, sizeof(pulseWidthBuf));
+            ImGui::InputText("Delay (s)", pulseDelayBuf, sizeof(pulseDelayBuf));
             ImGui::Spacing();
             if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
                 pushUndoState();
                 if (pulseCompIdx >= 0 && pulseCompIdx < (int)design.components.size()) {
                     auto& p = design.components[pulseCompIdx].parameters;
-                    p["frequency"] = pulseFreqBuf;
-                    p["phase"] = pulsePhaseBuf;
-                    p["duty"] = pulseDutyBuf;
+                    p.clear();
                     p["amplitude"] = pulseAmpBuf;
-
-                    try {
-                        double freqVal = std::stod(pulseFreqBuf);
-                        if (freqVal > 0) p["period"] = std::to_string(1.0 / freqVal);
-                        double dutyVal = std::stod(pulseDutyBuf);
-                        p["width"] = std::to_string(dutyVal / 100.0);
-                        double phaseVal = std::stod(pulsePhaseBuf);
-                        p["delay"] = std::to_string(phaseVal / 360.0);
-                    } catch (...) {}
-
+                    p["period"] = pulsePeriodBuf;
+                    p["width"] = pulseWidthBuf;
+                    p["delay"] = pulseDelayBuf;
                     design.components[pulseCompIdx].label = "Pulse Gen";
                 }
                 showPulseModal = false;
@@ -1460,39 +1451,15 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                 } else if (comp.rawTypeStr == "PULSE" || comp.rawTypeStr == "PULSE_GEN") {
                     showPulseModal = true;
                     pulseCompIdx = (int)i;
-                    std::string freq = comp.parameters.count("frequency") ? comp.parameters["frequency"] : "";
-                    if (freq.empty() && comp.parameters.count("period")) {
-                        try {
-                            double p = std::stod(comp.parameters["period"]);
-                            if (p > 0) freq = std::to_string((int)std::round(1.0 / p));
-                        } catch (...) {}
-                    }
-                    if (freq.empty()) freq = "20000";
+                    std::string amp = comp.parameters.count("amplitude") ? comp.parameters["amplitude"] : "1";
+                    std::string period = comp.parameters.count("period") ? comp.parameters["period"] : "1";
+                    std::string width = comp.parameters.count("width") ? comp.parameters["width"] : "0.5";
+                    std::string delay = comp.parameters.count("delay") ? comp.parameters["delay"] : "0";
 
-                    std::string duty = comp.parameters.count("duty") ? comp.parameters["duty"] : "";
-                    if (duty.empty() && comp.parameters.count("width")) {
-                        try {
-                            double w = std::stod(comp.parameters["width"]);
-                            duty = std::to_string((int)std::round(w * 100.0));
-                        } catch (...) {}
-                    }
-                    if (duty.empty()) duty = "50";
-
-                    std::string phase = comp.parameters.count("phase") ? comp.parameters["phase"] : "";
-                    if (phase.empty() && comp.parameters.count("delay")) {
-                        try {
-                            double d = std::stod(comp.parameters["delay"]);
-                            phase = std::to_string((int)std::round(d * 360.0));
-                        } catch (...) {}
-                    }
-                    if (phase.empty()) phase = "0";
-
-                    std::string amp = comp.parameters.count("amplitude") ? comp.parameters["amplitude"] : "1.0";
-
-                    strncpy(pulseFreqBuf, freq.c_str(), sizeof(pulseFreqBuf));
-                    strncpy(pulsePhaseBuf, phase.c_str(), sizeof(pulsePhaseBuf));
-                    strncpy(pulseDutyBuf, duty.c_str(), sizeof(pulseDutyBuf));
                     strncpy(pulseAmpBuf, amp.c_str(), sizeof(pulseAmpBuf));
+                    strncpy(pulsePeriodBuf, period.c_str(), sizeof(pulsePeriodBuf));
+                    strncpy(pulseWidthBuf, width.c_str(), sizeof(pulseWidthBuf));
+                    strncpy(pulseDelayBuf, delay.c_str(), sizeof(pulseDelayBuf));
                 } else if (comp.rawTypeStr == "SUM_RECT" || comp.rawTypeStr == "SUM_ROUND" || comp.rawTypeStr == "PRODUCT_RECT") {
                     showConfigurator = true;
                     pendingConfigCompIdx = (int)i;

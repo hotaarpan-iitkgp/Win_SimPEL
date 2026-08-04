@@ -424,9 +424,6 @@ void MainWindow::renderComponentPalette() {
         comp.parameters["period"] = "1";
         comp.parameters["width"] = "0.5";
         comp.parameters["delay"] = "0";
-        comp.parameters["frequency"] = "20000";
-        comp.parameters["phase"] = "0";
-        comp.parameters["duty"] = "50";
         canvas.addComponent(comp);
     }
     if (ImGui::Button("Triangle Carrier")) {

@@ -71,10 +71,10 @@ private:
 
     bool showPulseModal = false;
     int pulseCompIdx = -1;
-    char pulseFreqBuf[64] = "20000";
-    char pulsePhaseBuf[64] = "0";
-    char pulseDutyBuf[64] = "50";
-    char pulseAmpBuf[64] = "1.0";
+    char pulseAmpBuf[64] = "1";
+    char pulsePeriodBuf[64] = "1";
+    char pulseWidthBuf[64] = "0.5";
+    char pulseDelayBuf[64] = "0";
 
     void drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos);
     void drawComponents(ImDrawList* drawList, ImVec2 canvasPos);
