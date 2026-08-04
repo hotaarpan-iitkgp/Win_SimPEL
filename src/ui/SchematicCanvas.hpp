@@ -30,6 +30,8 @@ private:
     // Canvas pan & zoom state
     ImVec2 panOffset{400.0f, 400.0f};
     float zoomLevel = 1.0f;
+    ImVec2 lastCanvasClickWorldPos{0.0f, 0.0f};
+    bool hasLastClickPos = false;
     
     // Interactive selection & drag
     std::set<std::string> selectedComponentIds;

@@ -345,6 +345,11 @@ void SchematicCanvas::addComponent(const ComponentInstance& comp) {
     pushUndoState();
     ComponentInstance newComp = comp;
     
+    if (hasLastClickPos) {
+        newComp.x = lastCanvasClickWorldPos.x;
+        newComp.y = lastCanvasClickWorldPos.y;
+    }
+    
     if (newComp.type == ComponentType::SummingJunction || newComp.type == ComponentType::Product ||
         newComp.rawTypeStr == "SUM_RECT" || newComp.rawTypeStr == "SUM_ROUND" || newComp.rawTypeStr == "PRODUCT_RECT") {
         
@@ -1206,6 +1211,11 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
 
     // Left click handling
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !isDraggingWireSegment) {
+        ImVec2 clickW = screenToWorld(mousePos, canvasPos);
+        lastCanvasClickWorldPos.x = std::round(clickW.x / 20.0f) * 20.0f;
+        lastCanvasClickWorldPos.y = std::round(clickW.y / 20.0f) * 20.0f;
+        hasLastClickPos = true;
+
         if (!hoveredPinCompId.empty()) {
             if (!isWiring) {
                 isWiring = true;
