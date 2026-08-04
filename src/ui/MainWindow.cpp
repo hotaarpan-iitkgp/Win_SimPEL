@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "engine/NetlistBuilder.hpp"
 #include "imgui.h"
 #include <iostream>
 #include <string>
@@ -14,6 +15,12 @@ namespace CircuitSim {
 
 MainWindow::MainWindow() {
     loadPresetTemplate("1ph_inverter_hysteresis");
+}
+
+void MainWindow::startSimulation() {
+    NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
+    simulator.loadCircuit(canvas.getCircuit());
+    simulator.runAsync();
 }
 
 void MainWindow::loadPresetTemplate(const std::string& name) {
@@ -88,6 +95,7 @@ void MainWindow::loadPresetTemplate(const std::string& name) {
         cd.wires.push_back(w7);
     }
 
+    NetlistBuilder::buildNodesForCircuit(cd);
     canvas.setCircuit(cd);
     simulator.loadCircuit(cd);
 }
@@ -252,7 +260,7 @@ void MainWindow::renderMenuBar() {
         }
         if (ImGui::BeginMenu("Simulation")) {
             if (ImGui::MenuItem("Start", "Ctrl+T")) {
-                simulator.runAsync();
+                startSimulation();
             }
             if (ImGui::MenuItem("Pause", "Space")) {
                 simulator.pause();
@@ -273,7 +281,7 @@ void MainWindow::renderMenuBar() {
     ImGuiIO& io = ImGui::GetIO();
     if (!io.WantCaptureKeyboard) {
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_T)) {
-            simulator.runAsync();
+            startSimulation();
         }
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_E)) {
             showSimParamsModal = true;
@@ -285,7 +293,7 @@ void MainWindow::renderControlBar() {
     ImGui::Begin("Simulation Control", nullptr, ImGuiWindowFlags_NoCollapse);
     
     if (ImGui::Button("PLAY", ImVec2(80, 30))) {
-        simulator.runAsync();
+        startSimulation();
     }
     ImGui::SameLine();
     if (ImGui::Button("PAUSE", ImVec2(80, 30))) {

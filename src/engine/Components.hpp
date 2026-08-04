@@ -268,4 +268,25 @@ struct CircuitDesign {
     PlotConfig plotConfig;
 };
 
+struct TerminalDef {
+    std::string name;
+    float relX;
+    float relY;
+    float dirX;
+    float dirY;
+    bool isControl;
+
+    float x;
+    float y;
+    float dx;
+    float dy;
+
+    TerminalDef() = default;
+    TerminalDef(std::string n, float rx, float ry, float dx_, float dy_, bool ctrl)
+        : name(n), relX(rx), relY(ry), dirX(dx_), dirY(dy_), isControl(ctrl),
+          x(rx), y(ry), dx(dx_), dy(dy_) {}
+};
+
+std::vector<TerminalDef> getTerminals(const ComponentInstance& comp);
+
 } // namespace CircuitSim

@@ -18,6 +18,7 @@ set(SOURCES
     src/main.cpp
     src/engine/CircuitSimulator.cpp
     src/engine/ExpressionEvaluator.cpp
+    src/engine/NetlistBuilder.cpp
     src/ui/ConfiguratorDialog.cpp
     src/ui/SchematicCanvas.cpp
     src/ui/OscilloscopeView.cpp

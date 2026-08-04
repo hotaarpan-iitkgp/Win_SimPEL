@@ -33,6 +33,7 @@ private:
 public:
     MainWindow();
 
+    void startSimulation();
     void loadPresetTemplate(const std::string& name);
     void render();
 };

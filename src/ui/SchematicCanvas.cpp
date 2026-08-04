@@ -12,13 +12,6 @@ namespace CircuitSim {
 
 enum class DomainType { Power, Control };
 
-struct TerminalDef {
-    std::string name;
-    float x, y;
-    float dx, dy;
-    bool isControl = false;
-};
-
 static ImVec2 rotatePt(float px, float py, float cx, float cy, float angleDeg) {
     if (angleDeg == 0.0f) return ImVec2(cx + px, cy + py);
     float rad = angleDeg * 3.1415926535f / 180.0f;
@@ -41,7 +34,7 @@ static ImVec2 getClosestPointOnSegment(ImVec2 p, ImVec2 a, ImVec2 b, float& outD
     return proj;
 }
 
-static std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
+std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     const std::string& t = comp.rawTypeStr;
     
     if (t == "R" || t == "L" || t == "C" || t == "V" || t == "I" || t == "D" || t == "AC_V") {
