@@ -547,30 +547,65 @@ void MainWindow::renderPropertyInspector() {
     }
 
     ImGui::Spacing();
-
-    // Probe Signal Checkbox (matching Web Tool)
-    bool isProbed = (comp->parameters.count("probe_signal") && comp->parameters["probe_signal"] == "1") ||
-                    (comp->parameters.count("plotI") && comp->parameters["plotI"] == "1") ||
-                    (comp->parameters.count("plotV") && comp->parameters["plotV"] == "1");
-
-    if (ImGui::Checkbox("Probe Signal (Monitor Waveform)", &isProbed)) {
-        comp->parameters["probe_signal"] = isProbed ? "1" : "0";
-        if (comp->type == ComponentType::Resistor || comp->type == ComponentType::Inductor || comp->type == ComponentType::Capacitor) {
-            comp->parameters["plotI"] = isProbed ? "1" : "0";
-            comp->parameters["plotV"] = isProbed ? "1" : "0";
-        }
-        canvas.syncProbeSignals();
-    }
-
-    ImGui::Spacing();
-    ImGui::Text("Parameters:");
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Parameters:");
     
     for (auto& pair : comp->parameters) {
-        if (pair.first == "probe_signal") continue;
+        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals") continue;
         char valBuf[256];
         strncpy(valBuf, pair.second.c_str(), sizeof(valBuf));
         if (ImGui::InputText(pair.first.c_str(), valBuf, sizeof(valBuf))) {
             pair.second = valBuf;
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Signals to Plot / Probe:");
+    ImGui::Spacing();
+
+    // Determine signals to plot/probe based on component type (matching Web Tool)
+    std::vector<std::string> availableSignals;
+    std::string t = comp->rawTypeStr;
+    std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+    bool isElectrical = (t == "R" || t == "L" || t == "C" || t == "V" || t == "AC_V" || t == "I" || t == "S" || t == "D" || t == "MOSFET" || t == "VM" || t == "AM" || t == "GND");
+    if (isElectrical) {
+        availableSignals.push_back("V_" + comp->id);
+        availableSignals.push_back("I_" + comp->id);
+        if (t == "MOSFET" || t == "S" || t == "D") {
+            availableSignals.push_back("Ctrl_" + comp->id);
+        }
+    } else if (t != "SCOPE" && t != "PROBE") {
+        // Control / Math component signals
+        availableSignals.push_back(comp->id + ".Out");
+        if (t == "CSCRIPT") {
+            availableSignals.push_back(comp->id + ".Out1");
+            availableSignals.push_back(comp->id + ".Out2");
+            availableSignals.push_back(comp->id + ".Out3");
+            availableSignals.push_back(comp->id + ".Out4");
+        } else if (t == "SUM_RECT" || t == "SUM_ROUND" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR") {
+            availableSignals.push_back(comp->id + ".A");
+            availableSignals.push_back(comp->id + ".B");
+        }
+    }
+
+    auto& cd = canvas.getCircuitRef();
+    if (cd.plotConfig.plots.empty()) {
+        cd.plotConfig.plots.push_back({ "Waveform Analysis", {} });
+    }
+    auto& plotVars = cd.plotConfig.plots[0].variables;
+
+    for (const auto& sigName : availableSignals) {
+        auto it = std::find(plotVars.begin(), plotVars.end(), sigName);
+        bool isChecked = (it != plotVars.end());
+
+        if (ImGui::Checkbox(sigName.c_str(), &isChecked)) {
+            if (isChecked) {
+                if (it == plotVars.end()) plotVars.push_back(sigName);
+            } else {
+                if (it != plotVars.end()) plotVars.erase(it);
+            }
+            canvas.syncProbeSignals();
         }
     }
 
