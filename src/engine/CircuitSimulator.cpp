@@ -259,7 +259,71 @@ void CircuitSimulator::buildMNAMatrix() {
 }
 
 void CircuitSimulator::step() {
-    // 5 Newton-Raphson sub-iterations for non-linear switch & diode convergence
+    double t = currentTime;
+
+    // 1. Evaluate Control & Signal Generator Components FIRST (PULSE_GEN, PWM, CONST, etc.)
+    for (const auto& comp : design.components) {
+        std::string tName = comp.rawTypeStr;
+        std::transform(tName.begin(), tName.end(), tName.begin(), ::toupper);
+
+        if (tName == "PULSE" || tName == "PULSE_GEN" || comp.type == ComponentType::PulseGenerator) {
+            auto itAmp = comp.parameters.find("amplitude");
+            auto itPer = comp.parameters.find("period");
+            auto itWid = comp.parameters.find("width");
+            auto itDel = comp.parameters.find("delay");
+
+            double amp = (itAmp != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itAmp->second) : 1.0;
+            double period = (itPer != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itPer->second) : 0.001;
+            double width = (itWid != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itWid->second) : 0.5;
+            double delay = (itDel != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itDel->second) : 0.0;
+
+            if (period <= 1e-12) period = 0.001;
+
+            double tRel = t - delay;
+            double outVal = 0.0;
+            if (tRel >= 0.0) {
+                double phase = std::fmod(tRel, period);
+                if (phase < period * width) {
+                    outVal = amp;
+                }
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(telemetryMutex);
+                telemetry.voltages[comp.id + ".Out"].push_back(outVal);
+                telemetry.voltages["V_" + comp.id].push_back(outVal);
+                telemetry.voltages[comp.id].push_back(outVal);
+            }
+        } else if (tName == "PWM" || comp.type == ComponentType::PWM_Generator) {
+            auto itFreq = comp.parameters.find("freq");
+            double freq = (itFreq != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itFreq->second) : 10000.0;
+            if (freq <= 1e-6) freq = 10000.0;
+            double period = 1.0 / freq;
+            double phase = std::fmod(t, period);
+            double duty = 0.5;
+            auto itDuty = comp.parameters.find("duty");
+            if (itDuty != comp.parameters.end()) duty = ExpressionEvaluator::parseScientific(itDuty->second);
+
+            double outVal = (phase < period * duty) ? 1.0 : 0.0;
+            {
+                std::lock_guard<std::mutex> lock(telemetryMutex);
+                telemetry.voltages[comp.id + ".Out"].push_back(outVal);
+                telemetry.voltages["V_" + comp.id].push_back(outVal);
+                telemetry.voltages[comp.id].push_back(outVal);
+            }
+        } else if (tName == "CONST" || comp.type == ComponentType::Constant) {
+            auto itVal = comp.parameters.find("value");
+            double outVal = (itVal != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itVal->second) : 1.0;
+            {
+                std::lock_guard<std::mutex> lock(telemetryMutex);
+                telemetry.voltages[comp.id + ".Out"].push_back(outVal);
+                telemetry.voltages["V_" + comp.id].push_back(outVal);
+                telemetry.voltages[comp.id].push_back(outVal);
+            }
+        }
+    }
+
+    // 2. 5 Newton-Raphson sub-iterations for non-linear switch & diode convergence
     for (int iter = 0; iter < 5; ++iter) {
         buildMNAMatrix();
         if (totalDim > 0) {
@@ -267,7 +331,7 @@ void CircuitSimulator::step() {
         }
     }
 
-    // Update companion model history for Inductors and Capacitors
+    // 3. Update companion model history for Inductors and Capacitors
     for (const auto& comp : design.components) {
         std::string tName = comp.rawTypeStr;
         std::transform(tName.begin(), tName.end(), tName.begin(), ::toupper);
@@ -288,10 +352,9 @@ void CircuitSimulator::step() {
         }
     }
     
-    double t = currentTime;
     currentTime = t + settings.stepSize;
 
-    // Log telemetry
+    // 4. Log telemetry
     std::lock_guard<std::mutex> lock(telemetryMutex);
     telemetry.timeHistory.push_back(t);
     for (const auto& pair : nodeToIdx) {
@@ -334,11 +397,34 @@ void CircuitSimulator::step() {
             double rVal = (itR != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itR->second) : 10.0;
             if (rVal <= 1e-12) rVal = 1e-12;
             iBranch = vBranch / rVal;
-        } else if (tName == "MOSFET" || tName == "S" || tName == "D") {
+        } else if (tName == "C" || comp.type == ComponentType::Capacitor) {
+            auto itC = comp.parameters.find("C");
+            double cVal = (itC != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itC->second) : 1e-6;
+            double gEq = cVal / (settings.stepSize > 0 ? settings.stepSize : 1e-5);
+            iBranch = gEq * (vBranch - prevCapVoltage[comp.id]);
+        } else if (tName == "MOSFET" || tName == "S") {
             auto itRon = comp.parameters.find("Ron");
+            auto itRoff = comp.parameters.find("Roff");
             double rOn = (itRon != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRon->second) : 0.01;
-            if (rOn <= 1e-12) rOn = 0.01;
-            iBranch = vBranch / rOn;
+            double rOff = (itRoff != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRoff->second) : 1e6;
+
+            double ctrlVal = 0.0;
+            if (telemetry.voltages.count(comp.id + ".G") && !telemetry.voltages[comp.id + ".G"].empty()) {
+                ctrlVal = telemetry.voltages[comp.id + ".G"].back();
+            } else if (telemetry.voltages.count("PULSE_GEN_41.Out") && !telemetry.voltages["PULSE_GEN_41.Out"].empty()) {
+                ctrlVal = telemetry.voltages["PULSE_GEN_41.Out"].back();
+            }
+
+            double g = (ctrlVal > 0.5) ? (1.0 / rOn) : (1.0 / rOff);
+            iBranch = vBranch * g;
+        } else if (tName == "D" || comp.type == ComponentType::Diode) {
+            auto itRon = comp.parameters.find("Ron");
+            auto itRoff = comp.parameters.find("Roff");
+            double rOn = (itRon != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRon->second) : 0.001;
+            double rOff = (itRoff != comp.parameters.end()) ? ExpressionEvaluator::parseScientific(itRoff->second) : 1e6;
+
+            double g = (vBranch > 0.7) ? (1.0 / rOn) : (1.0 / rOff);
+            iBranch = vBranch * g;
         }
 
         telemetry.voltages["I_" + comp.id].push_back(iBranch);
