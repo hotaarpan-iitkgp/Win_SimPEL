@@ -37,7 +37,7 @@ void MainWindow::startSimulation() {
 
 void MainWindow::loadPresetTemplate(const std::string& name) {
     CircuitDesign cd;
-    cd.settings.stopTime = 0.05;
+    cd.settings.stopTime = 0.01;
     cd.settings.stepSize = 1e-5;
 
     // Default Buck Converter Preset Circuit

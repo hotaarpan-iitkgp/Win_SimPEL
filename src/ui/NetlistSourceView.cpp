@@ -151,6 +151,46 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         }
     }
 
+    // ─── Node Index Compaction Pass ───
+    // Re-indexes physical nodes to guarantee strictly contiguous node_0, node_1, node_2, node_3...
+    std::unordered_map<std::string, std::string> nodeRemap;
+    nodeRemap["0"] = "node_0";
+    nodeRemap["node_0"] = "node_0";
+
+    int physNodeCounter = 1;
+
+    auto compactNodes = [&](json& compList) {
+        for (auto& item : compList) {
+            if (item.contains("nodes") && item["nodes"].is_array()) {
+                json newNodes = json::array();
+                for (const auto& nVal : item["nodes"]) {
+                    std::string nStr = nVal.get<std::string>();
+                    if (nStr == "0" || nStr == "node_0") {
+                        newNodes.push_back("node_0");
+                    } else {
+                        if (nodeRemap.find(nStr) == nodeRemap.end()) {
+                            nodeRemap[nStr] = "node_" + std::to_string(physNodeCounter++);
+                        }
+                        newNodes.push_back(nodeRemap[nStr]);
+                    }
+                }
+                item["nodes"] = newNodes;
+            }
+        }
+    };
+
+    compactNodes(physStageObj["resistors"]);
+    compactNodes(physStageObj["inductors"]);
+    compactNodes(physStageObj["capacitors"]);
+    compactNodes(physStageObj["voltage_sources"]);
+    compactNodes(physStageObj["current_sources"]);
+    compactNodes(physStageObj["switches"]);
+    compactNodes(physStageObj["diodes"]);
+    compactNodes(physStageObj["analog_switches"]);
+    compactNodes(physStageObj["transformers"]);
+    compactNodes(physStageObj["voltmeters"]);
+    compactNodes(physStageObj["ammeters"]);
+
     root["physical_stage"] = physStageObj;
     root["control_loops"] = ctrlLoopsObj;
 
