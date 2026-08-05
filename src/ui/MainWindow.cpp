@@ -211,6 +211,28 @@ void MainWindow::renderMenuBar() {
                                 cd.wires.push_back(wire);
                             }
                         }
+                        if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
+                            const auto& ss = j["simulationSettings"];
+                            if (ss.contains("stopTime")) {
+                                if (ss["stopTime"].is_number()) cd.settings.stopTime = ss["stopTime"].get<double>();
+                                else if (ss["stopTime"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stopTime"].get<std::string>());
+                            }
+                            if (ss.contains("stepSize")) {
+                                if (ss["stepSize"].is_number()) cd.settings.stepSize = ss["stepSize"].get<double>();
+                                else if (ss["stepSize"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stepSize"].get<std::string>());
+                            }
+                        }
+                        if (j.contains("simulation_parameters") && j["simulation_parameters"].is_object()) {
+                            const auto& sp = j["simulation_parameters"];
+                            if (sp.contains("stop_time")) {
+                                if (sp["stop_time"].is_number()) cd.settings.stopTime = sp["stop_time"].get<double>();
+                                else if (sp["stop_time"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["stop_time"].get<std::string>());
+                            }
+                            if (sp.contains("step_size")) {
+                                if (sp["step_size"].is_number()) cd.settings.stepSize = sp["step_size"].get<double>();
+                                else if (sp["step_size"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["step_size"].get<std::string>());
+                            }
+                        }
                         canvas.setCircuit(cd);
                         simulator.loadCircuit(cd);
                     }
@@ -706,6 +728,15 @@ void MainWindow::renderSimParamsModal() {
     if (showSimParamsModal) {
         ImGui::OpenPopup("Simulation Parameters Modal");
         if (ImGui::BeginPopupModal("Simulation Parameters Modal", &showSimParamsModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            if (ImGui::IsWindowAppearing()) {
+                const auto& cd = canvas.getCircuit();
+                std::snprintf(simStopTimeBuf, sizeof(simStopTimeBuf), "%.17g", cd.settings.stopTime);
+                std::snprintf(simStepSizeBuf, sizeof(simStepSizeBuf), "%.17g", cd.settings.stepSize);
+                if (cd.settings.solverType == "trapezoidal") simSolverIdx = 1;
+                else if (cd.settings.solverType == "rk4") simSolverIdx = 2;
+                else simSolverIdx = 0;
+            }
+
             ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Solver & Simulation Configuration");
             ImGui::Separator();
             ImGui::Spacing();
@@ -722,7 +753,8 @@ void MainWindow::renderSimParamsModal() {
 
             if (ImGui::Button("OK", ImVec2(120, 30))) {
                 auto& cd = canvas.getCircuitRef();
-                try { cd.settings.stopTime = std::stod(simStopTimeBuf); } catch (...) {}
+                try { cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(simStopTimeBuf); } catch (...) {}
+                try { cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(simStepSizeBuf); } catch (...) {}
                 cd.settings.solverType = (simSolverIdx == 0) ? "euler" : ((simSolverIdx == 1) ? "trapezoidal" : "rk4");
                 
                 showSimParamsModal = false;

@@ -15,6 +15,7 @@ private:
     std::string lastGeneratedJson = "";
     int numPanes = 1;
     bool autoFitNext = false;
+    bool isAdaptiveZoomEnabled = true;
 
 public:
     NetlistSourceView() = default;

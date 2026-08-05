@@ -12,6 +12,7 @@ class OscilloscopeView {
 private:
     int numPanes = 1;
     bool autoFitNext = false;
+    bool isAdaptiveZoomEnabled = true;
 
 public:
     OscilloscopeView() = default;

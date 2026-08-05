@@ -530,6 +530,21 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                 ImPlot::SetNextAxesToFit();
             }
             ImGui::SameLine();
+
+            if (isAdaptiveZoomEnabled) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.45f, 0.80f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
+                if (ImGui::Button("🔍 Adaptive Box Zoom: ON")) {
+                    isAdaptiveZoomEnabled = false;
+                }
+                ImGui::PopStyleColor(2);
+            } else {
+                if (ImGui::Button("🔍 Adaptive Box Zoom: OFF")) {
+                    isAdaptiveZoomEnabled = true;
+                }
+            }
+            ImGui::SameLine();
+
             if (ImGui::Button("➕ Add Plot Pane")) {
                 numPanes = std::min(numPanes + 1, 4);
             }
@@ -540,7 +555,7 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                 }
                 ImGui::SameLine();
             }
-            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box (X/Y adaptive) to zoom, scroll wheel to zoom axis.");
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box to zoom.");
 
             int renderPanes = std::min(numPanes, (int)categories.size());
             if (renderPanes < 1) renderPanes = 1;
@@ -555,7 +570,7 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                         ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
                         // Adaptive Box Zoom (PLECS / Plotly style)
-                        if (ImPlot::IsPlotSelected()) {
+                        if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
                             ImPlotRect selectRect = ImPlot::GetPlotSelection();
                             ImPlotRect currentLimits = ImPlot::GetPlotLimits();
                             ImPlot::CancelPlotSelection();
