@@ -190,9 +190,9 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
             if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
                                    isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
 
-                // Disable ImPlot's built-in 2D selection box engine so our dedicated module handles zoom isolation 100%!
+                // Assign Select to Middle Mouse Button (valid index 2) to avoid ImGui IM_ASSERT(button >= 0 && button < 5) crash
                 if (isZoomActive) {
-                    ImPlot::GetInputMap().Select       = -1;
+                    ImPlot::GetInputMap().Select       = ImGuiMouseButton_Middle;
                     ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
                     ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Right; // RMB = Pan
                 } else {
