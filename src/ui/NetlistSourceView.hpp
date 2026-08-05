@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include <string>
 #include <array>
+#include "OscilloscopeView.hpp"
 
 namespace CircuitSim {
 
@@ -19,15 +20,11 @@ private:
     bool isAdaptiveZoomEnabled = true;
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
-    float splitRatio = 0.10f; // Default 10% horizontal space for Netlist pane
+    float splitRatio = 0.10f;
 
-    // Per-pane deferred zoom: SetNextAxesLimits must be called BEFORE BeginPlot
+    // Per-pane deferred zoom: SetNextAxisLimits must be called BEFORE BeginPlot
     static constexpr int MAX_PANES = 4;
-    std::array<bool,   MAX_PANES> hasPendingZoom = {};
-    std::array<double, MAX_PANES> pendingXMin    = {};
-    std::array<double, MAX_PANES> pendingXMax    = {};
-    std::array<double, MAX_PANES> pendingYMin    = {};
-    std::array<double, MAX_PANES> pendingYMax    = {};
+    std::array<WaveformPendingZoom, MAX_PANES> pendingZoom = {};
 
 public:
     NetlistSourceView() = default;

@@ -130,11 +130,16 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
             const auto& cat = categories[i % categories.size()];
 
             // Pending zoom from previous frame (before BeginPlot)
-            if (hasPendingZoom[i]) {
-                ImPlot::SetNextAxesLimits(pendingXMin[i], pendingXMax[i],
-                                          pendingYMin[i], pendingYMax[i],
-                                          ImGuiCond_Always);
-                hasPendingZoom[i] = false;
+            if (pendingZoom[i].hasPending) {
+                if (pendingZoom[i].type == ZOOM_X_ONLY) {
+                    ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[i].xMin, pendingZoom[i].xMax, ImGuiCond_Always);
+                } else if (pendingZoom[i].type == ZOOM_Y_ONLY) {
+                    ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[i].yMin, pendingZoom[i].yMax, ImGuiCond_Always);
+                } else if (pendingZoom[i].type == ZOOM_BOX_2D) {
+                    ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[i].xMin, pendingZoom[i].xMax, ImGuiCond_Always);
+                    ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[i].yMin, pendingZoom[i].yMax, ImGuiCond_Always);
+                }
+                pendingZoom[i].hasPending = false;
             } else if (doFitThisFrame) {
                 // Manual fit with 8% Y padding for breathing room
                 double xMin = data.timeHistory.empty() ? 0.0 : data.timeHistory.front();
@@ -182,8 +187,20 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     double dxCur = std::abs(cur.X.Max - cur.X.Min);
                     double dyCur = std::abs(cur.Y.Max - cur.Y.Min);
 
-                    double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0;
-                    double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0;
+                    double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0; // fraction of visible X length (0.0 - 1.0)
+                    double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0; // fraction of visible Y length (0.0 - 1.0)
+
+                    // 10% Tolerance classification:
+                    // If orthogonal drag dimension is <= 10% of main drag dimension (or <= 0.10 of axis length),
+                    // classify as pure 1D X-Zoom or 1D Y-Zoom. 2D Box Zoom requires both dimensions to exceed 10%!
+                    WaveformZoomType currentDragType = ZOOM_BOX_2D;
+                    if (ny <= 0.10 * nx || ny <= 0.10) {
+                        currentDragType = ZOOM_X_ONLY;
+                    } else if (nx <= 0.10 * ny || nx <= 0.10) {
+                        currentDragType = ZOOM_Y_ONLY;
+                    } else {
+                        currentDragType = ZOOM_BOX_2D;
+                    }
 
                     // Convert selection coordinates to screen pixels
                     ImVec2 pMin = ImPlot::PlotToPixels(ImPlotPoint(sel.X.Min, sel.Y.Max));
@@ -203,25 +220,24 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
                     ImDrawList* drawList = ImPlot::GetPlotDrawList();
 
-                    // Tolerance ratio 1.4 for responsive X / Y zoom detection
-                    if (nx > 1.4 * ny) {
+                    if (currentDragType == ZOOM_X_ONLY) {
                         // --- X-AXIS ZOOM: HORIZONTAL SPAN BAND ---
                         drawList->AddRectFilled(ImVec2(x1, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 35));
                         drawList->AddLine(ImVec2(x1, pTop), ImVec2(x1, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
                         drawList->AddLine(ImVec2(x2, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
 
-                        const char* tag = " [ ↔ X-Zoom ] ";
+                        const char* tag = " [ ↔ X-Zoom (Time Only) ] ";
                         ImVec2 txtSz = ImGui::CalcTextSize(tag);
                         float midX = (x1 + x2) * 0.5f;
                         drawList->AddRectFilled(ImVec2(midX - txtSz.x * 0.5f - 4, pTop + 6), ImVec2(midX + txtSz.x * 0.5f + 4, pTop + 6 + txtSz.y + 2), IM_COL32(0, 150, 200, 230), 4.0f);
                         drawList->AddText(ImVec2(midX - txtSz.x * 0.5f, pTop + 7), IM_COL32(255, 255, 255, 255), tag);
-                    } else if (ny > 1.4 * nx) {
+                    } else if (currentDragType == ZOOM_Y_ONLY) {
                         // --- Y-AXIS ZOOM: VERTICAL SPAN BAND ---
                         drawList->AddRectFilled(ImVec2(pLeft, y1), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 35));
                         drawList->AddLine(ImVec2(pLeft, y1), ImVec2(pRight, y1), IM_COL32(220, 0, 255, 255), 2.0f);
                         drawList->AddLine(ImVec2(pLeft, y2), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 255), 2.0f);
 
-                        const char* tag = " [ ↕ Y-Zoom ] ";
+                        const char* tag = " [ ↕ Y-Zoom (Amp Only) ] ";
                         ImVec2 txtSz = ImGui::CalcTextSize(tag);
                         float midY = (y1 + y2) * 0.5f;
                         drawList->AddRectFilled(ImVec2(pLeft + 6, midY - txtSz.y * 0.5f - 2), ImVec2(pLeft + 6 + txtSz.x + 8, midY + txtSz.y * 0.5f + 2), IM_COL32(160, 0, 180, 230), 4.0f);
@@ -231,7 +247,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                         drawList->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 35));
                         drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 255), 0, 0, 2.0f);
 
-                        const char* tag = " [ ⤢ Box Zoom ] ";
+                        const char* tag = " [ ⤢ 2D Box Zoom ] ";
                         ImVec2 txtSz = ImGui::CalcTextSize(tag);
                         drawList->AddRectFilled(ImVec2(x1 + 4, y1 + 4), ImVec2(x1 + 12 + txtSz.x, y1 + 6 + txtSz.y), IM_COL32(30, 160, 80, 230), 4.0f);
                         drawList->AddText(ImVec2(x1 + 8, y1 + 5), IM_COL32(255, 255, 255, 255), tag);
@@ -240,20 +256,10 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
                         ImPlot::CancelPlotSelection();
 
-                        pendingXMin[i] = cur.X.Min; pendingXMax[i] = cur.X.Max;
-                        pendingYMin[i] = cur.Y.Min; pendingYMax[i] = cur.Y.Max;
-
-                        if (nx > 1.4 * ny) {
-                            pendingXMin[i] = sel.X.Min;
-                            pendingXMax[i] = sel.X.Max;
-                        } else if (ny > 1.4 * nx) {
-                            pendingYMin[i] = sel.Y.Min;
-                            pendingYMax[i] = sel.Y.Max;
-                        } else {
-                            pendingXMin[i] = sel.X.Min; pendingXMax[i] = sel.X.Max;
-                            pendingYMin[i] = sel.Y.Min; pendingYMax[i] = sel.Y.Max;
-                        }
-                        hasPendingZoom[i] = true;
+                        pendingZoom[i].type = currentDragType;
+                        pendingZoom[i].xMin = sel.X.Min; pendingZoom[i].xMax = sel.X.Max;
+                        pendingZoom[i].yMin = sel.Y.Min; pendingZoom[i].yMax = sel.Y.Max;
+                        pendingZoom[i].hasPending = true;
                     }
                 }
 
