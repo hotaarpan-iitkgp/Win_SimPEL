@@ -109,6 +109,31 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     return {};
 }
 
+static bool isTerminalMatch(const std::string& compTypeStr, const std::string& termA, const std::string& termB) {
+    if (termA == termB) return true;
+    std::string a = termA, b = termB;
+    std::transform(a.begin(), a.end(), a.begin(), ::toupper);
+    std::transform(b.begin(), b.end(), b.begin(), ::toupper);
+    if (a == b) return true;
+
+    // Top pin aliases (Plus / In1 / A / In / G)
+    bool isTopA = (a == "A" || a == "PLUS" || a == "IN1" || a == "IN" || a == "INPUT_0" || a == "IN_0");
+    bool isTopB = (b == "A" || b == "PLUS" || b == "IN1" || b == "IN" || b == "INPUT_0" || b == "IN_0");
+    if (isTopA && isTopB) return true;
+
+    // Bottom pin aliases (Minus / In2 / B)
+    bool isBotA = (a == "B" || a == "MINUS" || a == "IN2" || a == "INPUT_1" || a == "IN_1");
+    bool isBotB = (b == "B" || b == "MINUS" || b == "IN2" || b == "INPUT_1" || b == "IN_1");
+    if (isBotA && isBotB) return true;
+
+    // Output pin aliases (Out / Out1 / Output / Direct)
+    bool isOutA = (a == "OUT" || a == "OUT1" || a == "OUTPUT" || a == "OUTPUT_0" || a == "OUTDIRECT1");
+    bool isOutB = (b == "OUT" || b == "OUT1" || b == "OUTPUT" || b == "OUTPUT_0" || b == "OUTDIRECT1");
+    if (isOutA && isOutB) return true;
+
+    return false;
+}
+
 static DomainType getPinDomain(const ComponentInstance& comp, const std::string& pinName) {
     std::string t = comp.rawTypeStr;
     std::transform(t.begin(), t.end(), t.begin(), ::toupper);
@@ -323,11 +348,13 @@ void SchematicCanvas::drawCurrentFlowAnimation(ImDrawList* drawList, ImVec2 p1, 
 }
 
 bool SchematicCanvas::isPinConnected(const std::string& compId, const std::string& pinName) const {
+    const ComponentInstance* comp = nullptr;
+    for (const auto& c : design.components) {
+        if (c.id == compId) { comp = &c; break; }
+    }
     for (const auto& w : design.wires) {
-        if ((w.from.compId == compId && w.from.terminal == pinName) ||
-            (w.to.compId == compId && w.to.terminal == pinName)) {
-            return true;
-        }
+        if (w.from.compId == compId && (w.from.terminal == pinName || (comp && isTerminalMatch(comp->rawTypeStr, w.from.terminal, pinName)))) return true;
+        if (w.to.compId == compId && (w.to.terminal == pinName || (comp && isTerminalMatch(comp->rawTypeStr, w.to.terminal, pinName)))) return true;
     }
     return false;
 }
@@ -644,6 +671,12 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         ImVec2 triWave[] = {rotatePt(-10*s, 6*s, c.x, c.y, rot), rotatePt(0, -6*s, c.x, c.y, rot), rotatePt(10*s, 6*s, c.x, c.y, rot)};
         drawList->AddPolyline(triWave, 3, color, 0, 1.8f*s);
+    } else if (t == "CONST" || t == "CONSTANT") {
+        float hw = 20*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string valStr = comp.parameters.count("value") ? comp.parameters.at("value") : (comp.parameters.count("constant") ? comp.parameters.at("constant") : "1");
+        drawList->AddText(rotatePt(-6*s, -7*s, c.x, c.y, rot), color, valStr.c_str());
     } else if (t == "V_3PH" || t == "ThreePhaseSource") {
         float hw = 24*s, hh = 28*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -853,7 +886,7 @@ bool SchematicCanvas::getTerminalPortStub(const ComponentInstance& comp, const s
 
     ImVec2 compCenter = worldToScreen(comp.x, comp.y, canvasPos);
     for (const auto& t : terminals) {
-        if (t.name == terminalName) {
+        if (isTerminalMatch(comp.rawTypeStr, t.name, terminalName)) {
             outPinPos = rotatePt(t.x * zoomLevel, t.y * zoomLevel, compCenter.x, compCenter.y, (float)comp.rotation);
             ImVec2 dir = rotatePt(t.dx * 20.0f * zoomLevel, t.dy * 20.0f * zoomLevel, 0, 0, (float)comp.rotation);
             outStubPos = ImVec2(outPinPos.x + dir.x, outPinPos.y + dir.y);
@@ -1239,7 +1272,8 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
         
         drawComponentShape(drawList, comp, center, s, componentColor);
         ImU32 labelColor = isDarkMode ? IM_COL32(180, 190, 210, 255) : IM_COL32(15, 23, 42, 255);
-        drawList->AddText({center.x - (hw - 4.0f)*s, center.y + (hh + 4.0f)*s}, labelColor, comp.label.c_str());
+        std::string dispId = !comp.id.empty() ? comp.id : comp.label;
+        drawList->AddText({center.x - (hw - 4.0f)*s, center.y - (hh + 16.0f)*s}, labelColor, dispId.c_str());
         drawTerminals(drawList, comp, center, s, mousePos, minPinDist);
     }
 }
