@@ -1,5 +1,6 @@
 #include "SchematicCanvas.hpp"
 #include "imgui_internal.h"
+#include <nlohmann/json.hpp>
 #include <windows.h>
 #include <commdlg.h>
 #include <cmath>
@@ -7,8 +8,11 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <unordered_set>
 
 namespace CircuitSim {
+
+static std::string g_internalClipboard;
 
 enum class DomainType { Power, Control };
 
@@ -1204,19 +1208,69 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
 
 void SchematicCanvas::copySelected() {
     if (selectedComponentIds.empty()) return;
-    std::stringstream ss;
-    ss << "{\"components\":[";
-    bool first = true;
+
+    nlohmann::json jData;
+    jData["components"] = nlohmann::json::array();
+    jData["wires"] = nlohmann::json::array();
+
+    std::unordered_set<std::string> selComps(selectedComponentIds.begin(), selectedComponentIds.end());
+
     for (const auto& comp : design.components) {
-        if (selectedComponentIds.count(comp.id)) {
-            if (!first) ss << ",";
-            first = false;
-            ss << "{\"id\":\"" << comp.id << "\",\"type\":\"" << comp.rawTypeStr << "\",\"label\":\"" << comp.label << "\",\"x\":" << comp.x << ",\"y\":" << comp.y << "}";
+        if (selComps.count(comp.id)) {
+            nlohmann::json jComp;
+            jComp["id"] = comp.id;
+            jComp["type"] = comp.rawTypeStr;
+            jComp["label"] = comp.label;
+            jComp["x"] = comp.x;
+            jComp["y"] = comp.y;
+            jComp["rotation"] = comp.rotation;
+            jComp["params"] = comp.parameters;
+            
+            nlohmann::json jPins = nlohmann::json::array();
+            for (const auto& p : comp.pins) {
+                nlohmann::json jp;
+                jp["name"] = p.name;
+                jp["relX"] = p.relativeX;
+                jp["relY"] = p.relativeY;
+                jp["isInput"] = p.isInput;
+                jp["isOutput"] = p.isOutput;
+                jp["opSign"] = p.opSign;
+                jPins.push_back(jp);
+            }
+            jComp["pins"] = jPins;
+
+            jData["components"].push_back(jComp);
         }
     }
-    ss << "]}";
 
-    std::string jsonStr = ss.str();
+    for (const auto& w : design.wires) {
+        bool fromSel = !w.from.compId.empty() && selComps.count(w.from.compId);
+        bool toSel = !w.to.compId.empty() && selComps.count(w.to.compId);
+        bool isWireSel = selectedWireIds.count(w.id) > 0;
+
+        if (isWireSel || (fromSel && toSel)) {
+            nlohmann::json jw;
+            jw["id"] = w.id;
+            jw["fromComp"] = w.from.compId;
+            jw["fromTerm"] = w.from.terminal;
+            jw["toComp"] = w.to.compId;
+            jw["toTerm"] = w.to.terminal;
+            jw["fromNode"] = w.fromNode;
+            jw["toNode"] = w.toNode;
+            
+            nlohmann::json jPath = nlohmann::json::array();
+            for (const auto& pt : w.manualPath) {
+                jPath.push_back({{"x", pt.x}, {"y", pt.y}});
+            }
+            jw["path"] = jPath;
+
+            jData["wires"].push_back(jw);
+        }
+    }
+
+    std::string jsonStr = jData.dump(2);
+    g_internalClipboard = jsonStr;
+
     if (OpenClipboard(NULL)) {
         EmptyClipboard();
         HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, jsonStr.size() + 1);
@@ -1231,24 +1285,141 @@ void SchematicCanvas::copySelected() {
 
 void SchematicCanvas::pasteSelected() {
     pushUndoState();
-    if (!OpenClipboard(NULL)) return;
-    HANDLE hData = GetClipboardData(CF_TEXT);
-    if (!hData) { CloseClipboard(); return; }
-    char* pszText = static_cast<char*>(GlobalLock(hData));
-    if (!pszText) { CloseClipboard(); return; }
+    std::string jsonStr;
 
-    std::string clipStr(pszText);
-    GlobalUnlock(hData);
-    CloseClipboard();
+    if (OpenClipboard(NULL)) {
+        HANDLE hData = GetClipboardData(CF_TEXT);
+        if (hData) {
+            char* pszText = static_cast<char*>(GlobalLock(hData));
+            if (pszText) {
+                jsonStr = std::string(pszText);
+                GlobalUnlock(hData);
+            }
+        }
+        CloseClipboard();
+    }
 
-    selectedComponentIds.clear();
+    if (jsonStr.empty() || jsonStr.find("components") == std::string::npos) {
+        jsonStr = g_internalClipboard;
+    }
 
-    ComponentInstance comp;
-    comp.id = "comp_" + std::to_string(rand() % 10000);
-    comp.rawTypeStr = "R"; comp.label = "Pasted Resistor";
-    comp.x = 20; comp.y = 20;
-    design.components.push_back(comp);
-    selectedComponentIds.insert(comp.id);
+    if (jsonStr.empty()) return;
+
+    try {
+        nlohmann::json jData = nlohmann::json::parse(jsonStr);
+        if (!jData.contains("components") || !jData["components"].is_array()) return;
+
+        selectedComponentIds.clear();
+        selectedWireIds.clear();
+
+        std::unordered_map<std::string, std::string> oldToNewId;
+        float offsetX = 30.0f;
+        float offsetY = 30.0f;
+
+        for (const auto& jComp : jData["components"]) {
+            ComponentInstance comp;
+            std::string oldId = jComp.value("id", "comp");
+            std::string typeStr = jComp.value("type", "R");
+            
+            std::string prefix = typeStr;
+            int idx = 1;
+            std::string newId;
+            while (true) {
+                newId = prefix + std::to_string(idx);
+                bool exists = false;
+                for (const auto& existing : design.components) {
+                    if (existing.id == newId) { exists = true; break; }
+                }
+                if (!exists && oldToNewId.find(newId) == oldToNewId.end()) break;
+                idx++;
+            }
+
+            oldToNewId[oldId] = newId;
+            comp.id = newId;
+            comp.rawTypeStr = typeStr;
+            comp.label = jComp.value("label", newId);
+            comp.x = jComp.value("x", 0.0f) + offsetX;
+            comp.y = jComp.value("y", 0.0f) + offsetY;
+            comp.rotation = jComp.value("rotation", 0);
+
+            if (jComp.contains("params")) {
+                for (auto& [k, v] : jComp["params"].items()) {
+                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                    else comp.parameters[k] = v.dump();
+                }
+            }
+
+            if (jComp.contains("pins") && jComp["pins"].is_array()) {
+                for (const auto& jp : jComp["pins"]) {
+                    Pin p;
+                    p.name = jp.value("name", "");
+                    p.relativeX = jp.value("relX", 0.0f);
+                    p.relativeY = jp.value("relY", 0.0f);
+                    p.isInput = jp.value("isInput", false);
+                    p.isOutput = jp.value("isOutput", false);
+                    p.opSign = jp.value("opSign", "+");
+                    comp.pins.push_back(p);
+                }
+            }
+
+            if (typeStr == "R") comp.type = ComponentType::Resistor;
+            else if (typeStr == "C") comp.type = ComponentType::Capacitor;
+            else if (typeStr == "L") comp.type = ComponentType::Inductor;
+            else if (typeStr == "V") comp.type = ComponentType::VoltageSource;
+            else if (typeStr == "AC_V") comp.type = ComponentType::ACVoltageSource;
+            else if (typeStr == "I") comp.type = ComponentType::CurrentSource;
+            else if (typeStr == "D") comp.type = ComponentType::Diode;
+            else if (typeStr == "MOSFET") comp.type = ComponentType::MOSFET;
+            else if (typeStr == "S") comp.type = ComponentType::Switch;
+            else if (typeStr == "VM") comp.type = ComponentType::Voltmeter;
+            else if (typeStr == "AM") comp.type = ComponentType::Ammeter;
+            else if (typeStr == "GAIN") comp.type = ComponentType::Gain;
+            else if (typeStr == "PID") comp.type = ComponentType::PI_Controller;
+            else if (typeStr == "COMP") comp.type = ComponentType::Comparator;
+            else if (typeStr == "PWM") comp.type = ComponentType::PWM_Generator;
+            else if (typeStr == "PULSE" || typeStr == "PULSE_GEN") comp.type = ComponentType::PulseGenerator;
+            else if (typeStr == "TRI") comp.type = ComponentType::Triangle_Carrier;
+            else if (typeStr == "SUM_RECT" || typeStr == "SUM_ROUND") comp.type = ComponentType::SummingJunction;
+            else if (typeStr == "PRODUCT_RECT") comp.type = ComponentType::Product;
+            else if (typeStr == "AND") comp.type = ComponentType::AND_Gate;
+            else if (typeStr == "OR") comp.type = ComponentType::OR_Gate;
+            else if (typeStr == "NOT") comp.type = ComponentType::NOT_Gate;
+            else if (typeStr == "CSCRIPT") comp.type = ComponentType::CustomScript;
+            else comp.type = ComponentType::Unknown;
+
+            design.components.push_back(comp);
+            selectedComponentIds.insert(newId);
+        }
+
+        if (jData.contains("wires") && jData["wires"].is_array()) {
+            for (const auto& jw : jData["wires"]) {
+                WireInstance wire;
+                wire.id = "wire_" + std::to_string(rand() % 100000);
+                std::string oldFromComp = jw.value("fromComp", "");
+                std::string oldToComp = jw.value("toComp", "");
+
+                wire.from.compId = oldToNewId.count(oldFromComp) ? oldToNewId[oldFromComp] : oldFromComp;
+                wire.from.terminal = jw.value("fromTerm", "");
+                wire.to.compId = oldToNewId.count(oldToComp) ? oldToNewId[oldToComp] : oldToComp;
+                wire.to.terminal = jw.value("toTerm", "");
+
+                wire.fromNode = wire.from.compId + "." + wire.from.terminal;
+                wire.toNode = wire.to.compId + "." + wire.to.terminal;
+
+                if (jw.contains("path") && jw["path"].is_array()) {
+                    for (const auto& jpt : jw["path"]) {
+                        Point2D pt;
+                        pt.x = jpt.value("x", 0.0f) + offsetX;
+                        pt.y = jpt.value("y", 0.0f) + offsetY;
+                        wire.manualPath.push_back(pt);
+                    }
+                }
+
+                design.wires.push_back(wire);
+                selectedWireIds.insert(wire.id);
+            }
+        }
+    } catch (...) {}
 }
 
 void SchematicCanvas::duplicateSelected() {
@@ -1574,13 +1745,22 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
 
     if (isWiring) wireCurrentPos = mousePos;
 
-    // Drag selected group
-    if (ImGui::IsWindowHovered() && !selectedComponentIds.empty() && !isWiring && !isBoxSelecting && !isDraggingWireSegment && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-        for (auto& comp : design.components) {
-            if (selectedComponentIds.count(comp.id)) {
-                comp.x += io.MouseDelta.x / zoomLevel;
-                comp.y += io.MouseDelta.y / zoomLevel;
+    // Drag selected group (with Ctrl+Drag cloning support)
+    static bool hasClonedForCtrlDrag = false;
+    if (ImGui::IsWindowHovered() && !selectedComponentIds.empty() && !isWiring && !isBoxSelecting && !isDraggingWireSegment) {
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+            if (io.KeyCtrl && !hasClonedForCtrlDrag) {
+                duplicateSelected();
+                hasClonedForCtrlDrag = true;
             }
+            for (auto& comp : design.components) {
+                if (selectedComponentIds.count(comp.id)) {
+                    comp.x += io.MouseDelta.x / zoomLevel;
+                    comp.y += io.MouseDelta.y / zoomLevel;
+                }
+            }
+        } else {
+            hasClonedForCtrlDrag = false;
         }
     }
 
