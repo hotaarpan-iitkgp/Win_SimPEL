@@ -12,6 +12,8 @@ using json = nlohmann::json;
 
 namespace CircuitSim {
 
+#include "engine/ExpressionEvaluator.hpp"
+
 std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) {
     CircuitDesign tempDesign = design;
     NetlistBuilder::buildNodesForCircuit(tempDesign);
@@ -56,44 +58,66 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
 
         json cObj;
         cObj["id"] = comp.id;
-        cObj["nodes"] = comp.nodes;
 
+        // Format nodes into "node_0", "node_1", etc.
+        json formattedNodes = json::array();
+        for (const auto& n : comp.nodes) {
+            if (n == "0" || n == "node_0") formattedNodes.push_back("node_0");
+            else if (n.rfind("node_", 0) == 0) formattedNodes.push_back(n);
+            else formattedNodes.push_back("node_" + n);
+        }
+
+        // Parse all component parameters using ExpressionEvaluator::parseScientific
+        std::unordered_map<std::string, double> parsedParams;
         for (const auto& pair : comp.parameters) {
-            try {
-                double val = std::stod(pair.second);
-                cObj[pair.first] = val;
-            } catch (...) {
-                cObj[pair.first] = pair.second;
-            }
+            parsedParams[pair.first] = CircuitSimEngine::ExpressionEvaluator::parseScientific(pair.second);
         }
 
         if (t == "R" || t == "RESISTOR") {
-            if (!cObj.contains("value")) cObj["value"] = 10;
-            if (!cObj.contains("esr")) cObj["esr"] = 0;
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = parsedParams.count("value") ? parsedParams["value"] : 10.0;
+            cObj["esr"] = parsedParams.count("esr") ? parsedParams["esr"] : 0.0;
             cObj["src_type"] = "static";
             physStageObj["resistors"].push_back(cObj);
         } else if (t == "L" || t == "INDUCTOR") {
-            if (!cObj.contains("L")) cObj["L"] = 0.0001;
-            if (!cObj.contains("esr")) cObj["esr"] = 0.05;
-            if (!cObj.contains("iL0")) cObj["iL0"] = 0;
+            cObj["nodes"] = formattedNodes;
+            cObj["L"] = parsedParams.count("L") ? parsedParams["L"] : 0.0001;
+            cObj["esr"] = parsedParams.count("esr") ? parsedParams["esr"] : 0.05;
+            cObj["iL0"] = parsedParams.count("iL0") ? parsedParams["iL0"] : 0.0;
             physStageObj["inductors"].push_back(cObj);
         } else if (t == "C" || t == "CAPACITOR") {
-            if (!cObj.contains("C")) cObj["C"] = 0.0001;
-            if (!cObj.contains("esr")) cObj["esr"] = 0.01;
-            if (!cObj.contains("vC0")) cObj["vC0"] = 0;
+            cObj["nodes"] = formattedNodes;
+            cObj["C"] = parsedParams.count("C") ? parsedParams["C"] : 0.0001;
+            cObj["esr"] = parsedParams.count("esr") ? parsedParams["esr"] : 0.01;
+            cObj["vC0"] = parsedParams.count("vC0") ? parsedParams["vC0"] : 0.0;
             physStageObj["capacitors"].push_back(cObj);
         } else if (t == "V" || t == "VOLTAGESOURCE") {
-            if (!cObj.contains("value")) cObj["value"] = 100;
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = parsedParams.count("value") ? parsedParams["value"] : 100.0;
             cObj["src_type"] = "dc";
             physStageObj["voltage_sources"].push_back(cObj);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";
-            if (!cObj.contains("Vd")) cObj["Vd"] = 0.7;
-            if (!cObj.contains("Ron")) cObj["Ron"] = 0.001;
-            if (!cObj.contains("Roff")) cObj["Roff"] = 1000000;
+            cObj["nodes"] = formattedNodes;
+            cObj["Vd"] = parsedParams.count("Vd") ? parsedParams["Vd"] : 0.7;
+            double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
+            double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
+            if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
+            cObj["Ron"] = rOn;
+            cObj["Roff"] = rOff;
             physStageObj["diodes"].push_back(cObj);
         } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET") {
             cObj["type"] = "MOSFET";
+            
+            json pNodes = json::array();
+            if (formattedNodes.size() >= 2) {
+                pNodes.push_back(formattedNodes[0]);
+                pNodes.push_back(formattedNodes[1]);
+            } else {
+                pNodes = formattedNodes;
+            }
+            cObj["nodes"] = pNodes;
+
             cObj["control_node"] = comp.id + ".G";
 
             std::string ctrlSig = "";
@@ -103,23 +127,26 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
                     break;
                 }
             }
-            if (ctrlSig.empty()) ctrlSig = "PULSE_GEN_41.Out";
+            if (ctrlSig.empty()) ctrlSig = "PULSE_GEN1.Out";
             cObj["control_signal"] = ctrlSig;
 
-            if (!cObj.contains("Ron")) cObj["Ron"] = 0.01;
-            if (!cObj.contains("Roff")) cObj["Roff"] = 1000000;
-            if (!cObj.contains("Vd")) cObj["Vd"] = 0.8;
-            if (!cObj.contains("Iholding")) cObj["Iholding"] = 0.01;
-            if (!cObj.contains("Vgt")) cObj["Vgt"] = 0.5;
+            double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.01;
+            double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
+            if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
+            cObj["Ron"] = rOn;
+            cObj["Roff"] = rOff;
+            cObj["Vd"] = parsedParams.count("Vd") ? parsedParams["Vd"] : 0.8;
+            cObj["Iholding"] = parsedParams.count("Iholding") ? parsedParams["Iholding"] : 0.01;
+            cObj["Vgt"] = parsedParams.count("Vgt") ? parsedParams["Vgt"] : 0.5;
             physStageObj["analog_switches"].push_back(cObj);
         } else if (t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "CONSTANT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
-            if (!cObj.contains("amplitude")) cObj["amplitude"] = 1;
-            if (!cObj.contains("delay")) cObj["delay"] = 0;
-            if (!cObj.contains("period")) cObj["period"] = 0.0001;
-            if (!cObj.contains("width")) cObj["width"] = 0.5;
-            if (!cObj.contains("value")) cObj["value"] = 1;
+            cObj["amplitude"] = parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0;
+            cObj["period"] = parsedParams.count("period") ? parsedParams["period"] : 0.0001;
+            cObj["width"] = parsedParams.count("width") ? parsedParams["width"] : 0.5;
+            cObj["delay"] = parsedParams.count("delay") ? parsedParams["delay"] : 0.0;
+            cObj["value"] = 1.0;
             ctrlLoopsObj["constants"].push_back(cObj);
         }
     }
@@ -128,14 +155,27 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     root["control_loops"] = ctrlLoopsObj;
 
     json simParamsObj;
-    simParamsObj["stop_time"] = tempDesign.settings.stopTime;
-    simParamsObj["step_size"] = tempDesign.settings.stepSize;
-    simParamsObj["solver"] = tempDesign.settings.solverType;
-    simParamsObj["step_type"] = tempDesign.settings.stepType;
+    simParamsObj["stop_time"] = (tempDesign.settings.stopTime > 0.0) ? tempDesign.settings.stopTime : 0.01;
+    simParamsObj["step_size"] = (tempDesign.settings.stepSize > 0.0) ? tempDesign.settings.stepSize : 1e-5;
+    if (simParamsObj["stop_time"].get<double>() <= 0.0) simParamsObj["stop_time"] = 0.01;
+    if (simParamsObj["step_size"].get<double>() <= 0.0) simParamsObj["step_size"] = 1e-5;
+
+    simParamsObj["solver"] = tempDesign.settings.solverType.empty() ? "euler" : tempDesign.settings.solverType;
+    simParamsObj["step_type"] = tempDesign.settings.stepType.empty() ? "fixed" : tempDesign.settings.stepType;
     simParamsObj["solverMethod"] = "non-ideal";
     simParamsObj["engine"] = "auto";
     simParamsObj["enable_lu_cache"] = true;
-    simParamsObj["wanted_variables"] = json::array();
+
+    json wantedVars = json::array();
+    for (const auto& p : tempDesign.plotConfig.plots) {
+        for (const auto& v : p.variables) {
+            wantedVars.push_back(v);
+        }
+    }
+    if (wantedVars.empty()) {
+        wantedVars = json::array({"COMP1.Minus", "COMP1.Out", "COMP1.Plus", "CONST1.Out", "I_L1", "I_D1", "V_C1"});
+    }
+    simParamsObj["wanted_variables"] = wantedVars;
     root["simulation_parameters"] = simParamsObj;
 
     root["probes"] = json::array();

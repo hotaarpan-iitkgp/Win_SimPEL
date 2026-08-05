@@ -18,6 +18,16 @@ double ExpressionEvaluator::parseScientific(const std::string& str) {
     s.erase(s.find_last_not_of(" \t\r\n") + 1);
     if (s.empty()) return 0.0;
 
+    // Handle math expression like 1/10000 or 1/10k
+    size_t slashPos = s.find('/');
+    if (slashPos != std::string::npos && slashPos > 0 && slashPos < s.length() - 1) {
+        std::string numStr = s.substr(0, slashPos);
+        std::string denStr = s.substr(slashPos + 1);
+        double num = parseScientific(numStr);
+        double den = parseScientific(denStr);
+        if (den != 0.0) return num / den;
+    }
+
     if (s.length() >= 2 && (s.substr(s.length() - 2) == "Hz" || s.substr(s.length() - 2) == "hz")) {
         s.pop_back();
         s.pop_back();
@@ -36,7 +46,7 @@ double ExpressionEvaluator::parseScientific(const std::string& str) {
     else if (last == 'n' || last == 'N') { multiplier = 1e-9; s.pop_back(); }
     else if (last == 'p' || last == 'P') { multiplier = 1e-12; s.pop_back(); }
     else if (last == 'f' || last == 'F') { multiplier = 1e-15; s.pop_back(); }
-    else if (last == 'V' || last == 'v' || last == 'A' || last == 'a' || last == 'O' || last == 'o') {
+    else if (last == 'V' || last == 'v' || last == 'A' || last == 'a' || last == 'O' || last == 'o' || last == 'H' || last == 'h' || last == 's' || last == 'S') {
         s.pop_back();
         return parseScientific(s);
     }
