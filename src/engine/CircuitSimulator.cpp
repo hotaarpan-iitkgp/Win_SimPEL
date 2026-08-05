@@ -262,10 +262,13 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "In1", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "Plus", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input_0", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input", "");   // e.g. GAIN "input": "TRI1.Out"
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input1", "");
 
         fc.in1Key = getParamString(ctrlComp, "In2", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "Minus", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input_1", "");
+        if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input2", "");  // secondary input alias
         fc.outKey = getParamString(ctrlComp, "output", "");
         fc.targetKey = getParamString(ctrlComp, "target", "");
         fc.ctrlSigKey = getParamString(ctrlComp, "selected_signals", "");
