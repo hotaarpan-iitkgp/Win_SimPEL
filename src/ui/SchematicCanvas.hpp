@@ -60,6 +60,12 @@ private:
     bool isBoxSelecting = false;
     ImVec2 boxSelectStart{0.0f, 0.0f};
     ImVec2 boxSelectEnd{0.0f, 0.0f};
+
+    // Adaptive box zoom
+    bool adaptiveZoomMode = false;
+    bool isBoxZooming = false;
+    ImVec2 boxZoomStart{0.0f, 0.0f};
+    ImVec2 boxZoomEnd{0.0f, 0.0f};
     
     // Dynamic Modals state
     bool showConfigurator = false;
@@ -141,6 +147,9 @@ public:
     const std::set<std::string>& getSelectedComponentIds() const { return selectedComponentIds; }
     const std::set<std::string>& getSelectedWireIds() const { return selectedWireIds; }
     ComponentInstance* getSelectedComponent();
+
+    bool isAdaptiveZoomMode() const { return adaptiveZoomMode; }
+    void toggleAdaptiveZoom() { adaptiveZoomMode = !adaptiveZoomMode; isBoxZooming = false; }
 };
 
 } // namespace CircuitSim

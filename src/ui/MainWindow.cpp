@@ -508,6 +508,15 @@ void MainWindow::renderControlBar() {
         if (ImGui::Button("Fit Schematic")) {
             canvas.fitToScreen();
         }
+        ImGui::SameLine(0, 10);
+
+        // Adaptive Box Zoom toggle
+        bool zoomActive = canvas.isAdaptiveZoomMode();
+        if (zoomActive) ImGui::PushStyleColor(ImGuiCol_Text, isDarkMode ? ImVec4(0.3f, 1.0f, 0.5f, 1.0f) : ImVec4(0.05f, 0.55f, 0.15f, 1.0f));
+        if (ImGui::Button(zoomActive ? "[Box Zoom ON]" : "Box Zoom")) {
+            canvas.toggleAdaptiveZoom();
+        }
+        if (zoomActive) ImGui::PopStyleColor();
         ImGui::SameLine(0, 20);
 
         ImGui::TextDisabled("|");

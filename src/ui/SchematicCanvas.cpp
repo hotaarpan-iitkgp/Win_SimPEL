@@ -1637,6 +1637,33 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         drawList->AddRectFilled(boxSelectStart, boxSelectEnd, IM_COL32(255, 180, 0, 35));
         drawList->AddRect(boxSelectStart, boxSelectEnd, IM_COL32(255, 180, 0, 255), 0, 0, 1.5f);
     }
+
+    // Adaptive Box Zoom rubber-band overlay
+    if (isBoxZooming) {
+        boxZoomEnd = mousePos;
+        float bx0 = std::min(boxZoomStart.x, boxZoomEnd.x);
+        float by0 = std::min(boxZoomStart.y, boxZoomEnd.y);
+        float bx1 = std::max(boxZoomStart.x, boxZoomEnd.x);
+        float by1 = std::max(boxZoomStart.y, boxZoomEnd.y);
+        float bw = bx1 - bx0, bh = by1 - by0;
+        float aspect = (bh > 1.0f) ? (bw / bh) : 99.0f;
+        ImU32 rectColor, fillColor;
+        if (aspect > 3.0f) {
+            // X-zoom: cyan tint
+            rectColor = IM_COL32(0, 220, 255, 255);
+            fillColor = IM_COL32(0, 220, 255, 30);
+        } else if (aspect < 0.33f) {
+            // Y-zoom: magenta tint
+            rectColor = IM_COL32(220, 0, 255, 255);
+            fillColor = IM_COL32(220, 0, 255, 30);
+        } else {
+            // Box zoom: green tint
+            rectColor = IM_COL32(60, 255, 120, 255);
+            fillColor = IM_COL32(60, 255, 120, 30);
+        }
+        drawList->AddRectFilled(ImVec2(bx0, by0), ImVec2(bx1, by1), fillColor);
+        drawList->AddRect(ImVec2(bx0, by0), ImVec2(bx1, by1), rectColor, 0, 0, 1.8f);
+    }
     
     drawList->PopClipRect();
 
@@ -1652,9 +1679,15 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
     }
 
     // Mouse Pan with Right Button or Spacebar + Left Mouse
-    if (ImGui::IsWindowHovered() && !isDraggingWireSegment && (ImGui::IsMouseDragging(ImGuiMouseButton_Right) || (ImGui::IsKeyDown(ImGuiKey_Space) && ImGui::IsMouseDragging(ImGuiMouseButton_Left)))) {
-        panOffset.x += io.MouseDelta.x / zoomLevel;
-        panOffset.y += io.MouseDelta.y / zoomLevel;
+    // When adaptive zoom is active, left-drag is NOT a pan — it's a zoom drag
+    bool lmbPanActive = ImGui::IsKeyDown(ImGuiKey_Space) && ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+    bool rmbPanActive = ImGui::IsMouseDragging(ImGuiMouseButton_Right);
+    bool suppressPan = adaptiveZoomMode && !lmbPanActive; // in zoom mode, only space+LMB still pans
+    if (ImGui::IsWindowHovered() && !isDraggingWireSegment && (rmbPanActive || lmbPanActive)) {
+        if (!suppressPan || lmbPanActive) {
+            panOffset.x += io.MouseDelta.x / zoomLevel;
+            panOffset.y += io.MouseDelta.y / zoomLevel;
+        }
     }
 
     // Zoom with scroll wheel centered on mouse pointer position
@@ -1790,6 +1823,11 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                         selectedWireIds.clear();
                     }
                     selectedWireIds.insert(hoveredWireId);
+                } else if (adaptiveZoomMode) {
+                    // In zoom mode: start box-zoom rubber-band, don't touch selection
+                    isBoxZooming = true;
+                    boxZoomStart = mousePos;
+                    boxZoomEnd  = mousePos;
                 } else if (!io.KeyShift) {
                     selectedComponentIds.clear();
                     selectedWireIds.clear();
@@ -1819,11 +1857,72 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         autoSelectWiresForSelectedComponents();
     }
 
+    // Commit adaptive box zoom on mouse release
+    if (isBoxZooming && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+        isBoxZooming = false;
+        float bx0 = std::min(boxZoomStart.x, boxZoomEnd.x);
+        float by0 = std::min(boxZoomStart.y, boxZoomEnd.y);
+        float bx1 = std::max(boxZoomStart.x, boxZoomEnd.x);
+        float by1 = std::max(boxZoomStart.y, boxZoomEnd.y);
+        float bw = bx1 - bx0, bh = by1 - by0;
+
+        // Require a minimum drag of 8 pixels to avoid accidental trigger
+        if (bw > 8.0f || bh > 8.0f) {
+            float aspect = (bh > 1.0f) ? (bw / bh) : 99.0f;
+            float viewW = canvasSize.x;
+            float viewH = canvasSize.y;
+
+            if (aspect > 3.0f) {
+                // --- X-axis zoom only ---
+                // Center Y stays, zoom so that bw maps to viewW
+                ImVec2 wldLeft  = screenToWorld(ImVec2(bx0, by0 + bh * 0.5f), canvasPos);
+                ImVec2 wldRight = screenToWorld(ImVec2(bx1, by0 + bh * 0.5f), canvasPos);
+                float worldW = wldRight.x - wldLeft.x;
+                if (worldW > 0.001f) {
+                    float newZoom = viewW / worldW;
+                    newZoom = std::max(0.15f, std::min(newZoom, 6.0f));
+                    float worldMidX = (wldLeft.x + wldRight.x) * 0.5f;
+                    panOffset.x = viewW / (2.0f * newZoom) - worldMidX;
+                    zoomLevel = newZoom;
+                }
+            } else if (aspect < 0.33f) {
+                // --- Y-axis zoom only ---
+                ImVec2 wldTop    = screenToWorld(ImVec2(bx0 + bw * 0.5f, by0), canvasPos);
+                ImVec2 wldBottom = screenToWorld(ImVec2(bx0 + bw * 0.5f, by1), canvasPos);
+                float worldH = wldBottom.y - wldTop.y;
+                if (worldH > 0.001f) {
+                    float newZoom = viewH / worldH;
+                    newZoom = std::max(0.15f, std::min(newZoom, 6.0f));
+                    float worldMidY = (wldTop.y + wldBottom.y) * 0.5f;
+                    panOffset.y = viewH / (2.0f * newZoom) - worldMidY;
+                    zoomLevel = newZoom;
+                }
+            } else {
+                // --- Full box zoom ---
+                ImVec2 wldTL = screenToWorld(ImVec2(bx0, by0), canvasPos);
+                ImVec2 wldBR = screenToWorld(ImVec2(bx1, by1), canvasPos);
+                float worldW = wldBR.x - wldTL.x;
+                float worldH = wldBR.y - wldTL.y;
+                if (worldW > 0.001f && worldH > 0.001f) {
+                    float zx = viewW / worldW;
+                    float zy = viewH / worldH;
+                    float newZoom = std::min(zx, zy);
+                    newZoom = std::max(0.15f, std::min(newZoom, 6.0f));
+                    float worldMidX = (wldTL.x + wldBR.x) * 0.5f;
+                    float worldMidY = (wldTL.y + wldBR.y) * 0.5f;
+                    panOffset.x = viewW / (2.0f * newZoom) - worldMidX;
+                    panOffset.y = viewH / (2.0f * newZoom) - worldMidY;
+                    zoomLevel = newZoom;
+                }
+            }
+        }
+    }
+
     if (isWiring) wireCurrentPos = mousePos;
 
     // Drag selected group (with Ctrl+Drag cloning support)
     static bool hasClonedForCtrlDrag = false;
-    if (ImGui::IsWindowHovered() && !selectedComponentIds.empty() && !isWiring && !isBoxSelecting && !isDraggingWireSegment) {
+    if (ImGui::IsWindowHovered() && !selectedComponentIds.empty() && !isWiring && !isBoxSelecting && !isBoxZooming && !isDraggingWireSegment) {
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
             if (io.KeyCtrl && !hasClonedForCtrlDrag) {
                 duplicateSelected();
