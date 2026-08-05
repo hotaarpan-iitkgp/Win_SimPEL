@@ -1096,11 +1096,52 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         }
 
         ImVec2 targetP = (!hoveredWireId.empty()) ? worldToScreen(hoveredWireJunctionPos.x, hoveredWireJunctionPos.y, canvasPos) : wireCurrentPos;
-
         // SINGLE RIGHT-ANGLE L-SHAPE PREVIEW (matching user screenshot 100%)
         ImVec2 mid = fromIsVertical ? ImVec2(curr.x, targetP.y) : ImVec2(targetP.x, curr.y);
         drawList->AddLine(curr, mid, previewColor, 2.0f * zoomLevel);
         drawList->AddLine(mid, targetP, previewColor, 2.0f * zoomLevel);
+    }
+}
+
+void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& outHalfW, float& outHalfH) {
+    float minX = 0.0f, maxX = 0.0f, minY = 0.0f, maxY = 0.0f;
+    bool hasPins = !comp.pins.empty();
+
+    if (hasPins) {
+        minX = comp.pins[0].relativeX;
+        maxX = comp.pins[0].relativeX;
+        minY = comp.pins[0].relativeY;
+        maxY = comp.pins[0].relativeY;
+        for (const auto& pin : comp.pins) {
+            minX = std::min(minX, pin.relativeX);
+            maxX = std::max(maxX, pin.relativeX);
+            minY = std::min(minY, pin.relativeY);
+            maxY = std::max(maxY, pin.relativeY);
+        }
+        outHalfW = std::max(std::abs(minX), std::abs(maxX)) + 12.0f;
+        outHalfH = std::max(std::abs(minY), std::abs(maxY)) + 12.0f;
+    } else {
+        outHalfW = 32.0f;
+        outHalfH = 18.0f;
+    }
+
+    if (comp.rawTypeStr == "CSCRIPT" || comp.rawTypeStr == "SUBSYSTEM") {
+        outHalfW = std::max(outHalfW, 45.0f);
+        outHalfH = std::max(outHalfH, 35.0f);
+    } else if (comp.rawTypeStr == "R" || comp.rawTypeStr == "C" || comp.rawTypeStr == "L" ||
+               comp.rawTypeStr == "D" || comp.rawTypeStr == "V" || comp.rawTypeStr == "I" ||
+               comp.rawTypeStr == "AC_V" || comp.rawTypeStr == "S" || comp.rawTypeStr == "MOSFET" ||
+               comp.rawTypeStr == "VM" || comp.rawTypeStr == "AM") {
+        outHalfW = std::max(outHalfW, 32.0f);
+        outHalfH = std::max(outHalfH, 18.0f);
+    } else {
+        outHalfW = std::max(outHalfW, 25.0f);
+        outHalfH = std::max(outHalfH, 25.0f);
+    }
+
+    int rot = ((comp.rotation % 360) + 360) % 360;
+    if (rot == 90 || rot == 270) {
+        std::swap(outHalfW, outHalfH);
     }
 }
 
@@ -1118,15 +1159,22 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
         bool isSelected = selectedComponentIds.count(comp.id) > 0;
         ImU32 componentColor = isSelected ? IM_COL32(255, 180, 0, 255) : IM_COL32(200, 210, 230, 255);
 
+        float hw = 25.0f, hh = 25.0f;
+        getComponentBounds(comp, hw, hh);
+
         if (isSelected) {
             drawList->AddRectFilled(
-                {center.x - 24*s, center.y - 44*s},
-                {center.x + 24*s, center.y + 44*s},
-                IM_COL32(255, 180, 0, 35), 6*s);
+                {center.x - hw*s, center.y - hh*s},
+                {center.x + hw*s, center.y + hh*s},
+                IM_COL32(255, 180, 0, 40), 6*s);
+            drawList->AddRect(
+                {center.x - hw*s, center.y - hh*s},
+                {center.x + hw*s, center.y + hh*s},
+                IM_COL32(255, 180, 0, 180), 6*s, 0, 1.5f*s);
         }
         
         drawComponentShape(drawList, comp, center, s, componentColor);
-        drawList->AddText({center.x - 20*s, center.y + 44*s}, IM_COL32(180, 190, 210, 255), comp.label.c_str());
+        drawList->AddText({center.x - (hw - 4.0f)*s, center.y + (hh + 4.0f)*s}, IM_COL32(180, 190, 210, 255), comp.label.c_str());
         drawTerminals(drawList, comp, center, s, mousePos, minPinDist);
     }
 }
@@ -1452,8 +1500,11 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
             bool hitComp = false;
             for (auto& comp : design.components) {
                 ImVec2 center = worldToScreen(comp.x, comp.y, canvasPos);
-                if (mousePos.x >= center.x - 25*zoomLevel && mousePos.x <= center.x + 25*zoomLevel &&
-                    mousePos.y >= center.y - 45*zoomLevel && mousePos.y <= center.y + 45*zoomLevel) {
+                float hw = 25.0f, hh = 25.0f;
+                getComponentBounds(comp, hw, hh);
+
+                if (mousePos.x >= center.x - hw*zoomLevel && mousePos.x <= center.x + hw*zoomLevel &&
+                    mousePos.y >= center.y - hh*zoomLevel && mousePos.y <= center.y + hh*zoomLevel) {
                     
                     if (!io.KeyShift && selectedComponentIds.count(comp.id) == 0) {
                         selectedComponentIds.clear();
@@ -1488,7 +1539,11 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
 
         for (const auto& comp : design.components) {
             ImVec2 center = worldToScreen(comp.x, comp.y, canvasPos);
-            if (center.x >= minP.x && center.x <= maxP.x && center.y >= minP.y && center.y <= maxP.y) {
+            float hw = 25.0f, hh = 25.0f;
+            getComponentBounds(comp, hw, hh);
+
+            if (center.x + hw*zoomLevel >= minP.x && center.x - hw*zoomLevel <= maxP.x &&
+                center.y + hh*zoomLevel >= minP.y && center.y - hh*zoomLevel <= maxP.y) {
                 selectedComponentIds.insert(comp.id);
             }
         }
@@ -1556,8 +1611,11 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         for (size_t i = 0; i < design.components.size(); ++i) {
             auto& comp = design.components[i];
             ImVec2 center = worldToScreen(comp.x, comp.y, canvasPos);
-            if (mousePos.x >= center.x - 25*zoomLevel && mousePos.x <= center.x + 25*zoomLevel &&
-                mousePos.y >= center.y - 45*zoomLevel && mousePos.y <= center.y + 45*zoomLevel) {
+            float hw = 25.0f, hh = 25.0f;
+            getComponentBounds(comp, hw, hh);
+
+            if (mousePos.x >= center.x - hw*zoomLevel && mousePos.x <= center.x + hw*zoomLevel &&
+                mousePos.y >= center.y - hh*zoomLevel && mousePos.y <= center.y + hh*zoomLevel) {
                 
                 if (comp.rawTypeStr == "SUBSYSTEM") {
                     subsystemStack.push_back({comp.label.empty() ? comp.id : comp.label, design});
