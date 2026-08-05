@@ -87,10 +87,43 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         }
         ImGui::SameLine();
     }
-    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box to zoom.");
+
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(100.0f);
+    ImGui::SliderFloat("Line Width", &traceLineWidth, 1.0f, 6.0f, "%.1f px");
+    ImGui::SameLine();
+
+    ImGui::TextColored(isDarkMode ? ImVec4(0.7f, 0.8f, 0.9f, 1.0f) : ImVec4(0.3f, 0.4f, 0.5f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box to zoom.");
 
     int renderPanes = std::min(numPanes, (int)categories.size());
     if (renderPanes < 1) renderPanes = 1;
+
+    static const ImVec4 DARK_MODE_COLORS[] = {
+        ImVec4(0.00f, 0.95f, 1.00f, 1.00f), // Neon Cyan
+        ImVec4(0.10f, 1.00f, 0.45f, 1.00f), // Bright Emerald Green
+        ImVec4(1.00f, 0.88f, 0.00f, 1.00f), // Vivid Gold Yellow
+        ImVec4(1.00f, 0.25f, 0.60f, 1.00f), // Bright Neon Pink
+        ImVec4(1.00f, 0.50f, 0.10f, 1.00f), // Bright Coral Orange
+        ImVec4(0.70f, 0.40f, 1.00f, 1.00f), // Bright Electric Violet
+        ImVec4(0.40f, 0.90f, 1.00f, 1.00f), // Bright Sky Blue
+        ImVec4(0.75f, 1.00f, 0.20f, 1.00f)  // Electric Lime
+    };
+
+    static const ImVec4 LIGHT_MODE_COLORS[] = {
+        ImVec4(0.05f, 0.35f, 0.75f, 1.00f), // Deep Royal Navy
+        ImVec4(0.02f, 0.50f, 0.25f, 1.00f), // Dark Forest Green
+        ImVec4(0.80f, 0.12f, 0.12f, 1.00f), // Deep Crimson Red
+        ImVec4(0.50f, 0.15f, 0.75f, 1.00f), // Deep Dark Violet
+        ImVec4(0.85f, 0.30f, 0.05f, 1.00f), // Rich Dark Orange
+        ImVec4(0.05f, 0.50f, 0.55f, 1.00f), // Dark Teal
+        ImVec4(0.45f, 0.25f, 0.08f, 1.00f), // Dark Warm Brown
+        ImVec4(0.12f, 0.18f, 0.28f, 1.00f)  // Deep Charcoal Slate
+    };
+
+    const auto& palette = isDarkMode ? DARK_MODE_COLORS : LIGHT_MODE_COLORS;
+    size_t numColors = sizeof(DARK_MODE_COLORS) / sizeof(DARK_MODE_COLORS[0]);
 
     if (ImPlot::BeginSubplots("Oscilloscope Subplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
         for (int i = 0; i < renderPanes; ++i) {
@@ -185,13 +218,18 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     ImGui::EndPopup();
                 }
 
+                int varIdx = 0;
                 for (const auto& varPair : cat.variables) {
                     const std::string& varName = varPair.first;
                     const std::vector<double>& vals = varPair.second;
                     int count = (int)std::min(data.timeHistory.size(), vals.size());
                     if (count > 0) {
-                        ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count);
+                        ImPlotSpec spec;
+                        spec.LineColor = palette[varIdx % numColors];
+                        spec.LineWeight = traceLineWidth;
+                        ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count, spec);
                     }
+                    varIdx++;
                 }
                 ImPlot::EndPlot();
             }

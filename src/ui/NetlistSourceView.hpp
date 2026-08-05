@@ -17,6 +17,8 @@ private:
     int numPanes = 1;
     bool autoFitNext = false;
     bool isAdaptiveZoomEnabled = true;
+    bool isDarkMode = true;
+    float traceLineWidth = 2.0f;
 
     // Per-pane deferred zoom: SetNextAxesLimits must be called BEFORE BeginPlot
     static constexpr int MAX_PANES = 4;
@@ -28,6 +30,10 @@ private:
 
 public:
     NetlistSourceView() = default;
+
+    void setDarkMode(bool dark) { isDarkMode = dark; }
+    void setTraceLineWidth(float width) { traceLineWidth = width; }
+    float getTraceLineWidth() const { return traceLineWidth; }
 
     void triggerAutoFit() { autoFitNext = true; }
     static std::string generateNetlistJson(const CircuitDesign& design);

@@ -58,6 +58,19 @@ void MainWindow::applyDarkTheme() {
     colors[ImGuiCol_TabActive]            = ImVec4(0.16f, 0.22f, 0.33f, 1.00f);
     colors[ImGuiCol_Text]                 = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
     colors[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.58f, 0.70f, 1.00f);
+
+    ImPlotStyle& plotStyle = ImPlot::GetStyle();
+    ImVec4* pColors = plotStyle.Colors;
+    pColors[ImPlotCol_FrameBg]      = ImVec4(0.09f, 0.13f, 0.20f, 1.00f);
+    pColors[ImPlotCol_PlotBg]       = ImVec4(0.06f, 0.09f, 0.16f, 1.00f);
+    pColors[ImPlotCol_PlotBorder]   = ImVec4(0.20f, 0.27f, 0.38f, 1.00f);
+    pColors[ImPlotCol_LegendBg]     = ImVec4(0.09f, 0.13f, 0.20f, 0.85f);
+    pColors[ImPlotCol_LegendBorder] = ImVec4(0.20f, 0.27f, 0.38f, 1.00f);
+    pColors[ImPlotCol_LegendText]   = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
+    pColors[ImPlotCol_TitleText]    = ImVec4(0.35f, 0.75f, 1.00f, 1.00f);
+    pColors[ImPlotCol_AxisText]     = ImVec4(0.85f, 0.90f, 0.96f, 1.00f);
+    pColors[ImPlotCol_AxisGrid]     = ImVec4(0.18f, 0.24f, 0.35f, 1.00f);
+    pColors[ImPlotCol_Selection]    = ImVec4(0.00f, 0.75f, 1.00f, 0.30f);
 }
 
 void MainWindow::applyLightTheme() {
@@ -104,6 +117,19 @@ void MainWindow::applyLightTheme() {
     colors[ImGuiCol_TabActive]            = ImVec4(0.97f, 0.98f, 1.00f, 1.00f);
     colors[ImGuiCol_Text]                 = ImVec4(0.06f, 0.09f, 0.16f, 1.00f); // Bold high contrast dark charcoal
     colors[ImGuiCol_TextDisabled]         = ImVec4(0.35f, 0.42f, 0.50f, 1.00f);
+
+    ImPlotStyle& plotStyle = ImPlot::GetStyle();
+    ImVec4* pColors = plotStyle.Colors;
+    pColors[ImPlotCol_FrameBg]      = ImVec4(0.95f, 0.97f, 0.99f, 1.00f);
+    pColors[ImPlotCol_PlotBg]       = ImVec4(0.98f, 0.97f, 0.90f, 1.00f); // Warm light background
+    pColors[ImPlotCol_PlotBorder]   = ImVec4(0.65f, 0.72f, 0.80f, 1.00f);
+    pColors[ImPlotCol_LegendBg]     = ImVec4(1.00f, 1.00f, 1.00f, 0.92f);
+    pColors[ImPlotCol_LegendBorder] = ImVec4(0.70f, 0.75f, 0.82f, 1.00f);
+    pColors[ImPlotCol_LegendText]   = ImVec4(0.05f, 0.08f, 0.15f, 1.00f); // Bold dark charcoal text
+    pColors[ImPlotCol_TitleText]    = ImVec4(0.02f, 0.40f, 0.65f, 1.00f);
+    pColors[ImPlotCol_AxisText]     = ImVec4(0.05f, 0.08f, 0.15f, 1.00f); // Bold dark charcoal text
+    pColors[ImPlotCol_AxisGrid]     = ImVec4(0.78f, 0.82f, 0.88f, 1.00f);
+    pColors[ImPlotCol_Selection]    = ImVec4(0.02f, 0.52f, 0.78f, 0.30f);
 }
 
 MainWindow::MainWindow() {
@@ -912,6 +938,9 @@ void MainWindow::renderSimParamsModal() {
 }
 
 void MainWindow::render() {
+    scopeView.setDarkMode(isDarkMode);
+    netlistSourceView.setDarkMode(isDarkMode);
+
     renderMenuBar();
     renderControlBar();
 
