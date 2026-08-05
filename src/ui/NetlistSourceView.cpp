@@ -522,13 +522,8 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
         if (!categories.empty()) {
             bool doFitThisFrame = autoFitNext;
-            if (autoFitNext) {
-                autoFitNext = false;
-            }
-
-            if (ImGui::Button("Fit Waveforms / Reset Zoom") || doFitThisFrame) {
-                ImPlot::SetNextAxesToFit();
-            }
+            if (autoFitNext) autoFitNext = false;
+            if (ImGui::Button("Fit Waveforms / Reset Zoom")) doFitThisFrame = true;
             ImGui::SameLine();
 
             if (isAdaptiveZoomEnabled) {
@@ -564,16 +559,27 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                 for (int i = 0; i < renderPanes; ++i) {
                     const auto& cat = categories[i % categories.size()];
 
-                    // Apply deferred zoom from PREVIOUS frame (must be before BeginPlot)
+                    // Pending zoom from previous frame (before BeginPlot)
                     if (hasPendingZoom[i]) {
                         ImPlot::SetNextAxesLimits(pendingXMin[i], pendingXMax[i],
                                                   pendingYMin[i], pendingYMax[i],
                                                   ImGuiCond_Always);
                         hasPendingZoom[i] = false;
-                    }
-
-                    if (doFitThisFrame) {
-                        ImPlot::SetNextAxesToFit();
+                    } else if (doFitThisFrame) {
+                        // Manual fit with 8% Y padding for breathing room
+                        double xMin = data.timeHistory.empty() ? 0.0 : data.timeHistory.front();
+                        double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
+                        double yMin =  1e30, yMax = -1e30;
+                        for (const auto& vp : cat.variables) {
+                            for (double v : vp.second) {
+                                if (v < yMin) yMin = v;
+                                if (v > yMax) yMax = v;
+                            }
+                        }
+                        if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
+                        double yRange = yMax - yMin;
+                        double yPad = (yRange > 1e-9) ? yRange * 0.08 : 0.5;
+                        ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
                     }
 
                     if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
