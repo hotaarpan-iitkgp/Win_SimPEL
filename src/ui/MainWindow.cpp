@@ -76,34 +76,34 @@ void MainWindow::applyLightTheme() {
     style.ItemSpacing = ImVec2(8, 6);
 
     ImVec4* colors = style.Colors;
-    colors[ImGuiCol_WindowBg]             = ImVec4(0.96f, 0.97f, 0.98f, 1.00f); // Slate-100 #f1f5f9
-    colors[ImGuiCol_ChildBg]              = ImVec4(1.00f, 1.00f, 1.00f, 1.00f); // Pure White #ffffff
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.92f, 0.94f, 0.97f, 1.00f); // Sleek slate grey #e9eef5
+    colors[ImGuiCol_ChildBg]              = ImVec4(0.95f, 0.97f, 0.99f, 1.00f); // Clean light grey panel #f1f5f9
     colors[ImGuiCol_PopupBg]              = ImVec4(1.00f, 1.00f, 1.00f, 0.98f);
-    colors[ImGuiCol_Border]               = ImVec4(0.80f, 0.85f, 0.90f, 1.00f); // Crisp slate border
+    colors[ImGuiCol_Border]               = ImVec4(0.78f, 0.83f, 0.89f, 1.00f); // Crisp slate border
     colors[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.04f);
-    colors[ImGuiCol_FrameBg]              = ImVec4(0.93f, 0.95f, 0.98f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.85f, 0.90f, 0.96f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.78f, 0.85f, 0.94f, 1.00f);
-    colors[ImGuiCol_TitleBg]              = ImVec4(0.91f, 0.94f, 0.97f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.86f, 0.90f, 0.95f, 1.00f);
-    colors[ImGuiCol_MenuBarBg]            = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.96f, 0.97f, 0.98f, 0.60f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.88f, 0.92f, 0.96f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.80f, 0.86f, 0.93f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.72f, 0.80f, 0.90f, 1.00f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.88f, 0.92f, 0.96f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.82f, 0.87f, 0.93f, 1.00f);
+    colors[ImGuiCol_MenuBarBg]            = ImVec4(0.95f, 0.97f, 0.99f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.92f, 0.94f, 0.97f, 0.60f);
     colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.75f, 0.80f, 0.86f, 1.00f);
     colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.60f, 0.68f, 0.78f, 1.00f);
     colors[ImGuiCol_CheckMark]            = ImVec4(0.02f, 0.52f, 0.78f, 1.00f);
     colors[ImGuiCol_SliderGrab]           = ImVec4(0.02f, 0.52f, 0.78f, 1.00f);
     colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.01f, 0.60f, 0.88f, 1.00f);
-    colors[ImGuiCol_Button]               = ImVec4(0.91f, 0.94f, 0.97f, 1.00f);
-    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.84f, 0.90f, 0.96f, 1.00f);
-    colors[ImGuiCol_ButtonActive]         = ImVec4(0.76f, 0.84f, 0.92f, 1.00f);
-    colors[ImGuiCol_Header]               = ImVec4(0.92f, 0.95f, 0.98f, 1.00f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.84f, 0.90f, 0.96f, 1.00f);
-    colors[ImGuiCol_HeaderActive]         = ImVec4(0.76f, 0.84f, 0.92f, 1.00f);
-    colors[ImGuiCol_Tab]                  = ImVec4(0.91f, 0.94f, 0.97f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.86f, 0.90f, 0.95f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.78f, 0.84f, 0.92f, 1.00f);
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.70f, 0.78f, 0.88f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.82f, 0.87f, 0.93f, 1.00f); // High contrast light slate header
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.74f, 0.81f, 0.89f, 1.00f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.66f, 0.75f, 0.85f, 1.00f);
+    colors[ImGuiCol_Tab]                  = ImVec4(0.88f, 0.92f, 0.96f, 1.00f);
     colors[ImGuiCol_TabHovered]           = ImVec4(0.02f, 0.52f, 0.78f, 0.80f);
-    colors[ImGuiCol_TabActive]            = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_Text]                 = ImVec4(0.06f, 0.09f, 0.16f, 1.00f); // High contrast dark charcoal
-    colors[ImGuiCol_TextDisabled]         = ImVec4(0.40f, 0.46f, 0.54f, 1.00f);
+    colors[ImGuiCol_TabActive]            = ImVec4(0.97f, 0.98f, 1.00f, 1.00f);
+    colors[ImGuiCol_Text]                 = ImVec4(0.06f, 0.09f, 0.16f, 1.00f); // Bold high contrast dark charcoal
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.35f, 0.42f, 0.50f, 1.00f);
 }
 
 MainWindow::MainWindow() {
@@ -550,9 +550,6 @@ void MainWindow::renderComponentPalette() {
         }
     };
 
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.15f, 0.23f, 0.35f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.2f, 0.3f, 0.45f, 1.0f));
-
     if (ImGui::CollapsingHeader("⚡ Electrical Components", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Indent(8.0f);
         if (ImGui::Button("Resistor (R)")) {
@@ -759,7 +756,6 @@ void MainWindow::renderComponentPalette() {
         ImGui::Spacing();
     }
 
-    ImGui::PopStyleColor(2);
     ImGui::End();
 }
 
