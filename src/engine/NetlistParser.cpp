@@ -25,6 +25,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Ammeter" || t == "AM" || t == "ammeters") return ComponentType::Ammeter;
     if (t == "UnifiedProbe" || t == "PROBE" || t == "probes") return ComponentType::UnifiedProbe;
     if (t == "Oscilloscope" || t == "SCOPE") return ComponentType::Oscilloscope;
+    if (t == "PulseGenerator" || t == "PULSE" || t == "PULSE_GEN" || t == "pulse_generators") return ComponentType::PulseGenerator;
     if (t == "Constant" || t == "CONST" || t == "constants") return ComponentType::Constant;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
@@ -44,6 +45,10 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
     if (item.contains("id")) comp.id = item["id"].get<std::string>();
     
     std::string itemType = item.contains("type") ? item["type"].get<std::string>() : defaultCategoryType;
+    if (item.contains("original_type") && item["original_type"].is_string()) {
+        std::string origType = item["original_type"].get<std::string>();
+        if (!origType.empty()) itemType = origType;
+    }
     comp.type = stringToComponentType(itemType, defaultCategoryType);
     if (item.contains("label")) comp.label = item["label"].get<std::string>();
 

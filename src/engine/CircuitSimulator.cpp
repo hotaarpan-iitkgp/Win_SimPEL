@@ -231,6 +231,10 @@ void CircuitSimulator::buildIndexMaps() {
         fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
         fc.Kp = evaluateParam(ctrlComp, "Kp", 1.0);
         fc.Ki = evaluateParam(ctrlComp, "Ki", 0.0);
+        fc.period = evaluateParam(ctrlComp, "period", 0.0001);
+        fc.width = evaluateParam(ctrlComp, "width", 0.5);
+        fc.delay = evaluateParam(ctrlComp, "delay", 0.0);
+        fc.amplitude = evaluateParam(ctrlComp, "amplitude", 1.0);
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
             fc.stateIdx = (int)flatPiIntegratorState.size();
@@ -473,6 +477,21 @@ void CircuitSimulator::evaluateControls(double currentTime) {
 
             if (fc.type == ComponentType::Constant) {
                 val = fc.val;
+            }
+            else if (fc.type == ComponentType::PulseGenerator) {
+                double p = (fc.period > 0.0) ? fc.period : 0.0001;
+                double w = (fc.width > 0.0 && fc.width <= 1.0) ? fc.width : 0.5;
+                double d = fc.delay;
+                double amp = (fc.amplitude != 0.0) ? fc.amplitude : 1.0;
+
+                double tRel = currentTime - d;
+                if (tRel < 0.0) {
+                    val = 0.0;
+                } else {
+                    double phase = std::fmod(tRel, p);
+                    if (phase < 0.0) phase += p;
+                    val = (phase < p * w) ? amp : 0.0;
+                }
             }
             else if (fc.type == ComponentType::Triangle_Carrier) {
                 double period = (fc.freq > 0) ? (1.0 / fc.freq) : 1e-4;

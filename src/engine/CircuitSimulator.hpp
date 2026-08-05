@@ -30,6 +30,7 @@ enum class ComponentType {
     PWM_Generator,
     Triangle_Carrier,
     PI_Controller,
+    PulseGenerator,
     Comparator,
     AND_Gate,
     OR_Gate,
@@ -80,6 +81,10 @@ struct FastCompiledComponent {
     double gain = 1.0;
     double Kp = 1.0;
     double Ki = 0.0;
+    double period = 0.0001;
+    double width = 0.5;
+    double delay = 0.0;
+    double amplitude = 1.0;
 
     std::string vPlotKey;
     std::string iPlotKey;
