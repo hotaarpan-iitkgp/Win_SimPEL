@@ -320,54 +320,82 @@ void MainWindow::renderMenuBar() {
 }
 
 void MainWindow::renderControlBar() {
-    ImGui::Begin("Simulation Control", nullptr, ImGuiWindowFlags_NoCollapse);
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float menuBarHeight = ImGui::GetFrameHeight();
     
-    if (ImGui::Button("PLAY", ImVec2(80, 30))) {
-        startSimulation();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("PAUSE", ImVec2(80, 30))) {
-        simulator.pause();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("RESET", ImVec2(80, 30))) {
-        simulator.reset();
-    }
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.45f, 0.80f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
-    if (ImGui::Button("FIT SCHEMATIC (F)", ImVec2(145, 30))) {
-        canvas.fitToScreen();
-    }
-    ImGui::PopStyleColor(2);
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + menuBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, 26.0f));
+    
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar | 
+                                   ImGuiWindowFlags_NoResize | 
+                                   ImGuiWindowFlags_NoMove | 
+                                   ImGuiWindowFlags_NoScrollbar | 
+                                   ImGuiWindowFlags_NoSavedSettings | 
+                                   ImGuiWindowFlags_NoDocking |
+                                   ImGuiWindowFlags_NoNavFocus;
 
-    ImGui::SameLine();
-    ImGui::Spacing();
-    ImGui::SameLine();
-    ImGui::Text("Sim Time: %.5f s", simulator.getCurrentTime());
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 3.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.12f, 0.14f, 1.0f));
 
-    ImGui::SameLine();
-    ImGui::Spacing();
-    ImGui::SameLine();
+    if (ImGui::Begin("##TopToolbar", nullptr, windowFlags)) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0)); // No button outlines
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.25f, 0.32f, 0.6f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.35f, 0.35f, 0.42f, 0.8f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-    bool isCadActive = (activeWorkspace == WorkspaceMode::SchematicCAD);
-    if (isCadActive) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.5f, 0.8f, 1.0f));
-    if (ImGui::Button("🎨 Schematic CAD Workspace", ImVec2(200, 30))) {
-        activeWorkspace = WorkspaceMode::SchematicCAD;
+        if (ImGui::Button("Play")) {
+            startSimulation();
+        }
+        ImGui::SameLine(0, 15);
+
+        if (ImGui::Button("Pause")) {
+            simulator.pause();
+        }
+        ImGui::SameLine(0, 15);
+
+        if (ImGui::Button("Reset")) {
+            simulator.reset();
+        }
+        ImGui::SameLine(0, 15);
+
+        if (ImGui::Button("Fit Schematic")) {
+            canvas.fitToScreen();
+        }
+        ImGui::SameLine(0, 20);
+
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0, 20);
+
+        ImGui::Text("Sim Time: %.5f s", simulator.getCurrentTime());
+        ImGui::SameLine(0, 20);
+
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0, 20);
+
+        bool isCadActive = (activeWorkspace == WorkspaceMode::SchematicCAD);
+        if (isCadActive) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.8f, 1.0f, 1.0f));
+        if (ImGui::Button("Schematic CAD")) {
+            activeWorkspace = WorkspaceMode::SchematicCAD;
+        }
+        if (isCadActive) ImGui::PopStyleColor();
+
+        ImGui::SameLine(0, 15);
+
+        bool isNetlistActive = (activeWorkspace == WorkspaceMode::WaveformNetlist);
+        if (isNetlistActive) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.9f, 0.5f, 1.0f));
+        if (ImGui::Button("Waveform & Netlist")) {
+            activeWorkspace = WorkspaceMode::WaveformNetlist;
+            netlistSourceView.updateFromCircuit(canvas.getCircuit());
+        }
+        if (isNetlistActive) ImGui::PopStyleColor();
+
+        ImGui::PopStyleVar(); // FrameBorderSize
+        ImGui::PopStyleColor(3); // Button hover/active/bg
     }
-    if (isCadActive) ImGui::PopStyleColor();
-
-    ImGui::SameLine();
-
-    bool isNetlistActive = (activeWorkspace == WorkspaceMode::WaveformNetlist);
-    if (isNetlistActive) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.3f, 1.0f));
-    if (ImGui::Button("⚡ Waveform & Netlist Workspace", ImVec2(230, 30))) {
-        activeWorkspace = WorkspaceMode::WaveformNetlist;
-        netlistSourceView.updateFromCircuit(canvas.getCircuit());
-    }
-    if (isNetlistActive) ImGui::PopStyleColor();
-
     ImGui::End();
+    ImGui::PopStyleColor(); // WindowBg
+    ImGui::PopStyleVar(2); // WindowPadding, WindowBorderSize
 }
 
 void MainWindow::renderComponentPalette() {
