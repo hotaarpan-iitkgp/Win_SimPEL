@@ -103,44 +103,62 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
             if (doFitThisFrame) {
                 ImPlot::SetNextAxesToFit();
             }
-            if (ImPlot::BeginPlot(cat.title.c_str())) {
+            // Configure ImPlot mouse bindings based on zoom mode:
+            //   Adaptive zoom ON  → LMB drag = box select, RMB drag = pan
+            //   Adaptive zoom OFF → LMB drag = pan (ImPlot default), RMB = context menu
+
+            if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
+                                   isAdaptiveZoomEnabled ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
+
+                // Override mouse button bindings when adaptive zoom is on
+                if (isAdaptiveZoomEnabled) {
+                    ImPlot::GetInputMap().Select       = ImGuiMouseButton_Left;   // LMB = draw selection box
+                    ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
+                    ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Right;  // RMB = pan
+                } else {
+                    // Restore defaults
+                    ImPlot::GetInputMap().Select       = ImGuiMouseButton_Right;
+                    ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
+                    ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Left;
+                }
+
                 ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
-                // Adaptive Box Zoom (PLECS / Plotly style)
+                // Adaptive Box Zoom (PLECS / Plotly style) — commit on selection release
                 if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
-                    ImPlotRect selectRect = ImPlot::GetPlotSelection();
-                    ImPlotRect currentLimits = ImPlot::GetPlotLimits();
+                    ImPlotRect sel = ImPlot::GetPlotSelection();
+                    ImPlotRect cur = ImPlot::GetPlotLimits();
                     ImPlot::CancelPlotSelection();
 
-                    double dxPlot = std::abs(selectRect.X.Max - selectRect.X.Min);
-                    double dyPlot = std::abs(selectRect.Y.Max - selectRect.Y.Min);
+                    double dxSel = std::abs(sel.X.Max - sel.X.Min);
+                    double dySel = std::abs(sel.Y.Max - sel.Y.Min);
+                    double dxCur = std::abs(cur.X.Max - cur.X.Min);
+                    double dyCur = std::abs(cur.Y.Max - cur.Y.Min);
 
-                    double currentDx = std::abs(currentLimits.X.Max - currentLimits.X.Min);
-                    double currentDy = std::abs(currentLimits.Y.Max - currentLimits.Y.Min);
+                    // Normalize drag dimensions against current view to detect intent
+                    double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0;
+                    double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0;
 
-                    double normDx = dxPlot / (currentDx > 1e-15 ? currentDx : 1e-15);
-                    double normDy = dyPlot / (currentDy > 1e-15 ? currentDy : 1e-15);
+                    double newXMin = cur.X.Min, newXMax = cur.X.Max;
+                    double newYMin = cur.Y.Min, newYMax = cur.Y.Max;
 
-                    double newXMin = currentLimits.X.Min;
-                    double newXMax = currentLimits.X.Max;
-                    double newYMin = currentLimits.Y.Min;
-                    double newYMax = currentLimits.Y.Max;
-
-                    if (normDx > 2.0 * normDy) {
-                        newXMin = selectRect.X.Min;
-                        newXMax = selectRect.X.Max;
-                    } else if (normDy > 2.0 * normDx) {
-                        newYMin = selectRect.Y.Min;
-                        newYMax = selectRect.Y.Max;
+                    if (nx > 2.5 * ny) {
+                        // Wide horizontal drag → X-axis zoom only (most common waveform use)
+                        newXMin = sel.X.Min;
+                        newXMax = sel.X.Max;
+                    } else if (ny > 2.5 * nx) {
+                        // Tall vertical drag → Y-axis zoom only
+                        newYMin = sel.Y.Min;
+                        newYMax = sel.Y.Max;
                     } else {
-                        newXMin = selectRect.X.Min;
-                        newXMax = selectRect.X.Max;
-                        newYMin = selectRect.Y.Min;
-                        newYMax = selectRect.Y.Max;
+                        // Roughly square → full box zoom
+                        newXMin = sel.X.Min; newXMax = sel.X.Max;
+                        newYMin = sel.Y.Min; newYMax = sel.Y.Max;
                     }
 
                     ImPlot::SetNextAxesLimits(newXMin, newXMax, newYMin, newYMax, ImGuiCond_Always);
                 }
+
 
                 // Right-Click Context Menu on Plot itself
                 if (ImGui::BeginPopupContextItem("PlotContextMenu")) {
