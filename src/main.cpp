@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
             ImGuiID dock_top_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.08f, nullptr, &dock_main_id);
             ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.35f, nullptr, &dock_main_id);
 
-            ImGui::DockBuilderDockWindow("Component Palette", dock_left_id);
+            ImGui::DockBuilderDockWindow("Component Pane", dock_left_id);
             ImGui::DockBuilderDockWindow("Simulation Control", dock_top_id);
             ImGui::DockBuilderDockWindow("Property Inspector", dock_right_id);
             ImGui::DockBuilderDockWindow("Schematic Editor Canvas", dock_main_id);

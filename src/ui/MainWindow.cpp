@@ -393,7 +393,7 @@ void MainWindow::renderMenuBar() {
         }
         if (ImGui::BeginMenu("View")) {
             if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(); }
-            if (ImGui::MenuItem("Component Palette", nullptr, showComponentPalette)) {
+            if (ImGui::MenuItem("Component Pane", nullptr, showComponentPalette)) {
                 showComponentPalette = !showComponentPalette;
             }
             ImGui::Separator();
@@ -479,6 +479,16 @@ void MainWindow::renderControlBar() {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.35f, 0.35f, 0.42f, 0.8f));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
+        if (showComponentPalette) ImGui::PushStyleColor(ImGuiCol_Text, isDarkMode ? ImVec4(0.3f, 0.8f, 1.0f, 1.0f) : ImVec4(0.02f, 0.52f, 0.78f, 1.0f));
+        if (ImGui::Button("Component Pane")) {
+            showComponentPalette = !showComponentPalette;
+        }
+        if (showComponentPalette) ImGui::PopStyleColor();
+        ImGui::SameLine(0, 15);
+
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0, 15);
+
         if (ImGui::Button("Play")) {
             startSimulation();
         }
@@ -497,14 +507,6 @@ void MainWindow::renderControlBar() {
         if (ImGui::Button("Fit Schematic")) {
             canvas.fitToScreen();
         }
-        ImGui::SameLine(0, 15);
-
-        if (showComponentPalette) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.8f, 1.0f, 1.0f));
-        if (ImGui::Button(showComponentPalette ? "Palette (On)" : "Palette (Off)")) {
-            showComponentPalette = !showComponentPalette;
-        }
-        if (showComponentPalette) ImGui::PopStyleColor();
-
         ImGui::SameLine(0, 20);
 
         ImGui::TextDisabled("|");
@@ -542,7 +544,12 @@ void MainWindow::renderControlBar() {
 }
 
 void MainWindow::renderComponentPalette() {
-    ImGui::Begin("Component Palette");
+    if (!showComponentPalette) return;
+
+    if (!ImGui::Begin("Component Pane", &showComponentPalette)) {
+        ImGui::End();
+        return;
+    }
     
     auto getUniqueId = [&](const std::string& prefix) -> std::string {
         const auto& comps = canvas.getCircuit().components;
