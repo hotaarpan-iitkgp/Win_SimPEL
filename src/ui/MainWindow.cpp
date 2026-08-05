@@ -479,11 +479,12 @@ void MainWindow::renderControlBar() {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.35f, 0.35f, 0.42f, 0.8f));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-        if (showComponentPalette) ImGui::PushStyleColor(ImGuiCol_Text, isDarkMode ? ImVec4(0.3f, 0.8f, 1.0f, 1.0f) : ImVec4(0.02f, 0.52f, 0.78f, 1.0f));
+        bool pushedStyle = showComponentPalette;
+        if (pushedStyle) ImGui::PushStyleColor(ImGuiCol_Text, isDarkMode ? ImVec4(0.3f, 0.8f, 1.0f, 1.0f) : ImVec4(0.02f, 0.52f, 0.78f, 1.0f));
         if (ImGui::Button("Component Pane")) {
             showComponentPalette = !showComponentPalette;
         }
-        if (showComponentPalette) ImGui::PopStyleColor();
+        if (pushedStyle) ImGui::PopStyleColor();
         ImGui::SameLine(0, 15);
 
         ImGui::TextDisabled("|");
