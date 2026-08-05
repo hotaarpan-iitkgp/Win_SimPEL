@@ -152,6 +152,10 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
             }
 
+            if (isAdaptiveZoomEnabled) {
+                ImPlot::PushStyleColor(ImPlotCol_Selection, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            }
+
             if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
                                    isAdaptiveZoomEnabled ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
 
@@ -168,11 +172,10 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
                 ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
-                // Commit zoom only on mouse RELEASE — ImPlot draws the rubber-band during drag
-                if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected() && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                // Adaptive Box Zoom real-time visual rubber-band and release commit
+                if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
                     ImPlotRect sel = ImPlot::GetPlotSelection();
                     ImPlotRect cur = ImPlot::GetPlotLimits();
-                    ImPlot::CancelPlotSelection();
 
                     double dxSel = std::abs(sel.X.Max - sel.X.Min);
                     double dySel = std::abs(sel.Y.Max - sel.Y.Min);
@@ -182,24 +185,76 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0;
                     double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0;
 
-                    // Store current limits as baseline
-                    pendingXMin[i] = cur.X.Min; pendingXMax[i] = cur.X.Max;
-                    pendingYMin[i] = cur.Y.Min; pendingYMax[i] = cur.Y.Max;
+                    // Convert selection coordinates to screen pixels
+                    ImVec2 pMin = ImPlot::PlotToPixels(ImPlotPoint(sel.X.Min, sel.Y.Max));
+                    ImVec2 pMax = ImPlot::PlotToPixels(ImPlotPoint(sel.X.Max, sel.Y.Min));
 
-                    if (nx > 2.5 * ny) {
-                        // Wide horizontal → X-axis zoom only
-                        pendingXMin[i] = sel.X.Min;
-                        pendingXMax[i] = sel.X.Max;
-                    } else if (ny > 2.5 * nx) {
-                        // Tall vertical → Y-axis zoom only
-                        pendingYMin[i] = sel.Y.Min;
-                        pendingYMax[i] = sel.Y.Max;
+                    ImVec2 plotPos = ImPlot::GetPlotPos();
+                    ImVec2 plotSize = ImPlot::GetPlotSize();
+                    float pLeft = plotPos.x;
+                    float pRight = plotPos.x + plotSize.x;
+                    float pTop = plotPos.y;
+                    float pBottom = plotPos.y + plotSize.y;
+
+                    float x1 = std::min(pMin.x, pMax.x);
+                    float x2 = std::max(pMin.x, pMax.x);
+                    float y1 = std::min(pMin.y, pMax.y);
+                    float y2 = std::max(pMin.y, pMax.y);
+
+                    ImDrawList* drawList = ImPlot::GetPlotDrawList();
+
+                    // Tolerance ratio 1.4 for responsive X / Y zoom detection
+                    if (nx > 1.4 * ny) {
+                        // --- X-AXIS ZOOM: HORIZONTAL SPAN BAND ---
+                        drawList->AddRectFilled(ImVec2(x1, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 35));
+                        drawList->AddLine(ImVec2(x1, pTop), ImVec2(x1, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
+                        drawList->AddLine(ImVec2(x2, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
+
+                        const char* tag = " [ ↔ X-Zoom ] ";
+                        ImVec2 txtSz = ImGui::CalcTextSize(tag);
+                        float midX = (x1 + x2) * 0.5f;
+                        drawList->AddRectFilled(ImVec2(midX - txtSz.x * 0.5f - 4, pTop + 6), ImVec2(midX + txtSz.x * 0.5f + 4, pTop + 6 + txtSz.y + 2), IM_COL32(0, 150, 200, 230), 4.0f);
+                        drawList->AddText(ImVec2(midX - txtSz.x * 0.5f, pTop + 7), IM_COL32(255, 255, 255, 255), tag);
+                    } else if (ny > 1.4 * nx) {
+                        // --- Y-AXIS ZOOM: VERTICAL SPAN BAND ---
+                        drawList->AddRectFilled(ImVec2(pLeft, y1), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 35));
+                        drawList->AddLine(ImVec2(pLeft, y1), ImVec2(pRight, y1), IM_COL32(220, 0, 255, 255), 2.0f);
+                        drawList->AddLine(ImVec2(pLeft, y2), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 255), 2.0f);
+
+                        const char* tag = " [ ↕ Y-Zoom ] ";
+                        ImVec2 txtSz = ImGui::CalcTextSize(tag);
+                        float midY = (y1 + y2) * 0.5f;
+                        drawList->AddRectFilled(ImVec2(pLeft + 6, midY - txtSz.y * 0.5f - 2), ImVec2(pLeft + 6 + txtSz.x + 8, midY + txtSz.y * 0.5f + 2), IM_COL32(160, 0, 180, 230), 4.0f);
+                        drawList->AddText(ImVec2(pLeft + 10, midY - txtSz.y * 0.5f), IM_COL32(255, 255, 255, 255), tag);
                     } else {
-                        // Roughly square → full box zoom
-                        pendingXMin[i] = sel.X.Min; pendingXMax[i] = sel.X.Max;
-                        pendingYMin[i] = sel.Y.Min; pendingYMax[i] = sel.Y.Max;
+                        // --- 2D BOX ZOOM: RECTANGLE ---
+                        drawList->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 35));
+                        drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 255), 0, 0, 2.0f);
+
+                        const char* tag = " [ ⤢ Box Zoom ] ";
+                        ImVec2 txtSz = ImGui::CalcTextSize(tag);
+                        drawList->AddRectFilled(ImVec2(x1 + 4, y1 + 4), ImVec2(x1 + 12 + txtSz.x, y1 + 6 + txtSz.y), IM_COL32(30, 160, 80, 230), 4.0f);
+                        drawList->AddText(ImVec2(x1 + 8, y1 + 5), IM_COL32(255, 255, 255, 255), tag);
                     }
-                    hasPendingZoom[i] = true; // will be applied before BeginPlot next frame
+
+                    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                        ImPlot::CancelPlotSelection();
+
+                        pendingXMin[i] = cur.X.Min; pendingXMax[i] = cur.X.Max;
+                        pendingYMin[i] = cur.Y.Min; pendingYMax[i] = cur.Y.Max;
+
+                        if (nx > 1.4 * ny) {
+                            pendingXMin[i] = sel.X.Min;
+                            pendingXMax[i] = sel.X.Max;
+                        } else if (ny > 1.4 * nx) {
+                            pendingYMin[i] = sel.Y.Min;
+                            pendingYMax[i] = sel.Y.Max;
+                        } else {
+                            pendingXMin[i] = sel.X.Min; pendingXMax[i] = sel.X.Max;
+                            pendingYMin[i] = sel.Y.Min; pendingYMax[i] = sel.Y.Max;
+                        }
+                        hasPendingZoom[i] = true;
+                    }
                 }
 
                 // Right-Click Context Menu
@@ -232,6 +287,9 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     varIdx++;
                 }
                 ImPlot::EndPlot();
+            }
+            if (isAdaptiveZoomEnabled) {
+                ImPlot::PopStyleColor();
             }
         }
         ImPlot::EndSubplots();
