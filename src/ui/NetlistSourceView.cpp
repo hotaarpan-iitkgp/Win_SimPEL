@@ -8,11 +8,19 @@
 #include <iostream>
 #include <algorithm>
 
+#include "engine/ExpressionEvaluator.hpp"
+#include <unordered_set>
+#include <cmath>
+
 using json = nlohmann::json;
 
 namespace CircuitSim {
 
-#include "engine/ExpressionEvaluator.hpp"
+static double roundToDigits(double val, int digits = 9) {
+    if (val == 0.0) return 0.0;
+    double scale = std::pow(10.0, digits);
+    return std::round(val * scale) / scale;
+}
 
 std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) {
     CircuitDesign tempDesign = design;
@@ -52,6 +60,11 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     ctrlLoopsObj["probes"] = json::array();
     ctrlLoopsObj["pwm_masters"] = json::array();
 
+    std::unordered_set<std::string> validCompIds;
+    for (const auto& comp : tempDesign.components) {
+        validCompIds.insert(comp.id);
+    }
+
     for (const auto& comp : tempDesign.components) {
         std::string t = comp.rawTypeStr;
         std::transform(t.begin(), t.end(), t.begin(), ::toupper);
@@ -67,10 +80,11 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             else formattedNodes.push_back("node_" + n);
         }
 
-        // Parse all component parameters using ExpressionEvaluator::parseScientific
+        // Parse all component parameters using ExpressionEvaluator::parseScientific and roundToDigits
         std::unordered_map<std::string, double> parsedParams;
         for (const auto& pair : comp.parameters) {
-            parsedParams[pair.first] = CircuitSimEngine::ExpressionEvaluator::parseScientific(pair.second);
+            double rawVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(pair.second);
+            parsedParams[pair.first] = roundToDigits(rawVal, 9);
         }
 
         if (t == "R" || t == "RESISTOR") {
@@ -226,10 +240,11 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     root["control_loops"] = ctrlLoopsObj;
 
     json simParamsObj;
-    simParamsObj["stop_time"] = (tempDesign.settings.stopTime > 0.0) ? tempDesign.settings.stopTime : 0.01;
-    simParamsObj["step_size"] = (tempDesign.settings.stepSize > 0.0) ? tempDesign.settings.stepSize : 1e-5;
-    if (simParamsObj["stop_time"].get<double>() <= 0.0) simParamsObj["stop_time"] = 0.01;
-    if (simParamsObj["step_size"].get<double>() <= 0.0) simParamsObj["step_size"] = 1e-5;
+    double rawStopTime = (tempDesign.settings.stopTime > 0.0) ? tempDesign.settings.stopTime : 0.01;
+    double rawStepSize = (tempDesign.settings.stepSize > 0.0) ? tempDesign.settings.stepSize : 1e-5;
+
+    simParamsObj["stop_time"] = roundToDigits(rawStopTime, 9);
+    simParamsObj["step_size"] = roundToDigits(rawStepSize, 9);
 
     simParamsObj["solver"] = tempDesign.settings.solverType.empty() ? "euler" : tempDesign.settings.solverType;
     simParamsObj["step_type"] = tempDesign.settings.stepType.empty() ? "fixed" : tempDesign.settings.stepType;
@@ -237,15 +252,64 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     simParamsObj["engine"] = "auto";
     simParamsObj["enable_lu_cache"] = true;
 
+    // ─── Component-Aware Wanted Variables Generation ───
     json wantedVars = json::array();
+    std::unordered_set<std::string> addedVars;
+
+    // Include plotConfig variables ONLY if their component actually exists in schematic
     for (const auto& p : tempDesign.plotConfig.plots) {
         for (const auto& v : p.variables) {
-            wantedVars.push_back(v);
+            std::string compBase = v;
+            if (compBase.rfind("I_", 0) == 0 || compBase.rfind("V_", 0) == 0) {
+                compBase = compBase.substr(2);
+            } else if (compBase.find('.') != std::string::npos) {
+                compBase = compBase.substr(0, compBase.find('.'));
+            }
+            if (validCompIds.count(compBase) && !addedVars.count(v)) {
+                wantedVars.push_back(v);
+                addedVars.insert(v);
+            }
         }
     }
-    if (wantedVars.empty()) {
-        wantedVars = json::array({"COMP1.Minus", "COMP1.Out", "COMP1.Plus", "CONST1.Out", "I_L1", "I_D1", "V_C1"});
+
+    // Dynamic Discovery: Add default telemetry variables for components present in schematic
+    for (const auto& comp : tempDesign.components) {
+        std::string t = comp.rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+        if (t == "C" || t == "CAPACITOR") {
+            std::string varName = "V_" + comp.id;
+            if (!addedVars.count(varName)) {
+                wantedVars.push_back(varName);
+                addedVars.insert(varName);
+            }
+        } else if (t == "L" || t == "INDUCTOR") {
+            std::string varName = "I_" + comp.id;
+            if (!addedVars.count(varName)) {
+                wantedVars.push_back(varName);
+                addedVars.insert(varName);
+            }
+        } else if (t == "D" || t == "DIODE") {
+            std::string varName = "I_" + comp.id;
+            if (!addedVars.count(varName)) {
+                wantedVars.push_back(varName);
+                addedVars.insert(varName);
+            }
+        } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET") {
+            std::string varName = "I_" + comp.id;
+            if (!addedVars.count(varName)) {
+                wantedVars.push_back(varName);
+                addedVars.insert(varName);
+            }
+        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "PWM" || t == "CONST" || t == "CONSTANT") {
+            std::string varName = comp.id + ".Out";
+            if (!addedVars.count(varName)) {
+                wantedVars.push_back(varName);
+                addedVars.insert(varName);
+            }
+        }
     }
+
     simParamsObj["wanted_variables"] = wantedVars;
     root["simulation_parameters"] = simParamsObj;
 
