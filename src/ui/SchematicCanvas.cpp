@@ -971,14 +971,19 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             }
 
             bool isSelected = selectedWireIds.count(wire.id) > 0;
-            ImU32 wireColor = isSelected ? IM_COL32(255, 180, 0, 255) : (isWireHovered ? IM_COL32(255, 220, 100, 255) : (isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255)));
+            ImU32 powerWireColor = isDarkMode ? IM_COL32(0, 230, 120, 255) : IM_COL32(4, 120, 87, 255);
+            ImU32 ctrlWireColor = isDarkMode ? IM_COL32(56, 189, 248, 255) : IM_COL32(2, 132, 199, 255);
+            ImU32 selColor = isDarkMode ? IM_COL32(255, 180, 0, 255) : IM_COL32(217, 119, 6, 255);
+            ImU32 hovColor = isDarkMode ? IM_COL32(255, 220, 100, 255) : IM_COL32(245, 158, 11, 255);
+
+            ImU32 wireColor = isSelected ? selColor : (isWireHovered ? hovColor : (isControlNet ? ctrlWireColor : powerWireColor));
             float thickness = (isSelected || isWireHovered) ? 3.5f * zoomLevel : 2.5f * zoomLevel;
 
             if (isSelected) {
-                drawList->AddLine(p1, p1_stub, IM_COL32(255, 180, 0, 60), thickness + 4.0f*zoomLevel);
-                drawList->AddLine(p1_stub, c1, IM_COL32(255, 180, 0, 60), thickness + 4.0f*zoomLevel);
-                drawList->AddLine(c1, c2, IM_COL32(255, 180, 0, 60), thickness + 4.0f*zoomLevel);
-                drawList->AddLine(c2, p2, IM_COL32(255, 180, 0, 60), thickness + 4.0f*zoomLevel);
+                drawList->AddLine(p1, p1_stub, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
+                drawList->AddLine(p1_stub, c1, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
+                drawList->AddLine(c1, c2, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
+                drawList->AddLine(c2, p2, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
             }
             
             // Render 100% Strictly Orthogonal Wire Path matching Image 2

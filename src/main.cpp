@@ -61,6 +61,15 @@ int main(int argc, char** argv) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+    // Load Crisp High-Quality TrueType Vector Font (Segoe UI)
+    if (GetFileAttributesA("C:\\Windows\\Fonts\\segoeui.ttf") != INVALID_FILE_ATTRIBUTES) {
+        io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", 16.0f);
+    } else if (GetFileAttributesA("C:\\Windows\\Fonts\\arial.ttf") != INVALID_FILE_ATTRIBUTES) {
+        io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\arial.ttf", 15.0f);
+    } else {
+        io.Fonts->AddFontDefault();
+    }
+
     ImGui::StyleColorsDark();
 
     // Initialize ImGui Win32 & OpenGL3 Backends
