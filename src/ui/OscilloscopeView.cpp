@@ -2,6 +2,7 @@
 #include "implot.h"
 #include <iostream>
 #include <algorithm>
+#include <map>
 
 namespace CircuitSim {
 
@@ -24,7 +25,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     SignalCategory voltageCat{"Voltage Waveforms (V)", "Voltage (V)", {}};
     SignalCategory currentCat{"Current Waveforms (I)", "Current (A)", {}};
-    SignalCategory controlCat{"Control & Pulse Signals", "Signal (V / State)", {}};
+    SignalCategory controlCat{"Control & Scope Signals", "Signal (V / State)", {}};
     SignalCategory otherCat{"Other Signals", "Magnitude", {}};
 
     for (const auto& pair : data.voltages) {
@@ -35,11 +36,18 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         // Skip internal raw MNA matrix node voltages (node_1, node_2, 0, etc.)
         if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
 
-        if (name.rfind("I_", 0) == 0) {
+        if (name.rfind("I_", 0) == 0 || name.rfind("AM", 0) == 0) {
             currentCat.variables.push_back({name, vals});
-        } else if (name.rfind("V_", 0) == 0) {
+        } else if (name.rfind("V_", 0) == 0 || name.rfind("VM", 0) == 0) {
             voltageCat.variables.push_back({name, vals});
-        } else if (name.find(".Out") != std::string::npos || name.rfind("Ctrl_", 0) == 0 || name.rfind("PULSE", 0) != std::string::npos || name.rfind("PWM", 0) != std::string::npos) {
+        } else if (name.find(".Out") != std::string::npos || name.find(".In") != std::string::npos || 
+                   name.rfind("Ctrl_", 0) == 0 || name.find("GAIN") != std::string::npos ||
+                   name.find("SCOPE") != std::string::npos || name.find("PROBE") != std::string::npos ||
+                   name.find("PULSE") != std::string::npos || name.find("PWM") != std::string::npos ||
+                   name.find("TRI") != std::string::npos || name.find("PID") != std::string::npos ||
+                   name.find("SUM") != std::string::npos || name.find("PROD") != std::string::npos ||
+                   name.find("COMP") != std::string::npos || name.find("MATH") != std::string::npos ||
+                   name.find("EDGE") != std::string::npos || name.find("KEY") != std::string::npos) {
             controlCat.variables.push_back({name, vals});
         } else {
             otherCat.variables.push_back({name, vals});

@@ -241,7 +241,10 @@ void CircuitSimulator::buildIndexMaps() {
             fc.vPlotKey = getParamString(ctrlComp, "freq_source", "internal");
         }
 
-        fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
+        fc.gain = evaluateParam(ctrlComp, "K", 1.0);
+        if (ctrlComp.parameters.count("gain")) fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
+        else if (ctrlComp.parameters.count("k")) fc.gain = evaluateParam(ctrlComp, "k", 1.0);
+
         fc.Kp = evaluateParam(ctrlComp, "Kp", 1.0);
         fc.Ki = evaluateParam(ctrlComp, "Ki", 0.0);
         fc.period = evaluateParam(ctrlComp, "period", 0.0001);
@@ -255,8 +258,12 @@ void CircuitSimulator::buildIndexMaps() {
             piIntegratorState[ctrlComp.id] = 0.0;
         }
 
-        fc.in0Key = getParamString(ctrlComp, "input_0", "");
-        fc.in1Key = getParamString(ctrlComp, "input_1", "");
+        fc.in0Key = getParamString(ctrlComp, "In", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "In1", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input_0", "");
+
+        fc.in1Key = getParamString(ctrlComp, "In2", "");
+        if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input_1", "");
         fc.outKey = getParamString(ctrlComp, "output", "");
         fc.targetKey = getParamString(ctrlComp, "target", "");
         fc.ctrlSigKey = getParamString(ctrlComp, "selected_signals", "");
