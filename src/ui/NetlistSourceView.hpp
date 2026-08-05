@@ -14,10 +14,12 @@ private:
     std::string netlistStatusMsg = "Valid Netlist";
     std::string lastGeneratedJson = "";
     int numPanes = 1;
+    bool autoFitNext = false;
 
 public:
     NetlistSourceView() = default;
 
+    void triggerAutoFit() { autoFitNext = true; }
     static std::string generateNetlistJson(const CircuitDesign& design);
     void updateFromCircuit(const CircuitDesign& design);
     void render(const char* title, CircuitDesign& design, CircuitSimEngine::CircuitSimulator& simulator);

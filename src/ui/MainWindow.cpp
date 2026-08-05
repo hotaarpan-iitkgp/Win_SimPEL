@@ -33,6 +33,9 @@ void MainWindow::startSimulation() {
     simulator.setup(physComps, ctrlComps, simCfg);
     CircuitSimEngine::SimulationOutput output = simulator.runTransient();
     simulator.setTelemetryOutput(output);
+
+    scopeView.triggerAutoFit();
+    netlistSourceView.triggerAutoFit();
 }
 
 void MainWindow::loadPresetTemplate(const std::string& name) {

@@ -11,10 +11,12 @@ namespace CircuitSim {
 class OscilloscopeView {
 private:
     int numPanes = 1;
+    bool autoFitNext = false;
 
 public:
     OscilloscopeView() = default;
 
+    void triggerAutoFit() { autoFitNext = true; }
     void render(const char* title, CircuitSimEngine::CircuitSimulator& simulator);
 };
 

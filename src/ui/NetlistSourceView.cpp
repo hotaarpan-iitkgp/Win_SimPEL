@@ -521,7 +521,12 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
         if (!otherCat.variables.empty()) categories.push_back(otherCat);
 
         if (!categories.empty()) {
-            if (ImGui::Button("Fit Waveforms / Reset Zoom")) {
+            bool doFitThisFrame = autoFitNext;
+            if (autoFitNext) {
+                autoFitNext = false;
+            }
+
+            if (ImGui::Button("Fit Waveforms / Reset Zoom") || doFitThisFrame) {
                 ImPlot::SetNextAxesToFit();
             }
             ImGui::SameLine();
@@ -535,7 +540,7 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                 }
                 ImGui::SameLine();
             }
-            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box to zoom, scroll wheel to zoom axis.");
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box (X/Y adaptive) to zoom, scroll wheel to zoom axis.");
 
             int renderPanes = std::min(numPanes, (int)categories.size());
             if (renderPanes < 1) renderPanes = 1;
@@ -543,8 +548,47 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             if (ImPlot::BeginSubplots("Waveform Subplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
                 for (int i = 0; i < renderPanes; ++i) {
                     const auto& cat = categories[i % categories.size()];
+                    if (doFitThisFrame) {
+                        ImPlot::SetNextAxesToFit();
+                    }
                     if (ImPlot::BeginPlot(cat.title.c_str())) {
                         ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
+
+                        // Adaptive Box Zoom (PLECS / Plotly style)
+                        if (ImPlot::IsPlotSelected()) {
+                            ImPlotRect selectRect = ImPlot::GetPlotSelection();
+                            ImPlotRect currentLimits = ImPlot::GetPlotLimits();
+                            ImPlot::CancelPlotSelection();
+
+                            double dxPlot = std::abs(selectRect.X.Max - selectRect.X.Min);
+                            double dyPlot = std::abs(selectRect.Y.Max - selectRect.Y.Min);
+
+                            double currentDx = std::abs(currentLimits.X.Max - currentLimits.X.Min);
+                            double currentDy = std::abs(currentLimits.Y.Max - currentLimits.Y.Min);
+
+                            double normDx = dxPlot / (currentDx > 1e-15 ? currentDx : 1e-15);
+                            double normDy = dyPlot / (currentDy > 1e-15 ? currentDy : 1e-15);
+
+                            double newXMin = currentLimits.X.Min;
+                            double newXMax = currentLimits.X.Max;
+                            double newYMin = currentLimits.Y.Min;
+                            double newYMax = currentLimits.Y.Max;
+
+                            if (normDx > 2.0 * normDy) {
+                                newXMin = selectRect.X.Min;
+                                newXMax = selectRect.X.Max;
+                            } else if (normDy > 2.0 * normDx) {
+                                newYMin = selectRect.Y.Min;
+                                newYMax = selectRect.Y.Max;
+                            } else {
+                                newXMin = selectRect.X.Min;
+                                newXMax = selectRect.X.Max;
+                                newYMin = selectRect.Y.Min;
+                                newYMax = selectRect.Y.Max;
+                            }
+
+                            ImPlot::SetNextAxesLimits(newXMin, newXMax, newYMin, newYMax, ImGuiCond_Always);
+                        }
 
                         // Right-Click Context Menu on Plot itself
                         if (ImGui::BeginPopupContextItem("PlotContextMenu")) {
@@ -555,6 +599,9 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                                 if (ImGui::MenuItem("➖ Remove Subplot Pane")) {
                                     numPanes = std::max(numPanes - 1, 1);
                                 }
+                            }
+                            if (ImGui::MenuItem("Fit Waveforms / Reset Zoom")) {
+                                ImPlot::SetNextAxesToFit();
                             }
                             ImGui::EndPopup();
                         }
