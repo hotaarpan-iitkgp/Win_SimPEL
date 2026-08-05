@@ -223,11 +223,24 @@ void CircuitSimulator::buildIndexMaps() {
         fc.id = ctrlComp.id;
         fc.type = ctrlComp.type;
 
-        fc.val = evaluateParam(ctrlComp, "value", 0.5);
+        fc.val = evaluateParam(ctrlComp, "value", 1.0);
+        if (ctrlComp.parameters.count("constant")) fc.val = evaluateParam(ctrlComp, "constant", 1.0);
+        else if (ctrlComp.parameters.count("const")) fc.val = evaluateParam(ctrlComp, "const", 1.0);
+        else if (ctrlComp.parameters.count("val")) fc.val = evaluateParam(ctrlComp, "val", 1.0);
+
         fc.freq = evaluateParam(ctrlComp, "frequency", 10000.0);
-        if (fc.freq <= 0) fc.freq = evaluateParam(ctrlComp, "freq", 10000.0);
+        if (ctrlComp.parameters.count("freq")) fc.freq = evaluateParam(ctrlComp, "freq", 10000.0);
         fc.minVal = evaluateParam(ctrlComp, "min", 0.0);
+        if (ctrlComp.parameters.count("minVal")) fc.minVal = evaluateParam(ctrlComp, "minVal", 0.0);
         fc.maxVal = evaluateParam(ctrlComp, "max", 1.0);
+        if (ctrlComp.parameters.count("maxVal")) fc.maxVal = evaluateParam(ctrlComp, "maxVal", 1.0);
+
+        if (ctrlComp.type == ComponentType::Triangle_Carrier) {
+            fc.delay = evaluateParam(ctrlComp, "phase", 0.0); // phase degrees
+            fc.polarity = getParamString(ctrlComp, "phase_source", "internal");
+            fc.vPlotKey = getParamString(ctrlComp, "freq_source", "internal");
+        }
+
         fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
         fc.Kp = evaluateParam(ctrlComp, "Kp", 1.0);
         fc.Ki = evaluateParam(ctrlComp, "Ki", 0.0);
@@ -494,10 +507,19 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 }
             }
             else if (fc.type == ComponentType::Triangle_Carrier) {
-                double period = (fc.freq > 0) ? (1.0 / fc.freq) : 1e-4;
-                double phase = std::fmod(currentTime, period) / period;
-                double triNorm = (phase < 0.5) ? (2.0 * phase) : (2.0 * (1.0 - phase));
-                val = fc.minVal + (fc.maxVal - fc.minVal) * triNorm;
+                bool extPhase = (fc.polarity == "external");
+                bool extFreq = (fc.vPlotKey == "external");
+
+                double phase_deg = extPhase ? (fc.in1Ptr ? *fc.in1Ptr : 0.0) : fc.delay;
+                double freq = extFreq ? (fc.in0Ptr ? *fc.in0Ptr : (fc.freq > 0 ? fc.freq : 10000.0)) : (fc.freq > 0 ? fc.freq : 10000.0);
+
+                double min = fc.minVal;
+                double max = fc.maxVal;
+
+                double t_norm = std::fmod(currentTime * freq + phase_deg / 360.0, 1.0);
+                if (t_norm < 0.0) t_norm += 1.0;
+
+                val = (t_norm < 0.5) ? min + (max - min) * (t_norm / 0.5) : max - (max - min) * ((t_norm - 0.5) / 0.5);
             }
             else if (fc.type == ComponentType::Gain) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;

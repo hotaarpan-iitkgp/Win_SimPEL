@@ -762,10 +762,23 @@ void MainWindow::renderComponentPalette() {
             comp.parameters["key"] = "Space"; comp.parameters["active_value"] = "1.0"; comp.parameters["inactive_value"] = "0.0";
             canvas.addComponent(comp);
         }
-        if (ImGui::Button("Triangle Carrier")) {
+        if (ImGui::Button("Constant (CONST)")) {
+            ComponentInstance comp;
+            comp.id = getUniqueId("CONST");
+            comp.label = "Constant"; comp.type = ComponentType::Constant; comp.rawTypeStr = "CONST";
+            comp.parameters["value"] = "1.0";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Triangle Carrier (TRI)")) {
             ComponentInstance comp;
             comp.id = getUniqueId("TRI");
             comp.label = "Triangle"; comp.type = ComponentType::Triangle_Carrier; comp.rawTypeStr = "TRI";
+            comp.parameters["frequency"] = "10k";
+            comp.parameters["min"] = "0";
+            comp.parameters["max"] = "1";
+            comp.parameters["phase"] = "0";
+            comp.parameters["phase_source"] = "internal";
+            comp.parameters["freq_source"] = "internal";
             canvas.addComponent(comp);
         }
         if (ImGui::Button("Sum (SUM_RECT)")) {
