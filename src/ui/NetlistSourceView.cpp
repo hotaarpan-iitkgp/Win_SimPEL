@@ -665,8 +665,11 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
                         ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
-                        // Adaptive Box Zoom real-time visual rubber-band and release commit
-                        if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
+                        bool isMouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+                        bool isMouseReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+
+                        // Adaptive Box Zoom real-time visual rubber-band and release commit (evaluating end condition at release)
+                        if (isAdaptiveZoomEnabled && (ImPlot::IsPlotSelected() || isMouseDown || isMouseReleased)) {
                             ImPlotRect sel = ImPlot::GetPlotSelection();
 
                             // Convert selection coordinates to screen pixels
@@ -688,7 +691,7 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                             float dxPx = x2 - x1;
                             float dyPx = y2 - y1;
 
-                            // Physical Screen Pixel 10% Tolerance Classification:
+                            // Physical Screen Pixel 10% Tolerance Classification evaluated at current/release position:
                             // 1. If vertical mouse movement is <= 10% of horizontal mouse movement (or < 12px),
                             //    classify as PURE 1D X-AXIS ZOOM (TIME ONLY).
                             // 2. If horizontal mouse movement is <= 10% of vertical mouse movement (or < 12px),
@@ -703,42 +706,46 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                                 currentDragType = ZOOM_BOX_2D;
                             }
 
-                            ImDrawList* drawList = ImPlot::GetPlotDrawList();
+                            // Only render visual rubber-band while mouse is actively dragging
+                            if (isMouseDown && (dxPx > 3.0f || dyPx > 3.0f)) {
+                                ImDrawList* drawList = ImPlot::GetPlotDrawList();
 
-                            if (currentDragType == ZOOM_X_ONLY) {
-                                // --- X-AXIS ZOOM: HORIZONTAL SPAN BAND ---
-                                drawList->AddRectFilled(ImVec2(x1, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 35));
-                                drawList->AddLine(ImVec2(x1, pTop), ImVec2(x1, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
-                                drawList->AddLine(ImVec2(x2, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
+                                if (currentDragType == ZOOM_X_ONLY) {
+                                    // --- X-AXIS ZOOM: HORIZONTAL SPAN BAND ---
+                                    drawList->AddRectFilled(ImVec2(x1, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 35));
+                                    drawList->AddLine(ImVec2(x1, pTop), ImVec2(x1, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
+                                    drawList->AddLine(ImVec2(x2, pTop), ImVec2(x2, pBottom), IM_COL32(0, 220, 255, 255), 2.0f);
 
-                                const char* tag = " [ ↔ X-Zoom (Time Only) ] ";
-                                ImVec2 txtSz = ImGui::CalcTextSize(tag);
-                                float midX = (x1 + x2) * 0.5f;
-                                drawList->AddRectFilled(ImVec2(midX - txtSz.x * 0.5f - 4, pTop + 6), ImVec2(midX + txtSz.x * 0.5f + 4, pTop + 6 + txtSz.y + 2), IM_COL32(0, 150, 200, 230), 4.0f);
-                                drawList->AddText(ImVec2(midX - txtSz.x * 0.5f, pTop + 7), IM_COL32(255, 255, 255, 255), tag);
-                            } else if (currentDragType == ZOOM_Y_ONLY) {
-                                // --- Y-AXIS ZOOM: VERTICAL SPAN BAND ---
-                                drawList->AddRectFilled(ImVec2(pLeft, y1), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 35));
-                                drawList->AddLine(ImVec2(pLeft, y1), ImVec2(pRight, y1), IM_COL32(220, 0, 255, 255), 2.0f);
-                                drawList->AddLine(ImVec2(pLeft, y2), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 255), 2.0f);
+                                    const char* tag = " [ ↔ X-Zoom (Time Only) ] ";
+                                    ImVec2 txtSz = ImGui::CalcTextSize(tag);
+                                    float midX = (x1 + x2) * 0.5f;
+                                    drawList->AddRectFilled(ImVec2(midX - txtSz.x * 0.5f - 4, pTop + 6), ImVec2(midX + txtSz.x * 0.5f + 4, pTop + 6 + txtSz.y + 2), IM_COL32(0, 150, 200, 230), 4.0f);
+                                    drawList->AddText(ImVec2(midX - txtSz.x * 0.5f, pTop + 7), IM_COL32(255, 255, 255, 255), tag);
+                                } else if (currentDragType == ZOOM_Y_ONLY) {
+                                    // --- Y-AXIS ZOOM: VERTICAL SPAN BAND ---
+                                    drawList->AddRectFilled(ImVec2(pLeft, y1), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 35));
+                                    drawList->AddLine(ImVec2(pLeft, y1), ImVec2(pRight, y1), IM_COL32(220, 0, 255, 255), 2.0f);
+                                    drawList->AddLine(ImVec2(pLeft, y2), ImVec2(pRight, y2), IM_COL32(220, 0, 255, 255), 2.0f);
 
-                                const char* tag = " [ ↕ Y-Zoom (Amp Only) ] ";
-                                ImVec2 txtSz = ImGui::CalcTextSize(tag);
-                                float midY = (y1 + y2) * 0.5f;
-                                drawList->AddRectFilled(ImVec2(pLeft + 6, midY - txtSz.y * 0.5f - 2), ImVec2(pLeft + 6 + txtSz.x + 8, midY + txtSz.y * 0.5f + 2), IM_COL32(160, 0, 180, 230), 4.0f);
-                                drawList->AddText(ImVec2(pLeft + 10, midY - txtSz.y * 0.5f), IM_COL32(255, 255, 255, 255), tag);
-                            } else {
-                                // --- 2D BOX ZOOM: RECTANGLE ---
-                                drawList->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 35));
-                                drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 255), 0, 0, 2.0f);
+                                    const char* tag = " [ ↕ Y-Zoom (Amp Only) ] ";
+                                    ImVec2 txtSz = ImGui::CalcTextSize(tag);
+                                    float midY = (y1 + y2) * 0.5f;
+                                    drawList->AddRectFilled(ImVec2(pLeft + 6, midY - txtSz.y * 0.5f - 2), ImVec2(pLeft + 6 + txtSz.x + 8, midY + txtSz.y * 0.5f + 2), IM_COL32(160, 0, 180, 230), 4.0f);
+                                    drawList->AddText(ImVec2(pLeft + 10, midY - txtSz.y * 0.5f), IM_COL32(255, 255, 255, 255), tag);
+                                } else {
+                                    // --- 2D BOX ZOOM: RECTANGLE ---
+                                    drawList->AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 35));
+                                    drawList->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(60, 255, 120, 255), 0, 0, 2.0f);
 
-                                const char* tag = " [ ⤢ 2D Box Zoom ] ";
-                                ImVec2 txtSz = ImGui::CalcTextSize(tag);
-                                drawList->AddRectFilled(ImVec2(x1 + 4, y1 + 4), ImVec2(x1 + 12 + txtSz.x, y1 + 6 + txtSz.y), IM_COL32(30, 160, 80, 230), 4.0f);
-                                drawList->AddText(ImVec2(x1 + 8, y1 + 5), IM_COL32(255, 255, 255, 255), tag);
+                                    const char* tag = " [ ⤢ 2D Box Zoom ] ";
+                                    ImVec2 txtSz = ImGui::CalcTextSize(tag);
+                                    drawList->AddRectFilled(ImVec2(x1 + 4, y1 + 4), ImVec2(x1 + 12 + txtSz.x, y1 + 6 + txtSz.y), IM_COL32(30, 160, 80, 230), 4.0f);
+                                    drawList->AddText(ImVec2(x1 + 8, y1 + 5), IM_COL32(255, 255, 255, 255), tag);
+                                }
                             }
 
-                            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                            // END CONDITION COMMIT: Execute zoom based on the exact classification at mouse release!
+                            if (isMouseReleased && (dxPx > 5.0f || dyPx > 5.0f)) {
                                 ImPlot::CancelPlotSelection();
 
                                 pendingZoom[i].type = currentDragType;
