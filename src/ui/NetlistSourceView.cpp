@@ -22,6 +22,21 @@ static double roundToDigits(double val, int digits = 9) {
     return std::round(val * scale) / scale;
 }
 
+static json formatJSStyleDouble(double val) {
+    if (val == 0.0) return 0;
+    if (val == std::floor(val) && std::abs(val) < 1e15) {
+        return (long long)val;
+    }
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%.17g", val);
+    std::string s(buf);
+    try {
+        return json::parse(s);
+    } catch (...) {
+        return val;
+    }
+}
+
 std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) {
     CircuitDesign tempDesign = design;
     NetlistBuilder::buildNodesForCircuit(tempDesign);
@@ -89,36 +104,36 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
 
         if (t == "R" || t == "RESISTOR") {
             cObj["nodes"] = formattedNodes;
-            cObj["value"] = parsedParams.count("value") ? parsedParams["value"] : 10.0;
-            cObj["esr"] = parsedParams.count("esr") ? parsedParams["esr"] : 0.0;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 10.0);
+            cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
             cObj["src_type"] = "static";
             physStageObj["resistors"].push_back(cObj);
         } else if (t == "L" || t == "INDUCTOR") {
             cObj["nodes"] = formattedNodes;
-            cObj["L"] = parsedParams.count("L") ? parsedParams["L"] : 0.0001;
-            cObj["esr"] = parsedParams.count("esr") ? parsedParams["esr"] : 0.05;
-            cObj["iL0"] = parsedParams.count("iL0") ? parsedParams["iL0"] : 0.0;
+            cObj["L"] = formatJSStyleDouble(parsedParams.count("L") ? parsedParams["L"] : 0.0001);
+            cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.05);
+            cObj["iL0"] = formatJSStyleDouble(parsedParams.count("iL0") ? parsedParams["iL0"] : 0.0);
             physStageObj["inductors"].push_back(cObj);
         } else if (t == "C" || t == "CAPACITOR") {
             cObj["nodes"] = formattedNodes;
-            cObj["C"] = parsedParams.count("C") ? parsedParams["C"] : 0.0001;
-            cObj["esr"] = parsedParams.count("esr") ? parsedParams["esr"] : 0.01;
-            cObj["vC0"] = parsedParams.count("vC0") ? parsedParams["vC0"] : 0.0;
+            cObj["C"] = formatJSStyleDouble(parsedParams.count("C") ? parsedParams["C"] : 0.0001);
+            cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.01);
+            cObj["vC0"] = formatJSStyleDouble(parsedParams.count("vC0") ? parsedParams["vC0"] : 0.0);
             physStageObj["capacitors"].push_back(cObj);
         } else if (t == "V" || t == "VOLTAGESOURCE") {
             cObj["nodes"] = formattedNodes;
-            cObj["value"] = parsedParams.count("value") ? parsedParams["value"] : 100.0;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 100.0);
             cObj["src_type"] = "dc";
             physStageObj["voltage_sources"].push_back(cObj);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";
             cObj["nodes"] = formattedNodes;
-            cObj["Vd"] = parsedParams.count("Vd") ? parsedParams["Vd"] : 0.7;
+            cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : 0.7);
             double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
             double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
             if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
-            cObj["Ron"] = rOn;
-            cObj["Roff"] = rOff;
+            cObj["Ron"] = formatJSStyleDouble(rOn);
+            cObj["Roff"] = formatJSStyleDouble(rOff);
             physStageObj["diodes"].push_back(cObj);
         } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET") {
             cObj["type"] = "MOSFET";
@@ -147,19 +162,19 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.01;
             double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
             if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
-            cObj["Ron"] = rOn;
-            cObj["Roff"] = rOff;
-            cObj["Vd"] = parsedParams.count("Vd") ? parsedParams["Vd"] : 0.8;
-            cObj["Iholding"] = parsedParams.count("Iholding") ? parsedParams["Iholding"] : 0.01;
-            cObj["Vgt"] = parsedParams.count("Vgt") ? parsedParams["Vgt"] : 0.5;
+            cObj["Ron"] = formatJSStyleDouble(rOn);
+            cObj["Roff"] = formatJSStyleDouble(rOff);
+            cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : 0.8);
+            cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : 0.01);
+            cObj["Vgt"] = formatJSStyleDouble(parsedParams.count("Vgt") ? parsedParams["Vgt"] : 0.5);
             physStageObj["analog_switches"].push_back(cObj);
         } else if (t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "CONSTANT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
-            cObj["amplitude"] = parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0;
-            cObj["period"] = parsedParams.count("period") ? parsedParams["period"] : 0.0001;
-            cObj["width"] = parsedParams.count("width") ? parsedParams["width"] : 0.5;
-            cObj["delay"] = parsedParams.count("delay") ? parsedParams["delay"] : 0.0;
+            cObj["amplitude"] = formatJSStyleDouble(parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0);
+            cObj["period"] = formatJSStyleDouble(parsedParams.count("period") ? parsedParams["period"] : 0.0001);
+            cObj["width"] = formatJSStyleDouble(parsedParams.count("width") ? parsedParams["width"] : 0.5);
+            cObj["delay"] = formatJSStyleDouble(parsedParams.count("delay") ? parsedParams["delay"] : 0.0);
             cObj["value"] = 1.0;
             ctrlLoopsObj["constants"].push_back(cObj);
         }
@@ -243,8 +258,8 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     double rawStopTime = (tempDesign.settings.stopTime > 0.0) ? tempDesign.settings.stopTime : 0.01;
     double rawStepSize = (tempDesign.settings.stepSize > 0.0) ? tempDesign.settings.stepSize : 1e-5;
 
-    simParamsObj["stop_time"] = roundToDigits(rawStopTime, 9);
-    simParamsObj["step_size"] = roundToDigits(rawStepSize, 9);
+    simParamsObj["stop_time"] = formatJSStyleDouble(rawStopTime);
+    simParamsObj["step_size"] = formatJSStyleDouble(rawStepSize);
 
     simParamsObj["solver"] = tempDesign.settings.solverType.empty() ? "euler" : tempDesign.settings.solverType;
     simParamsObj["step_type"] = tempDesign.settings.stepType.empty() ? "fixed" : tempDesign.settings.stepType;
