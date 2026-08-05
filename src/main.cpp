@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
         // Rendering
         ImGui::Render();
         glViewport(0, 0, 1400, 900);
-        glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
+        glClearColor(0.97f, 0.98f, 0.99f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SwapBuffers(hdc);

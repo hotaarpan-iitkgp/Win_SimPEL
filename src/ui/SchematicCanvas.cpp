@@ -481,6 +481,7 @@ void SchematicCanvas::drawBreadcrumbs(ImDrawList* drawList, ImVec2 canvasPos) {
 void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 c, float s, ImU32 color) {
     const std::string& t = comp.rawTypeStr;
     float rot = (float)comp.rotation;
+    ImU32 blockBg = isDarkMode ? IM_COL32(30, 41, 59, 230) : IM_COL32(241, 245, 249, 255);
     
     if (t == "R") {
         ImVec2 rawPts[] = {
@@ -639,13 +640,13 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddPolyline(wave, 5, color, 0, 1.8f*s);
     } else if (t == "TRI") {
         float hw = 20*s, hh = 16*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         ImVec2 triWave[] = {rotatePt(-10*s, 6*s, c.x, c.y, rot), rotatePt(0, -6*s, c.x, c.y, rot), rotatePt(10*s, 6*s, c.x, c.y, rot)};
         drawList->AddPolyline(triWave, 3, color, 0, 1.8f*s);
     } else if (t == "PULSE" || t == "PULSE_GEN") {
         float hw = 22*s, hh = 16*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(30, 41, 59, 230), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         ImVec2 pulseW[] = {
             rotatePt(-12*s, 6*s, c.x, c.y, rot),
@@ -665,7 +666,7 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 16.0f * s;
         float hh = std::max(16.0f, numCh * 10.0f) * s;
 
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(15, 23, 42, 230), 4.0f * s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4.0f * s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4.0f * s, 0, 2.0f * s);
 
         ImVec2 scW[] = {
@@ -698,39 +699,39 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 30.0f * s;
         float hh = std::max(20.0f, numPins * 15.0f) * s;
 
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(14, 165, 233, 40), 4.0f * s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4.0f * s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(14, 165, 233, 230), 4.0f * s, 0, 2.0f * s);
         drawList->AddText(rotatePt(-18*s, -6*s, c.x, c.y, rot), IM_COL32(14, 165, 233, 255), "PROBE");
     } else if (t == "MUX") {
         ImVec2 mPts[] = {rotatePt(-20*s, -25*s, c.x, c.y, rot), rotatePt(20*s, -15*s, c.x, c.y, rot), rotatePt(20*s, 15*s, c.x, c.y, rot), rotatePt(-20*s, 25*s, c.x, c.y, rot)};
-        drawList->AddConvexPolyFilled(mPts, 4, IM_COL32(38, 50, 70, 200));
+        drawList->AddConvexPolyFilled(mPts, 4, blockBg);
         drawList->AddPolyline(mPts, 4, color, ImDrawFlags_Closed, 2.0f*s);
         drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, "MUX");
     } else if (t == "AND") {
         float hw = 20*s, hh = 18*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText(rotatePt(-4*s, -7*s, c.x, c.y, rot), color, "&");
     } else if (t == "OR") {
         float hw = 20*s, hh = 18*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText(rotatePt(-10*s, -7*s, c.x, c.y, rot), color, ">=1");
     } else if (t == "NOT") {
         ImVec2 t1 = rotatePt(-14*s, -15*s, c.x, c.y, rot);
         ImVec2 t2 = rotatePt(6*s, 0, c.x, c.y, rot);
         ImVec2 t3 = rotatePt(-14*s, 15*s, c.x, c.y, rot);
-        drawList->AddTriangleFilled(t1, t2, t3, IM_COL32(38, 50, 70, 200));
+        drawList->AddTriangleFilled(t1, t2, t3, blockBg);
         drawList->AddTriangle(t1, t2, t3, color, 2.0f*s);
         drawList->AddCircle(rotatePt(10*s, 0, c.x, c.y, rot), 3.0f*s, color, 0, 2.0f*s);
     } else if (t == "SUBSYSTEM") {
         float hw = 50*s, hh = 40*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(30, 41, 59, 200), 6*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 6*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 6*s, 0, 2.0f*s);
         drawList->AddText({c.x - 28*s, c.y - 6*s}, color, "Subsystem");
     } else if (t == "CSCRIPT") {
         float hw = 80*s, hh = 40*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(30, 40, 55, 230), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 30*s, c.y - 8*s}, color, "[ C++ Script ]");
     } else {
@@ -1614,7 +1615,8 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
     lastRenderedCanvasSize = canvasSize;
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    drawList->AddRectFilled(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), IM_COL32(15, 17, 23, 255));
+    ImU32 canvasBgColor = isDarkMode ? IM_COL32(15, 23, 42, 255) : IM_COL32(248, 250, 252, 255);
+    drawList->AddRectFilled(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), canvasBgColor);
     drawList->PushClipRect(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), true);
     
     drawGrid(drawList, canvasSize, canvasPos);
