@@ -1206,14 +1206,57 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
     }
 }
 
-void SchematicCanvas::copySelected() {
+void SchematicCanvas::autoSelectWiresForSelectedComponents() {
     if (selectedComponentIds.empty()) return;
+
+    auto isCompSel = [this](const std::string& cid) -> bool {
+        if (cid.empty()) return false;
+        return selectedComponentIds.count(cid) > 0;
+    };
+
+    auto isNodeSel = [this](const std::string& nodeStr) -> bool {
+        if (nodeStr.empty()) return false;
+        size_t dot = nodeStr.find('.');
+        if (dot != std::string::npos) {
+            std::string cid = nodeStr.substr(0, dot);
+            return selectedComponentIds.count(cid) > 0;
+        }
+        return false;
+    };
+
+    bool addedAny = true;
+    while (addedAny) {
+        addedAny = false;
+        for (const auto& w : design.wires) {
+            if (selectedWireIds.count(w.id) > 0) continue;
+
+            bool fromIsSel = isCompSel(w.from.compId) || isNodeSel(w.fromNode);
+            bool toIsSel = isCompSel(w.to.compId) || isNodeSel(w.toNode);
+
+            if (w.to.isWireJunction) {
+                if (fromIsSel || selectedWireIds.count(w.to.targetWireId) > 0) {
+                    selectedWireIds.insert(w.id);
+                    addedAny = true;
+                }
+            } else if (fromIsSel || toIsSel) {
+                selectedWireIds.insert(w.id);
+                addedAny = true;
+            }
+        }
+    }
+}
+
+void SchematicCanvas::copySelected() {
+    if (selectedComponentIds.empty() && selectedWireIds.empty()) return;
+
+    autoSelectWiresForSelectedComponents();
 
     nlohmann::json jData;
     jData["components"] = nlohmann::json::array();
     jData["wires"] = nlohmann::json::array();
 
     std::unordered_set<std::string> selComps(selectedComponentIds.begin(), selectedComponentIds.end());
+    std::unordered_set<std::string> selWires(selectedWireIds.begin(), selectedWireIds.end());
 
     for (const auto& comp : design.components) {
         if (selComps.count(comp.id)) {
@@ -1243,20 +1286,26 @@ void SchematicCanvas::copySelected() {
         }
     }
 
+    std::unordered_map<std::string, std::string> oldToNewWireId;
+    int wireCounter = 1;
     for (const auto& w : design.wires) {
-        bool fromSel = !w.from.compId.empty() && selComps.count(w.from.compId);
-        bool toSel = !w.to.compId.empty() && selComps.count(w.to.compId);
-        bool isWireSel = selectedWireIds.count(w.id) > 0;
+        if (selWires.count(w.id) > 0) {
+            std::string tempWireId = "w_copy_" + std::to_string(wireCounter++);
+            oldToNewWireId[w.id] = tempWireId;
 
-        if (isWireSel || (fromSel && toSel)) {
             nlohmann::json jw;
-            jw["id"] = w.id;
+            jw["id"] = tempWireId;
+            jw["oldId"] = w.id;
             jw["fromComp"] = w.from.compId;
             jw["fromTerm"] = w.from.terminal;
             jw["toComp"] = w.to.compId;
             jw["toTerm"] = w.to.terminal;
             jw["fromNode"] = w.fromNode;
             jw["toNode"] = w.toNode;
+            jw["isJunction"] = w.to.isWireJunction;
+            jw["targetWireId"] = w.to.targetWireId;
+            jw["jX"] = w.to.junctionX;
+            jw["jY"] = w.to.junctionY;
             
             nlohmann::json jPath = nlohmann::json::array();
             for (const auto& pt : w.manualPath) {
@@ -1392,9 +1441,18 @@ void SchematicCanvas::pasteSelected() {
         }
 
         if (jData.contains("wires") && jData["wires"].is_array()) {
+            std::unordered_map<std::string, std::string> oldWireIdToNewWireId;
+
             for (const auto& jw : jData["wires"]) {
                 WireInstance wire;
-                wire.id = "wire_" + std::to_string(rand() % 100000);
+                std::string oldWId = jw.value("id", "");
+                std::string origWId = jw.value("oldId", "");
+                std::string newWId = "wire_" + std::to_string(rand() % 100000);
+                
+                if (!oldWId.empty()) oldWireIdToNewWireId[oldWId] = newWId;
+                if (!origWId.empty()) oldWireIdToNewWireId[origWId] = newWId;
+
+                wire.id = newWId;
                 std::string oldFromComp = jw.value("fromComp", "");
                 std::string oldToComp = jw.value("toComp", "");
 
@@ -1403,8 +1461,15 @@ void SchematicCanvas::pasteSelected() {
                 wire.to.compId = oldToNewId.count(oldToComp) ? oldToNewId[oldToComp] : oldToComp;
                 wire.to.terminal = jw.value("toTerm", "");
 
+                wire.to.isWireJunction = jw.value("isJunction", false);
+                std::string origTargetW = jw.value("targetWireId", "");
+                wire.to.targetWireId = oldWireIdToNewWireId.count(origTargetW) ? oldWireIdToNewWireId[origTargetW] : origTargetW;
+                
+                wire.to.junctionX = jw.value("jX", 0.0f) + offsetX;
+                wire.to.junctionY = jw.value("jY", 0.0f) + offsetY;
+
                 wire.fromNode = wire.from.compId + "." + wire.from.terminal;
-                wire.toNode = wire.to.compId + "." + wire.to.terminal;
+                wire.toNode = wire.to.isWireJunction ? (wire.to.targetWireId + ".junction") : (wire.to.compId + "." + wire.to.terminal);
 
                 if (jw.contains("path") && jw["path"].is_array()) {
                     for (const auto& jpt : jw["path"]) {
@@ -1416,7 +1481,7 @@ void SchematicCanvas::pasteSelected() {
                 }
 
                 design.wires.push_back(wire);
-                selectedWireIds.insert(wire.id);
+                selectedWireIds.insert(newWId);
             }
         }
     } catch (...) {}
@@ -1741,6 +1806,8 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                 selectedComponentIds.insert(comp.id);
             }
         }
+
+        autoSelectWiresForSelectedComponents();
     }
 
     if (isWiring) wireCurrentPos = mousePos;
