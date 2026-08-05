@@ -1638,7 +1638,9 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         drawList->AddRect(boxSelectStart, boxSelectEnd, IM_COL32(255, 180, 0, 255), 0, 0, 1.5f);
     }
 
-    // Adaptive Box Zoom rubber-band overlay
+    drawList->PopClipRect();
+
+    // Adaptive Box Zoom rubber-band — drawn OUTSIDE clip rect so it renders on top
     if (isBoxZooming) {
         boxZoomEnd = mousePos;
         float bx0 = std::min(boxZoomStart.x, boxZoomEnd.x);
@@ -1647,25 +1649,27 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         float by1 = std::max(boxZoomStart.y, boxZoomEnd.y);
         float bw = bx1 - bx0, bh = by1 - by0;
         float aspect = (bh > 1.0f) ? (bw / bh) : 99.0f;
-        ImU32 rectColor, fillColor;
+
         if (aspect > 3.0f) {
-            // X-zoom: cyan tint
-            rectColor = IM_COL32(0, 220, 255, 255);
-            fillColor = IM_COL32(0, 220, 255, 30);
+            // X-zoom: draw full-height cyan band spanning the canvas height
+            float top    = canvasPos.y;
+            float bottom = canvasPos.y + canvasSize.y;
+            drawList->AddRectFilled(ImVec2(bx0, top), ImVec2(bx1, bottom), IM_COL32(0, 220, 255, 22));
+            drawList->AddLine(ImVec2(bx0, top), ImVec2(bx0, bottom), IM_COL32(0, 220, 255, 255), 2.0f);
+            drawList->AddLine(ImVec2(bx1, top), ImVec2(bx1, bottom), IM_COL32(0, 220, 255, 255), 2.0f);
         } else if (aspect < 0.33f) {
-            // Y-zoom: magenta tint
-            rectColor = IM_COL32(220, 0, 255, 255);
-            fillColor = IM_COL32(220, 0, 255, 30);
+            // Y-zoom: draw full-width magenta band spanning the canvas width
+            float left  = canvasPos.x;
+            float right = canvasPos.x + canvasSize.x;
+            drawList->AddRectFilled(ImVec2(left, by0), ImVec2(right, by1), IM_COL32(220, 0, 255, 22));
+            drawList->AddLine(ImVec2(left, by0), ImVec2(right, by0), IM_COL32(220, 0, 255, 255), 2.0f);
+            drawList->AddLine(ImVec2(left, by1), ImVec2(right, by1), IM_COL32(220, 0, 255, 255), 2.0f);
         } else {
-            // Box zoom: green tint
-            rectColor = IM_COL32(60, 255, 120, 255);
-            fillColor = IM_COL32(60, 255, 120, 30);
+            // Box zoom: green rectangle
+            drawList->AddRectFilled(ImVec2(bx0, by0), ImVec2(bx1, by1), IM_COL32(60, 255, 120, 30));
+            drawList->AddRect(ImVec2(bx0, by0), ImVec2(bx1, by1), IM_COL32(60, 255, 120, 255), 0, 0, 2.0f);
         }
-        drawList->AddRectFilled(ImVec2(bx0, by0), ImVec2(bx1, by1), fillColor);
-        drawList->AddRect(ImVec2(bx0, by0), ImVec2(bx1, by1), rectColor, 0, 0, 1.8f);
     }
-    
-    drawList->PopClipRect();
 
     // Set focus on click
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {

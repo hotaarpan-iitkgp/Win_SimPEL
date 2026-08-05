@@ -563,50 +563,67 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             if (ImPlot::BeginSubplots("Waveform Subplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
                 for (int i = 0; i < renderPanes; ++i) {
                     const auto& cat = categories[i % categories.size()];
+
+                    // Apply deferred zoom from PREVIOUS frame (must be before BeginPlot)
+                    if (hasPendingZoom[i]) {
+                        ImPlot::SetNextAxesLimits(pendingXMin[i], pendingXMax[i],
+                                                  pendingYMin[i], pendingYMax[i],
+                                                  ImGuiCond_Always);
+                        hasPendingZoom[i] = false;
+                    }
+
                     if (doFitThisFrame) {
                         ImPlot::SetNextAxesToFit();
                     }
-                    if (ImPlot::BeginPlot(cat.title.c_str())) {
-                        ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
-                        // Adaptive Box Zoom (PLECS / Plotly style)
-                        if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
-                            ImPlotRect selectRect = ImPlot::GetPlotSelection();
-                            ImPlotRect currentLimits = ImPlot::GetPlotLimits();
-                            ImPlot::CancelPlotSelection();
+                    if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
+                                           isAdaptiveZoomEnabled ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
 
-                            double dxPlot = std::abs(selectRect.X.Max - selectRect.X.Min);
-                            double dyPlot = std::abs(selectRect.Y.Max - selectRect.Y.Min);
-
-                            double currentDx = std::abs(currentLimits.X.Max - currentLimits.X.Min);
-                            double currentDy = std::abs(currentLimits.Y.Max - currentLimits.Y.Min);
-
-                            double normDx = dxPlot / (currentDx > 1e-15 ? currentDx : 1e-15);
-                            double normDy = dyPlot / (currentDy > 1e-15 ? currentDy : 1e-15);
-
-                            double newXMin = currentLimits.X.Min;
-                            double newXMax = currentLimits.X.Max;
-                            double newYMin = currentLimits.Y.Min;
-                            double newYMax = currentLimits.Y.Max;
-
-                            if (normDx > 2.0 * normDy) {
-                                newXMin = selectRect.X.Min;
-                                newXMax = selectRect.X.Max;
-                            } else if (normDy > 2.0 * normDx) {
-                                newYMin = selectRect.Y.Min;
-                                newYMax = selectRect.Y.Max;
-                            } else {
-                                newXMin = selectRect.X.Min;
-                                newXMax = selectRect.X.Max;
-                                newYMin = selectRect.Y.Min;
-                                newYMax = selectRect.Y.Max;
-                            }
-
-                            ImPlot::SetNextAxesLimits(newXMin, newXMax, newYMin, newYMax, ImGuiCond_Always);
+                        // Override mouse button bindings based on zoom mode
+                        if (isAdaptiveZoomEnabled) {
+                            ImPlot::GetInputMap().Select       = ImGuiMouseButton_Left;
+                            ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
+                            ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Right;
+                        } else {
+                            ImPlot::GetInputMap().Select       = ImGuiMouseButton_Right;
+                            ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
+                            ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Left;
                         }
 
-                        // Right-Click Context Menu on Plot itself
-                        if (ImGui::BeginPopupContextItem("PlotContextMenu")) {
+                        ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
+
+                        // Detect completed box selection → store limits for next frame
+                        if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
+                            ImPlotRect sel = ImPlot::GetPlotSelection();
+                            ImPlotRect cur = ImPlot::GetPlotLimits();
+                            ImPlot::CancelPlotSelection();
+
+                            double dxSel = std::abs(sel.X.Max - sel.X.Min);
+                            double dySel = std::abs(sel.Y.Max - sel.Y.Min);
+                            double dxCur = std::abs(cur.X.Max - cur.X.Min);
+                            double dyCur = std::abs(cur.Y.Max - cur.Y.Min);
+
+                            double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0;
+                            double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0;
+
+                            pendingXMin[i] = cur.X.Min; pendingXMax[i] = cur.X.Max;
+                            pendingYMin[i] = cur.Y.Min; pendingYMax[i] = cur.Y.Max;
+
+                            if (nx > 2.5 * ny) {
+                                pendingXMin[i] = sel.X.Min;
+                                pendingXMax[i] = sel.X.Max;
+                            } else if (ny > 2.5 * nx) {
+                                pendingYMin[i] = sel.Y.Min;
+                                pendingYMax[i] = sel.Y.Max;
+                            } else {
+                                pendingXMin[i] = sel.X.Min; pendingXMax[i] = sel.X.Max;
+                                pendingYMin[i] = sel.Y.Min; pendingYMax[i] = sel.Y.Max;
+                            }
+                            hasPendingZoom[i] = true;
+                        }
+
+                        // Right-Click Context Menu (only when zoom mode is off)
+                        if (!isAdaptiveZoomEnabled && ImGui::BeginPopupContextItem("PlotContextMenu")) {
                             if (ImGui::MenuItem("➕ Add Subplot Pane Below")) {
                                 numPanes = std::min(numPanes + 1, 4);
                             }
