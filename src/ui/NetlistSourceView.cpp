@@ -151,9 +151,44 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         }
     }
 
-    // ─── Node Index Compaction Pass ───
-    // Re-indexes physical nodes to guarantee strictly contiguous node_0, node_1, node_2, node_3...
+    // ─── Ground Detection & Contiguous Node Re-indexing Pass ───
+    std::string groundNodeStr = "";
+
+    auto checkGround = [&](const json& compList) {
+        for (const auto& item : compList) {
+            if (item.contains("nodes") && item["nodes"].is_array()) {
+                for (const auto& nVal : item["nodes"]) {
+                    std::string nStr = nVal.get<std::string>();
+                    if (nStr == "0" || nStr == "node_0") {
+                        groundNodeStr = nStr;
+                        return;
+                    }
+                }
+            }
+        }
+    };
+
+    checkGround(physStageObj["voltage_sources"]);
+    if (groundNodeStr.empty()) checkGround(physStageObj["resistors"]);
+    if (groundNodeStr.empty()) checkGround(physStageObj["capacitors"]);
+    if (groundNodeStr.empty()) checkGround(physStageObj["diodes"]);
+    if (groundNodeStr.empty()) checkGround(physStageObj["inductors"]);
+    if (groundNodeStr.empty()) checkGround(physStageObj["analog_switches"]);
+
+    // If no explicit "0" or "node_0" was found, default Ground to negative pin (nodes[1]) of primary Voltage Source V1
+    if (groundNodeStr.empty()) {
+        for (const auto& item : physStageObj["voltage_sources"]) {
+            if (item.contains("nodes") && item["nodes"].is_array() && item["nodes"].size() >= 2) {
+                groundNodeStr = item["nodes"][1].get<std::string>();
+                break;
+            }
+        }
+    }
+
     std::unordered_map<std::string, std::string> nodeRemap;
+    if (!groundNodeStr.empty()) {
+        nodeRemap[groundNodeStr] = "node_0";
+    }
     nodeRemap["0"] = "node_0";
     nodeRemap["node_0"] = "node_0";
 
@@ -165,28 +200,24 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
                 json newNodes = json::array();
                 for (const auto& nVal : item["nodes"]) {
                     std::string nStr = nVal.get<std::string>();
-                    if (nStr == "0" || nStr == "node_0") {
-                        newNodes.push_back("node_0");
-                    } else {
-                        if (nodeRemap.find(nStr) == nodeRemap.end()) {
-                            nodeRemap[nStr] = "node_" + std::to_string(physNodeCounter++);
-                        }
-                        newNodes.push_back(nodeRemap[nStr]);
+                    if (nodeRemap.find(nStr) == nodeRemap.end()) {
+                        nodeRemap[nStr] = "node_" + std::to_string(physNodeCounter++);
                     }
+                    newNodes.push_back(nodeRemap[nStr]);
                 }
                 item["nodes"] = newNodes;
             }
         }
     };
 
-    compactNodes(physStageObj["resistors"]);
+    compactNodes(physStageObj["voltage_sources"]);
+    compactNodes(physStageObj["analog_switches"]);
+    compactNodes(physStageObj["diodes"]);
     compactNodes(physStageObj["inductors"]);
     compactNodes(physStageObj["capacitors"]);
-    compactNodes(physStageObj["voltage_sources"]);
+    compactNodes(physStageObj["resistors"]);
     compactNodes(physStageObj["current_sources"]);
     compactNodes(physStageObj["switches"]);
-    compactNodes(physStageObj["diodes"]);
-    compactNodes(physStageObj["analog_switches"]);
     compactNodes(physStageObj["transformers"]);
     compactNodes(physStageObj["voltmeters"]);
     compactNodes(physStageObj["ammeters"]);
