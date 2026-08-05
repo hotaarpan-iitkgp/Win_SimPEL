@@ -777,14 +777,12 @@ void MainWindow::renderComponentPalette() {
 }
 
 void MainWindow::renderPropertyInspector() {
-    if (ImGui::Begin("Property Inspector")) {
-        ComponentInstance* comp = canvas.getSelectedComponent();
-        if (!comp) {
-            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Select a component on canvas to view and edit properties.");
-        } else {
+    ComponentInstance* comp = canvas.getSelectedComponent();
+    if (!comp) return;
 
-    ImGui::Text("Selected: %s (%s)", comp->id.c_str(), comp->label.c_str());
-    ImGui::Separator();
+    if (ImGui::Begin("Property Inspector")) {
+        ImGui::Text("Selected: %s (%s)", comp->id.c_str(), comp->label.c_str());
+        ImGui::Separator();
     
     char labelBuf[128];
     strncpy(labelBuf, comp->label.c_str(), sizeof(labelBuf));
@@ -851,9 +849,7 @@ void MainWindow::renderPropertyInspector() {
             } else {
                 if (it != plotVars.end()) plotVars.erase(it);
             }
-            canvas.syncProbeSignals();
         }
-    }
     }
     }
 
