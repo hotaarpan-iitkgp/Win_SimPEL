@@ -174,6 +174,7 @@ private:
     std::vector<double> X;
 
     bool matrixKChanged = true;
+    int forceBackwardEulerSteps = 0;
     std::vector<double> K_prev;
 
     std::vector<double> LU_buf;

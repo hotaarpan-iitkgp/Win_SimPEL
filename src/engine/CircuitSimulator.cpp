@@ -597,6 +597,9 @@ bool CircuitSimulator::updateDeviceStates() {
             }
         }
     }
+    if (changed) {
+        forceBackwardEulerSteps = 2;
+    }
     return changed;
 }
 
@@ -634,7 +637,11 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             double L = fc.val;
             if (L < 1e-12) L = 1e-12;
             int lIdx = fc.lIdx;
-            bool useTrap = (config.solver != "be" && config.solver != "backward_euler");
+            bool useTrap = (config.solver == "trapezoidal" || config.solver == "trap" || config.solver == "rk4");
+            if (forceBackwardEulerSteps > 0) {
+                useTrap = false;
+            }
+
             if (useTrap) {
                 double rEq = (2.0 * L / dt) + fc.esr;
                 double iPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatIndCurrents.size()) ? flatIndCurrents[fc.stateIdx] : 0.0;
@@ -800,6 +807,8 @@ SimulationOutput CircuitSimulator::runTransient() {
             statesChanged = updateDeviceStates();
             if (statesChanged) matrixKChanged = true;
         }
+
+        if (forceBackwardEulerSteps > 0) forceBackwardEulerSteps--;
 
         // Store time step
         out.time.push_back(currentTime);
