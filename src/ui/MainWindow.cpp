@@ -635,7 +635,7 @@ void MainWindow::renderComponentPalette() {
             ComponentInstance comp;
             comp.id = getUniqueId("ACV");
             comp.label = "AC Source"; comp.type = ComponentType::ACVoltageSource; comp.rawTypeStr = "AC_V";
-            comp.parameters["Vm"] = "325"; comp.parameters["f"] = "50";
+            comp.parameters["amplitude"] = "325"; comp.parameters["frequency"] = "50"; comp.parameters["phase"] = "0";
             canvas.addComponent(comp);
         }
         if (ImGui::Button("3-Phase AC Source (V_3PH)")) {

@@ -137,6 +137,22 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 100.0);
             cObj["src_type"] = "dc";
             physStageObj["voltage_sources"].push_back(cObj);
+        } else if (t == "AC_V" || t == "ACVOLTAGESOURCE") {
+            cObj["nodes"] = formattedNodes;
+            double amp = 100.0;
+            if (parsedParams.count("amplitude")) amp = parsedParams["amplitude"];
+            else if (parsedParams.count("value")) amp = parsedParams["value"];
+            double freq = 50.0;
+            if (parsedParams.count("frequency")) freq = parsedParams["frequency"];
+            else if (parsedParams.count("freq")) freq = parsedParams["freq"];
+            double phase = 0.0;
+            if (parsedParams.count("phase")) phase = parsedParams["phase"];
+            cObj["amplitude"] = formatJSStyleDouble(roundToDigits(amp, 9));
+            cObj["frequency"] = formatJSStyleDouble(roundToDigits(freq, 9));
+            cObj["phase"] = formatJSStyleDouble(roundToDigits(phase, 9));
+            cObj["type"] = "ac";
+            cObj["src_type"] = "ac";
+            physStageObj["voltage_sources"].push_back(cObj);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";
             cObj["nodes"] = formattedNodes;

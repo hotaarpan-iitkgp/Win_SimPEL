@@ -17,7 +17,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Capacitor" || t == "C" || t == "capacitors") return ComponentType::Capacitor;
     if (t == "Inductor" || t == "L" || t == "inductors") return ComponentType::Inductor;
     if (t == "VoltageSource" || t == "V" || t == "DCVoltageSource" || t == "voltage_sources" || t == "dc_sources" || t == "ControlledVoltageSource") return ComponentType::VoltageSource;
-    if (t == "ACVoltageSource" || t == "ac_sources") return ComponentType::ACVoltageSource;
+    if (t == "ACVoltageSource" || t == "ac_sources" || t == "AC_V" || t == "ac" || t == "AC") return ComponentType::ACVoltageSource;
     if (t == "CurrentSource" || t == "I" || t == "current_sources") return ComponentType::CurrentSource;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
     if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
@@ -48,6 +48,16 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
     if (item.contains("original_type") && item["original_type"].is_string()) {
         std::string origType = item["original_type"].get<std::string>();
         if (!origType.empty()) itemType = origType;
+    }
+    // Detect AC voltage source via src_type field (web-tool exports "src_type":"ac")
+    if (item.contains("src_type") && item["src_type"].is_string()) {
+        std::string srcType = item["src_type"].get<std::string>();
+        if (srcType == "ac" || srcType == "AC") itemType = "AC_V";
+    }
+    // Also detect AC via top-level type field "ac" when inside voltage_sources category
+    if ((itemType == "ac" || itemType == "AC") ||
+        (defaultCategoryType == "voltage_sources" && (itemType == "ac" || itemType == "AC"))) {
+        itemType = "AC_V";
     }
     comp.type = stringToComponentType(itemType, defaultCategoryType);
     if (item.contains("label")) comp.label = item["label"].get<std::string>();

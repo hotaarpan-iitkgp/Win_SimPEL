@@ -203,6 +203,14 @@ void CircuitSimulator::buildIndexMaps() {
         fc.Roff = evaluateParam(comp, "Roff", 1e6);
         fc.Vvd = evaluateParam(comp, "Vd", 0.7);
         fc.freq = evaluateParam(comp, "freq", 50.0);
+        if (comp.type == ComponentType::ACVoltageSource) {
+            // Web-tool netlist uses "amplitude" and "frequency" keys
+            if (comp.parameters.count("amplitude")) fc.val = evaluateParam(comp, "amplitude", 1.0);
+            if (comp.parameters.count("frequency")) fc.freq = evaluateParam(comp, "frequency", 50.0);
+            if (comp.parameters.count("phase")) fc.delay = evaluateParam(comp, "phase", 0.0);
+            // Also support "value" as amplitude alias (Windows tool schematic)
+            if (!comp.parameters.count("amplitude") && comp.parameters.count("value")) fc.val = evaluateParam(comp, "value", 100.0);
+        }
 
         fc.vPlotKey = "V_" + comp.id;
         fc.iPlotKey = "I_" + comp.id;
@@ -746,7 +754,8 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             B[vIdx] = fc.val;
         }
         else if (fc.type == ComponentType::ACVoltageSource) {
-            double val = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime);
+            double phaseRad = fc.delay * 3.141592653589793 / 180.0;
+            double val = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + phaseRad);
             int vIdx = fc.vIdx;
             B[vIdx] = val;
         }
