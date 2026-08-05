@@ -100,23 +100,28 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
     if (ImPlot::BeginSubplots("Oscilloscope Subplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
         for (int i = 0; i < renderPanes; ++i) {
             const auto& cat = categories[i % categories.size()];
+
+            // --- Apply deferred zoom from PREVIOUS frame (must be before BeginPlot) ---
+            if (hasPendingZoom[i]) {
+                ImPlot::SetNextAxesLimits(pendingXMin[i], pendingXMax[i],
+                                          pendingYMin[i], pendingYMax[i],
+                                          ImGuiCond_Always);
+                hasPendingZoom[i] = false;
+            }
+
             if (doFitThisFrame) {
                 ImPlot::SetNextAxesToFit();
             }
-            // Configure ImPlot mouse bindings based on zoom mode:
-            //   Adaptive zoom ON  → LMB drag = box select, RMB drag = pan
-            //   Adaptive zoom OFF → LMB drag = pan (ImPlot default), RMB = context menu
 
             if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
                                    isAdaptiveZoomEnabled ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
 
-                // Override mouse button bindings when adaptive zoom is on
+                // Override mouse button bindings based on zoom mode
                 if (isAdaptiveZoomEnabled) {
-                    ImPlot::GetInputMap().Select       = ImGuiMouseButton_Left;   // LMB = draw selection box
+                    ImPlot::GetInputMap().Select       = ImGuiMouseButton_Left;  // LMB = rubber-band
                     ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
-                    ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Right;  // RMB = pan
+                    ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Right; // RMB = pan
                 } else {
-                    // Restore defaults
                     ImPlot::GetInputMap().Select       = ImGuiMouseButton_Right;
                     ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
                     ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Left;
@@ -124,7 +129,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
                 ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
-                // Adaptive Box Zoom (PLECS / Plotly style) — commit on selection release
+                // Detect completed box selection → store limits for NEXT frame application
                 if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
                     ImPlotRect sel = ImPlot::GetPlotSelection();
                     ImPlotRect cur = ImPlot::GetPlotLimits();
@@ -135,33 +140,31 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     double dxCur = std::abs(cur.X.Max - cur.X.Min);
                     double dyCur = std::abs(cur.Y.Max - cur.Y.Min);
 
-                    // Normalize drag dimensions against current view to detect intent
                     double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0;
                     double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0;
 
-                    double newXMin = cur.X.Min, newXMax = cur.X.Max;
-                    double newYMin = cur.Y.Min, newYMax = cur.Y.Max;
+                    // Store current limits as baseline
+                    pendingXMin[i] = cur.X.Min; pendingXMax[i] = cur.X.Max;
+                    pendingYMin[i] = cur.Y.Min; pendingYMax[i] = cur.Y.Max;
 
                     if (nx > 2.5 * ny) {
-                        // Wide horizontal drag → X-axis zoom only (most common waveform use)
-                        newXMin = sel.X.Min;
-                        newXMax = sel.X.Max;
+                        // Wide horizontal → X-axis zoom only
+                        pendingXMin[i] = sel.X.Min;
+                        pendingXMax[i] = sel.X.Max;
                     } else if (ny > 2.5 * nx) {
-                        // Tall vertical drag → Y-axis zoom only
-                        newYMin = sel.Y.Min;
-                        newYMax = sel.Y.Max;
+                        // Tall vertical → Y-axis zoom only
+                        pendingYMin[i] = sel.Y.Min;
+                        pendingYMax[i] = sel.Y.Max;
                     } else {
                         // Roughly square → full box zoom
-                        newXMin = sel.X.Min; newXMax = sel.X.Max;
-                        newYMin = sel.Y.Min; newYMax = sel.Y.Max;
+                        pendingXMin[i] = sel.X.Min; pendingXMax[i] = sel.X.Max;
+                        pendingYMin[i] = sel.Y.Min; pendingYMax[i] = sel.Y.Max;
                     }
-
-                    ImPlot::SetNextAxesLimits(newXMin, newXMax, newYMin, newYMax, ImGuiCond_Always);
+                    hasPendingZoom[i] = true; // will be applied before BeginPlot next frame
                 }
 
-
-                // Right-Click Context Menu on Plot itself
-                if (ImGui::BeginPopupContextItem("PlotContextMenu")) {
+                // Right-Click Context Menu
+                if (!isAdaptiveZoomEnabled && ImGui::BeginPopupContextItem("PlotContextMenu")) {
                     if (ImGui::MenuItem("➕ Add Subplot Pane Below")) {
                         numPanes = std::min(numPanes + 1, 4);
                     }
