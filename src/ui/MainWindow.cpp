@@ -544,10 +544,7 @@ void MainWindow::renderControlBar() {
 }
 
 void MainWindow::renderComponentPalette() {
-    if (!ImGui::Begin("Component Pane", &showComponentPalette)) {
-        ImGui::End();
-        return;
-    }
+    if (ImGui::Begin("Component Pane", &showComponentPalette)) {
     
     auto getUniqueId = [&](const std::string& prefix) -> std::string {
         const auto& comps = canvas.getCircuit().components;
@@ -771,19 +768,17 @@ void MainWindow::renderComponentPalette() {
         ImGui::Unindent(8.0f);
         ImGui::Spacing();
     }
+    }
 
     ImGui::End();
 }
 
 void MainWindow::renderPropertyInspector() {
-    ImGui::Begin("Property Inspector");
-    
-    ComponentInstance* comp = canvas.getSelectedComponent();
-    if (!comp) {
-        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Select a component on canvas to view and edit properties.");
-        ImGui::End();
-        return;
-    }
+    if (ImGui::Begin("Property Inspector")) {
+        ComponentInstance* comp = canvas.getSelectedComponent();
+        if (!comp) {
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Select a component on canvas to view and edit properties.");
+        } else {
 
     ImGui::Text("Selected: %s (%s)", comp->id.c_str(), comp->label.c_str());
     ImGui::Separator();
@@ -855,6 +850,8 @@ void MainWindow::renderPropertyInspector() {
             }
             canvas.syncProbeSignals();
         }
+    }
+    }
     }
 
     ImGui::End();
