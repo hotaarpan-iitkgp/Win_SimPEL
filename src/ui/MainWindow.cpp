@@ -393,6 +393,9 @@ void MainWindow::renderMenuBar() {
         }
         if (ImGui::BeginMenu("View")) {
             if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(); }
+            if (ImGui::MenuItem("Component Palette", nullptr, showComponentPalette)) {
+                showComponentPalette = !showComponentPalette;
+            }
             ImGui::Separator();
             if (ImGui::BeginMenu("Appearance")) {
                 if (ImGui::MenuItem("Dark Mode (Sleek Slate)", nullptr, isDarkMode)) {
@@ -494,6 +497,14 @@ void MainWindow::renderControlBar() {
         if (ImGui::Button("Fit Schematic")) {
             canvas.fitToScreen();
         }
+        ImGui::SameLine(0, 15);
+
+        if (showComponentPalette) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.8f, 1.0f, 1.0f));
+        if (ImGui::Button(showComponentPalette ? "Palette (On)" : "Palette (Off)")) {
+            showComponentPalette = !showComponentPalette;
+        }
+        if (showComponentPalette) ImGui::PopStyleColor();
+
         ImGui::SameLine(0, 20);
 
         ImGui::TextDisabled("|");
@@ -895,8 +906,8 @@ void MainWindow::render() {
     renderControlBar();
 
     if (activeWorkspace == WorkspaceMode::SchematicCAD) {
-        renderComponentPalette();
-        renderPropertyInspector();
+        if (showComponentPalette) renderComponentPalette();
+        if (canvas.getSelectedComponent() != nullptr) renderPropertyInspector();
         canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
         scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
     } else {

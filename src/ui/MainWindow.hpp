@@ -19,6 +19,7 @@ private:
 
     WorkspaceMode activeWorkspace = WorkspaceMode::SchematicCAD;
     bool isDarkMode = true;
+    bool showComponentPalette = true;
 
     bool showSimParamsModal = false;
     char simStopTimeBuf[64] = "0.02";
