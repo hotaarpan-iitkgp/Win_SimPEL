@@ -261,6 +261,16 @@ void MainWindow::renderMenuBar() {
         }
         if (ImGui::BeginMenu("View")) {
             if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(); }
+            ImGui::Separator();
+            if (ImGui::BeginMenu("Workspace")) {
+                if (ImGui::MenuItem("Schematic", nullptr, activeWorkspace == WorkspaceMode::SchematicCAD)) {
+                    activeWorkspace = WorkspaceMode::SchematicCAD;
+                }
+                if (ImGui::MenuItem("Waveform", nullptr, activeWorkspace == WorkspaceMode::WaveformNetlist)) {
+                    activeWorkspace = WorkspaceMode::WaveformNetlist;
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Simulation")) {
