@@ -545,6 +545,8 @@ void MainWindow::renderControlBar() {
 }
 
 void MainWindow::renderComponentPalette() {
+    if (!showComponentPalette) return;
+
     if (ImGui::Begin("Component Pane", &showComponentPalette)) {
     
     auto getUniqueId = [&](const std::string& prefix) -> std::string {
