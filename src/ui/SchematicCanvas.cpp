@@ -1672,10 +1672,13 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         ImGui::SetWindowFocus();
     }
 
-    // Escape or Right-Click cancels wiring
+    // Escape or Right-Click cancels wiring / box-zoom drag
     if (isWiring && (ImGui::IsKeyPressed(ImGuiKey_Escape) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
         isWiring = false;
         activeWireCorners.clear();
+    }
+    if (isBoxZooming && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        isBoxZooming = false;
     }
 
     // Mouse Pan with Right Button or Spacebar + Left Mouse
@@ -1714,7 +1717,12 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         lastCanvasClickWorldPos.y = std::round(clickW.y / 20.0f) * 20.0f;
         hasLastClickPos = true;
 
-        if (!hoveredPinCompId.empty()) {
+        if (adaptiveZoomMode && !isWiring) {
+            // Adaptive box zoom mode: always start rubber-band regardless of what is under cursor
+            isBoxZooming = true;
+            boxZoomStart = mousePos;
+            boxZoomEnd   = mousePos;
+        } else if (!hoveredPinCompId.empty()) {
             if (!isWiring) {
                 isWiring = true;
                 wireStartCompId = hoveredPinCompId;
