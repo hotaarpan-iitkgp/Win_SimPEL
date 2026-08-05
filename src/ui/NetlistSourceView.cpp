@@ -668,27 +668,6 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                         // Adaptive Box Zoom real-time visual rubber-band and release commit
                         if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
                             ImPlotRect sel = ImPlot::GetPlotSelection();
-                            ImPlotRect cur = ImPlot::GetPlotLimits();
-
-                            double dxSel = std::abs(sel.X.Max - sel.X.Min);
-                            double dySel = std::abs(sel.Y.Max - sel.Y.Min);
-                            double dxCur = std::abs(cur.X.Max - cur.X.Min);
-                            double dyCur = std::abs(cur.Y.Max - cur.Y.Min);
-
-                            double nx = (dxCur > 1e-15) ? dxSel / dxCur : 0.0;
-                            double ny = (dyCur > 1e-15) ? dySel / dyCur : 0.0;
-
-                            // 10% Tolerance classification:
-                            // If orthogonal drag dimension is <= 10% of main drag dimension (or <= 0.10 of axis length),
-                            // classify as pure 1D X-Zoom or 1D Y-Zoom. 2D Box Zoom requires both dimensions to exceed 10%!
-                            WaveformZoomType currentDragType = ZOOM_BOX_2D;
-                            if (ny <= 0.10 * nx || ny <= 0.10) {
-                                currentDragType = ZOOM_X_ONLY;
-                            } else if (nx <= 0.10 * ny || nx <= 0.10) {
-                                currentDragType = ZOOM_Y_ONLY;
-                            } else {
-                                currentDragType = ZOOM_BOX_2D;
-                            }
 
                             // Convert selection coordinates to screen pixels
                             ImVec2 pMin = ImPlot::PlotToPixels(ImPlotPoint(sel.X.Min, sel.Y.Max));
@@ -705,6 +684,24 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
                             float x2 = std::max(pMin.x, pMax.x);
                             float y1 = std::min(pMin.y, pMax.y);
                             float y2 = std::max(pMin.y, pMax.y);
+
+                            float dxPx = x2 - x1;
+                            float dyPx = y2 - y1;
+
+                            // Physical Screen Pixel 10% Tolerance Classification:
+                            // 1. If vertical mouse movement is <= 10% of horizontal mouse movement (or < 12px),
+                            //    classify as PURE 1D X-AXIS ZOOM (TIME ONLY).
+                            // 2. If horizontal mouse movement is <= 10% of vertical mouse movement (or < 12px),
+                            //    classify as PURE 1D Y-AXIS ZOOM (AMPLITUDE ONLY).
+                            // 3. Otherwise (BOTH horizontal and vertical drag exceed 10%), classify as 2D BOX ZOOM.
+                            WaveformZoomType currentDragType = ZOOM_BOX_2D;
+                            if (dyPx <= 0.10f * dxPx || dyPx <= 12.0f) {
+                                currentDragType = ZOOM_X_ONLY;
+                            } else if (dxPx <= 0.10f * dyPx || dxPx <= 12.0f) {
+                                currentDragType = ZOOM_Y_ONLY;
+                            } else {
+                                currentDragType = ZOOM_BOX_2D;
+                            }
 
                             ImDrawList* drawList = ImPlot::GetPlotDrawList();
 
