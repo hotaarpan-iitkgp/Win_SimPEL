@@ -438,8 +438,8 @@ ComponentInstance* SchematicCanvas::getSelectedComponent() {
 
 void SchematicCanvas::drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos) {
     float gridSize = 20.0f * zoomLevel;
-    ImU32 gridColor = isDarkMode ? IM_COL32(35, 42, 56, 180) : IM_COL32(225, 232, 240, 255);
-    ImU32 gridMajor = isDarkMode ? IM_COL32(50, 60, 80, 220) : IM_COL32(203, 213, 225, 255);
+    ImU32 gridColor = isDarkMode ? IM_COL32(35, 42, 56, 180) : IM_COL32(232, 227, 185, 220);
+    ImU32 gridMajor = isDarkMode ? IM_COL32(50, 60, 80, 220) : IM_COL32(212, 205, 158, 255);
     
     float startX = std::fmod(panOffset.x * zoomLevel, gridSize);
     float startY = std::fmod(panOffset.y * zoomLevel, gridSize);
@@ -481,7 +481,7 @@ void SchematicCanvas::drawBreadcrumbs(ImDrawList* drawList, ImVec2 canvasPos) {
 void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 c, float s, ImU32 color) {
     const std::string& t = comp.rawTypeStr;
     float rot = (float)comp.rotation;
-    ImU32 blockBg = isDarkMode ? IM_COL32(30, 41, 59, 230) : IM_COL32(241, 245, 249, 255);
+    ImU32 blockBg = isDarkMode ? IM_COL32(30, 41, 59, 230) : IM_COL32(252, 250, 225, 240);
     
     if (t == "R") {
         ImVec2 rawPts[] = {
@@ -1620,7 +1620,7 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
     lastRenderedCanvasSize = canvasSize;
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    ImU32 canvasBgColor = isDarkMode ? IM_COL32(15, 23, 42, 255) : IM_COL32(248, 250, 252, 255);
+    ImU32 canvasBgColor = isDarkMode ? IM_COL32(15, 23, 42, 255) : IM_COL32(246, 243, 206, 255);
     drawList->AddRectFilled(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), canvasBgColor);
     drawList->PushClipRect(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), true);
     
