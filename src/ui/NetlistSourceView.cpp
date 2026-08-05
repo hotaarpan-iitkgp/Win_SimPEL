@@ -80,6 +80,18 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         validCompIds.insert(comp.id);
     }
 
+    auto getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
+        for (const auto& w : tempDesign.wires) {
+            if (w.to.compId == compId && (w.to.terminal == pinName || (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1")))) {
+                return w.from.compId + "." + w.from.terminal;
+            }
+            if (w.from.compId == compId && (w.from.terminal == pinName || (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1")))) {
+                return w.to.compId + "." + w.to.terminal;
+            }
+        }
+        return "0.0";
+    };
+
     for (const auto& comp : tempDesign.components) {
         std::string t = comp.rawTypeStr;
         std::transform(t.begin(), t.end(), t.begin(), ::toupper);
@@ -168,7 +180,17 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : 0.01);
             cObj["Vgt"] = formatJSStyleDouble(parsedParams.count("Vgt") ? parsedParams["Vgt"] : 0.5);
             physStageObj["analog_switches"].push_back(cObj);
-        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "CONSTANT") {
+        } else if (t == "CONST" || t == "CONSTANT") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "CONST";
+            double val = 1.0;
+            if (comp.parameters.count("value")) val = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("value"));
+            else if (comp.parameters.count("constant")) val = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("constant"));
+            else if (comp.parameters.count("const")) val = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("const"));
+            else if (comp.parameters.count("val")) val = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("val"));
+            cObj["value"] = formatJSStyleDouble(roundToDigits(val, 9));
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "PULSE" || t == "PULSE_GEN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
             cObj["amplitude"] = formatJSStyleDouble(parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0);
@@ -177,6 +199,98 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["delay"] = formatJSStyleDouble(parsedParams.count("delay") ? parsedParams["delay"] : 0.0);
             cObj["value"] = 1.0;
             ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "GAIN") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "GAIN";
+            double kVal = 1.0;
+            if (comp.parameters.count("K")) kVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("K"));
+            else if (comp.parameters.count("gain")) kVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("gain"));
+            else if (comp.parameters.count("k")) kVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("k"));
+            cObj["K"] = formatJSStyleDouble(roundToDigits(kVal, 9));
+
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In1");
+            cObj["input"] = inSig;
+            cObj["input1"] = "0.0";
+            cObj["input2"] = "0.0";
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "TRI" || t == "TRIANGLE" || t == "TRIANGLE_CARRIER") {
+            cObj["output"] = comp.id + ".Out";
+            double freq = 10000.0;
+            if (comp.parameters.count("frequency")) freq = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("frequency"));
+            else if (comp.parameters.count("freq")) freq = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("freq"));
+
+            double minV = 0.0;
+            if (comp.parameters.count("min")) minV = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("min"));
+
+            double maxV = 1.0;
+            if (comp.parameters.count("max")) maxV = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("max"));
+
+            cObj["frequency"] = formatJSStyleDouble(roundToDigits(freq, 9));
+            cObj["min"] = formatJSStyleDouble(roundToDigits(minV, 9));
+            cObj["max"] = formatJSStyleDouble(roundToDigits(maxV, 9));
+            cObj["phase_source"] = comp.parameters.count("phase_source") ? comp.parameters.at("phase_source") : "internal";
+            cObj["phase"] = comp.parameters.count("phase") ? comp.parameters.at("phase") : "0";
+            cObj["freq_source"] = comp.parameters.count("freq_source") ? comp.parameters.at("freq_source") : "internal";
+            cObj["input_phase"] = nullptr;
+            cObj["input_freq"] = nullptr;
+            ctrlLoopsObj["triangle_carriers"].push_back(cObj);
+        } else if (t == "PID" || t == "PI" || t == "PI_CONTROLLER") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "PID";
+            cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 1.0);
+            cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 0.0);
+            cObj["Kd"] = formatJSStyleDouble(parsedParams.count("Kd") ? parsedParams["Kd"] : 0.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["pi_controllers"].push_back(cObj);
+        } else if (t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = comp.rawTypeStr;
+            cObj["signs"] = comp.pinSigns;
+            json inputsArr = json::array();
+            for (int i = 1; i <= comp.numInputPins; ++i) {
+                inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+            }
+            cObj["inputs"] = inputsArr;
+            ctrlLoopsObj["summing_junctions"].push_back(cObj);
+        } else if (t == "PROD" || t == "PRODUCT_RECT" || t == "PRODUCT") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "PROD";
+            json inputsArr = json::array();
+            for (int i = 1; i <= comp.numInputPins; ++i) {
+                inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+            }
+            cObj["inputs"] = inputsArr;
+            ctrlLoopsObj["product_blocks"].push_back(cObj);
+        } else if (t == "PWM" || t == "PWM_GENERATOR") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "PWM";
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 20000.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["pwm_generators"].push_back(cObj);
+        } else if (t == "PWM_MASTER" || t == "MASTER_PWM") {
+            cObj["original_type"] = "PWM_MASTER";
+            cObj["fc"] = comp.parameters.count("fc") ? comp.parameters.at("fc") : "10k";
+            cObj["dead_time"] = comp.parameters.count("dead_time") ? comp.parameters.at("dead_time") : "1u";
+            cObj["num_carriers"] = comp.parameters.count("num_carriers") ? comp.parameters.at("num_carriers") : "3";
+            ctrlLoopsObj["pwm_masters"].push_back(cObj);
+        } else if (t == "COMP" || t == "COMPARATOR") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "COMP";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["comparators"].push_back(cObj);
+        } else if (t == "AND" || t == "OR" || t == "NOT") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = t;
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["logic_gates"].push_back(cObj);
+        } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
+            cObj["output"] = comp.id + ".Out1";
+            cObj["original_type"] = "CSCRIPT";
+            cObj["code"] = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+            ctrlLoopsObj["custom_scripts"].push_back(cObj);
         }
     }
 
@@ -256,7 +370,7 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
 
     json simParamsObj;
     double rawStopTime = (tempDesign.settings.stopTime > 0.0) ? tempDesign.settings.stopTime : 0.01;
-    double rawStepSize = (tempDesign.settings.stepSize > 0.0) ? tempDesign.settings.stepSize : 1e-5;
+    double rawStepSize = (tempDesign.settings.stepSize > 0.0) ? tempDesign.settings.stepSize : 0.000001;
 
     simParamsObj["stop_time"] = formatJSStyleDouble(rawStopTime);
     simParamsObj["step_size"] = formatJSStyleDouble(rawStepSize);
@@ -271,56 +385,27 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     json wantedVars = json::array();
     std::unordered_set<std::string> addedVars;
 
-    // Include plotConfig variables ONLY if their component actually exists in schematic
-    for (const auto& p : tempDesign.plotConfig.plots) {
-        for (const auto& v : p.variables) {
-            std::string compBase = v;
-            if (compBase.rfind("I_", 0) == 0 || compBase.rfind("V_", 0) == 0) {
-                compBase = compBase.substr(2);
-            } else if (compBase.find('.') != std::string::npos) {
-                compBase = compBase.substr(0, compBase.find('.'));
-            }
-            if (validCompIds.count(compBase) && !addedVars.count(v)) {
-                wantedVars.push_back(v);
-                addedVars.insert(v);
-            }
-        }
-    }
-
-    // Dynamic Discovery: Add default telemetry variables for components present in schematic
     for (const auto& comp : tempDesign.components) {
         std::string t = comp.rawTypeStr;
         std::transform(t.begin(), t.end(), t.begin(), ::toupper);
 
         if (t == "C" || t == "CAPACITOR") {
             std::string varName = "V_" + comp.id;
-            if (!addedVars.count(varName)) {
-                wantedVars.push_back(varName);
-                addedVars.insert(varName);
-            }
-        } else if (t == "L" || t == "INDUCTOR") {
+            if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+        } else if (t == "L" || t == "INDUCTOR" || t == "D" || t == "DIODE" || t == "MOSFET" || t == "S") {
             std::string varName = "I_" + comp.id;
-            if (!addedVars.count(varName)) {
-                wantedVars.push_back(varName);
-                addedVars.insert(varName);
-            }
-        } else if (t == "D" || t == "DIODE") {
-            std::string varName = "I_" + comp.id;
-            if (!addedVars.count(varName)) {
-                wantedVars.push_back(varName);
-                addedVars.insert(varName);
-            }
-        } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET") {
-            std::string varName = "I_" + comp.id;
-            if (!addedVars.count(varName)) {
-                wantedVars.push_back(varName);
-                addedVars.insert(varName);
-            }
-        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "PWM" || t == "CONST" || t == "CONSTANT") {
+            if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "PWM" || t == "CONST" || t == "CONSTANT" || t == "GAIN" || t == "TRI" || t == "TRIANGLE") {
             std::string varName = comp.id + ".Out";
-            if (!addedVars.count(varName)) {
-                wantedVars.push_back(varName);
-                addedVars.insert(varName);
+            if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+        } else if (t == "SCOPE" || t == "OSCILLOSCOPE") {
+            int numChannels = 2;
+            if (comp.parameters.count("channels")) {
+                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch (...) {}
+            }
+            for (int ch = 1; ch <= std::max(1, numChannels); ++ch) {
+                std::string varName = comp.id + ".In" + std::to_string(ch);
+                if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
             }
         }
     }
@@ -329,6 +414,33 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     root["simulation_parameters"] = simParamsObj;
 
     root["probes"] = json::array();
+    for (const auto& comp : tempDesign.components) {
+        std::string t = comp.rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+        if (t == "SCOPE" || t == "OSCILLOSCOPE") {
+            json pObj;
+            pObj["id"] = comp.id;
+            json inTraces = json::array();
+            int numChannels = 2;
+            if (comp.parameters.count("channels")) {
+                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch (...) {}
+            }
+            for (int ch = 1; ch <= std::max(1, numChannels); ++ch) {
+                std::string inSig = getIncomingSignal(comp.id, "In" + std::to_string(ch));
+                if (inSig != "0.0") {
+                    inTraces.push_back(inSig);
+                }
+            }
+            pObj["channels_inputs"] = inTraces;
+            root["probes"].push_back(pObj);
+        } else if (t == "PROBE" || t == "UNIFIEDPROBE") {
+            json pObj;
+            pObj["id"] = comp.id;
+            pObj["target"] = comp.parameters.count("target") ? comp.parameters.at("target") : "";
+            pObj["selected_signals"] = comp.parameters.count("selected_signals") ? comp.parameters.at("selected_signals") : "";
+            root["probes"].push_back(pObj);
+        }
+    }
 
     return root.dump(2);
 }
