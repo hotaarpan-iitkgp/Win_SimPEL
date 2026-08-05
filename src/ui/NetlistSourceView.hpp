@@ -22,9 +22,10 @@ private:
     float traceLineWidth = 2.0f;
     float splitRatio = 0.10f;
 
-    // Per-pane deferred zoom: SetNextAxisLimits must be called BEFORE BeginPlot
+    // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;
     std::array<WaveformPendingZoom, MAX_PANES> pendingZoom = {};
+    std::array<CustomZoomDragState, MAX_PANES> customDragState = {};
 
 public:
     NetlistSourceView() = default;
