@@ -544,8 +544,6 @@ void MainWindow::renderControlBar() {
 }
 
 void MainWindow::renderComponentPalette() {
-    if (!showComponentPalette) return;
-
     if (!ImGui::Begin("Component Pane", &showComponentPalette)) {
         ImGui::End();
         return;
@@ -913,8 +911,8 @@ void MainWindow::render() {
     renderControlBar();
 
     if (activeWorkspace == WorkspaceMode::SchematicCAD) {
-        if (showComponentPalette) renderComponentPalette();
-        if (canvas.getSelectedComponent() != nullptr) renderPropertyInspector();
+        renderComponentPalette();
+        renderPropertyInspector();
         canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
         scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
     } else {
