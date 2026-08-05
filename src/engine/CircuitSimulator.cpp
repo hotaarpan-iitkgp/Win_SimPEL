@@ -544,6 +544,56 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     }
                 }
             }
+            else if (fc.type == ComponentType::EdgeDetector) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double pulseW = (fc.width > 0.0) ? fc.width : 1e-3;
+                bool rising = (fc.polarity == "rising" || fc.polarity.empty());
+                bool falling = (fc.polarity == "falling");
+                bool either = (fc.polarity == "either" || fc.polarity == "both");
+
+                double prevIn = fc.esr; // store prev input in esr field for fast state
+                double trigTime = fc.delay; // store trig time in delay field
+                bool isActive = (fc.minVal > 0.5); // store active state in minVal
+
+                bool detected = false;
+                if (rising && prevIn <= 0.5 && inVal > 0.5) detected = true;
+                else if (falling && prevIn > 0.5 && inVal <= 0.5) detected = true;
+                else if (either && ((prevIn <= 0.5 && inVal > 0.5) || (prevIn > 0.5 && inVal <= 0.5))) detected = true;
+
+                if (pass == 0) fc.esr = inVal; // update prev input
+
+                if (detected && !isActive) {
+                    isActive = true;
+                    trigTime = currentTime;
+                    if (pass == 0) { fc.minVal = 1.0; fc.delay = trigTime; }
+                }
+                if (isActive && trigTime >= 0.0 && (currentTime - trigTime) >= pulseW - 1e-12) {
+                    isActive = false;
+                    if (pass == 0) fc.minVal = 0.0;
+                }
+                val = isActive ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::MathFunction) {
+                double v1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double v2 = fc.in1Ptr ? *fc.in1Ptr : 2.0;
+                std::string f = fc.polarity; // store function name in polarity string
+                if (f.empty()) f = "square";
+
+                if (f == "square") val = v1 * v1;
+                else if (f == "sqrt" || f == "square root") val = std::sqrt(std::abs(v1));
+                else if (f == "exp" || f == "exponential") val = std::exp(v1);
+                else if (f == "log" || f == "ln" || f == "logarithm") val = std::log(std::abs(v1) + 1e-15);
+                else if (f == "log10") val = std::log10(std::abs(v1) + 1e-15);
+                else if (f == "reciprocal") val = 1.0 / (v1 == 0.0 ? 1e-15 : v1);
+                else if (f == "abs") val = std::abs(v1);
+                else if (f == "power" || f == "pow") val = std::pow(v1, v2);
+                else if (f == "mod") { double m = (v2 == 0.0 ? 1.0 : v2); val = std::fmod(std::fmod(v1, m) + m, m); }
+                else if (f == "rem") { double m = (v2 == 0.0 ? 1.0 : v2); val = std::fmod(v1, m); }
+                else val = v1 * v1;
+            }
+            else if (fc.type == ComponentType::KeyTrigger) {
+                val = (fc.val != 0.0) ? fc.val : 1.0;
+            }
             else if (fc.type == ComponentType::UnifiedProbe) {
                 double pVal = 0.0;
                 if (fc.ctrlSigPtr) pVal = *fc.ctrlSigPtr;

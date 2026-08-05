@@ -17,6 +17,7 @@ enum class ComponentType {
     Inductor,
     VoltageSource,
     ACVoltageSource,
+    ThreePhaseSource, // V_3PH
     ControlledVoltageSource,
     CurrentSource,
     ACCurrentSource,
@@ -36,12 +37,15 @@ enum class ComponentType {
     // Control & Math Blocks
     PI_Controller,
     PWM_Generator,
+    MasterPWM,        // PWM_MASTER
     Triangle_Carrier,
-    PulseGenerator,  // PULSE
+    PulseGenerator,   // PULSE
+    EdgeDetector,     // EDGE_DETECT
     Constant,
     Gain,
-    SummingJunction, // SUM_RECT / SUM_ROUND
-    Product,         // PRODUCT_RECT
+    SummingJunction,  // SUM_RECT / SUM_ROUND
+    Product,          // PRODUCT_RECT
+    MathFunction,     // MATH_FCN
     Comparator,
     AND_Gate,
     OR_Gate,
@@ -49,7 +53,8 @@ enum class ComponentType {
     CustomFunction,
     Mux,
     Demux,
-    CustomScript,   // CSCRIPT
+    CustomScript,     // CSCRIPT
+    KeyTrigger,       // KEY_TRIGGER
     Goto,
     From,
     
@@ -63,6 +68,7 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "Inductor" || typeStr == "L") return ComponentType::Inductor;
     if (typeStr == "VoltageSource" || typeStr == "V" || typeStr == "dc") return ComponentType::VoltageSource;
     if (typeStr == "ACVoltageSource" || typeStr == "ac" || typeStr == "AC_V") return ComponentType::ACVoltageSource;
+    if (typeStr == "ThreePhaseSource" || typeStr == "V_3PH") return ComponentType::ThreePhaseSource;
     if (typeStr == "ControlledVoltageSource") return ComponentType::ControlledVoltageSource;
     if (typeStr == "CurrentSource" || typeStr == "I") return ComponentType::CurrentSource;
     if (typeStr == "ACCurrentSource") return ComponentType::ACCurrentSource;
@@ -80,12 +86,15 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "UnifiedProbe" || typeStr == "PROBE") return ComponentType::UnifiedProbe;
     if (typeStr == "PI_Controller" || typeStr == "PID") return ComponentType::PI_Controller;
     if (typeStr == "PWM_Generator" || typeStr == "PWM") return ComponentType::PWM_Generator;
+    if (typeStr == "MasterPWM" || typeStr == "PWM_MASTER") return ComponentType::MasterPWM;
     if (typeStr == "Triangle_Carrier" || typeStr == "TRI") return ComponentType::Triangle_Carrier;
     if (typeStr == "PulseGenerator" || typeStr == "PULSE" || typeStr == "PULSE_GEN") return ComponentType::PulseGenerator;
+    if (typeStr == "EdgeDetector" || typeStr == "EDGE_DETECT") return ComponentType::EdgeDetector;
     if (typeStr == "Constant" || typeStr == "CONST") return ComponentType::Constant;
     if (typeStr == "Gain" || typeStr == "GAIN") return ComponentType::Gain;
     if (typeStr == "SummingJunction" || typeStr == "SUM" || typeStr == "SUM_RECT" || typeStr == "SUM_ROUND") return ComponentType::SummingJunction;
     if (typeStr == "Product" || typeStr == "PROD" || typeStr == "PRODUCT_RECT") return ComponentType::Product;
+    if (typeStr == "MathFunction" || typeStr == "MATH_FCN") return ComponentType::MathFunction;
     if (typeStr == "Comparator" || typeStr == "COMP") return ComponentType::Comparator;
     if (typeStr == "AND_Gate" || typeStr == "AND") return ComponentType::AND_Gate;
     if (typeStr == "OR_Gate" || typeStr == "OR") return ComponentType::OR_Gate;
@@ -94,6 +103,7 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "Mux") return ComponentType::Mux;
     if (typeStr == "Demux") return ComponentType::Demux;
     if (typeStr == "CustomScript" || typeStr == "CSCRIPT") return ComponentType::CustomScript;
+    if (typeStr == "KeyTrigger" || typeStr == "KEY_TRIGGER") return ComponentType::KeyTrigger;
     if (typeStr == "Goto" || typeStr == "GOTO") return ComponentType::Goto;
     if (typeStr == "From" || typeStr == "FROM") return ComponentType::From;
     return ComponentType::Unknown;
@@ -107,6 +117,7 @@ inline std::string componentTypeToString(ComponentType type) {
         case ComponentType::Inductor: return "Inductor";
         case ComponentType::VoltageSource: return "VoltageSource";
         case ComponentType::ACVoltageSource: return "ACVoltageSource";
+        case ComponentType::ThreePhaseSource: return "ThreePhaseSource";
         case ComponentType::ControlledVoltageSource: return "ControlledVoltageSource";
         case ComponentType::CurrentSource: return "CurrentSource";
         case ComponentType::ACCurrentSource: return "ACCurrentSource";
@@ -124,11 +135,15 @@ inline std::string componentTypeToString(ComponentType type) {
         case ComponentType::UnifiedProbe: return "UnifiedProbe";
         case ComponentType::PI_Controller: return "PI_Controller";
         case ComponentType::PWM_Generator: return "PWM_Generator";
+        case ComponentType::MasterPWM: return "MasterPWM";
         case ComponentType::Triangle_Carrier: return "Triangle_Carrier";
+        case ComponentType::PulseGenerator: return "PulseGenerator";
+        case ComponentType::EdgeDetector: return "EdgeDetector";
         case ComponentType::Constant: return "Constant";
         case ComponentType::Gain: return "Gain";
         case ComponentType::SummingJunction: return "SummingJunction";
         case ComponentType::Product: return "Product";
+        case ComponentType::MathFunction: return "MathFunction";
         case ComponentType::Comparator: return "Comparator";
         case ComponentType::AND_Gate: return "AND_Gate";
         case ComponentType::OR_Gate: return "OR_Gate";
@@ -137,6 +152,7 @@ inline std::string componentTypeToString(ComponentType type) {
         case ComponentType::Mux: return "Mux";
         case ComponentType::Demux: return "Demux";
         case ComponentType::CustomScript: return "CustomScript";
+        case ComponentType::KeyTrigger: return "KeyTrigger";
         case ComponentType::Goto: return "Goto";
         case ComponentType::From: return "From";
         default: return "Unknown";
@@ -212,11 +228,35 @@ inline void setupComponentPins(ComponentInstance& comp) {
         Pin p1; p1.name = "In1"; p1.relativeX = -30; p1.relativeY = -10; p1.isInput = true;
         Pin p2; p2.name = "In2"; p2.relativeX = -30; p2.relativeY = 10; p2.isInput = true;
         comp.pins = {p1, p2};
-    } else if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT") {
-        Pin in1; in1.name = "In1"; in1.relativeX = -25; in1.relativeY = -15; in1.isInput = true; in1.opSign = "+";
-        Pin in2; in2.name = "In2"; in2.relativeX = -25; in2.relativeY = 15; in2.isInput = true; in2.opSign = "-";
+    } else if (t == "V_3PH" || t == "ThreePhaseSource") {
+        Pin pinA; pinA.name = "A"; pinA.relativeX = -30; pinA.relativeY = -25;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = -30; pinB.relativeY = 0;
+        Pin pinC; pinC.name = "C"; pinC.relativeX = -30; pinC.relativeY = 25;
+        Pin pinN; pinN.name = "N"; pinN.relativeX = 30; pinN.relativeY = 0;
+        comp.pins = {pinA, pinB, pinC, pinN};
+    } else if (t == "PWM_MASTER" || t == "MasterPWM") {
+        Pin in1; in1.name = "In1"; in1.relativeX = -40; in1.relativeY = -20; in1.isInput = true;
+        Pin in2; in2.name = "In2"; in2.relativeX = -40; in2.relativeY = 0; in2.isInput = true;
+        Pin in3; in3.name = "In3"; in3.relativeX = -40; in3.relativeY = 20; in3.isInput = true;
+        Pin p1; p1.name = "P1"; p1.relativeX = 40; p1.relativeY = -25; p1.isOutput = true;
+        Pin p1n; p1n.name = "P1_n"; p1n.relativeX = 40; p1n.relativeY = -15; p1n.isOutput = true;
+        Pin p2; p2.name = "P2"; p2.relativeX = 40; p2.relativeY = -5; p2.isOutput = true;
+        Pin p2n; p2n.name = "P2_n"; p2n.relativeX = 40; p2n.relativeY = 5; p2n.isOutput = true;
+        Pin p3; p3.name = "P3"; p3.relativeX = 40; p3.relativeY = 15; p3.isOutput = true;
+        Pin p3n; p3n.name = "P3_n"; p3n.relativeX = 40; p3n.relativeY = 25; p3n.isOutput = true;
+        comp.pins = {in1, in2, in3, p1, p1n, p2, p2n, p3, p3n};
+    } else if (t == "EDGE_DETECT" || t == "EdgeDetector") {
+        Pin in; in.name = "In"; in.relativeX = -25; in.relativeY = 0; in.isInput = true;
+        Pin out; out.name = "Out"; out.relativeX = 25; out.relativeY = 0; out.isOutput = true;
+        comp.pins = {in, out};
+    } else if (t == "MATH_FCN" || t == "FCN" || t == "MathFunction") {
+        Pin in1; in1.name = "In1"; in1.relativeX = -25; in1.relativeY = -10; in1.isInput = true;
+        Pin in2; in2.name = "In2"; in2.relativeX = -25; in2.relativeY = 10; in2.isInput = true;
         Pin out; out.name = "Out"; out.relativeX = 25; out.relativeY = 0; out.isOutput = true;
         comp.pins = {in1, in2, out};
+    } else if (t == "KEY_TRIGGER" || t == "KeyTrigger") {
+        Pin out; out.name = "Out"; out.relativeX = 25; out.relativeY = 0; out.isOutput = true;
+        comp.pins = {out};
     }
 }
 

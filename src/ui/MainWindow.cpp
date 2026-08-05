@@ -638,6 +638,13 @@ void MainWindow::renderComponentPalette() {
             comp.parameters["Vm"] = "325"; comp.parameters["f"] = "50";
             canvas.addComponent(comp);
         }
+        if (ImGui::Button("3-Phase AC Source (V_3PH)")) {
+            ComponentInstance comp;
+            comp.id = getUniqueId("V3PH");
+            comp.label = "3-Phase AC Source"; comp.type = ComponentType::ThreePhaseSource; comp.rawTypeStr = "V_3PH";
+            comp.parameters["magnitude"] = "230"; comp.parameters["frequency"] = "50"; comp.parameters["phase"] = "0";
+            canvas.addComponent(comp);
+        }
         if (ImGui::Button("Current Source (I)")) {
             ComponentInstance comp;
             comp.id = getUniqueId("I");
@@ -717,6 +724,13 @@ void MainWindow::renderComponentPalette() {
             comp.parameters["frequency"] = "20000";
             canvas.addComponent(comp);
         }
+        if (ImGui::Button("Master PWM (PWM_MASTER)")) {
+            ComponentInstance comp;
+            comp.id = getUniqueId("PWM_MASTER");
+            comp.label = "Master PWM"; comp.type = ComponentType::MasterPWM; comp.rawTypeStr = "PWM_MASTER";
+            comp.parameters["num_carriers"] = "3"; comp.parameters["fc"] = "10k"; comp.parameters["dead_time"] = "1u";
+            canvas.addComponent(comp);
+        }
         if (ImGui::Button("Pulse Generator")) {
             ComponentInstance comp;
             comp.id = getUniqueId("PULSE_GEN");
@@ -725,6 +739,27 @@ void MainWindow::renderComponentPalette() {
             comp.parameters["period"] = "1";
             comp.parameters["width"] = "0.5";
             comp.parameters["delay"] = "0";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Edge Detector (EDGE_DETECT)")) {
+            ComponentInstance comp;
+            comp.id = getUniqueId("EDGE_DETECT");
+            comp.label = "Edge Detector"; comp.type = ComponentType::EdgeDetector; comp.rawTypeStr = "EDGE_DETECT";
+            comp.parameters["edge"] = "rising"; comp.parameters["pulse_width"] = "1e-3";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Math Function (MATH_FCN)")) {
+            ComponentInstance comp;
+            comp.id = getUniqueId("MATH_FCN");
+            comp.label = "Math Function"; comp.type = ComponentType::MathFunction; comp.rawTypeStr = "MATH_FCN";
+            comp.parameters["function"] = "square";
+            canvas.addComponent(comp);
+        }
+        if (ImGui::Button("Key Trigger (KEY_TRIGGER)")) {
+            ComponentInstance comp;
+            comp.id = getUniqueId("KEY_TRIGGER");
+            comp.label = "Key Trigger"; comp.type = ComponentType::KeyTrigger; comp.rawTypeStr = "KEY_TRIGGER";
+            comp.parameters["key"] = "Space"; comp.parameters["active_value"] = "1.0"; comp.parameters["inactive_value"] = "0.0";
             canvas.addComponent(comp);
         }
         if (ImGui::Button("Triangle Carrier")) {

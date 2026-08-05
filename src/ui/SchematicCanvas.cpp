@@ -644,6 +644,36 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         ImVec2 triWave[] = {rotatePt(-10*s, 6*s, c.x, c.y, rot), rotatePt(0, -6*s, c.x, c.y, rot), rotatePt(10*s, 6*s, c.x, c.y, rot)};
         drawList->AddPolyline(triWave, 3, color, 0, 1.8f*s);
+    } else if (t == "V_3PH" || t == "ThreePhaseSource") {
+        float hw = 24*s, hh = 28*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-16*s, -12*s, c.x, c.y, rot), color, "3-Phase");
+        drawList->AddText(rotatePt(-12*s, 2*s, c.x, c.y, rot), IM_COL32(56, 189, 248, 255), "AC");
+    } else if (t == "PWM_MASTER" || t == "MasterPWM") {
+        float hw = 30*s, hh = 28*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-22*s, -10*s, c.x, c.y, rot), color, "PWM");
+        drawList->AddText(rotatePt(-24*s, 2*s, c.x, c.y, rot), IM_COL32(245, 158, 11, 255), "MASTER");
+    } else if (t == "EDGE_DETECT" || t == "EdgeDetector") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "EDGE");
+    } else if (t == "MATH_FCN" || t == "FCN" || t == "MathFunction") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string fnLabel = comp.parameters.count("function") ? comp.parameters.at("function") : "FCN";
+        if (fnLabel.length() > 5) fnLabel = fnLabel.substr(0, 5);
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, fnLabel.c_str());
+    } else if (t == "KEY_TRIGGER" || t == "KeyTrigger") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string keyLabel = comp.parameters.count("key") ? comp.parameters.at("key") : "KEY";
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), IM_COL32(236, 72, 153, 255), keyLabel.c_str());
     } else if (t == "PULSE" || t == "PULSE_GEN") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
