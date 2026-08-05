@@ -1113,30 +1113,53 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
         minY = comp.pins[0].relativeY;
         maxY = comp.pins[0].relativeY;
         for (const auto& pin : comp.pins) {
-            minX = std::min(minX, pin.relativeX);
-            maxX = std::max(maxX, pin.relativeX);
-            minY = std::min(minY, pin.relativeY);
-            maxY = std::max(maxY, pin.relativeY);
+            minX = std::min(minX, (float)pin.relativeX);
+            maxX = std::max(maxX, (float)pin.relativeX);
+            minY = std::min(minY, (float)pin.relativeY);
+            maxY = std::max(maxY, (float)pin.relativeY);
         }
-        outHalfW = std::max(std::abs(minX), std::abs(maxX)) + 12.0f;
-        outHalfH = std::max(std::abs(minY), std::abs(maxY)) + 12.0f;
+        outHalfW = std::max(std::abs(minX), std::abs(maxX)) + 4.0f;
+        outHalfH = std::max(std::abs(minY), std::abs(maxY)) + 4.0f;
     } else {
-        outHalfW = 32.0f;
-        outHalfH = 18.0f;
+        outHalfW = 25.0f;
+        outHalfH = 25.0f;
     }
 
-    if (comp.rawTypeStr == "CSCRIPT" || comp.rawTypeStr == "SUBSYSTEM") {
-        outHalfW = std::max(outHalfW, 45.0f);
-        outHalfH = std::max(outHalfH, 35.0f);
-    } else if (comp.rawTypeStr == "R" || comp.rawTypeStr == "C" || comp.rawTypeStr == "L" ||
-               comp.rawTypeStr == "D" || comp.rawTypeStr == "V" || comp.rawTypeStr == "I" ||
-               comp.rawTypeStr == "AC_V" || comp.rawTypeStr == "S" || comp.rawTypeStr == "MOSFET" ||
-               comp.rawTypeStr == "VM" || comp.rawTypeStr == "AM") {
-        outHalfW = std::max(outHalfW, 32.0f);
+    const std::string& t = comp.rawTypeStr;
+
+    if (t == "CSCRIPT") {
+        outHalfW = std::max(outHalfW, 82.0f);
+        outHalfH = std::max(outHalfH, 42.0f);
+    } else if (t == "SUBSYSTEM") {
+        outHalfW = std::max(outHalfW, 52.0f);
+        outHalfH = std::max(outHalfH, 42.0f);
+    } else if (t == "PULSE" || t == "PULSE_GEN") {
+        outHalfW = std::max(outHalfW, 24.0f);
         outHalfH = std::max(outHalfH, 18.0f);
+    } else if (t == "SCOPE") {
+        int numCh = 2;
+        if (comp.parameters.count("channels")) {
+            try { numCh = std::stoi(comp.parameters.at("channels")); } catch (...) {}
+        }
+        if (numCh < 1) numCh = 1;
+        outHalfW = std::max(outHalfW, 18.0f);
+        outHalfH = std::max(outHalfH, std::max(18.0f, numCh * 10.0f + 2.0f));
+    } else if (t == "PROBE") {
+        std::string sigStr = comp.parameters.count("selected_signals") ? comp.parameters.at("selected_signals") : "";
+        int count = 0;
+        std::stringstream ss(sigStr);
+        std::string item;
+        while (std::getline(ss, item, ',')) { if (!item.empty()) count++; }
+        int numPins = std::max(1, count);
+        outHalfW = std::max(outHalfW, 32.0f);
+        outHalfH = std::max(outHalfH, std::max(22.0f, numPins * 15.0f + 2.0f));
+    } else if (t == "R" || t == "C" || t == "L" || t == "D" || t == "V" || t == "I" ||
+               t == "AC_V" || t == "S" || t == "MOSFET" || t == "VM" || t == "AM") {
+        outHalfW = std::max(outHalfW, 14.0f);
+        outHalfH = std::max(outHalfH, 14.0f);
     } else {
-        outHalfW = std::max(outHalfW, 25.0f);
-        outHalfH = std::max(outHalfH, 25.0f);
+        outHalfW = std::max(outHalfW, 22.0f);
+        outHalfH = std::max(outHalfH, 22.0f);
     }
 
     int rot = ((comp.rotation % 360) + 360) % 360;
