@@ -260,9 +260,11 @@ void CircuitSimulator::buildIndexMaps() {
 
         fc.in0Key = getParamString(ctrlComp, "In", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "In1", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "Plus", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input_0", "");
 
         fc.in1Key = getParamString(ctrlComp, "In2", "");
+        if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "Minus", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input_1", "");
         fc.outKey = getParamString(ctrlComp, "output", "");
         fc.targetKey = getParamString(ctrlComp, "target", "");

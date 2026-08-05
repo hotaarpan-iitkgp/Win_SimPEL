@@ -276,15 +276,40 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             ctrlLoopsObj["pwm_masters"].push_back(cObj);
         } else if (t == "COMP" || t == "COMPARATOR") {
             cObj["output"] = comp.id + ".Out";
-            cObj["original_type"] = "COMP";
-            cObj["input1"] = getIncomingSignal(comp.id, "In1");
-            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            std::string inPlus = getIncomingSignal(comp.id, "Plus");
+            if (inPlus == "0.0") inPlus = getIncomingSignal(comp.id, "In1");
+            if (inPlus == "0.0") inPlus = getIncomingSignal(comp.id, "In");
+
+            std::string inMinus = getIncomingSignal(comp.id, "Minus");
+            if (inMinus == "0.0") inMinus = getIncomingSignal(comp.id, "In2");
+
+            json inputsArr = json::array();
+            inputsArr.push_back(inPlus);
+            inputsArr.push_back(inMinus);
+            cObj["inputs"] = inputsArr;
+
+            double hyst = 0.0;
+            if (comp.parameters.count("hysteresis")) hyst = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("hysteresis"));
+            cObj["hysteresis"] = formatJSStyleDouble(roundToDigits(hyst, 9));
+
             ctrlLoopsObj["comparators"].push_back(cObj);
         } else if (t == "AND" || t == "OR" || t == "NOT") {
             cObj["output"] = comp.id + ".Out";
-            cObj["original_type"] = t;
-            cObj["input1"] = getIncomingSignal(comp.id, "In1");
-            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            cObj["type"] = (t == "AND") ? "and" : ((t == "OR") ? "or" : "not");
+            json inputsArr = json::array();
+            if (t == "NOT") {
+                std::string inSig = getIncomingSignal(comp.id, "In");
+                if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In1");
+                inputsArr.push_back(inSig);
+            } else {
+                std::string inA = getIncomingSignal(comp.id, "A");
+                if (inA == "0.0") inA = getIncomingSignal(comp.id, "In1");
+                std::string inB = getIncomingSignal(comp.id, "B");
+                if (inB == "0.0") inB = getIncomingSignal(comp.id, "In2");
+                inputsArr.push_back(inA);
+                inputsArr.push_back(inB);
+            }
+            cObj["inputs"] = inputsArr;
             ctrlLoopsObj["logic_gates"].push_back(cObj);
         } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
             cObj["output"] = comp.id + ".Out1";
