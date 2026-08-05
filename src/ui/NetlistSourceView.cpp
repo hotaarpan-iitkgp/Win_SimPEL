@@ -352,8 +352,12 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
     ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
     float availWidth = ImGui::GetContentRegionAvail().x;
-    float leftWidth = availWidth * 0.45f;
-    float rightWidth = availWidth - leftWidth - 10.0f;
+    float splitterWidth = 8.0f;
+    float leftWidth = availWidth * splitRatio;
+    if (leftWidth < 120.0f) leftWidth = 120.0f;
+    if (availWidth - leftWidth - splitterWidth < 200.0f) {
+        leftWidth = availWidth - splitterWidth - 200.0f;
+    }
 
     // ─── LEFT PANEL: RAW NETLIST SOURCE CODE EDITOR ───
     ImGui::BeginChild("NetlistLeftPanel", ImVec2(leftWidth, 0), true);
@@ -448,14 +452,15 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
         ofn.nMaxFile = sizeof(szFile);
         ofn.lpstrFilter = "JSON Files (*.json)\0*.json\0All Files (*.*)\0*.*\0";
         ofn.nFilterIndex = 1;
-        ofn.lpstrDefExt = "json";
+        ofn.lpstrFileTitle = NULL;
+        ofn.nMaxFileTitle = 0;
+        ofn.lpstrInitialDir = NULL;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
 
         if (GetSaveFileNameA(&ofn) == TRUE) {
-            std::ofstream outFile(ofn.lpstrFile);
-            if (outFile.is_open()) {
-                outFile << jsonBuffer;
-                outFile.close();
+            std::ofstream out(ofn.lpstrFile);
+            if (out.is_open()) {
+                out << jsonBuffer;
             }
         }
     }
@@ -469,10 +474,30 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
     ImGui::EndChild();
 
-    ImGui::SameLine();
+    ImGui::SameLine(0, 0);
+
+    // ─── INTERACTIVE DRAGGABLE SPLITTER BAR ───
+    ImGui::PushStyleColor(ImGuiCol_Button, isDarkMode ? ImVec4(0.20f, 0.27f, 0.38f, 0.50f) : ImVec4(0.75f, 0.80f, 0.88f, 0.80f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.05f, 0.65f, 0.91f, 0.85f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.02f, 0.75f, 1.00f, 1.00f));
+
+    ImGui::Button("##SplitterBar", ImVec2(splitterWidth, -1));
+    if (ImGui::IsItemActive()) {
+        float mouseDeltaX = ImGui::GetIO().MouseDelta.x;
+        splitRatio += mouseDeltaX / availWidth;
+        if (splitRatio < 0.05f) splitRatio = 0.05f;
+        if (splitRatio > 0.85f) splitRatio = 0.85f;
+    }
+    if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    }
+
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine(0, 0);
 
     // ─── RIGHT PANEL: WAVEFORM SOLVER PLOTTER ───
-    ImGui::BeginChild("WaveformRightPanel", ImVec2(rightWidth, 0), true);
+    ImGui::BeginChild("WaveformRightPanel", ImVec2(0, 0), true);
 
     ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Interactive Waveform Solver Plotter");
     ImGui::SameLine();
