@@ -32,6 +32,7 @@ private:
     float zoomLevel = 1.0f;
     ImVec2 lastCanvasClickWorldPos{0.0f, 0.0f};
     bool hasLastClickPos = false;
+    bool isDarkMode = true;
     
     // Interactive selection & drag
     std::set<std::string> selectedComponentIds;
@@ -112,6 +113,9 @@ private:
 
 public:
     SchematicCanvas() = default;
+
+    void setDarkMode(bool dark) { isDarkMode = dark; }
+    bool isDarkModeActive() const { return isDarkMode; }
 
     void syncProbeSignals();
 

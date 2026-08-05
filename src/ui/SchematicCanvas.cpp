@@ -438,8 +438,8 @@ ComponentInstance* SchematicCanvas::getSelectedComponent() {
 
 void SchematicCanvas::drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos) {
     float gridSize = 20.0f * zoomLevel;
-    ImU32 gridColor = IM_COL32(35, 40, 50, 180);
-    ImU32 gridMajor = IM_COL32(45, 52, 65, 220);
+    ImU32 gridColor = isDarkMode ? IM_COL32(35, 42, 56, 180) : IM_COL32(225, 232, 240, 255);
+    ImU32 gridMajor = isDarkMode ? IM_COL32(50, 60, 80, 220) : IM_COL32(203, 213, 225, 255);
     
     float startX = std::fmod(panOffset.x * zoomLevel, gridSize);
     float startY = std::fmod(panOffset.y * zoomLevel, gridSize);
@@ -1184,7 +1184,8 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
         float s = zoomLevel;
         
         bool isSelected = selectedComponentIds.count(comp.id) > 0;
-        ImU32 componentColor = isSelected ? IM_COL32(255, 180, 0, 255) : IM_COL32(200, 210, 230, 255);
+        ImU32 defaultColor = isDarkMode ? IM_COL32(200, 210, 230, 255) : IM_COL32(30, 41, 59, 255);
+        ImU32 componentColor = isSelected ? IM_COL32(255, 180, 0, 255) : defaultColor;
 
         float hw = 25.0f, hh = 25.0f;
         getComponentBounds(comp, hw, hh);
@@ -1201,7 +1202,8 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
         }
         
         drawComponentShape(drawList, comp, center, s, componentColor);
-        drawList->AddText({center.x - (hw - 4.0f)*s, center.y + (hh + 4.0f)*s}, IM_COL32(180, 190, 210, 255), comp.label.c_str());
+        ImU32 labelColor = isDarkMode ? IM_COL32(180, 190, 210, 255) : IM_COL32(15, 23, 42, 255);
+        drawList->AddText({center.x - (hw - 4.0f)*s, center.y + (hh + 4.0f)*s}, labelColor, comp.label.c_str());
         drawTerminals(drawList, comp, center, s, mousePos, minPinDist);
     }
 }

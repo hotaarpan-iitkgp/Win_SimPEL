@@ -15,7 +15,98 @@ using json = nlohmann::json;
 
 namespace CircuitSim {
 
+void MainWindow::applyDarkTheme() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImGui::StyleColorsDark();
+
+    style.WindowRounding = 6.0f;
+    style.ChildRounding = 6.0f;
+    style.FrameRounding = 5.0f;
+    style.PopupRounding = 6.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding = 4.0f;
+    style.TabRounding = 6.0f;
+    style.WindowBorderSize = 1.0f;
+    style.FrameBorderSize = 1.0f;
+    style.ItemSpacing = ImVec2(8, 6);
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.06f, 0.09f, 0.16f, 1.00f);
+    colors[ImGuiCol_ChildBg]              = ImVec4(0.11f, 0.15f, 0.23f, 1.00f);
+    colors[ImGuiCol_PopupBg]              = ImVec4(0.09f, 0.13f, 0.20f, 0.98f);
+    colors[ImGuiCol_Border]               = ImVec4(0.20f, 0.27f, 0.38f, 0.70f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.12f, 0.17f, 0.27f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.18f, 0.25f, 0.38f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.24f, 0.32f, 0.47f, 1.00f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.06f, 0.09f, 0.16f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.11f, 0.15f, 0.23f, 1.00f);
+    colors[ImGuiCol_MenuBarBg]            = ImVec4(0.08f, 0.12f, 0.19f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.06f, 0.09f, 0.16f, 0.50f);
+    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.20f, 0.27f, 0.38f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.28f, 0.37f, 0.52f, 1.00f);
+    colors[ImGuiCol_CheckMark]            = ImVec4(0.05f, 0.65f, 0.91f, 1.00f);
+    colors[ImGuiCol_SliderGrab]           = ImVec4(0.05f, 0.65f, 0.91f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.02f, 0.75f, 1.00f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.14f, 0.20f, 0.31f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.05f, 0.65f, 0.91f, 0.85f);
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.02f, 0.52f, 0.78f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.14f, 0.20f, 0.31f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.20f, 0.28f, 0.42f, 1.00f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.05f, 0.65f, 0.91f, 0.60f);
+    colors[ImGuiCol_Tab]                  = ImVec4(0.11f, 0.15f, 0.23f, 1.00f);
+    colors[ImGuiCol_TabHovered]           = ImVec4(0.05f, 0.65f, 0.91f, 0.80f);
+    colors[ImGuiCol_TabActive]            = ImVec4(0.16f, 0.22f, 0.33f, 1.00f);
+    colors[ImGuiCol_Text]                 = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.58f, 0.70f, 1.00f);
+}
+
+void MainWindow::applyLightTheme() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImGui::StyleColorsLight();
+
+    style.WindowRounding = 6.0f;
+    style.ChildRounding = 6.0f;
+    style.FrameRounding = 5.0f;
+    style.PopupRounding = 6.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding = 4.0f;
+    style.TabRounding = 6.0f;
+    style.WindowBorderSize = 1.0f;
+    style.FrameBorderSize = 1.0f;
+    style.ItemSpacing = ImVec2(8, 6);
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.97f, 0.98f, 0.99f, 1.00f);
+    colors[ImGuiCol_ChildBg]              = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_PopupBg]              = ImVec4(1.00f, 1.00f, 1.00f, 0.98f);
+    colors[ImGuiCol_Border]               = ImVec4(0.80f, 0.84f, 0.88f, 0.80f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.94f, 0.96f, 0.98f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.88f, 0.92f, 0.96f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.82f, 0.88f, 0.94f, 1.00f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.94f, 0.96f, 0.98f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.90f, 0.93f, 0.96f, 1.00f);
+    colors[ImGuiCol_MenuBarBg]            = ImVec4(0.92f, 0.94f, 0.97f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.96f, 0.97f, 0.98f, 0.60f);
+    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.78f, 0.82f, 0.88f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.65f, 0.72f, 0.80f, 1.00f);
+    colors[ImGuiCol_CheckMark]            = ImVec4(0.01f, 0.52f, 0.78f, 1.00f);
+    colors[ImGuiCol_SliderGrab]           = ImVec4(0.01f, 0.52f, 0.78f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.01f, 0.60f, 0.88f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.90f, 0.93f, 0.96f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.01f, 0.52f, 0.78f, 0.85f);
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.01f, 0.42f, 0.65f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.90f, 0.93f, 0.96f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.84f, 0.89f, 0.94f, 1.00f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.01f, 0.52f, 0.78f, 0.60f);
+    colors[ImGuiCol_Tab]                  = ImVec4(0.90f, 0.93f, 0.96f, 1.00f);
+    colors[ImGuiCol_TabHovered]           = ImVec4(0.01f, 0.52f, 0.78f, 0.80f);
+    colors[ImGuiCol_TabActive]            = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_Text]                 = ImVec4(0.06f, 0.09f, 0.16f, 1.00f);
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.45f, 0.50f, 0.58f, 1.00f);
+}
+
 MainWindow::MainWindow() {
+    applyDarkTheme();
     loadPresetTemplate("buck_converter");
 }
 
@@ -302,11 +393,25 @@ void MainWindow::renderMenuBar() {
         if (ImGui::BeginMenu("View")) {
             if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(); }
             ImGui::Separator();
+            if (ImGui::BeginMenu("Appearance")) {
+                if (ImGui::MenuItem("Dark Mode (Sleek Slate)", nullptr, isDarkMode)) {
+                    isDarkMode = true;
+                    applyDarkTheme();
+                    canvas.setDarkMode(true);
+                }
+                if (ImGui::MenuItem("Light Mode (Clean Studio)", nullptr, !isDarkMode)) {
+                    isDarkMode = false;
+                    applyLightTheme();
+                    canvas.setDarkMode(false);
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
             if (ImGui::BeginMenu("Workspace")) {
-                if (ImGui::MenuItem("Schematic", nullptr, activeWorkspace == WorkspaceMode::SchematicCAD)) {
+                if (ImGui::MenuItem("Schematic CAD", nullptr, activeWorkspace == WorkspaceMode::SchematicCAD)) {
                     activeWorkspace = WorkspaceMode::SchematicCAD;
                 }
-                if (ImGui::MenuItem("Waveform", nullptr, activeWorkspace == WorkspaceMode::WaveformNetlist)) {
+                if (ImGui::MenuItem("Waveform & Netlist", nullptr, activeWorkspace == WorkspaceMode::WaveformNetlist)) {
                     activeWorkspace = WorkspaceMode::WaveformNetlist;
                 }
                 ImGui::EndMenu();

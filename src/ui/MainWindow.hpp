@@ -18,11 +18,15 @@ private:
     CircuitSimEngine::CircuitSimulator simulator;
 
     WorkspaceMode activeWorkspace = WorkspaceMode::SchematicCAD;
+    bool isDarkMode = true;
 
     bool showSimParamsModal = false;
     char simStopTimeBuf[64] = "0.02";
     char simStepSizeBuf[64] = "1u";
     int simSolverIdx = 0;
+
+    void applyDarkTheme();
+    void applyLightTheme();
 
     void renderMenuBar();
     void renderControlBar();
