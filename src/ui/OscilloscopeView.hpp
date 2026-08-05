@@ -11,6 +11,14 @@ namespace CircuitSim {
 
 enum WaveformZoomType { ZOOM_NONE = 0, ZOOM_X_ONLY, ZOOM_Y_ONLY, ZOOM_BOX_2D };
 
+enum class ActiveZoomMode {
+    Adaptive = 0, // Smart detection
+    X_Only   = 1, // Explicit 1D X-Axis Zoom (Time Range)
+    Y_Only   = 2, // Explicit 1D Y-Axis Zoom (Amplitude Range)
+    Box_2D   = 3, // Explicit 2D Box Zoom
+    Disabled = 4  // Zoom disabled (normal pan)
+};
+
 struct WaveformPendingZoom {
     bool hasPending = false;
     WaveformZoomType type = ZOOM_NONE;
@@ -22,7 +30,7 @@ class OscilloscopeView {
 private:
     int numPanes = 1;
     bool autoFitNext = false;
-    bool isAdaptiveZoomEnabled = true;
+    ActiveZoomMode activeZoomMode = ActiveZoomMode::Adaptive;
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
 

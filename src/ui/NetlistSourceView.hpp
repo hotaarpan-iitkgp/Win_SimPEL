@@ -17,7 +17,7 @@ private:
     std::string lastGeneratedJson = "";
     int numPanes = 1;
     bool autoFitNext = false;
-    bool isAdaptiveZoomEnabled = true;
+    ActiveZoomMode activeZoomMode = ActiveZoomMode::Adaptive;
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
     float splitRatio = 0.10f;

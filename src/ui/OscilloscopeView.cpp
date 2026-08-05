@@ -63,18 +63,47 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
     if (ImGui::Button("Fit Waveforms / Reset Zoom")) doFitThisFrame = true;
     ImGui::SameLine();
 
-    if (isAdaptiveZoomEnabled) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.45f, 0.80f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
-        if (ImGui::Button("🔍 Adaptive Box Zoom: ON")) {
-            isAdaptiveZoomEnabled = false;
-        }
-        ImGui::PopStyleColor(2);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    // Dedicated Zoom Mode Buttons
+    if (activeZoomMode == ActiveZoomMode::Adaptive) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.45f, 0.85f, 1.0f));
+        if (ImGui::Button("🔍 Adaptive")) activeZoomMode = ActiveZoomMode::Disabled;
+        ImGui::PopStyleColor();
     } else {
-        if (ImGui::Button("🔍 Adaptive Box Zoom: OFF")) {
-            isAdaptiveZoomEnabled = true;
-        }
+        if (ImGui::Button("🔍 Adaptive")) activeZoomMode = ActiveZoomMode::Adaptive;
     }
+    ImGui::SameLine();
+
+    if (activeZoomMode == ActiveZoomMode::X_Only) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.00f, 0.65f, 0.85f, 1.0f));
+        if (ImGui::Button("↔ X-Axis Zoom")) activeZoomMode = ActiveZoomMode::Disabled;
+        ImGui::PopStyleColor();
+    } else {
+        if (ImGui::Button("↔ X-Axis Zoom")) activeZoomMode = ActiveZoomMode::X_Only;
+    }
+    ImGui::SameLine();
+
+    if (activeZoomMode == ActiveZoomMode::Y_Only) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.20f, 0.80f, 1.0f));
+        if (ImGui::Button("↕ Y-Axis Zoom")) activeZoomMode = ActiveZoomMode::Disabled;
+        ImGui::PopStyleColor();
+    } else {
+        if (ImGui::Button("↕ Y-Axis Zoom")) activeZoomMode = ActiveZoomMode::Y_Only;
+    }
+    ImGui::SameLine();
+
+    if (activeZoomMode == ActiveZoomMode::Box_2D) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
+        if (ImGui::Button("⤢ Box Zoom")) activeZoomMode = ActiveZoomMode::Disabled;
+        ImGui::PopStyleColor();
+    } else {
+        if (ImGui::Button("⤢ Box Zoom")) activeZoomMode = ActiveZoomMode::Box_2D;
+    }
+    ImGui::SameLine();
+
+    ImGui::TextDisabled("|");
     ImGui::SameLine();
 
     if (ImGui::Button("➕ Add Plot Pane")) {
@@ -93,9 +122,8 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     ImGui::SetNextItemWidth(100.0f);
     ImGui::SliderFloat("Line Width", &traceLineWidth, 1.0f, 6.0f, "%.1f px");
-    ImGui::SameLine();
 
-    ImGui::TextColored(isDarkMode ? ImVec4(0.7f, 0.8f, 0.9f, 1.0f) : ImVec4(0.3f, 0.4f, 0.5f, 1.0f), "| Tip: Right-click plot to add/remove subplots, drag box to zoom.");
+    ImGui::Separator();
 
     int renderPanes = std::min(numPanes, (int)categories.size());
     if (renderPanes < 1) renderPanes = 1;
@@ -124,6 +152,8 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     const auto& palette = isDarkMode ? DARK_MODE_COLORS : LIGHT_MODE_COLORS;
     size_t numColors = sizeof(DARK_MODE_COLORS) / sizeof(DARK_MODE_COLORS[0]);
+
+    bool isZoomActive = (activeZoomMode != ActiveZoomMode::Disabled);
 
     if (ImPlot::BeginSubplots("Oscilloscope Subplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
         for (int i = 0; i < renderPanes; ++i) {
@@ -157,15 +187,15 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
             }
 
-            if (isAdaptiveZoomEnabled) {
+            if (isZoomActive) {
                 ImPlot::PushStyleColor(ImPlotCol_Selection, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
             }
 
             if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
-                                   isAdaptiveZoomEnabled ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
+                                   isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
 
                 // Override mouse button bindings based on zoom mode
-                if (isAdaptiveZoomEnabled) {
+                if (isZoomActive) {
                     ImPlot::GetInputMap().Select       = ImGuiMouseButton_Left;  // LMB = rubber-band
                     ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
                     ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Right; // RMB = pan
@@ -180,8 +210,8 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 bool isMouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
                 bool isMouseReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
 
-                // Adaptive Box Zoom real-time visual rubber-band and release commit (evaluating end condition at release)
-                if (isAdaptiveZoomEnabled && (ImPlot::IsPlotSelected() || isMouseDown || isMouseReleased)) {
+                // Box / X / Y Zoom rubber-band and release commit
+                if (isZoomActive && (ImPlot::IsPlotSelected() || isMouseDown || isMouseReleased)) {
                     ImPlotRect sel = ImPlot::GetPlotSelection();
 
                     // Convert selection coordinates to screen pixels
@@ -203,19 +233,21 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     float dxPx = x2 - x1;
                     float dyPx = y2 - y1;
 
-                    // Physical Screen Pixel 10% Tolerance Classification evaluated at current/release position:
-                    // 1. If vertical mouse movement is <= 10% of horizontal mouse movement (or < 12px),
-                    //    classify as PURE 1D X-AXIS ZOOM (TIME ONLY).
-                    // 2. If horizontal mouse movement is <= 10% of vertical mouse movement (or < 12px),
-                    //    classify as PURE 1D Y-AXIS ZOOM (AMPLITUDE ONLY).
-                    // 3. Otherwise (BOTH horizontal and vertical drag exceed 10%), classify as 2D BOX ZOOM.
                     WaveformZoomType currentDragType = ZOOM_BOX_2D;
-                    if (dyPx <= 0.10f * dxPx || dyPx <= 12.0f) {
+                    if (activeZoomMode == ActiveZoomMode::X_Only) {
                         currentDragType = ZOOM_X_ONLY;
-                    } else if (dxPx <= 0.10f * dyPx || dxPx <= 12.0f) {
+                    } else if (activeZoomMode == ActiveZoomMode::Y_Only) {
                         currentDragType = ZOOM_Y_ONLY;
-                    } else {
+                    } else if (activeZoomMode == ActiveZoomMode::Box_2D) {
                         currentDragType = ZOOM_BOX_2D;
+                    } else if (activeZoomMode == ActiveZoomMode::Adaptive) {
+                        if (dyPx <= 0.10f * dxPx || dyPx <= 12.0f) {
+                            currentDragType = ZOOM_X_ONLY;
+                        } else if (dxPx <= 0.10f * dyPx || dxPx <= 12.0f) {
+                            currentDragType = ZOOM_Y_ONLY;
+                        } else {
+                            currentDragType = ZOOM_BOX_2D;
+                        }
                     }
 
                     // Only render visual rubber-band while mouse is actively dragging
@@ -268,7 +300,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 }
 
                 // Right-Click Context Menu
-                if (!isAdaptiveZoomEnabled && ImGui::BeginPopupContextItem("PlotContextMenu")) {
+                if (!isZoomActive && ImGui::BeginPopupContextItem("PlotContextMenu")) {
                     if (ImGui::MenuItem("➕ Add Subplot Pane Below")) {
                         numPanes = std::min(numPanes + 1, 4);
                     }
@@ -298,7 +330,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 }
                 ImPlot::EndPlot();
             }
-            if (isAdaptiveZoomEnabled) {
+            if (isZoomActive) {
                 ImPlot::PopStyleColor();
             }
         }
