@@ -1525,15 +1525,25 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         }
         if (ImGui::MenuItem("Delete (Del)")) {
             pushUndoState();
+            auto shouldRemoveWire = [this](const WireInstance& w) {
+                if (selectedWireIds.count(w.id) > 0) return true;
+                if (!w.from.compId.empty() && selectedComponentIds.count(w.from.compId) > 0) return true;
+                if (!w.to.compId.empty() && selectedComponentIds.count(w.to.compId) > 0) return true;
+                for (const std::string& compId : selectedComponentIds) {
+                    std::string prefix = compId + ".";
+                    if (w.fromNode.rfind(prefix, 0) == 0 || w.toNode.rfind(prefix, 0) == 0) return true;
+                }
+                return false;
+            };
+
+            design.wires.erase(
+                std::remove_if(design.wires.begin(), design.wires.end(), shouldRemoveWire),
+                design.wires.end()
+            );
             design.components.erase(
                 std::remove_if(design.components.begin(), design.components.end(),
                                [this](const ComponentInstance& c) { return selectedComponentIds.count(c.id) > 0; }),
                 design.components.end()
-            );
-            design.wires.erase(
-                std::remove_if(design.wires.begin(), design.wires.end(),
-                               [this](const WireInstance& w) { return selectedWireIds.count(w.id) > 0; }),
-                design.wires.end()
             );
             selectedComponentIds.clear();
             selectedWireIds.clear();
@@ -1600,15 +1610,25 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
             pushUndoState();
+            auto shouldRemoveWire = [this](const WireInstance& w) {
+                if (selectedWireIds.count(w.id) > 0) return true;
+                if (!w.from.compId.empty() && selectedComponentIds.count(w.from.compId) > 0) return true;
+                if (!w.to.compId.empty() && selectedComponentIds.count(w.to.compId) > 0) return true;
+                for (const std::string& compId : selectedComponentIds) {
+                    std::string prefix = compId + ".";
+                    if (w.fromNode.rfind(prefix, 0) == 0 || w.toNode.rfind(prefix, 0) == 0) return true;
+                }
+                return false;
+            };
+
+            design.wires.erase(
+                std::remove_if(design.wires.begin(), design.wires.end(), shouldRemoveWire),
+                design.wires.end()
+            );
             design.components.erase(
                 std::remove_if(design.components.begin(), design.components.end(),
                                [this](const ComponentInstance& c) { return selectedComponentIds.count(c.id) > 0; }),
                 design.components.end()
-            );
-            design.wires.erase(
-                std::remove_if(design.wires.begin(), design.wires.end(),
-                               [this](const WireInstance& w) { return selectedWireIds.count(w.id) > 0; }),
-                design.wires.end()
             );
             selectedComponentIds.clear();
             selectedWireIds.clear();
