@@ -592,8 +592,8 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
                         ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
 
-                        // Detect completed box selection → store limits for next frame
-                        if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected()) {
+                        // Commit zoom only on mouse RELEASE — ImPlot draws the rubber-band during drag
+                        if (isAdaptiveZoomEnabled && ImPlot::IsPlotSelected() && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
                             ImPlotRect sel = ImPlot::GetPlotSelection();
                             ImPlotRect cur = ImPlot::GetPlotLimits();
                             ImPlot::CancelPlotSelection();
