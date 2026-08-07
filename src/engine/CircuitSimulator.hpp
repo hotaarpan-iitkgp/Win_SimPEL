@@ -91,6 +91,19 @@ enum class ComponentType {
     RateLimiter,
     Relay,
 
+    // Control Logical & Bitwise Detailed Library
+    LogicOp,
+    BitwiseOp,
+    CombLogic,
+    EdgeDetect,
+    Monostable,
+    Monoflop,
+    RelationalOp,
+    CompareToConstant,
+    DFlipFlop,
+    JKFlipFlop,
+    ShiftReg,
+
     Unknown
 };
 
@@ -168,6 +181,18 @@ struct FastCompiledComponent {
     double rateUp = 10.0;
     double rateDown = -10.0;
     int relayState = 0;
+
+    // Logical & Bitwise state
+    double q_state = 0.0;        // Flip-flop Q output state
+    double prev_clk = 0.0;       // Previous clock for edge detection
+    bool edgeActive = false;     // Active pulse output for EDGE_DETECT / MONOSTABLE / MONOFLOP
+    double triggerTime = -1.0;   // Time pulse was triggered
+    double pulseDuration = 0.1;  // Duration of pulse output
+    bool retriggerable = false;  // Whether monoflop is retriggerable
+    std::string edgeMode;        // "rising", "falling", "either"
+    std::vector<double> shiftBuffer;  // Buffer for SHIFT_REG
+    int numInputs = 2;           // Number of inputs for multi-input logic blocks
+    int shiftLength = 4;         // Shift register length
 
     double stateVal = 0.0;
     double filterState = 0.0;

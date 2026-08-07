@@ -106,6 +106,19 @@ enum class ComponentType {
     RateLimiter,      // RATE_LIMITER
     Relay,            // RELAY
 
+    // Control Logical & Bitwise Detailed Library
+    LogicOp,              // LOGIC_OP
+    BitwiseOp,            // BITWISE_OP
+    CombLogic,            // COMB_LOGIC
+    EdgeDetect,           // EDGE_DETECT
+    Monostable,           // MONOSTABLE
+    Monoflop,             // MONOFLOP
+    RelationalOp,         // RELATIONAL_OPERATOR
+    CompareToConstant,    // COMPARE_TO_CONSTANT
+    DFlipFlop,            // D_FLIP_FLOP
+    JKFlipFlop,           // JK_FLIP_FLOP
+    ShiftReg,             // SHIFT_REG
+
     Unknown
 };
 
@@ -170,6 +183,17 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "RateLimiter" || typeStr == "RATE_LIMITER") return ComponentType::RateLimiter;
     if (typeStr == "Relay" || typeStr == "RELAY") return ComponentType::Relay;
     if (typeStr == "Comparator" || typeStr == "COMP") return ComponentType::Comparator;
+    if (typeStr == "LogicOp" || typeStr == "LOGIC_OP") return ComponentType::LogicOp;
+    if (typeStr == "BitwiseOp" || typeStr == "BITWISE_OP") return ComponentType::BitwiseOp;
+    if (typeStr == "CombLogic" || typeStr == "COMB_LOGIC") return ComponentType::CombLogic;
+    if (typeStr == "EdgeDetect" || typeStr == "EDGE_DETECT") return ComponentType::EdgeDetect;
+    if (typeStr == "Monostable" || typeStr == "MONOSTABLE") return ComponentType::Monostable;
+    if (typeStr == "Monoflop" || typeStr == "MONOFLOP") return ComponentType::Monoflop;
+    if (typeStr == "RelationalOp" || typeStr == "RELATIONAL_OPERATOR") return ComponentType::RelationalOp;
+    if (typeStr == "CompareToConstant" || typeStr == "COMPARE_TO_CONSTANT") return ComponentType::CompareToConstant;
+    if (typeStr == "DFlipFlop" || typeStr == "D_FLIP_FLOP") return ComponentType::DFlipFlop;
+    if (typeStr == "JKFlipFlop" || typeStr == "JK_FLIP_FLOP") return ComponentType::JKFlipFlop;
+    if (typeStr == "ShiftReg" || typeStr == "SHIFT_REG") return ComponentType::ShiftReg;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

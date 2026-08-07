@@ -78,8 +78,21 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "PLL_3PH") {
         return {{"A", -20, -10, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 10, -1, 0, true}, {"Theta", 20, -10, 1, 0, true}, {"Freq", 20, 10, 1, 0, true}};
     }
-    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR" || t == "MIN_MAX") {
-        return {{"A", -20, -20, -1, 0, true}, {"B", -20, 20, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR" || t == "MIN_MAX" ||
+        t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "RELATIONAL_OPERATOR") {
+        return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" || t == "COMPARE_TO_CONSTANT") {
+        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "D_FLIP_FLOP") {
+        return {{"D", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Q", 20, -10, 1, 0, true}, {"Q_bar", 20, 10, 1, 0, true}};
+    }
+    if (t == "JK_FLIP_FLOP") {
+        return {{"J", -20, -15, -1, 0, true}, {"K", -20, 0, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Q", 20, -10, 1, 0, true}, {"Q_bar", 20, 10, 1, 0, true}};
+    }
+    if (t == "SHIFT_REG") {
+        return {{"D", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "SCOPE") {
         int numCh = 2;
@@ -166,6 +179,8 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "INTEGRATOR" || t == "DERIVATIVE" || t == "TRANSFER_FCN" || t == "STATE_SPACE" || t == "CONT_PID" || t == "PLL_1PH" || t == "PLL_3PH" ||
         t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" ||
         t == "QUANTIZER" || t == "SIGNAL_SWITCH" || t == "MANUAL_SWITCH" || t == "MULTIPORT_SWITCH" || t == "HIT_CROSSING" || t == "SATURATION" || t == "DEAD_ZONE" || t == "RATE_LIMITER" || t == "RELAY" ||
+        t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" ||
+        t == "RELATIONAL_OPERATOR" || t == "COMPARE_TO_CONSTANT" || t == "D_FLIP_FLOP" || t == "JK_FLIP_FLOP" || t == "SHIFT_REG" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||

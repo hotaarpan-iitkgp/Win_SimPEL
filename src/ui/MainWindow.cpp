@@ -723,10 +723,21 @@ void MainWindow::renderComponentPalette() {
             { "Relay (RELAY)", "Relay", "RELAY", ComponentType::Relay, "RELAY", "control", "Discontinuous", {{"on_threshold", "1"}, {"off_threshold", "-1"}}, false },
             { "Comparator (COMP)", "COMP", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
 
+            // Logical & Bitwise sub-library
             { "AND Gate", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {}, true },
             { "OR Gate", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {}, true },
             { "NOT Gate", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {}, true },
-            { "Edge Detector (EDGE_DETECT)", "Edge Detector", "EDGE_DETECT", ComponentType::EdgeDetector, "EDGE_DETECT", "control", "Logical & Bitwise", {{"edge", "rising"}, {"pulse_width", "1e-3"}}, true },
+            { "Edge Detector (EDGE_DETECT)", "Edge", "EDGE_DETECT", ComponentType::EdgeDetect, "EDGE_DETECT", "control", "Logical & Bitwise", {{"edge", "rising"}, {"pulse_width", "1e-3"}}, true },
+            { "Logical Operator (LOGIC_OP)", "Logic", "LOGIC_OP", ComponentType::LogicOp, "LOGIC_OP", "control", "Logical & Bitwise", {{"operator", "AND"}}, false },
+            { "Bitwise Operator (BITWISE_OP)", "Bitwise", "BITWISE_OP", ComponentType::BitwiseOp, "BITWISE_OP", "control", "Logical & Bitwise", {{"operator", "AND"}}, false },
+            { "Combinational Logic (COMB_LOGIC)", "Truth", "COMB_LOGIC", ComponentType::CombLogic, "COMB_LOGIC", "control", "Logical & Bitwise", {{"truth_table", "00:0,01:1,10:1,11:0"}}, false },
+            { "Monostable (MONOSTABLE)", "Mono", "MONOSTABLE", ComponentType::Monostable, "MONOSTABLE", "control", "Logical & Bitwise", {{"duration", "0.1"}, {"edge", "rising"}}, false },
+            { "Monoflop (MONOFLOP)", "Monoflop", "MONOFLOP", ComponentType::Monoflop, "MONOFLOP", "control", "Logical & Bitwise", {{"duration", "0.1"}, {"trigger_edge", "rising"}, {"retriggerable", "false"}}, false },
+            { "Relational Operator (RELATIONAL_OPERATOR)", "RelOp", "RELATIONAL_OPERATOR", ComponentType::RelationalOp, "RELATIONAL_OPERATOR", "control", "Logical & Bitwise", {{"operator", "=="}}, false },
+            { "Compare to Constant (COMPARE_TO_CONSTANT)", "CmpConst", "COMPARE_TO_CONSTANT", ComponentType::CompareToConstant, "COMPARE_TO_CONSTANT", "control", "Logical & Bitwise", {{"operator", "=="}, {"constant", "0.0"}}, false },
+            { "D Flip-Flop (D_FLIP_FLOP)", "D-FF", "D_FLIP_FLOP", ComponentType::DFlipFlop, "D_FLIP_FLOP", "control", "Logical & Bitwise", {{"initial_state", "0.0"}, {"trigger_edge", "rising"}}, false },
+            { "JK Flip-Flop (JK_FLIP_FLOP)", "JK-FF", "JK_FLIP_FLOP", ComponentType::JKFlipFlop, "JK_FLIP_FLOP", "control", "Logical & Bitwise", {{"initial_state", "0.0"}, {"trigger_edge", "rising"}}, false },
+            { "Shift Register (SHIFT_REG)", "Shift", "SHIFT_REG", ComponentType::ShiftReg, "SHIFT_REG", "control", "Logical & Bitwise", {{"length", "4"}}, false },
 
             { "PWM Generator", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "20000"}}, true },
             { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"num_carriers", "3"}, {"fc", "10k"}, {"dead_time", "1u"}}, true },

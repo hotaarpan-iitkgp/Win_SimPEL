@@ -338,6 +338,34 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::Relay) {
             fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
             fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
+        } else if (ctrlComp.type == ComponentType::LogicOp || ctrlComp.type == ComponentType::BitwiseOp) {
+            fc.polarity = getParamString(ctrlComp, "operator", "AND");
+        } else if (ctrlComp.type == ComponentType::CombLogic) {
+            fc.polarity = getParamString(ctrlComp, "truth_table", "");
+        } else if (ctrlComp.type == ComponentType::EdgeDetect) {
+            fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
+            fc.pulseDuration = evaluateParam(ctrlComp, "pulse_width", 1e-3);
+        } else if (ctrlComp.type == ComponentType::Monostable) {
+            fc.pulseDuration = evaluateParam(ctrlComp, "duration", 0.1);
+            fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
+        } else if (ctrlComp.type == ComponentType::Monoflop) {
+            fc.pulseDuration = evaluateParam(ctrlComp, "duration", 0.1);
+            fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
+            fc.retriggerable = (getParamString(ctrlComp, "retriggerable", "false") == "true");
+        } else if (ctrlComp.type == ComponentType::RelationalOp) {
+            fc.polarity = getParamString(ctrlComp, "operator", "==");
+        } else if (ctrlComp.type == ComponentType::CompareToConstant) {
+            fc.polarity = getParamString(ctrlComp, "operator", "==");
+            fc.thresholdVal = evaluateParam(ctrlComp, "constant", 0.0);
+        } else if (ctrlComp.type == ComponentType::DFlipFlop) {
+            fc.q_state = evaluateParam(ctrlComp, "initial_state", 0.0) > 0.5 ? 1.0 : 0.0;
+            fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
+        } else if (ctrlComp.type == ComponentType::JKFlipFlop) {
+            fc.q_state = evaluateParam(ctrlComp, "initial_state", 0.0) > 0.5 ? 1.0 : 0.0;
+            fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
+        } else if (ctrlComp.type == ComponentType::ShiftReg) {
+            fc.shiftLength = (int)evaluateParam(ctrlComp, "length", 4.0);
+            fc.shiftBuffer.assign(fc.shiftLength, 0.0);
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -360,10 +388,23 @@ void CircuitSimulator::buildIndexMaps() {
         fc.outKey = getParamString(ctrlComp, "output", "");
         fc.targetKey = getParamString(ctrlComp, "target", "");
         fc.ctrlSigKey = getParamString(ctrlComp, "selected_signals", "");
+        // For flip-flops and shift registers, clock comes from "Ctrl" parameter
+        if (fc.ctrlSigKey.empty()) {
+            if (ctrlComp.type == ComponentType::DFlipFlop ||
+                ctrlComp.type == ComponentType::JKFlipFlop ||
+                ctrlComp.type == ComponentType::ShiftReg) {
+                fc.ctrlSigKey = getParamString(ctrlComp, "Ctrl", "");
+            }
+        }
 
         if (fc.outKey.empty()) {
             if (ctrlComp.type == ComponentType::UnifiedProbe && !fc.ctrlSigKey.empty()) {
                 fc.outKey = ctrlComp.id + "." + fc.ctrlSigKey;
+            } else if (ctrlComp.type == ComponentType::DFlipFlop || ctrlComp.type == ComponentType::JKFlipFlop) {
+                fc.outKey = ctrlComp.id + ".Q";
+                // Register both Q and Q_bar in outputSigIndices
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q"));
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q_bar"));
             } else {
                 fc.outKey = ctrlComp.id + ".Out";
             }
@@ -938,6 +979,201 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double inA = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double inB = fc.in1Ptr ? *fc.in1Ptr : 0.0;
                 val = (inA > inB) ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::LogicOp) {
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                std::string op = fc.polarity;
+                bool a = (in1 > 0.5), b = (in2 > 0.5);
+                if (op == "AND") val = (a && b) ? 1.0 : 0.0;
+                else if (op == "OR") val = (a || b) ? 1.0 : 0.0;
+                else if (op == "XOR") val = (a != b) ? 1.0 : 0.0;
+                else if (op == "NAND") val = !(a && b) ? 1.0 : 0.0;
+                else if (op == "NOR") val = !(a || b) ? 1.0 : 0.0;
+                else if (op == "NXOR" || op == "XNOR") val = (a == b) ? 1.0 : 0.0;
+                else if (op == "NOT") val = (!a) ? 1.0 : 0.0;
+                else val = 0.0;
+            }
+            else if (fc.type == ComponentType::BitwiseOp) {
+                int in1 = (int)(fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                int in2 = (int)(fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                std::string op = fc.polarity;
+                if (op == "AND") val = (double)(in1 & in2);
+                else if (op == "OR") val = (double)(in1 | in2);
+                else if (op == "XOR") val = (double)(in1 ^ in2);
+                else if (op == "NOT") val = (double)(~in1);
+                else if (op == "NAND") val = (double)(~(in1 & in2));
+                else if (op == "NOR") val = (double)(~(in1 | in2));
+                else if (op == "SHL") val = (double)(in1 << in2);
+                else if (op == "SHR") val = (double)(in1 >> in2);
+                else val = 0.0;
+            }
+            else if (fc.type == ComponentType::RelationalOp) {
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                std::string op = fc.polarity;
+                if (op == "==" || op == "=") val = (std::abs(in1 - in2) < 1e-12) ? 1.0 : 0.0;
+                else if (op == "!=" || op == "~=") val = (std::abs(in1 - in2) >= 1e-12) ? 1.0 : 0.0;
+                else if (op == "<") val = (in1 < in2) ? 1.0 : 0.0;
+                else if (op == "<=") val = (in1 <= in2) ? 1.0 : 0.0;
+                else if (op == ">") val = (in1 > in2) ? 1.0 : 0.0;
+                else if (op == ">=") val = (in1 >= in2) ? 1.0 : 0.0;
+                else val = 0.0;
+            }
+            else if (fc.type == ComponentType::CompareToConstant) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double cVal = fc.thresholdVal;
+                std::string op = fc.polarity;
+                if (op == "==" || op == "=") val = (std::abs(inVal - cVal) < 1e-12) ? 1.0 : 0.0;
+                else if (op == "!=" || op == "~=") val = (std::abs(inVal - cVal) >= 1e-12) ? 1.0 : 0.0;
+                else if (op == "<") val = (inVal < cVal) ? 1.0 : 0.0;
+                else if (op == "<=") val = (inVal <= cVal) ? 1.0 : 0.0;
+                else if (op == ">") val = (inVal > cVal) ? 1.0 : 0.0;
+                else if (op == ">=") val = (inVal >= cVal) ? 1.0 : 0.0;
+                else val = 0.0;
+            }
+            else if (fc.type == ComponentType::EdgeDetect) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double pulseW = (fc.pulseDuration > 0.0) ? fc.pulseDuration : 1e-3;
+                bool detected = false;
+                if (fc.edgeMode == "rising") detected = (fc.prevVal <= 0.5 && inVal > 0.5);
+                else if (fc.edgeMode == "falling") detected = (fc.prevVal > 0.5 && inVal <= 0.5);
+                else detected = ((fc.prevVal <= 0.5 && inVal > 0.5) || (fc.prevVal > 0.5 && inVal <= 0.5));
+                if (detected && !fc.edgeActive) {
+                    fc.edgeActive = true;
+                    fc.triggerTime = currentTime;
+                }
+                if (fc.edgeActive && fc.triggerTime >= 0.0 && (currentTime - fc.triggerTime) >= pulseW - 1e-12) {
+                    fc.edgeActive = false;
+                }
+                if (currentTime > fc.lastTime) {
+                    fc.prevVal = inVal;
+                    fc.lastTime = currentTime;
+                }
+                val = fc.edgeActive ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::Monostable || fc.type == ComponentType::Monoflop) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dur = (fc.pulseDuration > 0.0) ? fc.pulseDuration : 0.1;
+                bool detected = false;
+                if (fc.edgeMode == "rising") detected = (fc.prevVal <= 0.5 && inVal > 0.5);
+                else if (fc.edgeMode == "falling") detected = (fc.prevVal > 0.5 && inVal <= 0.5);
+                else detected = ((fc.prevVal <= 0.5 && inVal > 0.5) || (fc.prevVal > 0.5 && inVal <= 0.5));
+                if (detected) {
+                    if (!fc.edgeActive || fc.retriggerable) {
+                        fc.edgeActive = true;
+                        fc.triggerTime = currentTime;
+                    }
+                }
+                if (fc.edgeActive && fc.triggerTime >= 0.0 && (currentTime - fc.triggerTime) >= dur - 1e-11) {
+                    fc.edgeActive = false;
+                }
+                if (currentTime > fc.lastTime) {
+                    fc.prevVal = inVal;
+                    fc.lastTime = currentTime;
+                }
+                val = fc.edgeActive ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::DFlipFlop) {
+                double clkVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                double dVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                bool edgeDetected = false;
+                if (fc.edgeMode == "rising") edgeDetected = (fc.prev_clk <= 0.5 && clkVal > 0.5);
+                else edgeDetected = (fc.prev_clk > 0.5 && clkVal <= 0.5);
+                if (edgeDetected) {
+                    fc.q_state = (dVal > 0.5) ? 1.0 : 0.0;
+                }
+                if (currentTime > fc.lastTime) {
+                    fc.prev_clk = clkVal;
+                    fc.lastTime = currentTime;
+                }
+                // Write Q and Q_bar
+                val = fc.q_state;
+                int outIdx = fc.outSignalIdx;
+                if (outIdx >= 0 && outIdx < (int)flatControlSignals.size()) {
+                    flatControlSignals[outIdx] = fc.q_state;
+                }
+                // Q_bar output via outputSigIndices[1] if present
+                if (fc.outputSigIndices.size() > 1) {
+                    int qBarIdx = fc.outputSigIndices[1];
+                    if (qBarIdx >= 0 && qBarIdx < (int)flatControlSignals.size()) {
+                        flatControlSignals[qBarIdx] = (fc.q_state > 0.5) ? 0.0 : 1.0;
+                    }
+                }
+            }
+            else if (fc.type == ComponentType::JKFlipFlop) {
+                double clkVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                double jVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double kVal = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                bool edgeDetected = false;
+                if (fc.edgeMode == "rising") edgeDetected = (fc.prev_clk <= 0.5 && clkVal > 0.5);
+                else edgeDetected = (fc.prev_clk > 0.5 && clkVal <= 0.5);
+                if (edgeDetected) {
+                    bool J = (jVal > 0.5), K = (kVal > 0.5);
+                    if (J && K) fc.q_state = (fc.q_state > 0.5) ? 0.0 : 1.0; // Toggle
+                    else if (J) fc.q_state = 1.0;
+                    else if (K) fc.q_state = 0.0;
+                    // else hold
+                }
+                if (currentTime > fc.lastTime) {
+                    fc.prev_clk = clkVal;
+                    fc.lastTime = currentTime;
+                }
+                val = fc.q_state;
+                int outIdx = fc.outSignalIdx;
+                if (outIdx >= 0 && outIdx < (int)flatControlSignals.size()) {
+                    flatControlSignals[outIdx] = fc.q_state;
+                }
+                if (fc.outputSigIndices.size() > 1) {
+                    int qBarIdx = fc.outputSigIndices[1];
+                    if (qBarIdx >= 0 && qBarIdx < (int)flatControlSignals.size()) {
+                        flatControlSignals[qBarIdx] = (fc.q_state > 0.5) ? 0.0 : 1.0;
+                    }
+                }
+            }
+            else if (fc.type == ComponentType::ShiftReg) {
+                double clkVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                bool edgeDetected = (fc.prev_clk <= 0.5 && clkVal > 0.5);
+                if (edgeDetected && currentTime > fc.lastTime) {
+                    // Shift right, push new input at front
+                    for (int i = (int)fc.shiftBuffer.size() - 1; i > 0; --i) {
+                        fc.shiftBuffer[i] = fc.shiftBuffer[i - 1];
+                    }
+                    fc.shiftBuffer[0] = inVal;
+                    fc.prev_clk = clkVal;
+                    fc.lastTime = currentTime;
+                } else if (currentTime > fc.lastTime) {
+                    fc.prev_clk = clkVal;
+                    fc.lastTime = currentTime;
+                }
+                val = fc.shiftBuffer.empty() ? 0.0 : fc.shiftBuffer.back();
+            }
+            else if (fc.type == ComponentType::CombLogic) {
+                // Combinational truth table: outputs 1 if input pattern matches any row in truth_table param
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                int a = (in1 > 0.5) ? 1 : 0, b = (in2 > 0.5) ? 1 : 0;
+                val = 0.0;
+                // truth_table param format: "00:0,01:1,10:1,11:0" or just "AND"
+                // Fall back to AND for unspecified
+                if (fc.polarity.empty() || fc.polarity == "AND") {
+                    val = (a && b) ? 1.0 : 0.0;
+                } else {
+                    // Parse "AB:Out" pairs
+                    std::string tt = fc.polarity;
+                    std::istringstream ss(tt);
+                    std::string tok;
+                    std::string inPat = std::to_string(a) + std::to_string(b);
+                    while (std::getline(ss, tok, ',')) {
+                        auto colon = tok.find(':');
+                        if (colon != std::string::npos) {
+                            std::string pat = tok.substr(0, colon);
+                            std::string outS = tok.substr(colon + 1);
+                            if (pat == inPat) { val = std::stod(outS); break; }
+                        }
+                    }
+                }
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

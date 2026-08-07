@@ -522,6 +522,106 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input_a"] = getIncomingSignal(comp.id, "A");
             cObj["input_b"] = getIncomingSignal(comp.id, "B");
             ctrlLoopsObj["comparators"].push_back(cObj);
+        } else if (t == "LOGIC_OP") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "LOGIC_OP";
+            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "AND";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "BITWISE_OP") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "BITWISE_OP";
+            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "AND";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "COMB_LOGIC") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "COMB_LOGIC";
+            cObj["truth_table"] = comp.parameters.count("truth_table") ? comp.parameters.at("truth_table") : "";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "EDGE_DETECT") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "EDGE_DETECT";
+            cObj["edge"] = comp.parameters.count("edge") ? comp.parameters.at("edge") : "rising";
+            cObj["pulse_width"] = comp.parameters.count("pulse_width") ? comp.parameters.at("pulse_width") : "1e-3";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MONOSTABLE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MONOSTABLE";
+            cObj["duration"] = comp.parameters.count("duration") ? comp.parameters.at("duration") : "0.1";
+            cObj["edge"] = comp.parameters.count("edge") ? comp.parameters.at("edge") : "rising";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MONOFLOP") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MONOFLOP";
+            cObj["duration"] = comp.parameters.count("duration") ? comp.parameters.at("duration") : "0.1";
+            cObj["trigger_edge"] = comp.parameters.count("trigger_edge") ? comp.parameters.at("trigger_edge") : "rising";
+            cObj["retriggerable"] = comp.parameters.count("retriggerable") ? comp.parameters.at("retriggerable") : "false";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "RELATIONAL_OPERATOR") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "RELATIONAL_OPERATOR";
+            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "==";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "COMPARE_TO_CONSTANT") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "COMPARE_TO_CONSTANT";
+            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "==";
+            cObj["constant"] = formatJSStyleDouble(parsedParams.count("constant") ? parsedParams["constant"] : 0.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "D_FLIP_FLOP") {
+            cObj["output"] = comp.id + ".Q";
+            cObj["output_bar"] = comp.id + ".Q_bar";
+            cObj["original_type"] = "D_FLIP_FLOP";
+            cObj["initial_state"] = formatJSStyleDouble(parsedParams.count("initial_state") ? parsedParams["initial_state"] : 0.0);
+            cObj["trigger_edge"] = comp.parameters.count("trigger_edge") ? comp.parameters.at("trigger_edge") : "rising";
+            cObj["D"] = getIncomingSignal(comp.id, "D");
+            cObj["Clk"] = getIncomingSignal(comp.id, "Ctrl");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "JK_FLIP_FLOP") {
+            cObj["output"] = comp.id + ".Q";
+            cObj["output_bar"] = comp.id + ".Q_bar";
+            cObj["original_type"] = "JK_FLIP_FLOP";
+            cObj["initial_state"] = formatJSStyleDouble(parsedParams.count("initial_state") ? parsedParams["initial_state"] : 0.0);
+            cObj["trigger_edge"] = comp.parameters.count("trigger_edge") ? comp.parameters.at("trigger_edge") : "rising";
+            cObj["J"] = getIncomingSignal(comp.id, "J");
+            cObj["K"] = getIncomingSignal(comp.id, "K");
+            cObj["Clk"] = getIncomingSignal(comp.id, "Ctrl");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SHIFT_REG") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "SHIFT_REG";
+            int len = parsedParams.count("length") ? (int)parsedParams["length"] : 4;
+            cObj["length"] = len;
+            cObj["D"] = getIncomingSignal(comp.id, "D");
+            cObj["Clk"] = getIncomingSignal(comp.id, "Ctrl");
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;

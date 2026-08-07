@@ -67,6 +67,17 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "RateLimiter" || t == "RATE_LIMITER") return ComponentType::RateLimiter;
     if (t == "Relay" || t == "RELAY") return ComponentType::Relay;
     if (t == "Comparator" || t == "COMP" || t == "comparators") return ComponentType::Comparator;
+    if (t == "LogicOp" || t == "LOGIC_OP") return ComponentType::LogicOp;
+    if (t == "BitwiseOp" || t == "BITWISE_OP") return ComponentType::BitwiseOp;
+    if (t == "CombLogic" || t == "COMB_LOGIC") return ComponentType::CombLogic;
+    if (t == "EdgeDetect" || t == "EDGE_DETECT") return ComponentType::EdgeDetect;
+    if (t == "Monostable" || t == "MONOSTABLE") return ComponentType::Monostable;
+    if (t == "Monoflop" || t == "MONOFLOP") return ComponentType::Monoflop;
+    if (t == "RelationalOp" || t == "RELATIONAL_OPERATOR") return ComponentType::RelationalOp;
+    if (t == "CompareToConstant" || t == "COMPARE_TO_CONSTANT") return ComponentType::CompareToConstant;
+    if (t == "DFlipFlop" || t == "D_FLIP_FLOP") return ComponentType::DFlipFlop;
+    if (t == "JKFlipFlop" || t == "JK_FLIP_FLOP") return ComponentType::JKFlipFlop;
+    if (t == "ShiftReg" || t == "SHIFT_REG") return ComponentType::ShiftReg;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;
