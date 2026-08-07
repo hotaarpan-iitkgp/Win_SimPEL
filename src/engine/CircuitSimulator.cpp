@@ -1744,9 +1744,9 @@ bool CircuitSimulator::updateDeviceStates() {
                 double R = fc.Ron;
                 if (R < 1e-6) R = 1e-6;
                 double iForward = (vDiff - fc.Vvd) / R;
-                if (iForward < 0.0) newState = 0.0;
+                if (iForward < -1e-5) newState = 0.0;
             } else {
-                if (vDiff >= fc.Vvd) newState = 1.0;
+                if (vDiff >= fc.Vvd + 1e-4) newState = 1.0;
             }
 
             if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) {
@@ -1962,7 +1962,7 @@ SimulationOutput CircuitSimulator::runTransient() {
         // Step 2: Iterative PWL solution loop for diode/switch convergence
         bool statesChanged = true;
         int pwlIter = 0;
-        while (statesChanged && pwlIter < 20) {
+        while (statesChanged && pwlIter < 10) {
             pwlIter++;
             assembleMNA(currentTime);
 
@@ -1977,6 +1977,17 @@ SimulationOutput CircuitSimulator::runTransient() {
 
             statesChanged = updateDeviceStates();
             if (statesChanged) matrixKChanged = true;
+        }
+
+        // Final consistency solve if last update changed device states
+        if (matrixKChanged) {
+            assembleMNA(currentTime);
+            if (totalDim > 0) {
+                factorizeLU(totalDim);
+                K_prev = K;
+                matrixKChanged = false;
+                solveLUSubstitution(totalDim);
+            }
         }
 
         if (forceBackwardEulerSteps > 0) forceBackwardEulerSteps--;
