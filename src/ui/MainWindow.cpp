@@ -659,78 +659,79 @@ void MainWindow::renderComponentPalette() {
             const char* category;       // "general", "control", "electrical"
             const char* subcategory;    // Subheading matching webtool
             std::vector<std::pair<std::string, std::string>> defaultParams;
+            bool isBasic = false;       // Only original basic library blocks are true
         };
 
         static const std::vector<ComponentMeta> allComponents = {
             // General Domain
-            { "Subsystem Block", "Subsystem", "SUBSYSTEM", ComponentType::Unknown, "SUBSYSTEM", "general", "Ports and Subsystems", {} },
-            { "Active Probe (PROBE)", "Active Probe", "PROBE", ComponentType::Unknown, "PROBE", "general", "Signal Routing", {{"target", ""}, {"selected_signals", ""}} },
-            { "Oscilloscope (SCOPE)", "Oscilloscope", "SCOPE", ComponentType::Unknown, "SCOPE", "general", "Visualization & Logging", {{"channels", "2"}} },
+            { "Subsystem Block", "Subsystem", "SUBSYSTEM", ComponentType::Unknown, "SUBSYSTEM", "general", "Ports and Subsystems", {}, true },
+            { "Active Probe (PROBE)", "Active Probe", "PROBE", ComponentType::Unknown, "PROBE", "general", "Signal Routing", {{"target", ""}, {"selected_signals", ""}}, true },
+            { "Oscilloscope (SCOPE)", "Oscilloscope", "SCOPE", ComponentType::Unknown, "SCOPE", "general", "Visualization & Logging", {{"channels", "2"}}, true },
 
-            // Control Domain
-            { "Constant (CONST)", "Constant", "CONST", ComponentType::Constant, "CONST", "control", "Sources", {{"value", "1.0"}} },
-            { "Clock (CLOCK)", "Clock", "CLOCK", ComponentType::Clock, "CLOCK", "control", "Sources", {} },
-            { "Initial Condition (INIT_COND)", "Initial Condition", "INIT_COND", ComponentType::InitialCondition, "INIT_COND", "control", "Sources", {{"initial_value", "0"}} },
-            { "Pulse Generator (PULSE_GEN)", "Pulse Gen", "PULSE_GEN", ComponentType::PulseGenerator, "PULSE_GEN", "control", "Sources", {{"amplitude", "1"}, {"period", "1"}, {"width", "0.5"}, {"delay", "0"}} },
-            { "Ramp (RAMP)", "Ramp", "RAMP", ComponentType::Ramp, "RAMP", "control", "Sources", {{"slope", "1"}, {"start_time", "0"}, {"initial_output", "0"}} },
-            { "Random Numbers (RANDOM_NUM)", "Random Numbers", "RANDOM_NUM", ComponentType::RandomNumbers, "RANDOM_NUM", "control", "Sources", {{"mean", "0"}, {"std", "1"}} },
-            { "Sine Wave (SINE_WAVE)", "Sine Wave", "SINE_WAVE", ComponentType::SineWave, "SINE_WAVE", "control", "Sources", {{"amplitude", "1"}, {"frequency", "50"}, {"phase", "0"}} },
-            { "Step (STEP)", "Step", "STEP", ComponentType::Step, "STEP", "control", "Sources", {{"step_time", "1"}, {"initial_value", "0"}, {"final_value", "1"}} },
-            { "Triangular Wave Generator (TRI_GEN)", "Triangle", "TRI", ComponentType::Triangle_Carrier, "TRI_GEN", "control", "Sources", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}} },
-            { "White Noise (WHITE_NOISE)", "White Noise", "WHITE_NOISE", ComponentType::WhiteNoise, "WHITE_NOISE", "control", "Sources", {{"psd", "0.1"}} },
+            // Control Domain (Sources)
+            { "Constant (CONST)", "Constant", "CONST", ComponentType::Constant, "CONST", "control", "Sources", {{"value", "1.0"}}, true },
+            { "Clock (CLOCK)", "Clock", "CLOCK", ComponentType::Clock, "CLOCK", "control", "Sources", {}, false },
+            { "Initial Condition (INIT_COND)", "Initial Condition", "INIT_COND", ComponentType::InitialCondition, "INIT_COND", "control", "Sources", {{"initial_value", "0"}}, false },
+            { "Pulse Generator (PULSE_GEN)", "Pulse Gen", "PULSE_GEN", ComponentType::PulseGenerator, "PULSE_GEN", "control", "Sources", {{"amplitude", "1"}, {"period", "1"}, {"width", "0.5"}, {"delay", "0"}}, true },
+            { "Ramp (RAMP)", "Ramp", "RAMP", ComponentType::Ramp, "RAMP", "control", "Sources", {{"slope", "1"}, {"start_time", "0"}, {"initial_output", "0"}}, false },
+            { "Random Numbers (RANDOM_NUM)", "Random Numbers", "RANDOM_NUM", ComponentType::RandomNumbers, "RANDOM_NUM", "control", "Sources", {{"mean", "0"}, {"std", "1"}}, false },
+            { "Sine Wave (SINE_WAVE)", "Sine Wave", "SINE_WAVE", ComponentType::SineWave, "SINE_WAVE", "control", "Sources", {{"amplitude", "1"}, {"frequency", "50"}, {"phase", "0"}}, false },
+            { "Step (STEP)", "Step", "STEP", ComponentType::Step, "STEP", "control", "Sources", {{"step_time", "1"}, {"initial_value", "0"}, {"final_value", "1"}}, false },
+            { "Triangular Wave Generator (TRI_GEN)", "Triangle", "TRI", ComponentType::Triangle_Carrier, "TRI_GEN", "control", "Sources", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
+            { "White Noise (WHITE_NOISE)", "White Noise", "WHITE_NOISE", ComponentType::WhiteNoise, "WHITE_NOISE", "control", "Sources", {{"psd", "0.1"}}, false },
 
             // Functions & Tables
-            { "Gain Scalar (GAIN)", "Gain", "GAIN", ComponentType::Gain, "GAIN", "control", "Functions & Tables", {{"K", "2.5"}} },
-            { "Product (PROD)", "Product", "PROD", ComponentType::Product, "PRODUCT_RECT", "control", "Functions & Tables", {{"operators", "*/"}} },
-            { "Trigonometric Function (TRIG_FCN)", "Trig", "TRIG_FCN", ComponentType::TrigFunction, "TRIG_FCN", "control", "Functions & Tables", {{"function", "sin"}} },
-            { "Math Function (MATH_FCN)", "Math Function", "MATH_FCN", ComponentType::MathFunction, "MATH_FCN", "control", "Functions & Tables", {{"function", "exp"}} },
-            { "Abs (ABS)", "Abs", "ABS", ComponentType::Abs, "ABS", "control", "Functions & Tables", {} },
-            { "Sign (SIGN)", "Sign", "SIGN", ComponentType::Sign, "SIGN", "control", "Functions & Tables", {} },
-            { "Round (ROUND)", "Round", "ROUND", ComponentType::Round, "ROUND", "control", "Functions & Tables", {{"mode", "nearest"}} },
-            { "Min/Max (MIN_MAX)", "MinMax", "MIN_MAX", ComponentType::MinMax, "MIN_MAX", "control", "Functions & Tables", {{"function", "min"}} },
-            { "1D Look-Up Table (LUT_1D)", "LUT 1D", "LUT_1D", ComponentType::LUT_1D, "LUT_1D", "control", "Functions & Tables", {{"x_data", "[0, 1, 2]"}, {"y_data", "[0, 2, 4]"}} },
-            { "2D Look-Up Table (LUT_2D)", "LUT 2D", "LUT_2D", ComponentType::LUT_2D, "LUT_2D", "control", "Functions & Tables", {{"x_data", "[0, 1]"}, {"y_data", "[0, 1]"}, {"z_data", "[[0, 1], [1, 2]]"}} },
-            { "3D Look-Up Table (LUT_3D)", "LUT 3D", "LUT_3D", ComponentType::LUT_3D, "LUT_3D", "control", "Functions & Tables", {} },
-            { "C-Script (CSCRIPT)", "C-Script", "CSCRIPT", ComponentType::CustomScript, "CSCRIPT", "control", "Functions & Tables", {{"code", "// Step code\noutputs[0] = inputs[0] * 2.0;\n"}} },
-            { "DLL (DLL)", "DLL", "DLL", ComponentType::DLL, "DLL", "control", "Functions & Tables", {} },
-            { "FMU (FMU)", "FMU", "FMU", ComponentType::FMU, "FMU", "control", "Functions & Tables", {} },
-            { "Fourier Series (FOURIER_SERIES)", "Fourier", "FOURIER_SERIES", ComponentType::FourierSeries, "FOURIER_SERIES", "control", "Functions & Tables", {} },
+            { "Gain Scalar (GAIN)", "Gain", "GAIN", ComponentType::Gain, "GAIN", "control", "Functions & Tables", {{"K", "2.5"}}, true },
+            { "Product (PROD)", "Product", "PROD", ComponentType::Product, "PRODUCT_RECT", "control", "Functions & Tables", {{"operators", "*/"}}, true },
+            { "Trigonometric Function (TRIG_FCN)", "Trig", "TRIG_FCN", ComponentType::TrigFunction, "TRIG_FCN", "control", "Functions & Tables", {{"function", "sin"}}, false },
+            { "Math Function (MATH_FCN)", "Math Function", "MATH_FCN", ComponentType::MathFunction, "MATH_FCN", "control", "Functions & Tables", {{"function", "exp"}}, true },
+            { "Abs (ABS)", "Abs", "ABS", ComponentType::Abs, "ABS", "control", "Functions & Tables", {}, false },
+            { "Sign (SIGN)", "Sign", "SIGN", ComponentType::Sign, "SIGN", "control", "Functions & Tables", {}, false },
+            { "Round (ROUND)", "Round", "ROUND", ComponentType::Round, "ROUND", "control", "Functions & Tables", {{"mode", "nearest"}}, false },
+            { "Min/Max (MIN_MAX)", "MinMax", "MIN_MAX", ComponentType::MinMax, "MIN_MAX", "control", "Functions & Tables", {{"function", "min"}}, false },
+            { "1D Look-Up Table (LUT_1D)", "LUT 1D", "LUT_1D", ComponentType::LUT_1D, "LUT_1D", "control", "Functions & Tables", {{"x_data", "[0, 1, 2]"}, {"y_data", "[0, 2, 4]"}}, false },
+            { "2D Look-Up Table (LUT_2D)", "LUT 2D", "LUT_2D", ComponentType::LUT_2D, "LUT_2D", "control", "Functions & Tables", {{"x_data", "[0, 1]"}, {"y_data", "[0, 1]"}, {"z_data", "[[0, 1], [1, 2]]"}}, false },
+            { "3D Look-Up Table (LUT_3D)", "LUT 3D", "LUT_3D", ComponentType::LUT_3D, "LUT_3D", "control", "Functions & Tables", {}, false },
+            { "C-Script (CSCRIPT)", "C-Script", "CSCRIPT", ComponentType::CustomScript, "CSCRIPT", "control", "Functions & Tables", {{"code", "// Step code\noutputs[0] = inputs[0] * 2.0;\n"}}, true },
+            { "DLL (DLL)", "DLL", "DLL", ComponentType::DLL, "DLL", "control", "Functions & Tables", {}, false },
+            { "FMU (FMU)", "FMU", "FMU", ComponentType::FMU, "FMU", "control", "Functions & Tables", {}, false },
+            { "Fourier Series (FOURIER_SERIES)", "Fourier", "FOURIER_SERIES", ComponentType::FourierSeries, "FOURIER_SERIES", "control", "Functions & Tables", {}, false },
 
-            { "PID Controller", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "10"}, {"Kd", "0"}} },
+            { "PID Controller", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "10"}, {"Kd", "0"}}, true },
 
-            { "Comparator", "Comparator", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {} },
+            { "Comparator", "Comparator", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
 
-            { "AND Gate", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {} },
-            { "OR Gate", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {} },
-            { "NOT Gate", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {} },
-            { "Edge Detector (EDGE_DETECT)", "Edge Detector", "EDGE_DETECT", ComponentType::EdgeDetector, "EDGE_DETECT", "control", "Logical & Bitwise", {{"edge", "rising"}, {"pulse_width", "1e-3"}} },
+            { "AND Gate", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {}, true },
+            { "OR Gate", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {}, true },
+            { "NOT Gate", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {}, true },
+            { "Edge Detector (EDGE_DETECT)", "Edge Detector", "EDGE_DETECT", ComponentType::EdgeDetector, "EDGE_DETECT", "control", "Logical & Bitwise", {{"edge", "rising"}, {"pulse_width", "1e-3"}}, true },
 
-            { "PWM Generator", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "20000"}} },
-            { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"num_carriers", "3"}, {"fc", "10k"}, {"dead_time", "1u"}} },
+            { "PWM Generator", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "20000"}}, true },
+            { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"num_carriers", "3"}, {"fc", "10k"}, {"dead_time", "1u"}}, true },
 
-            { "Sum (SUM_RECT)", "Sum", "SUM", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {} },
-            { "Sum Round (SUM_ROUND)", "Sum (Round)", "SUM", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {} },
-            { "Product (PRODUCT_RECT)", "Product", "PRODUCT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {} },
+            { "Sum (SUM_RECT)", "Sum", "SUM", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {}, true },
+            { "Sum Round (SUM_ROUND)", "Sum (Round)", "SUM", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {}, true },
+            { "Product (PRODUCT_RECT)", "Product", "PRODUCT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {}, true },
 
             // Electrical Domain
-            { "Ground (GND)", "GND", "GND", ComponentType::Unknown, "GND", "electrical", "Connectivity", {} },
+            { "Ground (GND)", "GND", "GND", ComponentType::Unknown, "GND", "electrical", "Connectivity", {}, true },
 
-            { "DC Voltage Source (V)", "DC Source", "V", ComponentType::VoltageSource, "V", "electrical", "Sources", {{"value", "12"}} },
-            { "AC Voltage Source", "AC Source", "ACV", ComponentType::ACVoltageSource, "AC_V", "electrical", "Sources", {{"amplitude", "325"}, {"frequency", "50"}, {"phase", "0"}} },
-            { "3-Phase AC Source (V_3PH)", "3-Phase AC Source", "V3PH", ComponentType::ThreePhaseSource, "V_3PH", "electrical", "Sources", {{"magnitude", "230"}, {"frequency", "50"}, {"phase", "0"}} },
-            { "Current Source (I)", "I Source", "I", ComponentType::CurrentSource, "I", "electrical", "Sources", {{"value", "1"}} },
+            { "DC Voltage Source (V)", "DC Source", "V", ComponentType::VoltageSource, "V", "electrical", "Sources", {{"value", "12"}}, true },
+            { "AC Voltage Source", "AC Source", "ACV", ComponentType::ACVoltageSource, "AC_V", "electrical", "Sources", {{"amplitude", "325"}, {"frequency", "50"}, {"phase", "0"}}, true },
+            { "3-Phase AC Source (V_3PH)", "3-Phase AC Source", "V3PH", ComponentType::ThreePhaseSource, "V_3PH", "electrical", "Sources", {{"magnitude", "230"}, {"frequency", "50"}, {"phase", "0"}}, true },
+            { "Current Source (I)", "I Source", "I", ComponentType::CurrentSource, "I", "electrical", "Sources", {{"value", "1"}}, true },
 
-            { "Voltmeter (VM)", "Voltmeter", "VM", ComponentType::Voltmeter, "VM", "electrical", "Meters (Sensors)", {} },
-            { "Ammeter (AM)", "Ammeter", "AM", ComponentType::Ammeter, "AM", "electrical", "Meters (Sensors)", {} },
+            { "Voltmeter (VM)", "Voltmeter", "VM", ComponentType::Voltmeter, "VM", "electrical", "Meters (Sensors)", {}, true },
+            { "Ammeter (AM)", "Ammeter", "AM", ComponentType::Ammeter, "AM", "electrical", "Meters (Sensors)", {}, true },
 
-            { "Resistor (R)", "Resistor", "R", ComponentType::Resistor, "R", "electrical", "Passive Components", {{"value", "1k"}} },
-            { "Capacitor (C)", "Capacitor", "C", ComponentType::Capacitor, "C", "electrical", "Passive Components", {{"C", "10u"}} },
-            { "Inductor (L)", "Inductor", "L", ComponentType::Inductor, "L", "electrical", "Passive Components", {{"L", "1m"}} },
+            { "Resistor (R)", "Resistor", "R", ComponentType::Resistor, "R", "electrical", "Passive Components", {{"value", "1k"}}, true },
+            { "Capacitor (C)", "Capacitor", "C", ComponentType::Capacitor, "C", "electrical", "Passive Components", {{"C", "10u"}}, true },
+            { "Inductor (L)", "Inductor", "L", ComponentType::Inductor, "L", "electrical", "Passive Components", {{"L", "1m"}}, true },
 
-            { "Diode (D)", "Diode", "D", ComponentType::Diode, "D", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vf", "0.7"}, {"Ron", "10m"}} },
-            { "MOSFET", "MOSFET", "MOSFET", ComponentType::MOSFET, "MOSFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}} },
+            { "Diode (D)", "Diode", "D", ComponentType::Diode, "D", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vf", "0.7"}, {"Ron", "10m"}}, true },
+            { "MOSFET", "MOSFET", "MOSFET", ComponentType::MOSFET, "MOSFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
 
-            { "Switch (S)", "Switch", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}} },
+            { "Switch (S)", "Switch", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
         };
 
         // Filter search results if search query is non-empty
@@ -762,11 +763,11 @@ void MainWindow::renderComponentPalette() {
             }
         }
         else if (!showDetailedLibrary) {
-            // BASIC LIBRARY VIEW
+            // BASIC LIBRARY VIEW (Only simple original basic blocks)
             if (ImGui::CollapsingHeader("⚡ Power Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
-                    if (std::string(item.category) == "electrical") {
+                    if (item.isBasic && std::string(item.category) == "electrical") {
                         renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
                     }
                 }
@@ -777,7 +778,7 @@ void MainWindow::renderComponentPalette() {
             if (ImGui::CollapsingHeader("🎛️ Control Loops", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
-                    if (std::string(item.category) == "control") {
+                    if (item.isBasic && std::string(item.category) == "control") {
                         renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
                     }
                 }
@@ -788,7 +789,7 @@ void MainWindow::renderComponentPalette() {
             if (ImGui::CollapsingHeader("📊 Scope & Probes", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
-                    if (std::string(item.category) == "general") {
+                    if (item.isBasic && std::string(item.category) == "general") {
                         renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
                     }
                 }
