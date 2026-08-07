@@ -297,6 +297,7 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::TransferFunction) {
             fc.polarity = getParamString(ctrlComp, "num", "[1]");
             fc.vPlotKey = getParamString(ctrlComp, "den", "[1, 1]");
+            fc.gain = evaluateParam(ctrlComp, "K", 1.0);
         } else if (ctrlComp.type == ComponentType::ContinuousPID) {
             fc.gain = evaluateParam(ctrlComp, "Kp", 1.0);
             fc.vAlphaKey = std::to_string(evaluateParam(ctrlComp, "Ki", 0.0));
@@ -848,20 +849,24 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
                 auto parseVec = [](std::string s) -> std::vector<double> {
-                    s.erase(std::remove(s.begin(), s.end(), '['), s.end());
-                    s.erase(std::remove(s.begin(), s.end(), ']'), s.end());
-                    std::stringstream ss(s);
-                    std::string token;
                     std::vector<double> vec;
-                    while (std::getline(ss, token, ',')) {
-                        if (!token.empty()) {
-                            try { vec.push_back(std::stod(token)); } catch (...) {}
+                    if (s.empty()) return vec;
+                    for (char& c : s) {
+                        if (c == '[' || c == ']' || c == ',' || c == ';' || c == '\t' || c == '\r' || c == '\n') {
+                            c = ' ';
                         }
+                    }
+                    std::stringstream ss(s);
+                    double v = 0.0;
+                    while (ss >> v) {
+                        vec.push_back(v);
                     }
                     return vec;
                 };
                 std::vector<double> num = parseVec(fc.polarity);
                 std::vector<double> den = parseVec(fc.vPlotKey);
+                double gainK = (fc.gain != 0.0) ? fc.gain : 1.0;
+                for (double& nCoeff : num) nCoeff *= gainK;
                 if (num.empty()) num = {1.0};
                 if (den.empty()) den = {1.0, 1.0};
                 size_t n = den.size() - 1;
