@@ -95,6 +95,17 @@ enum class ComponentType {
     TurnOnDelay,      // TURN_ON_DELAY
     MemoryBlock,      // MEMORY_BLOCK
 
+    // Control Discontinuous Detailed Library
+    Quantizer,        // QUANTIZER
+    SignalSwitch,     // SIGNAL_SWITCH
+    ManualSwitch,     // MANUAL_SWITCH
+    MultiportSwitch,  // MULTIPORT_SWITCH
+    HitCrossing,      // HIT_CROSSING
+    Saturation,       // SATURATION
+    DeadZone,         // DEAD_ZONE
+    RateLimiter,      // RATE_LIMITER
+    Relay,            // RELAY
+
     Unknown
 };
 
@@ -149,6 +160,16 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "TransportDelay" || typeStr == "TRANSPORT_DELAY") return ComponentType::TransportDelay;
     if (typeStr == "TurnOnDelay" || typeStr == "TURN_ON_DELAY") return ComponentType::TurnOnDelay;
     if (typeStr == "MemoryBlock" || typeStr == "MEMORY" || typeStr == "MEMORY_BLOCK") return ComponentType::MemoryBlock;
+    if (typeStr == "Quantizer" || typeStr == "QUANTIZER") return ComponentType::Quantizer;
+    if (typeStr == "SignalSwitch" || typeStr == "SIGNAL_SWITCH") return ComponentType::SignalSwitch;
+    if (typeStr == "ManualSwitch" || typeStr == "MANUAL_SWITCH") return ComponentType::ManualSwitch;
+    if (typeStr == "MultiportSwitch" || typeStr == "MULTIPORT_SWITCH") return ComponentType::MultiportSwitch;
+    if (typeStr == "HitCrossing" || typeStr == "HIT_CROSSING") return ComponentType::HitCrossing;
+    if (typeStr == "Saturation" || typeStr == "SATURATION") return ComponentType::Saturation;
+    if (typeStr == "DeadZone" || typeStr == "DEAD_ZONE") return ComponentType::DeadZone;
+    if (typeStr == "RateLimiter" || typeStr == "RATE_LIMITER") return ComponentType::RateLimiter;
+    if (typeStr == "Relay" || typeStr == "RELAY") return ComponentType::Relay;
+    if (typeStr == "Comparator" || typeStr == "COMP") return ComponentType::Comparator;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

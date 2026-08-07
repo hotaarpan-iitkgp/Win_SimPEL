@@ -57,6 +57,16 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "TransportDelay" || t == "TRANSPORT_DELAY") return ComponentType::TransportDelay;
     if (t == "TurnOnDelay" || t == "TURN_ON_DELAY") return ComponentType::TurnOnDelay;
     if (t == "MemoryBlock" || t == "MEMORY" || t == "MEMORY_BLOCK") return ComponentType::MemoryBlock;
+    if (t == "Quantizer" || t == "QUANTIZER") return ComponentType::Quantizer;
+    if (t == "SignalSwitch" || t == "SIGNAL_SWITCH") return ComponentType::SignalSwitch;
+    if (t == "ManualSwitch" || t == "MANUAL_SWITCH") return ComponentType::ManualSwitch;
+    if (t == "MultiportSwitch" || t == "MULTIPORT_SWITCH") return ComponentType::MultiportSwitch;
+    if (t == "HitCrossing" || t == "HIT_CROSSING") return ComponentType::HitCrossing;
+    if (t == "Saturation" || t == "SATURATION") return ComponentType::Saturation;
+    if (t == "DeadZone" || t == "DEAD_ZONE") return ComponentType::DeadZone;
+    if (t == "RateLimiter" || t == "RATE_LIMITER") return ComponentType::RateLimiter;
+    if (t == "Relay" || t == "RELAY") return ComponentType::Relay;
+    if (t == "Comparator" || t == "COMP" || t == "comparators") return ComponentType::Comparator;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;

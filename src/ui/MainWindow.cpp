@@ -711,7 +711,17 @@ void MainWindow::renderComponentPalette() {
             { "Turn-on Delay (TURN_ON_DELAY)", "Ton", "TURN_ON_DELAY", ComponentType::TurnOnDelay, "TURN_ON_DELAY", "control", "Delays", {{"delay", "0.05"}}, false },
             { "Memory (MEMORY_BLOCK)", "Mem", "MEMORY_BLOCK", ComponentType::MemoryBlock, "MEMORY_BLOCK", "control", "Delays", {{"initial_value", "0.0"}}, false },
 
-            { "Comparator", "Comparator", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
+            // Discontinuous
+            { "Quantizer (QUANTIZER)", "Quantize", "QUANTIZER", ComponentType::Quantizer, "QUANTIZER", "control", "Discontinuous", {{"step_size", "0.5"}, {"mode", "round"}}, false },
+            { "Signal Switch (SIGNAL_SWITCH)", "Switch", "SIGNAL_SWITCH", ComponentType::SignalSwitch, "SIGNAL_SWITCH", "control", "Discontinuous", {{"threshold", "0.5"}, {"criteria", "u2 >= threshold"}}, false },
+            { "Manual Signal Switch (MANUAL_SWITCH)", "Manual Sw", "MANUAL_SWITCH", ComponentType::ManualSwitch, "MANUAL_SWITCH", "control", "Discontinuous", {{"state", "Input 1"}}, false },
+            { "Multiport Signal Switch (MULTIPORT_SWITCH)", "Multiport Sw", "MULTIPORT_SWITCH", ComponentType::MultiportSwitch, "MULTIPORT_SWITCH", "control", "Discontinuous", {{"inputs", "3"}, {"indexing", "1-based"}}, false },
+            { "Hit Crossing (HIT_CROSSING)", "Hit Cross", "HIT_CROSSING", ComponentType::HitCrossing, "HIT_CROSSING", "control", "Discontinuous", {{"offset", "0.0"}, {"direction", "either"}}, false },
+            { "Saturation (SATURATION)", "Sat", "SATURATION", ComponentType::Saturation, "SATURATION", "control", "Discontinuous", {{"min", "-10"}, {"max", "10"}}, false },
+            { "Dead Zone (DEAD_ZONE)", "Dead", "DEAD_ZONE", ComponentType::DeadZone, "DEAD_ZONE", "control", "Discontinuous", {{"start", "-0.5"}, {"end", "0.5"}}, false },
+            { "Rate Limiter (RATE_LIMITER)", "Rate", "RATE_LIMITER", ComponentType::RateLimiter, "RATE_LIMITER", "control", "Discontinuous", {{"up", "10"}, {"down", "-10"}}, false },
+            { "Relay (RELAY)", "Relay", "RELAY", ComponentType::Relay, "RELAY", "control", "Discontinuous", {{"on_threshold", "1"}, {"off_threshold", "-1"}}, false },
+            { "Comparator (COMP)", "COMP", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
 
             { "AND Gate", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {}, true },
             { "OR Gate", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {}, true },

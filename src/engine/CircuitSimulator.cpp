@@ -312,6 +312,32 @@ void CircuitSimulator::buildIndexMaps() {
             fc.delayDuration = evaluateParam(ctrlComp, "delay", 0.05);
         } else if (ctrlComp.type == ComponentType::MemoryBlock) {
             fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
+        } else if (ctrlComp.type == ComponentType::Quantizer) {
+            fc.minVal = evaluateParam(ctrlComp, "step_size", 0.5);
+            fc.polarity = getParamString(ctrlComp, "mode", "round");
+        } else if (ctrlComp.type == ComponentType::SignalSwitch) {
+            fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.5);
+            fc.polarity = getParamString(ctrlComp, "criteria", "u2 >= threshold");
+        } else if (ctrlComp.type == ComponentType::ManualSwitch) {
+            fc.polarity = getParamString(ctrlComp, "state", "Input 1");
+        } else if (ctrlComp.type == ComponentType::MultiportSwitch) {
+            fc.polarity = getParamString(ctrlComp, "indexing", "1-based");
+            fc.val = evaluateParam(ctrlComp, "inputs", 3.0);
+        } else if (ctrlComp.type == ComponentType::HitCrossing) {
+            fc.thresholdVal = evaluateParam(ctrlComp, "offset", 0.0);
+            fc.polarity = getParamString(ctrlComp, "direction", "either");
+        } else if (ctrlComp.type == ComponentType::Saturation) {
+            fc.minVal = evaluateParam(ctrlComp, "min", -10.0);
+            fc.maxVal = evaluateParam(ctrlComp, "max", 10.0);
+        } else if (ctrlComp.type == ComponentType::DeadZone) {
+            fc.minVal = evaluateParam(ctrlComp, "start", -0.5);
+            fc.maxVal = evaluateParam(ctrlComp, "end", 0.5);
+        } else if (ctrlComp.type == ComponentType::RateLimiter) {
+            fc.rateUp = evaluateParam(ctrlComp, "up", 10.0);
+            fc.rateDown = evaluateParam(ctrlComp, "down", -10.0);
+        } else if (ctrlComp.type == ComponentType::Relay) {
+            fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
+            fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -824,6 +850,94 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     fc.lastTime = currentTime;
                 }
                 val = fc.prevVal;
+            }
+            else if (fc.type == ComponentType::Quantizer) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double step = (fc.minVal > 0.0) ? fc.minVal : 0.5;
+                double ratio = inVal / step;
+                double q = 0.0;
+                if (fc.polarity == "floor") q = std::floor(ratio);
+                else if (fc.polarity == "ceil") q = std::ceil(ratio);
+                else q = std::round(ratio);
+                val = q * step;
+            }
+            else if (fc.type == ComponentType::SignalSwitch) {
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double ctrl = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                double thresh = fc.thresholdVal;
+                bool pass = false;
+                if (fc.polarity == "u2 > threshold") pass = (ctrl > thresh);
+                else if (fc.polarity == "u2 != 0") pass = (ctrl != 0.0);
+                else pass = (ctrl >= thresh);
+                val = pass ? in1 : in2;
+            }
+            else if (fc.type == ComponentType::ManualSwitch) {
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                val = (fc.polarity == "Input 1") ? in1 : in2;
+            }
+            else if (fc.type == ComponentType::MultiportSwitch) {
+                double ctrl = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                int ctrlIdx = (int)std::round(ctrl);
+                int targetIdx = (fc.polarity == "0-based") ? (ctrlIdx + 1) : ctrlIdx;
+                if (targetIdx >= 1 && targetIdx <= (int)fc.inputSigIndices.size()) {
+                    int sigIdx = fc.inputSigIndices[targetIdx - 1];
+                    val = (sigIdx >= 0 && sigIdx < (int)flatControlSignals.size()) ? flatControlSignals[sigIdx] : 0.0;
+                } else {
+                    val = 0.0;
+                }
+            }
+            else if (fc.type == ComponentType::HitCrossing) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double offset = fc.thresholdVal;
+                double hit = 0.0;
+                double prev = fc.prevVal;
+                if (fc.polarity == "rising" && prev < offset && inVal >= offset) hit = 1.0;
+                else if (fc.polarity == "falling" && prev > offset && inVal <= offset) hit = 1.0;
+                else if ((prev < offset && inVal >= offset) || (prev > offset && inVal <= offset)) hit = 1.0;
+                if (currentTime > fc.lastTime) {
+                    fc.prevVal = inVal;
+                    fc.lastTime = currentTime;
+                }
+                val = hit;
+            }
+            else if (fc.type == ComponentType::Saturation) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = std::max(fc.minVal, std::min(fc.maxVal, inVal));
+            }
+            else if (fc.type == ComponentType::DeadZone) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                if (inVal > fc.maxVal) val = inVal - fc.maxVal;
+                else if (inVal < fc.minVal) val = inVal - fc.minVal;
+                else val = 0.0;
+            }
+            else if (fc.type == ComponentType::RateLimiter) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                if (currentTime == 0.0) {
+                    fc.prevOut = inVal;
+                    val = inVal;
+                } else {
+                    double rate = (inVal - fc.prevOut) / dt;
+                    double clampedRate = std::max(fc.rateDown, std::min(fc.rateUp, rate));
+                    val = fc.prevOut + clampedRate * dt;
+                    if (currentTime > fc.lastTime) {
+                        fc.prevOut = val;
+                        fc.lastTime = currentTime;
+                    }
+                }
+            }
+            else if (fc.type == ComponentType::Relay) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                if (inVal >= fc.onThresh) fc.relayState = 1;
+                else if (inVal <= fc.offThresh) fc.relayState = 0;
+                val = (double)fc.relayState;
+            }
+            else if (fc.type == ComponentType::Comparator) {
+                double inA = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inB = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                val = (inA > inB) ? 1.0 : 0.0;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

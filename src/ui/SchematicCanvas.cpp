@@ -62,8 +62,18 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT" || t == "INIT_COND" ||
         t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES" ||
         t == "INTEGRATOR" || t == "DERIVATIVE" || t == "TRANSFER_FCN" || t == "STATE_SPACE" || t == "CONT_PID" || t == "PLL_1PH" ||
-        t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK") {
+        t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" ||
+        t == "QUANTIZER" || t == "HIT_CROSSING" || t == "SATURATION" || t == "DEAD_ZONE" || t == "RATE_LIMITER" || t == "RELAY") {
         return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "SIGNAL_SWITCH") {
+        return {{"In1", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "MANUAL_SWITCH") {
+        return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "MULTIPORT_SWITCH") {
+        return {{"Ctrl", 0, -20, 0, -1, true}, {"In1", -20, -10, -1, 0, true}, {"In2", -20, 0, -1, 0, true}, {"In3", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "PLL_3PH") {
         return {{"A", -20, -10, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 10, -1, 0, true}, {"Theta", 20, -10, 1, 0, true}, {"Freq", 20, 10, 1, 0, true}};
@@ -155,6 +165,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "MIN_MAX" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES" ||
         t == "INTEGRATOR" || t == "DERIVATIVE" || t == "TRANSFER_FCN" || t == "STATE_SPACE" || t == "CONT_PID" || t == "PLL_1PH" || t == "PLL_3PH" ||
         t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" ||
+        t == "QUANTIZER" || t == "SIGNAL_SWITCH" || t == "MANUAL_SWITCH" || t == "MULTIPORT_SWITCH" || t == "HIT_CROSSING" || t == "SATURATION" || t == "DEAD_ZONE" || t == "RATE_LIMITER" || t == "RELAY" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||

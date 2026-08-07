@@ -80,6 +80,17 @@ enum class ComponentType {
     TurnOnDelay,
     MemoryBlock,
 
+    // Control Discontinuous Detailed Library
+    Quantizer,
+    SignalSwitch,
+    ManualSwitch,
+    MultiportSwitch,
+    HitCrossing,
+    Saturation,
+    DeadZone,
+    RateLimiter,
+    Relay,
+
     Unknown
 };
 
@@ -148,6 +159,15 @@ struct FastCompiledComponent {
     double prevVal = 0.0;
     double currentVal = 0.0;
     double lastTime = -1.0;
+
+    double prevOut = 0.0;
+    double lastHit = 0.0;
+    double thresholdVal = 0.5;
+    double onThresh = 1.0;
+    double offThresh = -1.0;
+    double rateUp = 10.0;
+    double rateDown = -10.0;
+    int relayState = 0;
 
     double stateVal = 0.0;
     double filterState = 0.0;

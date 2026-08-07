@@ -422,6 +422,106 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input2"] = "0.0";
             cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "QUANTIZER") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "QUANTIZER";
+            cObj["step_size"] = formatJSStyleDouble(parsedParams.count("step_size") ? parsedParams["step_size"] : 0.5);
+            cObj["mode"] = comp.parameters.count("mode") ? comp.parameters.at("mode") : "round";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SIGNAL_SWITCH") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "SIGNAL_SWITCH";
+            cObj["threshold"] = formatJSStyleDouble(parsedParams.count("threshold") ? parsedParams["threshold"] : 0.5);
+            cObj["criteria"] = comp.parameters.count("criteria") ? comp.parameters.at("criteria") : "u2 >= threshold";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MANUAL_SWITCH") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MANUAL_SWITCH";
+            cObj["state"] = comp.parameters.count("state") ? comp.parameters.at("state") : "Input 1";
+            cObj["input1"] = getIncomingSignal(comp.id, "In1");
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MULTIPORT_SWITCH") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MULTIPORT_SWITCH";
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            int numInp = 3;
+            if (parsedParams.count("inputs")) numInp = (int)parsedParams["inputs"];
+            json inpsArr = json::array();
+            for (int i = 1; i <= numInp; ++i) {
+                inpsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+            }
+            cObj["inputs"] = inpsArr;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "HIT_CROSSING") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "HIT_CROSSING";
+            cObj["offset"] = formatJSStyleDouble(parsedParams.count("offset") ? parsedParams["offset"] : 0.0);
+            cObj["direction"] = comp.parameters.count("direction") ? comp.parameters.at("direction") : "either";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SATURATION") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "SATURATION";
+            cObj["min"] = formatJSStyleDouble(parsedParams.count("min") ? parsedParams["min"] : -10.0);
+            cObj["max"] = formatJSStyleDouble(parsedParams.count("max") ? parsedParams["max"] : 10.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "DEAD_ZONE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "DEAD_ZONE";
+            cObj["start"] = formatJSStyleDouble(parsedParams.count("start") ? parsedParams["start"] : -0.5);
+            cObj["end"] = formatJSStyleDouble(parsedParams.count("end") ? parsedParams["end"] : 0.5);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "RATE_LIMITER") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "RATE_LIMITER";
+            cObj["up"] = formatJSStyleDouble(parsedParams.count("up") ? parsedParams["up"] : 10.0);
+            cObj["down"] = formatJSStyleDouble(parsedParams.count("down") ? parsedParams["down"] : -10.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "RELAY") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "RELAY";
+            cObj["on_threshold"] = formatJSStyleDouble(parsedParams.count("on_threshold") ? parsedParams["on_threshold"] : 1.0);
+            cObj["off_threshold"] = formatJSStyleDouble(parsedParams.count("off_threshold") ? parsedParams["off_threshold"] : -1.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "COMP" || t == "Comparator") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "COMP";
+            cObj["input_a"] = getIncomingSignal(comp.id, "A");
+            cObj["input_b"] = getIncomingSignal(comp.id, "B");
+            ctrlLoopsObj["comparators"].push_back(cObj);
         } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
