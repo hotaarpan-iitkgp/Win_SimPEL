@@ -763,9 +763,19 @@ void MainWindow::renderComponentPalette() {
             { "THD (THD_VAL)", "THD", "THD_VAL", ComponentType::ThdVal, "THD_VAL", "control", "Filters & Measurements", {{"frequency", "50"}}, false },
             { "PLL (Phase-Locked Loop) (PLL_LOOP)", "PLL", "PLL_LOOP", ComponentType::PllLoop, "PLL_LOOP", "control", "Filters & Measurements", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
 
-            { "Sum (SUM_RECT)", "Sum", "SUM", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {}, true },
-            { "Sum Round (SUM_ROUND)", "Sum (Round)", "SUM", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {}, true },
-            { "Product (PRODUCT_RECT)", "Product", "PRODUCT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {}, true },
+            // State Machines sub-library
+            { "State Machine (STATE_MACHINE)", "State", "STATE_MACHINE", ComponentType::StateMachine, "STATE_MACHINE", "control", "State Machines", {}, false },
+
+            // Math sub-library
+            { "Offset (OFFSET)", "OFFSET", "OFFSET", ComponentType::Offset, "OFFSET", "control", "Math", {{"offset", "0.0"}}, false },
+            { "Summing Block (SUM)", "SUM", "SUM", ComponentType::SummingJunction, "SUM", "control", "Math", {{"signs", "++"}}, false },
+            { "Sum (round) (SUM_ROUND)", "SUM", "SUM_ROUND", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {{"inputs", "2"}, {"signs", "++"}}, true },
+            { "Sum (rectangular) (SUM_RECT)", "SUM", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {{"inputs", "2"}, {"signs", "++"}}, true },
+            { "Subtract (SUBTRACT)", "SUB", "SUBTRACT", ComponentType::SummingJunction, "SUBTRACT", "control", "Math", {{"signs", "+-"}}, false },
+            { "Product (rectangular) (PRODUCT_RECT)", "PROD", "PRODUCT_RECT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {{"inputs", "2"}, {"operators", "**"}}, true },
+            { "Signum (SIGNUM)", "sgn", "SIGNUM", ComponentType::Signum, "SIGNUM", "control", "Math", {}, false },
+            { "Divide (DIVIDE)", "DIV", "DIVIDE", ComponentType::Divide, "DIVIDE", "control", "Math", {{"operators", "*/"}}, false },
+            { "Data Type Conversion (DATATYPE_CONV)", "Cast", "DATATYPE_CONV", ComponentType::DataTypeConv, "DATATYPE_CONV", "control", "Math", {{"datatype", "boolean"}}, false },
 
             // Electrical Domain
             { "Ground (GND)", "GND", "GND", ComponentType::Unknown, "GND", "electrical", "Connectivity", {}, true },

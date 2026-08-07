@@ -124,6 +124,13 @@ enum class ComponentType {
     ThdVal,
     PllLoop,
 
+    // Control State Machines & Math
+    Offset,
+    Signum,
+    Divide,
+    DataTypeConv,
+    StateMachine,
+
     Unknown
 };
 

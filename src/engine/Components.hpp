@@ -139,6 +139,13 @@ enum class ComponentType {
     ThdVal,               // THD_VAL
     PllLoop,              // PLL_LOOP
 
+    // Control State Machines & Math
+    Offset,               // OFFSET
+    Signum,               // SIGNUM
+    Divide,               // DIVIDE
+    DataTypeConv,         // DATATYPE_CONV
+    StateMachine,         // STATE_MACHINE
+
     Unknown
 };
 
@@ -230,6 +237,11 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "RMS_VAL" || typeStr == "RmsVal") return ComponentType::RmsVal;
     if (typeStr == "THD_VAL" || typeStr == "ThdVal") return ComponentType::ThdVal;
     if (typeStr == "PLL_LOOP" || typeStr == "PllLoop") return ComponentType::PllLoop;
+    if (typeStr == "OFFSET" || typeStr == "Offset") return ComponentType::Offset;
+    if (typeStr == "SIGNUM" || typeStr == "Signum" || typeStr == "SIGN" || typeStr == "Sign" || typeStr == "SGN") return ComponentType::Signum;
+    if (typeStr == "DIVIDE" || typeStr == "Divide") return ComponentType::Divide;
+    if (typeStr == "DATATYPE_CONV" || typeStr == "DataTypeConv") return ComponentType::DataTypeConv;
+    if (typeStr == "STATE_MACHINE" || typeStr == "StateMachine") return ComponentType::StateMachine;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

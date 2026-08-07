@@ -109,8 +109,11 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "PWM_3PH" || t == "SVPWM") {
         return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"OutA", 20, -15, 1, 0, true}, {"OutB", 20, 0, 1, 0, true}, {"OutC", 20, 15, 1, 0, true}};
     }
-    if (t == "PER_AVG" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" || t == "RMS_VAL" || t == "THD_VAL") {
+    if (t == "PER_AVG" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" || t == "RMS_VAL" || t == "THD_VAL" || t == "OFFSET" || t == "SIGNUM" || t == "DATATYPE_CONV" || t == "STATE_MACHINE") {
         return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "DIVIDE") {
+        return {{"Num", -20, -10, -1, 0, true}, {"Den", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "PERIODIC_IMP_AVG") {
         return {{"In", -20, -10, -1, 0, true}, {"Trig", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
@@ -211,6 +214,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "CLARKE" || t == "INV_CLARKE" || t == "PARK" || t == "INV_PARK" || t == "PWM_3PH" || t == "SVPWM" ||
         t == "PER_AVG" || t == "PERIODIC_IMP_AVG" || t == "FOURIER_TRANS" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" ||
         t == "FOURIER_ANALYSIS" || t == "RMS_VAL" || t == "THD_VAL" || t == "PLL_LOOP" ||
+        t == "OFFSET" || t == "SIGNUM" || t == "DIVIDE" || t == "DATATYPE_CONV" || t == "STATE_MACHINE" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||

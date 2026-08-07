@@ -366,6 +366,14 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::ShiftReg) {
             fc.shiftLength = (int)evaluateParam(ctrlComp, "length", 4.0);
             fc.shiftBuffer.assign(fc.shiftLength, 0.0);
+        } else if (ctrlComp.type == ComponentType::Offset) {
+            fc.thresholdVal = evaluateParam(ctrlComp, "offset", 0.0);
+        } else if (ctrlComp.type == ComponentType::DataTypeConv) {
+            fc.polarity = getParamString(ctrlComp, "datatype", "boolean");
+        } else if (ctrlComp.type == ComponentType::SummingJunction) {
+            fc.polarity = getParamString(ctrlComp, "signs", "++");
+        } else if (ctrlComp.type == ComponentType::Product) {
+            fc.polarity = getParamString(ctrlComp, "operators", "**");
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -376,12 +384,14 @@ void CircuitSimulator::buildIndexMaps() {
 
         fc.in0Key = getParamString(ctrlComp, "In", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "In1", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "Num", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "Plus", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input_0", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input", "");   // e.g. GAIN "input": "TRI1.Out"
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input1", "");
 
         fc.in1Key = getParamString(ctrlComp, "In2", "");
+        if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "Den", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "Minus", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input_1", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input2", "");  // secondary input alias
@@ -1539,6 +1549,45 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = cosVal;
                 if (fc.outputSigIndices.size() > 3 && fc.outputSigIndices[3] >= 0 && fc.outputSigIndices[3] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[3]] = sinVal;
                 val = theta;
+            }
+            else if (fc.type == ComponentType::Offset) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = inVal + fc.thresholdVal;
+            }
+            else if (fc.type == ComponentType::Signum) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = (inVal > 0.0) ? 1.0 : ((inVal < 0.0) ? -1.0 : 0.0);
+            }
+            else if (fc.type == ComponentType::Divide) {
+                double num = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double den = fc.in1Ptr ? *fc.in1Ptr : 1.0;
+                val = (std::abs(den) < 1e-15) ? (num / (den >= 0.0 ? 1e-15 : -1e-15)) : (num / den);
+            }
+            else if (fc.type == ComponentType::DataTypeConv) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                std::string dt = fc.polarity;
+                if (dt == "boolean" || dt == "bool") val = (inVal > 0.5) ? 1.0 : 0.0;
+                else if (dt == "integer" || dt == "int") val = std::round(inVal);
+                else val = inVal;
+            }
+            else if (fc.type == ComponentType::StateMachine) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = inVal;
+            }
+            else if (fc.type == ComponentType::SummingJunction) {
+                double in0 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in1 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                std::string signs = fc.polarity.empty() ? "++" : fc.polarity;
+                double s0 = (signs.size() > 0 && signs[0] == '-') ? -1.0 : 1.0;
+                double s1 = (signs.size() > 1 && signs[1] == '-') ? -1.0 : 1.0;
+                val = s0 * in0 + s1 * in1;
+            }
+            else if (fc.type == ComponentType::Product) {
+                double in0 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in1 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                std::string ops = fc.polarity;
+                if (ops == "*/") val = (std::abs(in1) < 1e-15) ? (in0 / 1e-15) : (in0 / in1);
+                else val = in0 * in1;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

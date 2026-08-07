@@ -94,6 +94,11 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "RMS_VAL" || t == "RmsVal") return ComponentType::RmsVal;
     if (t == "THD_VAL" || t == "ThdVal") return ComponentType::ThdVal;
     if (t == "PLL_LOOP" || t == "PllLoop") return ComponentType::PllLoop;
+    if (t == "OFFSET" || t == "Offset") return ComponentType::Offset;
+    if (t == "SIGNUM" || t == "Signum" || t == "SIGN" || t == "Sign" || t == "SGN") return ComponentType::Signum;
+    if (t == "DIVIDE" || t == "Divide") return ComponentType::Divide;
+    if (t == "DATATYPE_CONV" || t == "DataTypeConv") return ComponentType::DataTypeConv;
+    if (t == "STATE_MACHINE" || t == "StateMachine") return ComponentType::StateMachine;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;

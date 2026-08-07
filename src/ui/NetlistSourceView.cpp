@@ -753,6 +753,40 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 1000.0);
             cObj["input"] = getIncomingSignal(comp.id, "In");
             ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "OFFSET") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "OFFSET";
+            cObj["offset"] = formatJSStyleDouble(parsedParams.count("offset") ? parsedParams["offset"] : 0.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SIGNUM" || t == "SIGN") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "SIGNUM";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "DATATYPE_CONV") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "DATATYPE_CONV";
+            cObj["datatype"] = comp.parameters.count("datatype") ? comp.parameters.at("datatype") : "boolean";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "DIVIDE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "DIVIDE";
+            cObj["inputs"] = nlohmann::json::array({
+                getIncomingSignal(comp.id, "Num"),
+                getIncomingSignal(comp.id, "Den")
+            });
+            ctrlLoopsObj["product_blocks"].push_back(cObj);
+        } else if (t == "STATE_MACHINE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "STATE_MACHINE";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
