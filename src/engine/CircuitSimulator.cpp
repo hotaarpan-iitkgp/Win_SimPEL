@@ -405,6 +405,8 @@ void CircuitSimulator::buildIndexMaps() {
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
         } else if (ctrlComp.type == ComponentType::InvClarke) {
@@ -413,6 +415,9 @@ void CircuitSimulator::buildIndexMaps() {
             std::string inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".A");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".B");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".C");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".A"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".B"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".C"));
@@ -424,6 +429,8 @@ void CircuitSimulator::buildIndexMaps() {
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".d");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".q");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".d"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".q"));
         } else if (ctrlComp.type == ComponentType::InvPark) {
@@ -434,6 +441,8 @@ void CircuitSimulator::buildIndexMaps() {
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inD));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inQ));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
         } else if (ctrlComp.type == ComponentType::PWM_3PH || ctrlComp.type == ComponentType::SVPWM) {
@@ -444,6 +453,9 @@ void CircuitSimulator::buildIndexMaps() {
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".OutA");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".OutB");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".OutC");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutA"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutB"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutC"));
@@ -1659,7 +1671,7 @@ SimulationOutput CircuitSimulator::runTransient() {
         fc.customScriptOutputVecPtrs.clear();
         fc.customScriptPlotVecPtrs.clear();
 
-        if (fc.type == ComponentType::CustomScript) {
+        if (fc.outputSigKeys.size() > 1) {
             for (size_t i = 0; i < fc.outputSigKeys.size(); ++i) {
                 const auto& outK = fc.outputSigKeys[i];
                 auto& sigVec = out.signals[outK];
@@ -1669,20 +1681,20 @@ SimulationOutput CircuitSimulator::runTransient() {
                 fc.customScriptOutputVecPtrs.push_back(&sigVec);
                 fc.customScriptPlotVecPtrs.push_back(&cpVec);
             }
-        } else {
-            auto& sigVec = out.signals[fc.id];
-            auto& sigOutVec = out.signals[fc.outKey];
-            auto& cpVec = out.custom_plots[fc.id];
-            auto& cpOutVec = out.custom_plots[fc.outKey];
-            sigVec.reserve(estSteps + 1);
-            sigOutVec.reserve(estSteps + 1);
-            cpVec.reserve(estSteps + 1);
-            cpOutVec.reserve(estSteps + 1);
-            fc.sigVecPtr = &sigVec;
-            fc.sigOutVecPtr = &sigOutVec;
-            fc.vPlotVecPtr = &cpVec;
-            fc.iPlotVecPtr = &cpOutVec;
         }
+        
+        auto& sigVec = out.signals[fc.id];
+        auto& sigOutVec = out.signals[fc.outKey];
+        auto& cpVec = out.custom_plots[fc.id];
+        auto& cpOutVec = out.custom_plots[fc.outKey];
+        sigVec.reserve(estSteps + 1);
+        sigOutVec.reserve(estSteps + 1);
+        cpVec.reserve(estSteps + 1);
+        cpOutVec.reserve(estSteps + 1);
+        fc.sigVecPtr = &sigVec;
+        fc.sigOutVecPtr = &sigOutVec;
+        fc.vPlotVecPtr = &cpVec;
+        fc.iPlotVecPtr = &cpOutVec;
     }
 
     double currentTime = 0.0;
@@ -1812,12 +1824,16 @@ SimulationOutput CircuitSimulator::runTransient() {
 
         // Store control loop signals into output (Zero map lookups)
         for (auto& fc : fastCtrlComps) {
-            if (fc.type == ComponentType::CustomScript) {
+            if (!fc.outputSigKeys.empty() && fc.outputSigKeys.size() > 1) {
                 for (size_t i = 0; i < fc.outputSigIndices.size(); ++i) {
                     int sigIdx = fc.outputSigIndices[i];
                     double ctrlVal = (sigIdx >= 0 && sigIdx < (int)flatControlSignals.size()) ? flatControlSignals[sigIdx] : 0.0;
-                    if (i < fc.customScriptOutputVecPtrs.size() && fc.customScriptOutputVecPtrs[i]) fc.customScriptOutputVecPtrs[i]->push_back(ctrlVal);
-                    if (i < fc.customScriptPlotVecPtrs.size() && fc.customScriptPlotVecPtrs[i]) fc.customScriptPlotVecPtrs[i]->push_back(ctrlVal);
+                    if (i < fc.customScriptOutputVecPtrs.size() && fc.customScriptOutputVecPtrs[i]) {
+                        fc.customScriptOutputVecPtrs[i]->push_back(ctrlVal);
+                    }
+                    if (i < fc.customScriptPlotVecPtrs.size() && fc.customScriptPlotVecPtrs[i]) {
+                        fc.customScriptPlotVecPtrs[i]->push_back(ctrlVal);
+                    }
                 }
             } else {
                 double ctrlVal = (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) ? flatControlSignals[fc.outSignalIdx] : 0.0;
