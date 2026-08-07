@@ -988,13 +988,15 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input2"] = "0.0";
             cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "CONT_PID") {
+        } else if (t == "CONT_PID" || t == "DISCRETE_PID") {
             cObj["output"] = comp.id + ".Out";
-            cObj["original_type"] = "CONT_PID";
+            cObj["original_type"] = comp.rawTypeStr;
             cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 1.0);
             cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 0.0);
             cObj["Kd"] = formatJSStyleDouble(parsedParams.count("Kd") ? parsedParams["Kd"] : 0.0);
             cObj["Tf"] = formatJSStyleDouble(parsedParams.count("Tf") ? parsedParams["Tf"] : 0.01);
+            if (comp.parameters.count("ts")) cObj["ts"] = comp.parameters.at("ts");
+            if (comp.parameters.count("method")) cObj["method"] = comp.parameters.at("method");
             cObj["limit_output"] = comp.parameters.count("limit_output") ? comp.parameters.at("limit_output") : "false";
             cObj["upper_limit"] = comp.parameters.count("upper_limit") ? comp.parameters.at("upper_limit") : "1";
             cObj["lower_limit"] = comp.parameters.count("lower_limit") ? comp.parameters.at("lower_limit") : "-1";
@@ -1071,13 +1073,30 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Kd"] = formatJSStyleDouble(parsedParams.count("Kd") ? parsedParams["Kd"] : 0.0);
             cObj["input"] = getIncomingSignal(comp.id, "In");
             ctrlLoopsObj["pi_controllers"].push_back(cObj);
-        } else if (t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND") {
+        } else if (t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
-            cObj["signs"] = comp.pinSigns;
+            std::string signs = comp.parameters.count("signs") ? comp.parameters.at("signs") : (t == "SUBTRACT" ? "+-" : "");
+            if (signs.empty()) {
+                if (!comp.pinSigns.empty()) {
+                    for (const auto& s : comp.pinSigns) signs += s;
+                } else {
+                    signs = "++";
+                }
+            }
+            cObj["signs"] = signs;
             json inputsArr = json::array();
-            for (int i = 1; i <= comp.numInputPins; ++i) {
-                inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+            if (t == "SUBTRACT") {
+                std::string sigA = getIncomingSignal(comp.id, "A");
+                if (sigA == "0.0") sigA = getIncomingSignal(comp.id, "In1");
+                std::string sigB = getIncomingSignal(comp.id, "B");
+                if (sigB == "0.0") sigB = getIncomingSignal(comp.id, "In2");
+                inputsArr.push_back(sigA);
+                inputsArr.push_back(sigB);
+            } else {
+                for (int i = 1; i <= comp.numInputPins; ++i) {
+                    inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+                }
             }
             cObj["inputs"] = inputsArr;
             ctrlLoopsObj["summing_junctions"].push_back(cObj);
