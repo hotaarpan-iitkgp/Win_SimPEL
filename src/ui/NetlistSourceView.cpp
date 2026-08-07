@@ -250,38 +250,24 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Ron"] = formatJSStyleDouble(rOn);
             cObj["Roff"] = formatJSStyleDouble(rOff);
             physStageObj["diodes"].push_back(cObj);
-        } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET") {
-            cObj["type"] = "MOSFET";
-            
-            json pNodes = json::array();
-            if (formattedNodes.size() >= 2) {
-                pNodes.push_back(formattedNodes[0]);
-                pNodes.push_back(formattedNodes[1]);
-            } else {
-                pNodes = formattedNodes;
-            }
-            cObj["nodes"] = pNodes;
+        } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT") {
+            bool isBJT = (t == "BJT");
+            bool isThyristorFamily = (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT");
+            std::string termG = isBJT ? "B" : "G";
 
-            cObj["control_node"] = comp.id + ".G";
+            cObj["type"] = (t == "VG-FET") ? "MOSFET" : comp.rawTypeStr;
+            cObj["nodes"] = formattedNodes;
+            cObj["control_node"] = comp.id + "." + termG;
+            cObj["control_signal"] = getIncomingSignal(comp.id, termG);
 
-            std::string ctrlSig = "";
-            for (const auto& w : tempDesign.wires) {
-                if (w.to.compId == comp.id && (w.to.terminal == "G" || w.to.terminal == "Ctrl")) {
-                    ctrlSig = w.from.compId + "." + w.from.terminal;
-                    break;
-                }
-            }
-            if (ctrlSig.empty()) ctrlSig = "PULSE_GEN1.Out";
-            cObj["control_signal"] = ctrlSig;
-
-            double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.01;
+            double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
             double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
             if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
             cObj["Ron"] = formatJSStyleDouble(rOn);
             cObj["Roff"] = formatJSStyleDouble(rOff);
-            cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : 0.8);
-            cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : 0.01);
-            cObj["Vgt"] = formatJSStyleDouble(parsedParams.count("Vgt") ? parsedParams["Vgt"] : 0.5);
+            cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : (parsedParams.count("Vf") ? parsedParams["Vf"] : 0.8));
+            cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : (parsedParams.count("Ih") ? parsedParams["Ih"] : 0.01));
+            cObj["Vgt"] = formatJSStyleDouble(parsedParams.count("Vgt") ? parsedParams["Vgt"] : (parsedParams.count("Vgate") ? parsedParams["Vgate"] : 0.5));
             physStageObj["analog_switches"].push_back(cObj);
         } else if (t == "CONST" || t == "CONSTANT") {
             cObj["output"] = comp.id + ".Out";

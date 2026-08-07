@@ -814,8 +814,16 @@ void MainWindow::renderComponentPalette() {
             { "Piece-wise Linear Resistor (PWL_R)", "pwl R", "PWL_R", ComponentType::PWLResistor, "PWL_R", "electrical", "Passive Components", {{"value", "10"}}, false },
             { "Electrical Algebraic Component (E_ALGEBRAIC)", "E-Alg", "E_ALGEBRAIC", ComponentType::ElectricalAlgebraic, "E_ALGEBRAIC", "electrical", "Passive Components", {}, false },
 
-            { "Diode (D)", "Diode", "D", ComponentType::Diode, "D", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vf", "0.7"}, {"Ron", "10m"}}, true },
-            { "MOSFET", "MOSFET", "MOSFET", ComponentType::MOSFET, "MOSFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
+            // Electrical Domain Power Semiconductors (Ideal Behavioral Switches) sub-library
+            { "Diode (D)", "D", "D", ComponentType::Diode, "D", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vf", "0.7"}, {"Ron", "10m"}}, true },
+            { "Thyristor (THYRISTOR)", "SCR", "THYRISTOR", ComponentType::Thyristor, "THYRISTOR", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.8"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
+            { "GTO (Gate Turn-Off) (GTO)", "GTO", "GTO", ComponentType::GTO, "GTO", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.8"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
+            { "IGBT (IGBT)", "IGBT", "IGBT", ComponentType::Switch, "IGBT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
+            { "IGBT with Diode (IGBT_DIODE)", "IGBT+D", "IGBT_DIODE", ComponentType::IGBTDiode, "IGBT_DIODE", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "IGCT (IGCT)", "IGCT", "IGCT", ComponentType::IGCT, "IGCT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.8"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
+            { "MOSFET (MOSFET)", "MOSFET", "MOSFET", ComponentType::MOSFET, "MOSFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
+            { "BJT (BJT)", "BJT", "BJT", ComponentType::BJT, "BJT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.7"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
+            { "JFET (JFET)", "JFET", "JFET", ComponentType::JFET, "JFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
 
             { "Switch (S)", "Switch", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
         };

@@ -154,6 +154,15 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "LINE_3PH") {
         return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}};
     }
+    if (t == "THYRISTOR" || t == "GTO" || t == "IGCT") {
+        return {{"A", 0, -20, 0, -1, true}, {"K", 0, 20, 0, 1, true}, {"G", -20, 10, -1, 0, true}};
+    }
+    if (t == "BJT") {
+        return {{"C", 0, -20, 0, -1, true}, {"E", 0, 20, 0, 1, true}, {"B", -20, 0, -1, 0, true}};
+    }
+    if (t == "JFET" || t == "MOSFET" || t == "IGBT" || t == "IGBT_DIODE") {
+        return {{"D", 0, -20, 0, -1, true}, {"S", 0, 20, 0, 1, true}, {"G", -20, 0, -1, 0, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {
@@ -229,7 +238,8 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
     std::string p = pinName;
     std::transform(p.begin(), p.end(), p.begin(), ::toupper);
 
-    if ((t == "MOSFET" || t == "VG-FET") && (p == "G" || p == "GATE")) return DomainType::Control;
+    if ((t == "MOSFET" || t == "VG-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET") && (p == "G" || p == "GATE")) return DomainType::Control;
+    if (t == "BJT" && (p == "B" || p == "BASE")) return DomainType::Control;
     if (t == "S" && (p == "CTRL" || p == "GATE")) return DomainType::Control;
     if ((t == "CTRL_V" || t == "CTRL_I" || t == "I_3PH") && (p == "CTRL" || p == "IN")) return DomainType::Control;
     if ((t == "VM" || t == "AM") && (p == "OUT" || p == "V" || p == "I")) return DomainType::Control;

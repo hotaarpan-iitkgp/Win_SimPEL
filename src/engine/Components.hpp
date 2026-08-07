@@ -163,6 +163,14 @@ enum class ComponentType {
     PWLResistor,          // PWL_R
     ElectricalAlgebraic,  // E_ALGEBRAIC
 
+    // Power Semiconductors
+    Thyristor,            // THYRISTOR
+    GTO,                  // GTO
+    IGBTDiode,            // IGBT_DIODE
+    IGCT,                 // IGCT
+    BJT,                  // BJT
+    JFET,                 // JFET
+
     Unknown
 };
 
@@ -183,7 +191,14 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "ElectricalLabel" || typeStr == "E_LABEL") return ComponentType::ElectricalLabel;
     if (typeStr == "Switch" || typeStr == "S") return ComponentType::Switch;
     if (typeStr == "Diode" || typeStr == "D") return ComponentType::Diode;
-    if (typeStr == "MOSFET" || typeStr == "vg-FET") return ComponentType::MOSFET;
+    if (typeStr == "MOSFET" || typeStr == "vg-FET" || typeStr == "MOSFET_DIODE") return ComponentType::MOSFET;
+    if (typeStr == "IGBT") return ComponentType::Switch;
+    if (typeStr == "IGBT_DIODE" || typeStr == "IGBTDiode") return ComponentType::IGBTDiode;
+    if (typeStr == "IGCT") return ComponentType::IGCT;
+    if (typeStr == "GTO") return ComponentType::GTO;
+    if (typeStr == "Thyristor" || typeStr == "THYRISTOR" || typeStr == "SCR") return ComponentType::Thyristor;
+    if (typeStr == "BJT") return ComponentType::BJT;
+    if (typeStr == "JFET") return ComponentType::JFET;
     if (typeStr == "Transformer" || typeStr == "XFMR") return ComponentType::Transformer;
     if (typeStr == "OpAmp" || typeStr == "OPAMP") return ComponentType::OpAmp;
     if (typeStr == "EComp" || typeStr == "E_COMP") return ComponentType::EComp;

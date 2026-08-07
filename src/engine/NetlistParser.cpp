@@ -37,6 +37,12 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "LINE_3PH" || t == "TransmissionLine3Ph") return ComponentType::TransmissionLine3Ph;
     if (t == "PWL_R" || t == "PWLResistor") return ComponentType::PWLResistor;
     if (t == "E_ALGEBRAIC" || t == "ElectricalAlgebraic") return ComponentType::ElectricalAlgebraic;
+    if (t == "THYRISTOR" || t == "SCR" || t == "Thyristor") return ComponentType::Thyristor;
+    if (t == "GTO") return ComponentType::GTO;
+    if (t == "IGBT_DIODE" || t == "IGBTDiode") return ComponentType::IGBTDiode;
+    if (t == "IGCT") return ComponentType::IGCT;
+    if (t == "BJT") return ComponentType::BJT;
+    if (t == "JFET") return ComponentType::JFET;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
     if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
     if (t == "Voltmeter" || t == "VM" || t == "voltmeters") return ComponentType::Voltmeter;
