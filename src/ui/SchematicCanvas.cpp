@@ -56,10 +56,10 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "GND") {
         return {{"Gnd", 0, -20, 0, -1, false}};
     }
-    if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK") {
+    if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" || t == "RANDOM_NUM" || t == "WHITE_NOISE") {
         return {{"Out", 20, 0, 1, 0, true}};
     }
-    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT") {
+    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT" || t == "INIT_COND") {
         return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR") {
@@ -145,6 +145,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
     if ((t == "VM" || t == "AM") && (p == "OUT" || p == "V" || p == "I")) return DomainType::Control;
 
     if (t == "GAIN" || t == "PID" || t == "PWM" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" ||
+        t == "RANDOM_NUM" || t == "WHITE_NOISE" || t == "INIT_COND" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||
@@ -719,6 +720,68 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
             rotatePt(12*s, 6*s, c.x, c.y, rot)
         };
         drawList->AddPolyline(pulseW, 5, color, 0, 1.8f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "STEP") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        ImVec2 stepW[] = {
+            rotatePt(-12*s, 6*s, c.x, c.y, rot),
+            rotatePt(-2*s, 6*s, c.x, c.y, rot),
+            rotatePt(-2*s, -6*s, c.x, c.y, rot),
+            rotatePt(10*s, -6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(stepW, 4, color, 0, 1.8f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "RAMP") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        ImVec2 rampW[] = {
+            rotatePt(-12*s, 6*s, c.x, c.y, rot),
+            rotatePt(-4*s, 6*s, c.x, c.y, rot),
+            rotatePt(8*s, -6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(rampW, 3, color, 0, 1.8f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "CLOCK") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddCircle(c, 7*s, color, 0, 1.5f*s);
+        drawList->AddLine(c, rotatePt(0, -5*s, c.x, c.y, rot), color, 1.5f*s);
+        drawList->AddLine(c, rotatePt(4*s, 2*s, c.x, c.y, rot), color, 1.5f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "SINE_WAVE") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        ImVec2 sineW[16];
+        for (int i = 0; i < 16; ++i) {
+            float px = -12.0f + i * (24.0f / 15.0f);
+            float py = -6.0f * std::sin(2.0f * 3.14159265f * (i / 15.0f));
+            sineW[i] = rotatePt(px * s, py * s, c.x, c.y, rot);
+        }
+        drawList->AddPolyline(sineW, 16, color, 0, 1.8f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "RANDOM_NUM") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, "Rand");
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "WHITE_NOISE") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "Noise");
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "INIT_COND") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-8*s, -6*s, c.x, c.y, rot), color, "x0");
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "SCOPE") {
         int numCh = 2;

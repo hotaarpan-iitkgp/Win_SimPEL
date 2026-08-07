@@ -215,6 +215,55 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["delay"] = formatJSStyleDouble(parsedParams.count("delay") ? parsedParams["delay"] : 0.0);
             cObj["value"] = 1.0;
             ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "CLOCK") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "CLOCK";
+            cObj["value"] = 1.0;
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "INIT_COND") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "INIT_COND";
+            cObj["initial_value"] = formatJSStyleDouble(parsedParams.count("initial_value") ? parsedParams["initial_value"] : (parsedParams.count("x0") ? parsedParams["x0"] : 0.0));
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "RAMP") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "RAMP";
+            cObj["slope"] = formatJSStyleDouble(parsedParams.count("slope") ? parsedParams["slope"] : 1.0);
+            cObj["start_time"] = formatJSStyleDouble(parsedParams.count("start_time") ? parsedParams["start_time"] : 0.0);
+            cObj["initial_output"] = formatJSStyleDouble(parsedParams.count("initial_output") ? parsedParams["initial_output"] : 0.0);
+            cObj["value"] = 1.0;
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "RANDOM_NUM") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "RANDOM_NUM";
+            cObj["mean"] = formatJSStyleDouble(parsedParams.count("mean") ? parsedParams["mean"] : 0.0);
+            cObj["std"] = formatJSStyleDouble(parsedParams.count("std") ? parsedParams["std"] : 1.0);
+            cObj["value"] = 1.0;
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "SINE_WAVE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "SINE_WAVE";
+            cObj["amplitude"] = formatJSStyleDouble(parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0);
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0);
+            cObj["phase"] = formatJSStyleDouble(parsedParams.count("phase") ? parsedParams["phase"] : 0.0);
+            cObj["value"] = 1.0;
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "STEP") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "STEP";
+            cObj["step_time"] = formatJSStyleDouble(parsedParams.count("step_time") ? parsedParams["step_time"] : 1.0);
+            cObj["initial_value"] = formatJSStyleDouble(parsedParams.count("initial_value") ? parsedParams["initial_value"] : 0.0);
+            cObj["final_value"] = formatJSStyleDouble(parsedParams.count("final_value") ? parsedParams["final_value"] : 1.0);
+            cObj["value"] = 1.0;
+            ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "WHITE_NOISE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "WHITE_NOISE";
+            cObj["psd"] = formatJSStyleDouble(parsedParams.count("psd") ? parsedParams["psd"] : 0.1);
+            cObj["value"] = 1.0;
+            ctrlLoopsObj["constants"].push_back(cObj);
         } else if (t == "GAIN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "GAIN";

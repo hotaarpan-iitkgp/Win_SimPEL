@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <sstream>
+#include <random>
 
 namespace CircuitSimEngine {
 
@@ -243,22 +244,42 @@ void CircuitSimulator::buildIndexMaps() {
         fc.maxVal = evaluateParam(ctrlComp, "max", 1.0);
         if (ctrlComp.parameters.count("maxVal")) fc.maxVal = evaluateParam(ctrlComp, "maxVal", 1.0);
 
+        if (ctrlComp.parameters.count("gain")) fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
+        else if (ctrlComp.parameters.count("k")) fc.gain = evaluateParam(ctrlComp, "k", 1.0);
+        else if (ctrlComp.parameters.count("K")) fc.gain = evaluateParam(ctrlComp, "K", 1.0);
+
+        if (ctrlComp.parameters.count("Kp")) fc.Kp = evaluateParam(ctrlComp, "Kp", 1.0);
+        if (ctrlComp.parameters.count("Ki")) fc.Ki = evaluateParam(ctrlComp, "Ki", 0.0);
+        if (ctrlComp.parameters.count("period")) fc.period = evaluateParam(ctrlComp, "period", 0.0001);
+        if (ctrlComp.parameters.count("width")) fc.width = evaluateParam(ctrlComp, "width", 0.5);
+        if (ctrlComp.parameters.count("delay")) fc.delay = evaluateParam(ctrlComp, "delay", 0.0);
+        if (ctrlComp.parameters.count("amplitude")) fc.amplitude = evaluateParam(ctrlComp, "amplitude", 1.0);
+
         if (ctrlComp.type == ComponentType::Triangle_Carrier) {
             fc.delay = evaluateParam(ctrlComp, "phase", 0.0); // phase degrees
             fc.polarity = getParamString(ctrlComp, "phase_source", "internal");
             fc.vPlotKey = getParamString(ctrlComp, "freq_source", "internal");
+        } else if (ctrlComp.type == ComponentType::Step) {
+            fc.delay = evaluateParam(ctrlComp, "step_time", 1.0);
+            fc.minVal = evaluateParam(ctrlComp, "initial_value", 0.0);
+            fc.maxVal = evaluateParam(ctrlComp, "final_value", 1.0);
+        } else if (ctrlComp.type == ComponentType::Ramp) {
+            fc.gain = evaluateParam(ctrlComp, "slope", 1.0);
+            fc.delay = evaluateParam(ctrlComp, "start_time", 0.0);
+            fc.val = evaluateParam(ctrlComp, "initial_output", 0.0);
+        } else if (ctrlComp.type == ComponentType::SineWave) {
+            fc.amplitude = evaluateParam(ctrlComp, "amplitude", 1.0);
+            fc.freq = evaluateParam(ctrlComp, "frequency", 50.0);
+            fc.delay = evaluateParam(ctrlComp, "phase", 0.0); // phase degrees
+        } else if (ctrlComp.type == ComponentType::RandomNumbers) {
+            fc.val = evaluateParam(ctrlComp, "mean", 0.0);
+            fc.gain = evaluateParam(ctrlComp, "std", 1.0);
+        } else if (ctrlComp.type == ComponentType::WhiteNoise) {
+            fc.val = evaluateParam(ctrlComp, "psd", 0.1);
+        } else if (ctrlComp.type == ComponentType::InitialCondition) {
+            fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
+            if (ctrlComp.parameters.count("x0")) fc.val = evaluateParam(ctrlComp, "x0", 0.0);
         }
-
-        fc.gain = evaluateParam(ctrlComp, "K", 1.0);
-        if (ctrlComp.parameters.count("gain")) fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
-        else if (ctrlComp.parameters.count("k")) fc.gain = evaluateParam(ctrlComp, "k", 1.0);
-
-        fc.Kp = evaluateParam(ctrlComp, "Kp", 1.0);
-        fc.Ki = evaluateParam(ctrlComp, "Ki", 0.0);
-        fc.period = evaluateParam(ctrlComp, "period", 0.0001);
-        fc.width = evaluateParam(ctrlComp, "width", 0.5);
-        fc.delay = evaluateParam(ctrlComp, "delay", 0.0);
-        fc.amplitude = evaluateParam(ctrlComp, "amplitude", 1.0);
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
             fc.stateIdx = (int)flatPiIntegratorState.size();
@@ -510,6 +531,33 @@ void CircuitSimulator::evaluateControls(double currentTime) {
 
             if (fc.type == ComponentType::Constant) {
                 val = fc.val;
+            }
+            else if (fc.type == ComponentType::Clock) {
+                val = currentTime;
+            }
+            else if (fc.type == ComponentType::InitialCondition) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = (currentTime == 0.0) ? fc.val : inVal;
+            }
+            else if (fc.type == ComponentType::Ramp) {
+                val = (currentTime >= fc.delay) ? fc.val + fc.gain * (currentTime - fc.delay) : fc.val;
+            }
+            else if (fc.type == ComponentType::SineWave) {
+                val = fc.amplitude * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + fc.delay * 3.141592653589793 / 180.0);
+            }
+            else if (fc.type == ComponentType::Step) {
+                val = (currentTime >= fc.delay) ? fc.maxVal : fc.minVal;
+            }
+            else if (fc.type == ComponentType::RandomNumbers) {
+                thread_local std::mt19937 gen(12345);
+                std::normal_distribution<double> dist(fc.val, (fc.gain > 0.0 ? fc.gain : 1.0));
+                val = dist(gen);
+            }
+            else if (fc.type == ComponentType::WhiteNoise) {
+                thread_local std::mt19937 gen(54321);
+                std::normal_distribution<double> dist(0.0, 1.0);
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                val = std::sqrt(fc.val / dt) * dist(gen);
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

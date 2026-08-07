@@ -58,6 +58,15 @@ enum class ComponentType {
     Goto,
     From,
     
+    // Control Sources Detailed Library
+    Clock,            // CLOCK
+    InitialCondition, // INIT_COND
+    Ramp,             // RAMP
+    RandomNumbers,    // RANDOM_NUM
+    SineWave,         // SINE_WAVE
+    Step,             // STEP
+    WhiteNoise,       // WHITE_NOISE
+
     Unknown
 };
 
@@ -87,10 +96,17 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "PI_Controller" || typeStr == "PID") return ComponentType::PI_Controller;
     if (typeStr == "PWM_Generator" || typeStr == "PWM") return ComponentType::PWM_Generator;
     if (typeStr == "MasterPWM" || typeStr == "PWM_MASTER") return ComponentType::MasterPWM;
-    if (typeStr == "Triangle_Carrier" || typeStr == "TRI") return ComponentType::Triangle_Carrier;
+    if (typeStr == "Triangle_Carrier" || typeStr == "TRI" || typeStr == "TRI_GEN") return ComponentType::Triangle_Carrier;
     if (typeStr == "PulseGenerator" || typeStr == "PULSE" || typeStr == "PULSE_GEN") return ComponentType::PulseGenerator;
     if (typeStr == "EdgeDetector" || typeStr == "EDGE_DETECT") return ComponentType::EdgeDetector;
     if (typeStr == "Constant" || typeStr == "CONST") return ComponentType::Constant;
+    if (typeStr == "Clock" || typeStr == "CLOCK") return ComponentType::Clock;
+    if (typeStr == "InitialCondition" || typeStr == "INIT_COND") return ComponentType::InitialCondition;
+    if (typeStr == "Ramp" || typeStr == "RAMP") return ComponentType::Ramp;
+    if (typeStr == "RandomNumbers" || typeStr == "RANDOM_NUM") return ComponentType::RandomNumbers;
+    if (typeStr == "SineWave" || typeStr == "SINE_WAVE") return ComponentType::SineWave;
+    if (typeStr == "Step" || typeStr == "STEP") return ComponentType::Step;
+    if (typeStr == "WhiteNoise" || typeStr == "WHITE_NOISE") return ComponentType::WhiteNoise;
     if (typeStr == "Gain" || typeStr == "GAIN") return ComponentType::Gain;
     if (typeStr == "SummingJunction" || typeStr == "SUM" || typeStr == "SUM_RECT" || typeStr == "SUM_ROUND") return ComponentType::SummingJunction;
     if (typeStr == "Product" || typeStr == "PROD" || typeStr == "PRODUCT_RECT") return ComponentType::Product;

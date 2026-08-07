@@ -27,6 +27,14 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Oscilloscope" || t == "SCOPE") return ComponentType::Oscilloscope;
     if (t == "PulseGenerator" || t == "PULSE" || t == "PULSE_GEN" || t == "pulse_generators") return ComponentType::PulseGenerator;
     if (t == "Constant" || t == "CONST" || t == "constants") return ComponentType::Constant;
+    if (t == "Clock" || t == "CLOCK") return ComponentType::Clock;
+    if (t == "InitialCondition" || t == "INIT_COND") return ComponentType::InitialCondition;
+    if (t == "Ramp" || t == "RAMP") return ComponentType::Ramp;
+    if (t == "RandomNumbers" || t == "RANDOM_NUM") return ComponentType::RandomNumbers;
+    if (t == "SineWave" || t == "SINE_WAVE") return ComponentType::SineWave;
+    if (t == "Step" || t == "STEP") return ComponentType::Step;
+    if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "TRI_GEN" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
+    if (t == "WhiteNoise" || t == "WHITE_NOISE") return ComponentType::WhiteNoise;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;

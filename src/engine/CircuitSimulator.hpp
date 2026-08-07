@@ -42,6 +42,16 @@ enum class ComponentType {
     NOT_Gate,
     CustomScript,
     Transformer,
+    
+    // Control Sources Detailed Library
+    Clock,
+    InitialCondition,
+    Ramp,
+    RandomNumbers,
+    SineWave,
+    Step,
+    WhiteNoise,
+
     Unknown
 };
 
