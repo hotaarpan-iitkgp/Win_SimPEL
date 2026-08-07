@@ -226,7 +226,10 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["initial_value"] = formatJSStyleDouble(parsedParams.count("initial_value") ? parsedParams["initial_value"] : (parsedParams.count("x0") ? parsedParams["x0"] : 0.0));
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
-            ctrlLoopsObj["constants"].push_back(cObj);
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "RAMP") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "RAMP";
@@ -268,56 +271,113 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "TRIG_FCN";
             cObj["function"] = comp.parameters.count("function") ? comp.parameters.at("function") : "sin";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "ABS") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "ABS";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "SIGN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "SIGN";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "ROUND") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "ROUND";
             cObj["mode"] = comp.parameters.count("mode") ? comp.parameters.at("mode") : "nearest";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "MIN_MAX") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "MIN_MAX";
             cObj["function"] = comp.parameters.count("function") ? comp.parameters.at("function") : "min";
-            cObj["input1"] = getIncomingSignal(comp.id, "A");
-            cObj["input2"] = getIncomingSignal(comp.id, "B");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inA = getIncomingSignal(comp.id, "A");
+            std::string inB = getIncomingSignal(comp.id, "B");
+            cObj["input"] = inA;
+            cObj["input1"] = inA;
+            cObj["input2"] = inB;
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "LUT_1D") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "LUT_1D";
             cObj["x"] = comp.parameters.count("x_data") ? comp.parameters.at("x_data") : "[0, 1]";
             cObj["y"] = comp.parameters.count("y_data") ? comp.parameters.at("y_data") : "[0, 1]";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "LUT_2D") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "LUT_2D";
+            cObj["x"] = comp.parameters.count("x_data") ? comp.parameters.at("x_data") : "[0, 1]";
+            cObj["y"] = comp.parameters.count("y_data") ? comp.parameters.at("y_data") : "[0, 1]";
+            cObj["z"] = comp.parameters.count("z_data") ? comp.parameters.at("z_data") : "[[0, 1], [1, 2]]";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "LUT_3D") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "LUT_3D";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "INTEGRATOR") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "INTEGRATOR";
             cObj["initial_condition"] = formatJSStyleDouble(parsedParams.count("initial_condition") ? parsedParams["initial_condition"] : 0.0);
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "DERIVATIVE") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "DERIVATIVE";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "TRANSFER_FCN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "TRANSFER_FCN";
             cObj["num"] = comp.parameters.count("num") ? comp.parameters.at("num") : "[1]";
             cObj["den"] = comp.parameters.count("den") ? comp.parameters.at("den") : "[1 1]";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "STATE_SPACE") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "STATE_SPACE";
@@ -325,8 +385,22 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["B"] = comp.parameters.count("B") ? comp.parameters.at("B") : "[1]";
             cObj["C"] = comp.parameters.count("C") ? comp.parameters.at("C") : "[1]";
             cObj["D"] = comp.parameters.count("D") ? comp.parameters.at("D") : "[0]";
-            cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            cObj["x0"] = comp.parameters.count("x0") ? comp.parameters.at("x0") : "0";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = comp.rawTypeStr;
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "CONT_PID") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "CONT_PID";
@@ -334,25 +408,38 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 0.0);
             cObj["Kd"] = formatJSStyleDouble(parsedParams.count("Kd") ? parsedParams["Kd"] : 0.0);
             cObj["Tf"] = formatJSStyleDouble(parsedParams.count("Tf") ? parsedParams["Tf"] : 0.01);
+            cObj["limit_output"] = comp.parameters.count("limit_output") ? comp.parameters.at("limit_output") : "false";
+            cObj["upper_limit"] = comp.parameters.count("upper_limit") ? comp.parameters.at("upper_limit") : "1";
+            cObj["lower_limit"] = comp.parameters.count("lower_limit") ? comp.parameters.at("lower_limit") : "-1";
+            cObj["anti_windup"] = comp.parameters.count("anti_windup") ? comp.parameters.at("anti_windup") : "false";
             cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["pi_controllers"].push_back(cObj);
+            ctrlLoopsObj["pid_controllers"].push_back(cObj);
         } else if (t == "PLL_1PH") {
-            cObj["output"] = comp.id + ".Out";
+            cObj["output_theta"] = comp.id + ".Theta";
+            cObj["output_freq"] = comp.id + ".Freq";
+            cObj["output_cos"] = comp.id + ".Cos";
+            cObj["output_sin"] = comp.id + ".Sin";
             cObj["original_type"] = "PLL_1PH";
             cObj["fn"] = formatJSStyleDouble(parsedParams.count("fn") ? parsedParams["fn"] : 50.0);
             cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 20.0);
             cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 1000.0);
             cObj["input"] = getIncomingSignal(comp.id, "In");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            ctrlLoopsObj["plls"].push_back(cObj);
         } else if (t == "PLL_3PH") {
             cObj["output_theta"] = comp.id + ".Theta";
             cObj["output_freq"] = comp.id + ".Freq";
+            cObj["output_cos"] = comp.id + ".Cos";
+            cObj["output_sin"] = comp.id + ".Sin";
             cObj["original_type"] = "PLL_3PH";
             cObj["fn"] = formatJSStyleDouble(parsedParams.count("fn") ? parsedParams["fn"] : 50.0);
-            cObj["input_a"] = getIncomingSignal(comp.id, "A");
-            cObj["input_b"] = getIncomingSignal(comp.id, "B");
-            cObj["input_c"] = getIncomingSignal(comp.id, "C");
-            ctrlLoopsObj["custom_functions"].push_back(cObj);
+            cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 20.0);
+            cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 1000.0);
+            json inputsArr = json::array();
+            inputsArr.push_back(getIncomingSignal(comp.id, "A"));
+            inputsArr.push_back(getIncomingSignal(comp.id, "B"));
+            inputsArr.push_back(getIncomingSignal(comp.id, "C"));
+            cObj["inputs"] = inputsArr;
+            ctrlLoopsObj["plls"].push_back(cObj);
         } else if (t == "GAIN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "GAIN";
