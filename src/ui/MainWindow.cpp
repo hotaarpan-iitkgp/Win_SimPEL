@@ -293,6 +293,8 @@ void MainWindow::renderMenuBar() {
                                 if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
                                     for (auto& [k, v] : cItem["parameters"].items()) {
                                         if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                                        else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                                        else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
                                     }
                                 }
                                 setupComponentPins(comp);
@@ -353,6 +355,7 @@ void MainWindow::renderMenuBar() {
                         }
                         canvas.setCircuit(cd);
                         simulator.loadCircuit(cd);
+                        canvas.fitToScreen();
                     }
                 }
             }

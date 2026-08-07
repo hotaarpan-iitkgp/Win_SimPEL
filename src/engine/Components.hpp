@@ -285,7 +285,8 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "Derivative" || typeStr == "DERIVATIVE") return ComponentType::Derivative;
     if (typeStr == "TransferFunction" || typeStr == "TRANSFER_FCN") return ComponentType::TransferFunction;
     if (typeStr == "StateSpace" || typeStr == "STATE_SPACE") return ComponentType::StateSpace;
-    if (typeStr == "ContinuousPID" || typeStr == "CONT_PID") return ComponentType::ContinuousPID;
+    if (typeStr == "ContinuousPID" || typeStr == "CONT_PID" || typeStr == "PID" || typeStr == "DISCRETE_PID") return ComponentType::ContinuousPID;
+    if (typeStr == "SUBTRACT" || typeStr == "SUB") return ComponentType::SummingJunction;
     if (typeStr == "PLL_1PH") return ComponentType::PLL_1PH;
     if (typeStr == "PLL_3PH") return ComponentType::PLL_3PH;
     if (typeStr == "Delay" || typeStr == "DELAY") return ComponentType::Delay;
