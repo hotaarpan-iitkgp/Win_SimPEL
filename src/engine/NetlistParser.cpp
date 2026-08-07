@@ -16,9 +16,16 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Resistor" || t == "R" || t == "resistors" || t == "VariableResistor") return ComponentType::Resistor;
     if (t == "Capacitor" || t == "C" || t == "capacitors") return ComponentType::Capacitor;
     if (t == "Inductor" || t == "L" || t == "inductors") return ComponentType::Inductor;
-    if (t == "VoltageSource" || t == "V" || t == "DCVoltageSource" || t == "voltage_sources" || t == "dc_sources" || t == "ControlledVoltageSource") return ComponentType::VoltageSource;
+    if (t == "VoltageSource" || t == "V" || t == "DCVoltageSource" || t == "voltage_sources" || t == "dc_sources" || t == "DC_V") return ComponentType::VoltageSource;
     if (t == "ACVoltageSource" || t == "ac_sources" || t == "AC_V" || t == "ac" || t == "AC") return ComponentType::ACVoltageSource;
-    if (t == "CurrentSource" || t == "I" || t == "current_sources") return ComponentType::CurrentSource;
+    if (t == "ControlledVoltageSource" || t == "CTRL_V") return ComponentType::ControlledVoltageSource;
+    if (t == "ThreePhaseSource" || t == "V_3PH") return ComponentType::ThreePhaseSource;
+    if (t == "CurrentSource" || t == "I" || t == "current_sources" || t == "DC_I") return ComponentType::CurrentSource;
+    if (t == "ACCurrentSource" || t == "AC_I") return ComponentType::ACCurrentSource;
+    if (t == "ControlledCurrentSource" || t == "CTRL_I") return ComponentType::ControlledCurrentSource;
+    if (t == "ThreePhaseCurrentSource" || t == "I_3PH") return ComponentType::ThreePhaseCurrentSource;
+    if (t == "ElectricalPort" || t == "E_PORT") return ComponentType::ElectricalPort;
+    if (t == "ElectricalLabel" || t == "E_LABEL") return ComponentType::ElectricalLabel;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
     if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
     if (t == "Voltmeter" || t == "VM" || t == "voltmeters") return ComponentType::Voltmeter;

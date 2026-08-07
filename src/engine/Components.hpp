@@ -146,6 +146,11 @@ enum class ComponentType {
     DataTypeConv,         // DATATYPE_CONV
     StateMachine,         // STATE_MACHINE
 
+    // Electrical Connectivity & Sources
+    ElectricalPort,       // E_PORT
+    ElectricalLabel,      // E_LABEL
+    ThreePhaseCurrentSource, // I_3PH
+
     Unknown
 };
 
@@ -154,13 +159,16 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "VariableResistor") return ComponentType::VariableResistor;
     if (typeStr == "Capacitor" || typeStr == "C") return ComponentType::Capacitor;
     if (typeStr == "Inductor" || typeStr == "L") return ComponentType::Inductor;
-    if (typeStr == "VoltageSource" || typeStr == "V" || typeStr == "dc") return ComponentType::VoltageSource;
+    if (typeStr == "VoltageSource" || typeStr == "V" || typeStr == "dc" || typeStr == "DC_V") return ComponentType::VoltageSource;
     if (typeStr == "ACVoltageSource" || typeStr == "ac" || typeStr == "AC_V") return ComponentType::ACVoltageSource;
     if (typeStr == "ThreePhaseSource" || typeStr == "V_3PH") return ComponentType::ThreePhaseSource;
-    if (typeStr == "ControlledVoltageSource") return ComponentType::ControlledVoltageSource;
-    if (typeStr == "CurrentSource" || typeStr == "I") return ComponentType::CurrentSource;
-    if (typeStr == "ACCurrentSource") return ComponentType::ACCurrentSource;
-    if (typeStr == "ControlledCurrentSource") return ComponentType::ControlledCurrentSource;
+    if (typeStr == "ControlledVoltageSource" || typeStr == "CTRL_V") return ComponentType::ControlledVoltageSource;
+    if (typeStr == "CurrentSource" || typeStr == "I" || typeStr == "DC_I") return ComponentType::CurrentSource;
+    if (typeStr == "ACCurrentSource" || typeStr == "AC_I") return ComponentType::ACCurrentSource;
+    if (typeStr == "ControlledCurrentSource" || typeStr == "CTRL_I") return ComponentType::ControlledCurrentSource;
+    if (typeStr == "ThreePhaseCurrentSource" || typeStr == "I_3PH") return ComponentType::ThreePhaseCurrentSource;
+    if (typeStr == "ElectricalPort" || typeStr == "E_PORT") return ComponentType::ElectricalPort;
+    if (typeStr == "ElectricalLabel" || typeStr == "E_LABEL") return ComponentType::ElectricalLabel;
     if (typeStr == "Switch" || typeStr == "S") return ComponentType::Switch;
     if (typeStr == "Diode" || typeStr == "D") return ComponentType::Diode;
     if (typeStr == "MOSFET" || typeStr == "vg-FET") return ComponentType::MOSFET;

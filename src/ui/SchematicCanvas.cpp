@@ -124,6 +124,18 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "PLL_LOOP") {
         return {{"In", -20, 0, -1, 0, true}, {"Theta", 20, -15, 1, 0, true}, {"Freq", 20, -5, 1, 0, true}, {"Cos", 20, 5, 1, 0, true}, {"Sin", 20, 15, 1, 0, true}};
     }
+    if (t == "E_PORT" || t == "E_LABEL") {
+        return {{"A", 0, 0, 0, 0, true}};
+    }
+    if (t == "CTRL_V" || t == "CTRL_I") {
+        return {{"A", 0, -20, 0, -1, true}, {"B", 0, 20, 0, 1, true}, {"Ctrl", -20, 0, -1, 0, true}};
+    }
+    if (t == "V_3PH") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"N", 20, 0, 1, 0, true}};
+    }
+    if (t == "I_3PH") {
+        return {{"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}, {"Ctrl", -20, 0, -1, 0, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {
@@ -201,6 +213,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
 
     if ((t == "MOSFET" || t == "VG-FET") && (p == "G" || p == "GATE")) return DomainType::Control;
     if (t == "S" && (p == "CTRL" || p == "GATE")) return DomainType::Control;
+    if ((t == "CTRL_V" || t == "CTRL_I" || t == "I_3PH") && (p == "CTRL" || p == "IN")) return DomainType::Control;
     if ((t == "VM" || t == "AM") && (p == "OUT" || p == "V" || p == "I")) return DomainType::Control;
 
     if (t == "GAIN" || t == "PID" || t == "PWM" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" ||

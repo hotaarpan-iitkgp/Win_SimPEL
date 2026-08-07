@@ -132,27 +132,77 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.01);
             cObj["vC0"] = formatJSStyleDouble(parsedParams.count("vC0") ? parsedParams["vC0"] : 0.0);
             physStageObj["capacitors"].push_back(cObj);
-        } else if (t == "V" || t == "VOLTAGESOURCE") {
+        } else if (t == "V" || t == "VOLTAGESOURCE" || t == "DC_V") {
             cObj["nodes"] = formattedNodes;
-            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 100.0);
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 24.0);
             cObj["src_type"] = "dc";
             physStageObj["voltage_sources"].push_back(cObj);
+        } else if (t == "I" || t == "CURRENTSOURCE" || t == "DC_I") {
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 1.0);
+            cObj["src_type"] = "dc";
+            physStageObj["current_sources"].push_back(cObj);
         } else if (t == "AC_V" || t == "ACVOLTAGESOURCE") {
             cObj["nodes"] = formattedNodes;
-            double amp = 100.0;
-            if (parsedParams.count("amplitude")) amp = parsedParams["amplitude"];
-            else if (parsedParams.count("value")) amp = parsedParams["value"];
-            double freq = 50.0;
-            if (parsedParams.count("frequency")) freq = parsedParams["frequency"];
-            else if (parsedParams.count("freq")) freq = parsedParams["freq"];
-            double phase = 0.0;
-            if (parsedParams.count("phase")) phase = parsedParams["phase"];
+            double amp = parsedParams.count("amplitude") ? parsedParams["amplitude"] : 12.0;
+            double freq = parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0;
+            double phase = parsedParams.count("phase") ? parsedParams["phase"] : 0.0;
             cObj["amplitude"] = formatJSStyleDouble(roundToDigits(amp, 9));
             cObj["frequency"] = formatJSStyleDouble(roundToDigits(freq, 9));
             cObj["phase"] = formatJSStyleDouble(roundToDigits(phase, 9));
             cObj["type"] = "ac";
             cObj["src_type"] = "ac";
             physStageObj["voltage_sources"].push_back(cObj);
+        } else if (t == "AC_I" || t == "ACCURRENTSOURCE") {
+            cObj["nodes"] = formattedNodes;
+            double amp = parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0;
+            double freq = parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0;
+            double phase = parsedParams.count("phase") ? parsedParams["phase"] : 0.0;
+            cObj["amplitude"] = formatJSStyleDouble(roundToDigits(amp, 9));
+            cObj["frequency"] = formatJSStyleDouble(roundToDigits(freq, 9));
+            cObj["phase"] = formatJSStyleDouble(roundToDigits(phase, 9));
+            cObj["src_type"] = "ac";
+            physStageObj["current_sources"].push_back(cObj);
+        } else if (t == "CTRL_V" || t == "CONTROLLEDVOLTAGESOURCE") {
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 1.0);
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["src_type"] = "controlled";
+            physStageObj["voltage_sources"].push_back(cObj);
+        } else if (t == "CTRL_I" || t == "CONTROLLEDCURRENTSOURCE") {
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 1.0);
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["src_type"] = "controlled";
+            physStageObj["current_sources"].push_back(cObj);
+        } else if (t == "V_3PH" || t == "THREEPHASESOURCE") {
+            std::string conn = comp.parameters.count("connection") ? comp.parameters.at("connection") : "Y";
+            double amp = parsedParams.count("magnitude") ? parsedParams["magnitude"] : (parsedParams.count("amplitude") ? parsedParams["amplitude"] : 230.0);
+            double freq = parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0;
+            double phase = parsedParams.count("phase") ? parsedParams["phase"] : 0.0;
+            
+            std::string nodeA = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            std::string nodeB = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            std::string nodeC = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
+            std::string nodeN = (formattedNodes.size() > 3) ? formattedNodes[3].get<std::string>() : (comp.id + "_N");
+
+            if (conn == "Delta") {
+                json vsAB; vsAB["id"] = comp.id + "_AB"; vsAB["nodes"] = json::array({nodeA, nodeB}); vsAB["amplitude"] = formatJSStyleDouble(amp); vsAB["frequency"] = formatJSStyleDouble(freq); vsAB["phase"] = formatJSStyleDouble(phase); vsAB["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsAB);
+                json vsBC; vsBC["id"] = comp.id + "_BC"; vsBC["nodes"] = json::array({nodeB, nodeC}); vsBC["amplitude"] = formatJSStyleDouble(amp); vsBC["frequency"] = formatJSStyleDouble(freq); vsBC["phase"] = formatJSStyleDouble(phase - 120.0); vsBC["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsBC);
+                json vsCA; vsCA["id"] = comp.id + "_CA"; vsCA["nodes"] = json::array({nodeC, nodeA}); vsCA["amplitude"] = formatJSStyleDouble(amp); vsCA["frequency"] = formatJSStyleDouble(freq); vsCA["phase"] = formatJSStyleDouble(phase + 120.0); vsCA["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsCA);
+            } else {
+                json vsA; vsA["id"] = comp.id + "_A"; vsA["nodes"] = json::array({nodeA, nodeN}); vsA["amplitude"] = formatJSStyleDouble(amp); vsA["frequency"] = formatJSStyleDouble(freq); vsA["phase"] = formatJSStyleDouble(phase); vsA["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsA);
+                json vsB; vsB["id"] = comp.id + "_B"; vsB["nodes"] = json::array({nodeB, nodeN}); vsB["amplitude"] = formatJSStyleDouble(amp); vsB["frequency"] = formatJSStyleDouble(freq); vsB["phase"] = formatJSStyleDouble(phase - 120.0); vsB["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsB);
+                json vsC; vsC["id"] = comp.id + "_C"; vsC["nodes"] = json::array({nodeC, nodeN}); vsC["amplitude"] = formatJSStyleDouble(amp); vsC["frequency"] = formatJSStyleDouble(freq); vsC["phase"] = formatJSStyleDouble(phase + 120.0); vsC["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsC);
+            }
+        } else if (t == "I_3PH" || t == "THREEPHASECURRENTSOURCE") {
+            double amp = parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0;
+            std::string nodeA = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            std::string nodeB = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            std::string nodeC = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
+            json csA; csA["id"] = comp.id + "_A"; csA["nodes"] = json::array({nodeA, "node_0"}); csA["value"] = formatJSStyleDouble(amp); csA["src_type"] = "dc"; physStageObj["current_sources"].push_back(csA);
+            json csB; csB["id"] = comp.id + "_B"; csB["nodes"] = json::array({nodeB, "node_0"}); csB["value"] = formatJSStyleDouble(amp); csB["src_type"] = "dc"; physStageObj["current_sources"].push_back(csB);
+            json csC; csC["id"] = comp.id + "_C"; csC["nodes"] = json::array({nodeC, "node_0"}); csC["value"] = formatJSStyleDouble(amp); csC["src_type"] = "dc"; physStageObj["current_sources"].push_back(csC);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";
             cObj["nodes"] = formattedNodes;

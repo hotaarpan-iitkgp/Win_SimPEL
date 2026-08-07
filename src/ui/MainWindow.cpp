@@ -779,13 +779,20 @@ void MainWindow::renderComponentPalette() {
             { "Divide (DIVIDE)", "DIV", "DIVIDE", ComponentType::Divide, "DIVIDE", "control", "Math", {{"operators", "*/"}}, false },
             { "Data Type Conversion (DATATYPE_CONV)", "Cast", "DATATYPE_CONV", ComponentType::DataTypeConv, "DATATYPE_CONV", "control", "Math", {{"datatype", "boolean"}}, false },
 
-            // Electrical Domain
+            // Electrical Domain Connectivity sub-library
+            { "Electrical Port (E_PORT)", "E-Port", "E_PORT", ComponentType::ElectricalPort, "E_PORT", "electrical", "Connectivity", {}, false },
+            { "Electrical Label (E_LABEL)", "E-Tag", "E_LABEL", ComponentType::ElectricalLabel, "E_LABEL", "electrical", "Connectivity", {{"label", "A"}}, false },
             { "Ground (GND)", "GND", "GND", ComponentType::Unknown, "GND", "electrical", "Connectivity", {}, true },
 
-            { "DC Voltage Source (V)", "DC Source", "V", ComponentType::VoltageSource, "V", "electrical", "Sources", {{"value", "12"}}, true },
-            { "AC Voltage Source", "AC Source", "ACV", ComponentType::ACVoltageSource, "AC_V", "electrical", "Sources", {{"amplitude", "325"}, {"frequency", "50"}, {"phase", "0"}}, true },
-            { "3-Phase AC Source (V_3PH)", "3-Phase AC Source", "V3PH", ComponentType::ThreePhaseSource, "V_3PH", "electrical", "Sources", {{"magnitude", "230"}, {"frequency", "50"}, {"phase", "0"}}, true },
-            { "Current Source (I)", "I Source", "I", ComponentType::CurrentSource, "I", "electrical", "Sources", {{"value", "1"}}, true },
+            // Electrical Domain Sources sub-library
+            { "DC Voltage Source (V)", "DC_V", "V", ComponentType::VoltageSource, "V", "electrical", "Sources", {{"value", "24"}}, true },
+            { "DC Current Source (I)", "DC_I", "I", ComponentType::CurrentSource, "I", "electrical", "Sources", {{"value", "1"}}, true },
+            { "AC Voltage Source (AC_V)", "AC_V", "AC_V", ComponentType::ACVoltageSource, "AC_V", "electrical", "Sources", {{"amplitude", "12"}, {"frequency", "50"}, {"phase", "0"}}, true },
+            { "AC Current Source (AC_I)", "AC_I", "AC_I", ComponentType::ACCurrentSource, "AC_I", "electrical", "Sources", {{"amplitude", "1"}, {"frequency", "50"}, {"phase", "0"}}, false },
+            { "Controlled Voltage Source (CTRL_V)", "Src V", "CTRL_V", ComponentType::ControlledVoltageSource, "CTRL_V", "electrical", "Sources", {}, false },
+            { "Controlled Current Source (CTRL_I)", "Src I", "CTRL_I", ComponentType::ControlledCurrentSource, "CTRL_I", "electrical", "Sources", {}, false },
+            { "3-Phase Voltage Source (V_3PH)", "3Ph V", "V3PH", ComponentType::ThreePhaseSource, "V_3PH", "electrical", "Sources", {{"magnitude", "230"}, {"frequency", "50"}, {"phase", "0"}, {"connection", "Y"}}, true },
+            { "3-Phase Current Source (I_3PH)", "3Ph I", "I3PH", ComponentType::ThreePhaseCurrentSource, "I_3PH", "electrical", "Sources", {}, false },
 
             { "Voltmeter (VM)", "Voltmeter", "VM", ComponentType::Voltmeter, "VM", "electrical", "Meters (Sensors)", {}, true },
             { "Ammeter (AM)", "Ammeter", "AM", ComponentType::Ammeter, "AM", "electrical", "Meters (Sensors)", {}, true },
