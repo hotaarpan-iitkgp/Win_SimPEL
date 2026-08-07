@@ -163,6 +163,18 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "JFET" || t == "MOSFET" || t == "IGBT" || t == "IGBT_DIODE") {
         return {{"D", 0, -20, 0, -1, true}, {"S", 0, 20, 0, 1, true}, {"G", -20, 0, -1, 0, true}};
     }
+    if (t == "BREAKER" || t == "SR_SWITCH") {
+        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
+    }
+    if (t == "DBL_SWITCH" || t == "MAN_SWITCH") {
+        return {{"Common", -20, 0, -1, 0, true}, {"A", 20, -10, 1, 0, true}, {"B", 20, 10, 1, 0, true}};
+    }
+    if (t == "MAN_DBL_SWITCH") {
+        return {{"A1", -20, -10, -1, 0, true}, {"A2", -20, 10, -1, 0, true}, {"B1", 20, -10, 1, 0, true}, {"B2", 20, 10, 1, 0, true}};
+    }
+    if (t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
+        return {{"A1", -20, -15, -1, 0, true}, {"A2", -20, 0, -1, 0, true}, {"A3", -20, 15, -1, 0, true}, {"B1", 20, -15, 1, 0, true}, {"B2", 20, 0, 1, 0, true}, {"B3", 20, 15, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {

@@ -171,6 +171,15 @@ enum class ComponentType {
     BJT,                  // BJT
     JFET,                 // JFET
 
+    // Switches
+    Breaker,              // BREAKER
+    DoubleSwitch,         // DBL_SWITCH
+    ElectricalManualSwitch, // MAN_SWITCH
+    ManualDoubleSwitch,   // MAN_DBL_SWITCH
+    ManualTripleSwitch,   // MAN_TRPL_SWITCH
+    SRSwitch,             // SR_SWITCH
+    TripleSwitch,         // TRPL_SWITCH
+
     Unknown
 };
 
@@ -190,6 +199,13 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "ElectricalPort" || typeStr == "E_PORT") return ComponentType::ElectricalPort;
     if (typeStr == "ElectricalLabel" || typeStr == "E_LABEL") return ComponentType::ElectricalLabel;
     if (typeStr == "Switch" || typeStr == "S") return ComponentType::Switch;
+    if (typeStr == "Breaker" || typeStr == "BREAKER") return ComponentType::Breaker;
+    if (typeStr == "DoubleSwitch" || typeStr == "DBL_SWITCH") return ComponentType::DoubleSwitch;
+    if (typeStr == "ManualSwitch" || typeStr == "MAN_SWITCH") return ComponentType::ElectricalManualSwitch;
+    if (typeStr == "ManualDoubleSwitch" || typeStr == "MAN_DBL_SWITCH") return ComponentType::ManualDoubleSwitch;
+    if (typeStr == "ManualTripleSwitch" || typeStr == "MAN_TRPL_SWITCH") return ComponentType::ManualTripleSwitch;
+    if (typeStr == "SRSwitch" || typeStr == "SR_SWITCH") return ComponentType::SRSwitch;
+    if (typeStr == "TripleSwitch" || typeStr == "TRPL_SWITCH") return ComponentType::TripleSwitch;
     if (typeStr == "Diode" || typeStr == "D") return ComponentType::Diode;
     if (typeStr == "MOSFET" || typeStr == "vg-FET" || typeStr == "MOSFET_DIODE") return ComponentType::MOSFET;
     if (typeStr == "IGBT") return ComponentType::Switch;

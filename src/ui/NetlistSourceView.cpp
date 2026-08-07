@@ -250,7 +250,18 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Ron"] = formatJSStyleDouble(rOn);
             cObj["Roff"] = formatJSStyleDouble(rOff);
             physStageObj["diodes"].push_back(cObj);
-        } else if (t == "MOSFET" || t == "S" || t == "IGBT" || t == "VG-FET" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT") {
+        } else if (t == "S" || t == "BREAKER" || t == "SR_SWITCH" || t == "DBL_SWITCH" || t == "MAN_SWITCH" || t == "MAN_DBL_SWITCH" || t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
+            cObj["type"] = "Switch";
+            cObj["nodes"] = formattedNodes;
+            double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
+            double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
+            if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
+            cObj["Ron"] = formatJSStyleDouble(rOn);
+            cObj["Roff"] = formatJSStyleDouble(rOff);
+            cObj["initial_state"] = false;
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            physStageObj["switches"].push_back(cObj);
+        } else if (t == "MOSFET" || t == "IGBT" || t == "VG-FET" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT") {
             bool isBJT = (t == "BJT");
             bool isThyristorFamily = (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT");
             std::string termG = isBJT ? "B" : "G";

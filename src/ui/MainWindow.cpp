@@ -825,7 +825,15 @@ void MainWindow::renderComponentPalette() {
             { "BJT (BJT)", "BJT", "BJT", ComponentType::BJT, "BJT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.7"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
             { "JFET (JFET)", "JFET", "JFET", ComponentType::JFET, "JFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
 
-            { "Switch (S)", "Switch", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
+            // Electrical Domain Switches sub-library
+            { "Switch (S)", "S", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
+            { "Breaker (BREAKER)", "Breaker", "BREAKER", ComponentType::Breaker, "BREAKER", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "Double Switch (DBL_SWITCH)", "2-Way", "DBL_SWITCH", ComponentType::DoubleSwitch, "DBL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "Manual Switch (MAN_SWITCH)", "Man Sw", "MAN_SWITCH", ComponentType::ElectricalManualSwitch, "MAN_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "Manual Double Switch (MAN_DBL_SWITCH)", "Man 2Sw", "MAN_DBL_SWITCH", ComponentType::ManualDoubleSwitch, "MAN_DBL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "Manual Triple Switch (MAN_TRPL_SWITCH)", "Man 3Sw", "MAN_TRPL_SWITCH", ComponentType::ManualTripleSwitch, "MAN_TRPL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "Set/Reset Switch (SR_SWITCH)", "SR Sw", "SR_SWITCH", ComponentType::SRSwitch, "SR_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            { "Triple Switch (TRPL_SWITCH)", "3-Phase Sw", "TRPL_SWITCH", ComponentType::TripleSwitch, "TRPL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
         };
 
         // Filter search results if search query is non-empty

@@ -43,6 +43,13 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "IGCT") return ComponentType::IGCT;
     if (t == "BJT") return ComponentType::BJT;
     if (t == "JFET") return ComponentType::JFET;
+    if (t == "BREAKER" || t == "Breaker") return ComponentType::Breaker;
+    if (t == "DBL_SWITCH" || t == "DoubleSwitch") return ComponentType::DoubleSwitch;
+    if (t == "MAN_SWITCH" || t == "ManualSwitch") return ComponentType::ElectricalManualSwitch;
+    if (t == "MAN_DBL_SWITCH" || t == "ManualDoubleSwitch") return ComponentType::ManualDoubleSwitch;
+    if (t == "MAN_TRPL_SWITCH" || t == "ManualTripleSwitch") return ComponentType::ManualTripleSwitch;
+    if (t == "SR_SWITCH" || t == "SRSwitch") return ComponentType::SRSwitch;
+    if (t == "TRPL_SWITCH" || t == "TripleSwitch") return ComponentType::TripleSwitch;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
     if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
     if (t == "Voltmeter" || t == "VM" || t == "voltmeters") return ComponentType::Voltmeter;
