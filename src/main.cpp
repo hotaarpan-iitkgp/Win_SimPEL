@@ -7,6 +7,56 @@
 #include "implot.h"
 #include "ui/MainWindow.hpp"
 #include <iostream>
+#include <fstream>
+#include <exception>
+#include <csignal>
+#include <chrono>
+#include <ctime>
+
+static void logCrash(const std::string& errorMsg) {
+    std::string fullMsg = "\n========================================================\n";
+    fullMsg += "CRITICAL ERROR / APPLICATION CRASH DETECTED:\n";
+    fullMsg += errorMsg + "\n";
+    fullMsg += "========================================================\n";
+    
+    // 1. Output to PowerShell / Console
+    std::cerr << fullMsg << std::endl;
+    std::cout << fullMsg << std::endl;
+    std::fflush(stderr);
+    std::fflush(stdout);
+
+    // 2. Write to crash_log.txt in execution directory
+    try {
+        std::ofstream logFile("crash_log.txt", std::ios::app);
+        if (logFile.is_open()) {
+            auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            logFile << "[" << std::ctime(&now) << "] " << fullMsg << "\n";
+            logFile.close();
+        }
+    } catch (...) {}
+}
+
+static LONG WINAPI customUnhandledExceptionFilter(EXCEPTION_POINTERS* pExceptionInfo) {
+    char buf[512];
+    DWORD code = pExceptionInfo ? pExceptionInfo->ExceptionRecord->ExceptionCode : 0;
+    void* addr = pExceptionInfo ? pExceptionInfo->ExceptionRecord->ExceptionAddress : nullptr;
+    snprintf(buf, sizeof(buf), "Unhandled Win32 SEH Exception: 0x%08X at Address 0x%p", (unsigned int)code, addr);
+    logCrash(buf);
+    MessageBoxA(NULL, buf, "CircuitSim Pro - Fatal Crash Handler", MB_ICONERROR | MB_OK);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static void customTerminateHandler() {
+    logCrash("Unhandled C++ std::exception / terminate() called.");
+    std::abort();
+}
+
+static void customSignalHandler(int sig) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "Fatal Signal Received: %d", sig);
+    logCrash(buf);
+    std::exit(sig);
+}
 
 // Forward declare Win32 message handler
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -33,6 +83,13 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 int main(int argc, char** argv) {
+    SetUnhandledExceptionFilter(customUnhandledExceptionFilter);
+    std::set_terminate(customTerminateHandler);
+    std::signal(SIGSEGV, customSignalHandler);
+    std::signal(SIGABRT, customSignalHandler);
+    std::signal(SIGFPE, customSignalHandler);
+    std::signal(SIGILL, customSignalHandler);
+
     // Register Win32 Window Class
     WNDCLASSEXW wc = { sizeof(WNDCLASSEXW), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"CircuitSimProWinClass", NULL };
     RegisterClassExW(&wc);
@@ -134,7 +191,13 @@ int main(int argc, char** argv) {
             ImGui::DockBuilderFinish(dockspace_id);
         }
 
-        mainWindow.render();
+        try {
+            mainWindow.render();
+        } catch (const std::exception& e) {
+            logCrash(std::string("Exception caught in main render loop: ") + e.what());
+        } catch (...) {
+            logCrash("Unknown exception caught in main render loop.");
+        }
 
         ImGui::End();
 

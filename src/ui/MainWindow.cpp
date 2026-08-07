@@ -927,9 +927,10 @@ void MainWindow::renderPropertyInspector() {
     
     for (auto& pair : comp->parameters) {
         if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals") continue;
-        char valBuf[256];
-        strncpy(valBuf, pair.second.c_str(), sizeof(valBuf));
-        if (ImGui::InputText(pair.first.c_str(), valBuf, sizeof(valBuf))) {
+        char valBuf[256] = {0};
+        strncpy(valBuf, pair.second.c_str(), sizeof(valBuf) - 1);
+        std::string inputLabel = pair.first + "##" + comp->id;
+        if (ImGui::InputText(inputLabel.c_str(), valBuf, sizeof(valBuf))) {
             pair.second = valBuf;
         }
     }
