@@ -187,6 +187,15 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "OPAMP" || t == "E_COMP") {
         return {{"Plus", -20, -10, -1, 0, true}, {"Minus", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
+    if (t == "GOTO_SIG" || t == "GOTO") {
+        return {{"In", -15, 0, -1, 0, true}};
+    }
+    if (t == "FROM_SIG" || t == "FROM") {
+        return {{"Out", 15, 0, 1, 0, true}};
+    }
+    if (t == "vg-FET" || t == "VGFET") {
+        return {{"D", 0, -20, 0, -1, true}, {"S", 0, 20, 0, 1, true}};
+    }
     if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
         return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"TL", -20, 30, -1, 0, true}, {"Speed", 20, 0, 1, 0, true}};
     }
@@ -707,13 +716,18 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddTriangle(tri[0], tri[1], tri[2], color, 2.0f*s);
         drawList->AddLine(rotatePt(-15*s, 12*s, c.x, c.y, rot), rotatePt(15*s, 12*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 12*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
-    } else if (t == "MOSFET" || t == "vg-FET") {
+    } else if (t == "MOSFET" || t == "vg-FET" || t == "VGFET") {
         drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -15*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 15*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(-5*s, -15*s, c.x, c.y, rot), rotatePt(-5*s, 15*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(-5*s, 0, c.x, c.y, rot), rotatePt(0, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(-10*s, -15*s, c.x, c.y, rot), rotatePt(-10*s, 15*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-10*s, 0, c.x, c.y, rot), color, 2.0f*s);
+        if (t == "vg-FET" || t == "VGFET") {
+            std::string gateLbl = comp.parameters.count("Gate_Signal_Label") ? comp.parameters.at("Gate_Signal_Label") : (comp.parameters.count("tag") ? comp.parameters.at("tag") : "S1");
+            drawList->AddText(rotatePt(-26*s, -6*s, c.x, c.y, rot), color, gateLbl.c_str());
+        } else {
+            drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-10*s, 0, c.x, c.y, rot), color, 2.0f*s);
+        }
         
         drawList->AddLine(rotatePt(0, 15*s, c.x, c.y, rot), rotatePt(12*s, 15*s, c.x, c.y, rot), color, 1.5f*s);
         drawList->AddLine(rotatePt(12*s, 15*s, c.x, c.y, rot), rotatePt(12*s, 6*s, c.x, c.y, rot), color, 1.5f*s);
@@ -972,6 +986,30 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddLine(rotatePt(-hw - 4*s, -10*s, c.x, c.y, rot), rotatePt(-hw, -10*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 10*s, c.x, c.y, rot), rotatePt(-hw, 10*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "GOTO_SIG" || t == "GOTO") {
+        std::string tag = comp.parameters.count("tag") ? comp.parameters.at("tag") : "A";
+        float hh = 14*s;
+        ImVec2 pts[] = {
+            rotatePt(-15*s, -hh, c.x, c.y, rot),
+            rotatePt(5*s, 0, c.x, c.y, rot),
+            rotatePt(-15*s, hh, c.x, c.y, rot)
+        };
+        drawList->AddConvexPolyFilled(pts, 3, blockBg);
+        drawList->AddPolyline(pts, 3, color, ImDrawFlags_Closed, 2.0f*s);
+        drawList->AddText(rotatePt(-10*s, -6*s, c.x, c.y, rot), color, tag.c_str());
+        drawList->AddLine(rotatePt(-15*s - 4*s, 0, c.x, c.y, rot), rotatePt(-15*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "FROM_SIG" || t == "FROM") {
+        std::string tag = comp.parameters.count("tag") ? comp.parameters.at("tag") : "A";
+        float hh = 14*s;
+        ImVec2 pts[] = {
+            rotatePt(-5*s, -hh, c.x, c.y, rot),
+            rotatePt(15*s, 0, c.x, c.y, rot),
+            rotatePt(-5*s, hh, c.x, c.y, rot)
+        };
+        drawList->AddConvexPolyFilled(pts, 3, blockBg);
+        drawList->AddPolyline(pts, 3, color, ImDrawFlags_Closed, 2.0f*s);
+        drawList->AddText(rotatePt(-2*s, -6*s, c.x, c.y, rot), color, tag.c_str());
+        drawList->AddLine(rotatePt(15*s, 0, c.x, c.y, rot), rotatePt(15*s + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D") {
         float hw = 24*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);

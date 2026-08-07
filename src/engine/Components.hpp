@@ -145,6 +145,11 @@ enum class ComponentType {
     Divide,               // DIVIDE
     DataTypeConv,         // DATATYPE_CONV
     StateMachine,         // STATE_MACHINE
+    GotoSignal,           // GOTO_SIG, GOTO
+    FromSignal,           // FROM_SIG, FROM
+
+    // Power Semiconductors
+    VGFET,                // vg-FET
 
     // Electrical Connectivity & Sources
     ElectricalPort,       // E_PORT
@@ -220,7 +225,10 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "SRSwitch" || typeStr == "SR_SWITCH") return ComponentType::SRSwitch;
     if (typeStr == "TripleSwitch" || typeStr == "TRPL_SWITCH") return ComponentType::TripleSwitch;
     if (typeStr == "Diode" || typeStr == "D") return ComponentType::Diode;
-    if (typeStr == "MOSFET" || typeStr == "vg-FET" || typeStr == "MOSFET_DIODE") return ComponentType::MOSFET;
+    if (typeStr == "MOSFET" || typeStr == "MOSFET_DIODE") return ComponentType::MOSFET;
+    if (typeStr == "vg-FET" || typeStr == "VGFET") return ComponentType::VGFET;
+    if (typeStr == "GOTO_SIG" || typeStr == "GOTO" || typeStr == "GotoSignal") return ComponentType::GotoSignal;
+    if (typeStr == "FROM_SIG" || typeStr == "FROM" || typeStr == "FromSignal") return ComponentType::FromSignal;
     if (typeStr == "IGBT") return ComponentType::Switch;
     if (typeStr == "IGBT_DIODE" || typeStr == "IGBTDiode") return ComponentType::IGBTDiode;
     if (typeStr == "IGCT") return ComponentType::IGCT;

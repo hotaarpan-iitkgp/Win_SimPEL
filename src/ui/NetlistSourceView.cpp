@@ -80,13 +80,39 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         validCompIds.insert(comp.id);
     }
 
-    auto getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
+    std::function<std::string(const std::string&, const std::string&)> getIncomingSignal;
+    getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
         for (const auto& w : tempDesign.wires) {
+            std::string otherCompId = "";
+            std::string otherPinName = "";
             if (w.to.compId == compId && (w.to.terminal == pinName || (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1")))) {
-                return w.from.compId + "." + w.from.terminal;
+                otherCompId = w.from.compId;
+                otherPinName = w.from.terminal;
+            } else if (w.from.compId == compId && (w.from.terminal == pinName || (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1")))) {
+                otherCompId = w.to.compId;
+                otherPinName = w.to.terminal;
             }
-            if (w.from.compId == compId && (w.from.terminal == pinName || (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1")))) {
-                return w.to.compId + "." + w.to.terminal;
+            if (!otherCompId.empty()) {
+                for (const auto& c : tempDesign.components) {
+                    if (c.id == otherCompId) {
+                        std::string ct = c.rawTypeStr;
+                        std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
+                        if (ct == "FROM_SIG" || ct == "FROM") {
+                            std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
+                            for (const auto& g : tempDesign.components) {
+                                std::string gt = g.rawTypeStr;
+                                std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
+                                if (gt == "GOTO_SIG" || gt == "GOTO") {
+                                    std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
+                                    if (gotoTag == fromTag) {
+                                        return getIncomingSignal(g.id, "In");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return otherCompId + "." + otherPinName;
             }
         }
         return "0.0";
@@ -261,15 +287,31 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["initial_state"] = false;
             cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
             physStageObj["switches"].push_back(cObj);
-        } else if (t == "MOSFET" || t == "IGBT" || t == "VG-FET" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT") {
+        } else if (t == "MOSFET" || t == "IGBT" || t == "VG-FET" || t == "VGFET" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT") {
             bool isBJT = (t == "BJT");
-            bool isThyristorFamily = (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT");
             std::string termG = isBJT ? "B" : "G";
 
-            cObj["type"] = (t == "VG-FET") ? "MOSFET" : comp.rawTypeStr;
+            cObj["type"] = (t == "VG-FET" || t == "VGFET") ? "MOSFET" : comp.rawTypeStr;
             cObj["nodes"] = formattedNodes;
             cObj["control_node"] = comp.id + "." + termG;
-            cObj["control_signal"] = getIncomingSignal(comp.id, termG);
+            if (t == "VG-FET" || t == "VGFET") {
+                std::string gateTag = comp.parameters.count("Gate_Signal_Label") ? comp.parameters.at("Gate_Signal_Label") : (comp.parameters.count("tag") ? comp.parameters.at("tag") : "S1");
+                std::string sig = "0.0";
+                for (const auto& g : tempDesign.components) {
+                    std::string gt = g.rawTypeStr;
+                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
+                    if (gt == "GOTO_SIG" || gt == "GOTO") {
+                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
+                        if (gotoTag == gateTag) {
+                            sig = getIncomingSignal(g.id, "In");
+                            break;
+                        }
+                    }
+                }
+                cObj["control_signal"] = sig;
+            } else {
+                cObj["control_signal"] = getIncomingSignal(comp.id, termG);
+            }
 
             double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
             double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
@@ -332,6 +374,20 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             json rA; rA["id"] = comp.id + "_RsA"; rA["nodes"] = json::array({nA, nN}); rA["value"] = formatJSStyleDouble(rsVal); rA["esr"] = 0.0; physStageObj["resistors"].push_back(rA);
             json rB; rB["id"] = comp.id + "_RsB"; rB["nodes"] = json::array({nB, nN}); rB["value"] = formatJSStyleDouble(rsVal); rB["esr"] = 0.0; physStageObj["resistors"].push_back(rB);
             json rC; rC["id"] = comp.id + "_RsC"; rC["nodes"] = json::array({nC, nN}); rC["value"] = formatJSStyleDouble(rsVal); rC["esr"] = 0.0; physStageObj["resistors"].push_back(rC);
+        } else if (t == "GOTO_SIG" || t == "GOTO") {
+            json gObj;
+            gObj["id"] = comp.id;
+            gObj["type"] = "GOTO_SIG";
+            gObj["tag"] = comp.parameters.count("tag") ? comp.parameters.at("tag") : "A";
+            gObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["signals_routing"].push_back(gObj);
+        } else if (t == "FROM_SIG" || t == "FROM") {
+            json fObj;
+            fObj["id"] = comp.id;
+            fObj["type"] = "FROM_SIG";
+            fObj["tag"] = comp.parameters.count("tag") ? comp.parameters.at("tag") : "A";
+            fObj["output"] = comp.id + ".Out";
+            ctrlLoopsObj["signals_routing"].push_back(fObj);
         } else if (t == "CONST" || t == "CONSTANT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "CONST";
