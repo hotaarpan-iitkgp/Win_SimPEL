@@ -190,6 +190,9 @@ enum class ComponentType {
     Transformer3Ph2W,     // XFMR_3PH_2W
     Transformer3Ph3W,     // XFMR_3PH_3W
 
+    // Electrical Machines & Custom
+    InductionMotor,       // INDUCTION_MOTOR, IND_MOTOR
+
     Unknown
 };
 
@@ -235,6 +238,7 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "XFMR_3PH_2W" || typeStr == "Transformer3Ph2W") return ComponentType::Transformer3Ph2W;
     if (typeStr == "XFMR_3PH_3W" || typeStr == "Transformer3Ph3W") return ComponentType::Transformer3Ph3W;
     if (typeStr == "OpAmp" || typeStr == "OPAMP") return ComponentType::OpAmp;
+    if (typeStr == "InductionMotor" || typeStr == "INDUCTION_MOTOR" || typeStr == "IND_MOTOR") return ComponentType::InductionMotor;
     if (typeStr == "EComp" || typeStr == "E_COMP") return ComponentType::EComp;
     if (typeStr == "GenEBlock" || typeStr == "GEN_EBLOCK") return ComponentType::GenEBlock;
     if (typeStr == "Voltmeter" || typeStr == "VM") return ComponentType::Voltmeter;

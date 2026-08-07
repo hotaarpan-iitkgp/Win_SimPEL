@@ -301,6 +301,37 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             xObj["secondary_windings"] = json::array({{{"nodes", json::array({nS1, nS2})}, {"turns", 100}}});
             xObj["core_permeability"] = formatJSStyleDouble(parsedParams.count("permeability") ? parsedParams["permeability"] : 2000.0);
             physStageObj["transformers"].push_back(xObj);
+        } else if (t == "OPAMP" || t == "E_COMP") {
+            std::string nOut = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            std::string nPlus = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            std::string nMinus = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
+            json vObj;
+            vObj["id"] = comp.id;
+            vObj["nodes"] = json::array({nOut, "node_0"});
+            vObj["plus_node"] = nPlus;
+            vObj["minus_node"] = nMinus;
+            vObj["gain"] = formatJSStyleDouble(parsedParams.count("gain") ? parsedParams["gain"] : 1e5);
+            vObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 12.0);
+            vObj["src_type"] = (t == "OPAMP") ? "opamp" : "e_comp";
+            physStageObj["voltage_sources"].push_back(vObj);
+        } else if (t == "GEN_EBLOCK" || t == "GENERALIZEDEBLOCK") {
+            json eObj;
+            eObj["id"] = comp.id;
+            eObj["nodes"] = formattedNodes;
+            eObj["code"] = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+            eObj["timestep"] = comp.parameters.count("timestep") ? comp.parameters.at("timestep") : "0";
+            eObj["terminals"] = std::to_string(formattedNodes.size());
+            physStageObj["custom_eblocks"].push_back(eObj);
+        } else if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
+            std::string nA = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            std::string nB = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            std::string nC = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
+            std::string nN = comp.id + "_N";
+            double rsVal = parsedParams.count("Rs") ? parsedParams["Rs"] : 1.115;
+
+            json rA; rA["id"] = comp.id + "_RsA"; rA["nodes"] = json::array({nA, nN}); rA["value"] = formatJSStyleDouble(rsVal); rA["esr"] = 0.0; physStageObj["resistors"].push_back(rA);
+            json rB; rB["id"] = comp.id + "_RsB"; rB["nodes"] = json::array({nB, nN}); rB["value"] = formatJSStyleDouble(rsVal); rB["esr"] = 0.0; physStageObj["resistors"].push_back(rB);
+            json rC; rC["id"] = comp.id + "_RsC"; rC["nodes"] = json::array({nC, nN}); rC["value"] = formatJSStyleDouble(rsVal); rC["esr"] = 0.0; physStageObj["resistors"].push_back(rC);
         } else if (t == "CONST" || t == "CONSTANT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "CONST";

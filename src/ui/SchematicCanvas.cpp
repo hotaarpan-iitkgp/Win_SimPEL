@@ -184,6 +184,26 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {
         return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"a", 20, -15, 1, 0, true}, {"b", 20, 0, 1, 0, true}, {"c", 20, 15, 1, 0, true}};
     }
+    if (t == "OPAMP" || t == "E_COMP") {
+        return {{"Plus", -20, -10, -1, 0, true}, {"Minus", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"TL", -20, 30, -1, 0, true}, {"Speed", 20, 0, 1, 0, true}};
+    }
+    if (t == "GEN_EBLOCK") {
+        int n = 3;
+        if (comp.parameters.count("terminals")) {
+            try { n = std::stoi(comp.parameters.at("terminals")); } catch (...) {}
+        }
+        if (n < 1) n = 1;
+        if (n > 8) n = 8;
+        std::vector<TerminalDef> terms;
+        for (int i = 0; i < n; ++i) {
+            float yOff = (n > 1) ? (-15.0f * (n - 1) + 30.0f * i) : 0.0f;
+            terms.push_back({"T" + std::to_string(i + 1), -30.0f, yOff, -1.0f, 0.0f, true});
+        }
+        return terms;
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {

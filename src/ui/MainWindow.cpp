@@ -841,7 +841,16 @@ void MainWindow::renderComponentPalette() {
             { "Mutual Inductor (3-Winding) (MUTUAL_3W)", "Mut 3W", "MUTUAL_3W", ComponentType::MutualInductor3W, "MUTUAL_3W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100, 100"}}, false },
             { "Saturable Transformer (SAT_XFMR)", "Sat XFMR", "SAT_XFMR", ComponentType::SaturableTransformer, "SAT_XFMR", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
             { "Transformers (3-Phase 2-Winding) (XFMR_3PH_2W)", "3Ph 2W XFMR", "XFMR_3PH_2W", ComponentType::Transformer3Ph2W, "XFMR_3PH_2W", "electrical", "Transformers", {}, false },
-            { "Transformers (3-Phase 3-Winding) (XFMR_3PH_3W)", "3Ph 3W XFMR", "XFMR_3PH_3W", ComponentType::Transformer3Ph3W, "XFMR_3PH_3W", "electrical", "Transformers", {}, false },
+            // Electrical Domain Electrical Machines sub-library
+            { "Induction Motor (1-Phase/3-Phase) (INDUCTION_MOTOR)", "Ind Motor 1Ph/3Ph", "INDUCTION_MOTOR", ComponentType::InductionMotor, "INDUCTION_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}}, false },
+            { "Induction Motor (IND_MOTOR)", "Ind Motor", "IND_MOTOR", ComponentType::InductionMotor, "IND_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}}, false },
+
+            // Electrical Domain Electronics sub-library
+            { "Operational Amplifier (OPAMP)", "OpAmp", "OPAMP", ComponentType::OpAmp, "OPAMP", "electrical", "Electronics", {{"gain", "1e5"}}, false },
+            { "Comparator (Electrical) (E_COMP)", "E-Comp", "E_COMP", ComponentType::EComp, "E_COMP", "electrical", "Electronics", {{"gain", "1e5"}}, false },
+
+            // Electrical Domain Custom Machine/Load Models sub-library
+            { "Generalized Electrical Block (GEN_EBLOCK)", "Gen E-Block", "GEN_EBLOCK", ComponentType::GenEBlock, "GEN_EBLOCK", "electrical", "Custom Machine/Load Models", {{"terminals", "3"}}, true },
         };
 
         // Filter search results if search query is non-empty
