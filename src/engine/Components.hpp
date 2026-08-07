@@ -89,6 +89,12 @@ enum class ComponentType {
     PLL_1PH,          // PLL_1PH
     PLL_3PH,          // PLL_3PH
 
+    // Control Delays Detailed Library
+    Delay,            // DELAY
+    TransportDelay,   // TRANSPORT_DELAY
+    TurnOnDelay,      // TURN_ON_DELAY
+    MemoryBlock,      // MEMORY_BLOCK
+
     Unknown
 };
 
@@ -139,6 +145,10 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "ContinuousPID" || typeStr == "CONT_PID") return ComponentType::ContinuousPID;
     if (typeStr == "PLL_1PH") return ComponentType::PLL_1PH;
     if (typeStr == "PLL_3PH") return ComponentType::PLL_3PH;
+    if (typeStr == "Delay" || typeStr == "DELAY") return ComponentType::Delay;
+    if (typeStr == "TransportDelay" || typeStr == "TRANSPORT_DELAY") return ComponentType::TransportDelay;
+    if (typeStr == "TurnOnDelay" || typeStr == "TURN_ON_DELAY") return ComponentType::TurnOnDelay;
+    if (typeStr == "MemoryBlock" || typeStr == "MEMORY" || typeStr == "MEMORY_BLOCK") return ComponentType::MemoryBlock;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

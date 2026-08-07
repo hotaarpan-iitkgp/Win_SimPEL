@@ -392,6 +392,36 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input2"] = "0.0";
             cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "DELAY" || t == "TRANSPORT_DELAY") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = comp.rawTypeStr;
+            cObj["delay"] = formatJSStyleDouble(parsedParams.count("delay") ? parsedParams["delay"] : 0.1);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "TURN_ON_DELAY") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "TURN_ON_DELAY";
+            cObj["delay"] = formatJSStyleDouble(parsedParams.count("delay") ? parsedParams["delay"] : 0.05);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MEMORY_BLOCK" || t == "MEMORY") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MEMORY_BLOCK";
+            cObj["initial_value"] = formatJSStyleDouble(parsedParams.count("initial_value") ? parsedParams["initial_value"] : 0.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            cObj["input1"] = inSig;
+            cObj["input2"] = "0.0";
+            cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;

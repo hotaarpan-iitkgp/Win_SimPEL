@@ -74,6 +74,12 @@ enum class ComponentType {
     PLL_1PH,
     PLL_3PH,
 
+    // Control Delays Detailed Library
+    Delay,
+    TransportDelay,
+    TurnOnDelay,
+    MemoryBlock,
+
     Unknown
 };
 
@@ -133,6 +139,15 @@ struct FastCompiledComponent {
     std::string polarity;
     std::string vAlphaKey;
     std::string vBetaKey;
+
+    struct TimePoint { double t; double val; };
+    std::vector<TimePoint> delayHistory;
+    double delayDuration = 0.1;
+    double highStartTime = -1.0;
+    bool prevInputHigh = false;
+    double prevVal = 0.0;
+    double currentVal = 0.0;
+    double lastTime = -1.0;
 
     double stateVal = 0.0;
     double filterState = 0.0;

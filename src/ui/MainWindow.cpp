@@ -705,7 +705,11 @@ void MainWindow::renderComponentPalette() {
             { "PI Controller (PID)", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "2.5"}, {"Ki", "50.0"}, {"Kd", "0"}}, true },
             { "Continuous PID Controller (CONT_PID)", "PID(s)", "CONT_PID", ComponentType::ContinuousPID, "CONT_PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "0.0"}, {"Kd", "0.0"}, {"Tf", "0.01"}}, false },
             { "Single-Phase PLL (PLL_1PH)", "PLL 1Ph", "PLL_1PH", ComponentType::PLL_1PH, "PLL_1PH", "control", "Continuous", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
-            { "Three-Phase PLL (PLL_3PH)", "PLL 3Ph", "PLL_3PH", ComponentType::PLL_3PH, "PLL_3PH", "control", "Continuous", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
+            // Delays
+            { "Delay (DELAY)", "Delay", "DELAY", ComponentType::Delay, "DELAY", "control", "Delays", {{"delay", "0.1"}}, false },
+            { "Transport Delay (TRANSPORT_DELAY)", "e^-sT", "TRANSPORT_DELAY", ComponentType::TransportDelay, "TRANSPORT_DELAY", "control", "Delays", {{"delay", "0.1"}}, false },
+            { "Turn-on Delay (TURN_ON_DELAY)", "Ton", "TURN_ON_DELAY", ComponentType::TurnOnDelay, "TURN_ON_DELAY", "control", "Delays", {{"delay", "0.05"}}, false },
+            { "Memory (MEMORY_BLOCK)", "Mem", "MEMORY_BLOCK", ComponentType::MemoryBlock, "MEMORY_BLOCK", "control", "Delays", {{"initial_value", "0.0"}}, false },
 
             { "Comparator", "Comparator", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
 

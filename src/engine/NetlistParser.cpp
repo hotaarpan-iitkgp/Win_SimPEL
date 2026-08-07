@@ -53,6 +53,10 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "ContinuousPID" || t == "CONT_PID") return ComponentType::ContinuousPID;
     if (t == "PLL_1PH") return ComponentType::PLL_1PH;
     if (t == "PLL_3PH") return ComponentType::PLL_3PH;
+    if (t == "Delay" || t == "DELAY") return ComponentType::Delay;
+    if (t == "TransportDelay" || t == "TRANSPORT_DELAY") return ComponentType::TransportDelay;
+    if (t == "TurnOnDelay" || t == "TURN_ON_DELAY") return ComponentType::TurnOnDelay;
+    if (t == "MemoryBlock" || t == "MEMORY" || t == "MEMORY_BLOCK") return ComponentType::MemoryBlock;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;

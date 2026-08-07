@@ -306,6 +306,12 @@ void CircuitSimulator::buildIndexMaps() {
             fc.freq = evaluateParam(ctrlComp, "fn", 50.0);
             fc.gain = evaluateParam(ctrlComp, "Kp", 20.0);
             fc.maxVal = evaluateParam(ctrlComp, "Ki", 1000.0);
+        } else if (ctrlComp.type == ComponentType::Delay || ctrlComp.type == ComponentType::TransportDelay) {
+            fc.delayDuration = evaluateParam(ctrlComp, "delay", 0.1);
+        } else if (ctrlComp.type == ComponentType::TurnOnDelay) {
+            fc.delayDuration = evaluateParam(ctrlComp, "delay", 0.05);
+        } else if (ctrlComp.type == ComponentType::MemoryBlock) {
+            fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -753,6 +759,71 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 if (currentTime == 0.0) fc.stateVal = 0.0;
                 fc.stateVal = std::fmod(fc.stateVal + w0 * dt, 2.0 * 3.141592653589793);
                 val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::Delay || fc.type == ComponentType::TransportDelay) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double delayDuration = (fc.delayDuration > 0.0) ? fc.delayDuration : 0.1;
+                
+                if (fc.delayHistory.empty() || currentTime > fc.delayHistory.back().t) {
+                    fc.delayHistory.push_back({currentTime, inVal});
+                }
+                
+                double targetT = currentTime - delayDuration;
+                if (fc.delayHistory.empty()) {
+                    val = inVal;
+                } else if (targetT <= fc.delayHistory.front().t) {
+                    val = fc.delayHistory.front().val;
+                } else if (targetT >= fc.delayHistory.back().t) {
+                    val = fc.delayHistory.back().val;
+                } else {
+                    size_t idx = 0;
+                    for (size_t i = 0; i < fc.delayHistory.size() - 1; ++i) {
+                        if (targetT >= fc.delayHistory[i].t && targetT <= fc.delayHistory[i + 1].t) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    auto pt0 = fc.delayHistory[idx];
+                    auto pt1 = fc.delayHistory[idx + 1];
+                    double dtInterval = pt1.t - pt0.t;
+                    if (dtInterval > 1e-15) {
+                        val = pt0.val + (pt1.val - pt0.val) * (targetT - pt0.t) / dtInterval;
+                    } else {
+                        val = pt0.val;
+                    }
+                }
+            }
+            else if (fc.type == ComponentType::TurnOnDelay) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double delayDuration = (fc.delayDuration > 0.0) ? fc.delayDuration : 0.05;
+                bool isHigh = (inVal > 0.5);
+                if (isHigh) {
+                    if (!fc.prevInputHigh) {
+                        fc.highStartTime = currentTime;
+                    }
+                } else {
+                    fc.highStartTime = -1.0;
+                }
+                fc.prevInputHigh = isHigh;
+                
+                if (isHigh && fc.highStartTime >= 0.0 && (currentTime - fc.highStartTime) >= delayDuration) {
+                    val = 1.0;
+                } else {
+                    val = 0.0;
+                }
+            }
+            else if (fc.type == ComponentType::MemoryBlock) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                if (currentTime == 0.0) {
+                    fc.prevVal = fc.val;
+                    fc.currentVal = inVal;
+                    fc.lastTime = currentTime;
+                } else if (currentTime > fc.lastTime) {
+                    fc.prevVal = fc.currentVal;
+                    fc.currentVal = inVal;
+                    fc.lastTime = currentTime;
+                }
+                val = fc.prevVal;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;
