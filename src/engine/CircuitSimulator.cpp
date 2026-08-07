@@ -279,6 +279,17 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::InitialCondition) {
             fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
             if (ctrlComp.parameters.count("x0")) fc.val = evaluateParam(ctrlComp, "x0", 0.0);
+        } else if (ctrlComp.type == ComponentType::TrigFunction) {
+            fc.polarity = getParamString(ctrlComp, "function", "sin");
+        } else if (ctrlComp.type == ComponentType::Round) {
+            fc.polarity = getParamString(ctrlComp, "mode", "nearest");
+        } else if (ctrlComp.type == ComponentType::MinMax) {
+            fc.polarity = getParamString(ctrlComp, "function", "min");
+        } else if (ctrlComp.type == ComponentType::LUT_1D) {
+            fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
+            if (ctrlComp.parameters.count("x_data")) fc.polarity = getParamString(ctrlComp, "x_data", "[0, 1]");
+            fc.vPlotKey = getParamString(ctrlComp, "y", "[0, 1]");
+            if (ctrlComp.parameters.count("y_data")) fc.vPlotKey = getParamString(ctrlComp, "y_data", "[0, 1]");
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -558,6 +569,78 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 std::normal_distribution<double> dist(0.0, 1.0);
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
                 val = std::sqrt(fc.val / dt) * dist(gen);
+            }
+            else if (fc.type == ComponentType::Abs) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = std::abs(inVal);
+            }
+            else if (fc.type == ComponentType::Sign) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = (inVal > 0.0) ? 1.0 : ((inVal < 0.0) ? -1.0 : 0.0);
+            }
+            else if (fc.type == ComponentType::TrigFunction) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                std::string f = fc.polarity;
+                std::transform(f.begin(), f.end(), f.begin(), ::tolower);
+                if (f == "cos") val = std::cos(inVal);
+                else if (f == "tan") val = std::tan(inVal);
+                else if (f == "asin") val = std::asin(std::max(-1.0, std::min(1.0, inVal)));
+                else if (f == "acos") val = std::acos(std::max(-1.0, std::min(1.0, inVal)));
+                else if (f == "atan") val = std::atan(inVal);
+                else if (f == "atan2") val = std::atan2(inVal, inVal2);
+                else if (f == "sinh") val = std::sinh(inVal);
+                else if (f == "cosh") val = std::cosh(inVal);
+                else if (f == "tanh") val = std::tanh(inVal);
+                else val = std::sin(inVal);
+            }
+            else if (fc.type == ComponentType::Round) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                if (fc.polarity == "floor") val = std::floor(inVal);
+                else if (fc.polarity == "ceil") val = std::ceil(inVal);
+                else val = std::round(inVal);
+            }
+            else if (fc.type == ComponentType::MinMax) {
+                double in0 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in1 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                if (fc.polarity == "max") val = std::max(in0, in1);
+                else val = std::min(in0, in1);
+            }
+            else if (fc.type == ComponentType::LUT_1D) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                auto parseVec = [](std::string s) -> std::vector<double> {
+                    s.erase(std::remove(s.begin(), s.end(), '['), s.end());
+                    s.erase(std::remove(s.begin(), s.end(), ']'), s.end());
+                    std::stringstream ss(s);
+                    std::string token;
+                    std::vector<double> vec;
+                    while (std::getline(ss, token, ',')) {
+                        if (!token.empty()) {
+                            try { vec.push_back(std::stod(token)); } catch (...) {}
+                        }
+                    }
+                    return vec;
+                };
+                std::vector<double> vx = parseVec(fc.polarity);
+                std::vector<double> vy = parseVec(fc.vPlotKey);
+                if (vx.size() < 2 || vy.size() < vx.size()) {
+                    val = vy.empty() ? 0.0 : vy[0];
+                } else if (inVal <= vx[0]) {
+                    val = vy[0];
+                } else if (inVal >= vx.back()) {
+                    val = vy[vx.size() - 1];
+                } else {
+                    size_t idx = 0;
+                    for (size_t i = 0; i < vx.size() - 1; ++i) {
+                        if (inVal >= vx[i] && inVal <= vx[i + 1]) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    double x0 = vx[idx], x1 = vx[idx + 1];
+                    double y0 = vy[idx], y1 = vy[idx + 1];
+                    val = y0 + (y1 - y0) * (inVal - x0) / (x1 - x0);
+                }
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

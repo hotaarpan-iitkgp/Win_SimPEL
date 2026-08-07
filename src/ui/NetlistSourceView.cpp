@@ -264,6 +264,42 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["psd"] = formatJSStyleDouble(parsedParams.count("psd") ? parsedParams["psd"] : 0.1);
             cObj["value"] = 1.0;
             ctrlLoopsObj["constants"].push_back(cObj);
+        } else if (t == "TRIG_FCN") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "TRIG_FCN";
+            cObj["function"] = comp.parameters.count("function") ? comp.parameters.at("function") : "sin";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "ABS") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "ABS";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "SIGN") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "SIGN";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "ROUND") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "ROUND";
+            cObj["mode"] = comp.parameters.count("mode") ? comp.parameters.at("mode") : "nearest";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "MIN_MAX") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MIN_MAX";
+            cObj["function"] = comp.parameters.count("function") ? comp.parameters.at("function") : "min";
+            cObj["input1"] = getIncomingSignal(comp.id, "A");
+            cObj["input2"] = getIncomingSignal(comp.id, "B");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "LUT_1D") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "LUT_1D";
+            cObj["x"] = comp.parameters.count("x_data") ? comp.parameters.at("x_data") : "[0, 1]";
+            cObj["y"] = comp.parameters.count("y_data") ? comp.parameters.at("y_data") : "[0, 1]";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
         } else if (t == "GAIN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "GAIN";

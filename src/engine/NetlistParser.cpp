@@ -35,6 +35,17 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Step" || t == "STEP") return ComponentType::Step;
     if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "TRI_GEN" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
     if (t == "WhiteNoise" || t == "WHITE_NOISE") return ComponentType::WhiteNoise;
+    if (t == "TrigFunction" || t == "TRIG_FCN") return ComponentType::TrigFunction;
+    if (t == "Abs" || t == "ABS") return ComponentType::Abs;
+    if (t == "Sign" || t == "SIGN") return ComponentType::Sign;
+    if (t == "Round" || t == "ROUND") return ComponentType::Round;
+    if (t == "MinMax" || t == "MIN_MAX") return ComponentType::MinMax;
+    if (t == "LUT_1D") return ComponentType::LUT_1D;
+    if (t == "LUT_2D") return ComponentType::LUT_2D;
+    if (t == "LUT_3D") return ComponentType::LUT_3D;
+    if (t == "DLL") return ComponentType::DLL;
+    if (t == "FMU") return ComponentType::FMU;
+    if (t == "FourierSeries" || t == "FOURIER_SERIES") return ComponentType::FourierSeries;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;

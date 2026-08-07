@@ -52,6 +52,19 @@ enum class ComponentType {
     Step,
     WhiteNoise,
 
+    // Control Functions & Tables Detailed Library
+    TrigFunction,
+    Abs,
+    Sign,
+    Round,
+    MinMax,
+    LUT_1D,
+    LUT_2D,
+    LUT_3D,
+    DLL,
+    FMU,
+    FourierSeries,
+
     Unknown
 };
 

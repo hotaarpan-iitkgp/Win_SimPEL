@@ -67,6 +67,19 @@ enum class ComponentType {
     Step,             // STEP
     WhiteNoise,       // WHITE_NOISE
 
+    // Control Functions & Tables Detailed Library
+    TrigFunction,     // TRIG_FCN
+    Abs,              // ABS
+    Sign,             // SIGN
+    Round,            // ROUND
+    MinMax,           // MIN_MAX
+    LUT_1D,           // LUT_1D
+    LUT_2D,           // LUT_2D
+    LUT_3D,           // LUT_3D
+    DLL,              // DLL
+    FMU,              // FMU
+    FourierSeries,    // FOURIER_SERIES
+
     Unknown
 };
 
@@ -107,6 +120,17 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "SineWave" || typeStr == "SINE_WAVE") return ComponentType::SineWave;
     if (typeStr == "Step" || typeStr == "STEP") return ComponentType::Step;
     if (typeStr == "WhiteNoise" || typeStr == "WHITE_NOISE") return ComponentType::WhiteNoise;
+    if (typeStr == "TrigFunction" || typeStr == "TRIG_FCN") return ComponentType::TrigFunction;
+    if (typeStr == "Abs" || typeStr == "ABS") return ComponentType::Abs;
+    if (typeStr == "Sign" || typeStr == "SIGN") return ComponentType::Sign;
+    if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
+    if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
+    if (typeStr == "LUT_1D") return ComponentType::LUT_1D;
+    if (typeStr == "LUT_2D") return ComponentType::LUT_2D;
+    if (typeStr == "LUT_3D") return ComponentType::LUT_3D;
+    if (typeStr == "DLL") return ComponentType::DLL;
+    if (typeStr == "FMU") return ComponentType::FMU;
+    if (typeStr == "FourierSeries" || typeStr == "FOURIER_SERIES") return ComponentType::FourierSeries;
     if (typeStr == "Gain" || typeStr == "GAIN") return ComponentType::Gain;
     if (typeStr == "SummingJunction" || typeStr == "SUM" || typeStr == "SUM_RECT" || typeStr == "SUM_ROUND") return ComponentType::SummingJunction;
     if (typeStr == "Product" || typeStr == "PROD" || typeStr == "PRODUCT_RECT") return ComponentType::Product;

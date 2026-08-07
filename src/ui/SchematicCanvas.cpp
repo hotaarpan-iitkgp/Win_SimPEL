@@ -59,10 +59,11 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" || t == "RANDOM_NUM" || t == "WHITE_NOISE") {
         return {{"Out", 20, 0, 1, 0, true}};
     }
-    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT" || t == "INIT_COND") {
+    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT" || t == "INIT_COND" ||
+        t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
         return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
-    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR") {
+    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR" || t == "MIN_MAX") {
         return {{"A", -20, -20, -1, 0, true}, {"B", -20, 20, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "SCOPE") {
@@ -146,6 +147,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
 
     if (t == "GAIN" || t == "PID" || t == "PWM" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "CONST" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" ||
         t == "RANDOM_NUM" || t == "WHITE_NOISE" || t == "INIT_COND" ||
+        t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "MIN_MAX" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||
@@ -781,6 +783,60 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText(rotatePt(-8*s, -6*s, c.x, c.y, rot), color, "x0");
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "TRIG_FCN") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string trigFn = comp.parameters.count("function") ? comp.parameters.at("function") : "sin";
+        drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, trigFn.c_str());
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "ABS") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-10*s, -6*s, c.x, c.y, rot), color, "|u|");
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "SIGN") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-10*s, -6*s, c.x, c.y, rot), color, "sgn");
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "ROUND") {
+        float hw = 22*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "Round");
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "MIN_MAX") {
+        float hw = 22*s, hh = 18*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string mmFn = comp.parameters.count("function") ? comp.parameters.at("function") : "min";
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, mmFn.c_str());
+        drawList->AddLine(rotatePt(-hw - 4*s, -10*s, c.x, c.y, rot), rotatePt(-hw, -10*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-hw - 4*s, 10*s, c.x, c.y, rot), rotatePt(-hw, 10*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D") {
+        float hw = 24*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string lutLbl = (t == "LUT_2D") ? "LUT2D" : ((t == "LUT_3D") ? "LUT3D" : "LUT1D");
+        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, lutLbl.c_str());
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
+        float hw = 24*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string lbl = (t == "DLL") ? "DLL" : ((t == "FMU") ? "FMU" : "Fourier");
+        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, lbl.c_str());
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "SCOPE") {
