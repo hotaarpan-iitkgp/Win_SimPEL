@@ -1856,8 +1856,8 @@ void CircuitSimulator::assembleMNA(double currentTime) {
 
             if (state > 0.5) {
                 double iEq = g * fc.Vvd;
-                if (n1 >= 0) B[n1] -= iEq;
-                if (n2 >= 0) B[n2] += iEq;
+                if (n1 >= 0) B[n1] += iEq;
+                if (n2 >= 0) B[n2] -= iEq;
             }
         }
         else if (fc.type == ComponentType::Switch) {
