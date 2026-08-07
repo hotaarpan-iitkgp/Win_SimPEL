@@ -583,279 +583,322 @@ void MainWindow::renderComponentPalette() {
     if (!showComponentPalette) return;
 
     if (ImGui::Begin("Component Pane", &showComponentPalette)) {
-    
-    auto getUniqueId = [&](const std::string& prefix) -> std::string {
-        const auto& comps = canvas.getCircuit().components;
-        int idx = 1;
-        while (true) {
-            std::string cand = prefix + std::to_string(idx);
-            bool found = false;
-            for (const auto& c : comps) {
-                if (c.id == cand) {
-                    found = true;
-                    break;
+        
+        // 1. Library Selector Tabs (Basic Lib vs Detailed Lib)
+        float availW = ImGui::GetContentRegionAvail().x;
+        float tabW = availW * 0.5f - 4.0f;
+
+        if (!showDetailedLibrary) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.25f, 0.45f, 1.0f));
+            ImGui::Button("Basic Lib", ImVec2(tabW, 26));
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+            if (ImGui::Button("Detailed Lib", ImVec2(tabW, 26))) {
+                showDetailedLibrary = true;
+            }
+        } else {
+            if (ImGui::Button("Basic Lib", ImVec2(tabW, 26))) {
+                showDetailedLibrary = false;
+            }
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.25f, 0.45f, 1.0f));
+            ImGui::Button("Detailed Lib", ImVec2(tabW, 26));
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // 2. Search Bar
+        ImGui::InputTextWithHint("##PaletteSearch", "Search components...", searchPaletteBuf, sizeof(searchPaletteBuf));
+        std::string searchQuery = searchPaletteBuf;
+        std::transform(searchQuery.begin(), searchQuery.end(), searchQuery.begin(), ::tolower);
+
+        ImGui::Spacing();
+
+        auto getUniqueId = [&](const std::string& prefix) -> std::string {
+            const auto& comps = canvas.getCircuit().components;
+            int idx = 1;
+            while (true) {
+                std::string cand = prefix + std::to_string(idx);
+                bool found = false;
+                for (const auto& c : comps) {
+                    if (c.id == cand) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return cand;
+                idx++;
+            }
+        };
+
+        // Helper lambda to render component button
+        auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::initializer_list<std::pair<std::string, std::string>>& defaultParams = {}) {
+            if (ImGui::Button(buttonText)) {
+                ComponentInstance comp;
+                comp.id = getUniqueId(prefix);
+                comp.label = label;
+                comp.type = type;
+                comp.rawTypeStr = rawTypeStr;
+                for (const auto& p : defaultParams) {
+                    comp.parameters[p.first] = p.second;
+                }
+                canvas.addComponent(comp);
+            }
+        };
+
+        // Helper metadata for library component categorization matching Web Tool
+        struct ComponentMeta {
+            const char* buttonText;
+            const char* label;
+            const char* prefix;
+            ComponentType type;
+            const char* rawTypeStr;
+            const char* category;       // "general", "control", "electrical"
+            const char* subcategory;    // Subheading matching webtool
+            std::initializer_list<std::pair<std::string, std::string>> defaultParams;
+        };
+
+        static const std::vector<ComponentMeta> allComponents = {
+            // General Domain
+            { "Subsystem Block", "Subsystem", "SUBSYSTEM", ComponentType::Unknown, "SUBSYSTEM", "general", "Ports and Subsystems", {} },
+            { "Active Probe (PROBE)", "Active Probe", "PROBE", ComponentType::Unknown, "PROBE", "general", "Signal Routing", {{"target", ""}, {"selected_signals", ""}} },
+            { "Oscilloscope (SCOPE)", "Oscilloscope", "SCOPE", ComponentType::Unknown, "SCOPE", "general", "Visualization & Logging", {{"channels", "2"}} },
+
+            // Control Domain
+            { "Constant (CONST)", "Constant", "CONST", ComponentType::Constant, "CONST", "control", "Sources", {{"value", "1.0"}} },
+            { "Pulse Generator", "Pulse Gen", "PULSE_GEN", ComponentType::PulseGenerator, "PULSE_GEN", "control", "Sources", {{"amplitude", "1"}, {"period", "1"}, {"width", "0.5"}, {"delay", "0"}} },
+            { "Triangle Carrier (TRI)", "Triangle", "TRI", ComponentType::Triangle_Carrier, "TRI", "control", "Sources", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}, {"phase", "0"}, {"phase_source", "internal"}, {"freq_source", "internal"}} },
+            { "Key Trigger (KEY_TRIGGER)", "Key Trigger", "KEY_TRIGGER", ComponentType::KeyTrigger, "KEY_TRIGGER", "control", "Sources", {{"key", "Space"}, {"active_value", "1.0"}, {"inactive_value", "0.0"}} },
+
+            { "Gain (K)", "Gain", "GAIN", ComponentType::Gain, "GAIN", "control", "Functions & Tables", {{"K", "1.0"}} },
+            { "Math Function (MATH_FCN)", "Math Function", "MATH_FCN", ComponentType::MathFunction, "MATH_FCN", "control", "Functions & Tables", {{"function", "square"}} },
+            { "C-Script (CSCRIPT)", "C-Script", "CSCRIPT", ComponentType::CustomScript, "CSCRIPT", "control", "Functions & Tables", {{"code", "// Step code\noutputs[0] = inputs[0] * 2.0;\n"}} },
+
+            { "PID Controller", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "10"}, {"Kd", "0"}} },
+
+            { "Comparator", "Comparator", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {} },
+
+            { "AND Gate", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {} },
+            { "OR Gate", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {} },
+            { "NOT Gate", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {} },
+            { "Edge Detector (EDGE_DETECT)", "Edge Detector", "EDGE_DETECT", ComponentType::EdgeDetector, "EDGE_DETECT", "control", "Logical & Bitwise", {{"edge", "rising"}, {"pulse_width", "1e-3"}} },
+
+            { "PWM Generator", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "20000"}} },
+            { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"num_carriers", "3"}, {"fc", "10k"}, {"dead_time", "1u"}} },
+
+            { "Sum (SUM_RECT)", "Sum", "SUM", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {} },
+            { "Sum Round (SUM_ROUND)", "Sum (Round)", "SUM", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {} },
+            { "Product (PRODUCT_RECT)", "Product", "PRODUCT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {} },
+
+            // Electrical Domain
+            { "Ground (GND)", "GND", "GND", ComponentType::Unknown, "GND", "electrical", "Connectivity", {} },
+
+            { "DC Voltage Source (V)", "DC Source", "V", ComponentType::VoltageSource, "V", "electrical", "Sources", {{"value", "12"}} },
+            { "AC Voltage Source", "AC Source", "ACV", ComponentType::ACVoltageSource, "AC_V", "electrical", "Sources", {{"amplitude", "325"}, {"frequency", "50"}, {"phase", "0"}} },
+            { "3-Phase AC Source (V_3PH)", "3-Phase AC Source", "V3PH", ComponentType::ThreePhaseSource, "V_3PH", "electrical", "Sources", {{"magnitude", "230"}, {"frequency", "50"}, {"phase", "0"}} },
+            { "Current Source (I)", "I Source", "I", ComponentType::CurrentSource, "I", "electrical", "Sources", {{"value", "1"}} },
+
+            { "Voltmeter (VM)", "Voltmeter", "VM", ComponentType::Voltmeter, "VM", "electrical", "Meters (Sensors)", {} },
+            { "Ammeter (AM)", "Ammeter", "AM", ComponentType::Ammeter, "AM", "electrical", "Meters (Sensors)", {} },
+
+            { "Resistor (R)", "Resistor", "R", ComponentType::Resistor, "R", "electrical", "Passive Components", {{"value", "1k"}} },
+            { "Capacitor (C)", "Capacitor", "C", ComponentType::Capacitor, "C", "electrical", "Passive Components", {{"C", "10u"}} },
+            { "Inductor (L)", "Inductor", "L", ComponentType::Inductor, "L", "electrical", "Passive Components", {{"L", "1m"}} },
+
+            { "Diode (D)", "Diode", "D", ComponentType::Diode, "D", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vf", "0.7"}, {"Ron", "10m"}} },
+            { "MOSFET", "MOSFET", "MOSFET", ComponentType::MOSFET, "MOSFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}} },
+
+            { "Switch (S)", "Switch", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}} },
+        };
+
+        // Filter search results if search query is non-empty
+        if (!searchQuery.empty()) {
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "🔍 Search Results");
+            ImGui::Separator();
+            ImGui::Spacing();
+            int matchCount = 0;
+            for (const auto& item : allComponents) {
+                std::string textLower = item.buttonText;
+                std::string rawLower = item.rawTypeStr;
+                std::string subcatLower = item.subcategory;
+                std::transform(textLower.begin(), textLower.end(), textLower.begin(), ::tolower);
+                std::transform(rawLower.begin(), rawLower.end(), rawLower.begin(), ::tolower);
+                std::transform(subcatLower.begin(), subcatLower.end(), subcatLower.begin(), ::tolower);
+
+                if (textLower.find(searchQuery) != std::string::npos ||
+                    rawLower.find(searchQuery) != std::string::npos ||
+                    subcatLower.find(searchQuery) != std::string::npos) {
+                    
+                    matchCount++;
+                    renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("[%s]", item.subcategory);
                 }
             }
-            if (!found) return cand;
-            idx++;
+            if (matchCount == 0) {
+                ImGui::TextDisabled("No matching components found.");
+            }
         }
-    };
+        else if (!showDetailedLibrary) {
+            // BASIC LIBRARY VIEW
+            if (ImGui::CollapsingHeader("⚡ Power Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "electrical") {
+                        renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
+                    }
+                }
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+            }
 
-    if (ImGui::CollapsingHeader("⚡ Electrical Components", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Indent(8.0f);
-        if (ImGui::Button("Resistor (R)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("R");
-            comp.label = "Resistor"; comp.type = ComponentType::Resistor; comp.rawTypeStr = "R";
-            comp.parameters["value"] = "1k";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Capacitor (C)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("C");
-            comp.label = "Capacitor"; comp.type = ComponentType::Capacitor; comp.rawTypeStr = "C";
-            comp.parameters["C"] = "10u";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Inductor (L)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("L");
-            comp.label = "Inductor"; comp.type = ComponentType::Inductor; comp.rawTypeStr = "L";
-            comp.parameters["L"] = "1m";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("DC Voltage Source (V)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("V");
-            comp.label = "DC Source"; comp.type = ComponentType::VoltageSource; comp.rawTypeStr = "V";
-            comp.parameters["value"] = "12";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("AC Voltage Source")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("ACV");
-            comp.label = "AC Source"; comp.type = ComponentType::ACVoltageSource; comp.rawTypeStr = "AC_V";
-            comp.parameters["amplitude"] = "325"; comp.parameters["frequency"] = "50"; comp.parameters["phase"] = "0";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("3-Phase AC Source (V_3PH)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("V3PH");
-            comp.label = "3-Phase AC Source"; comp.type = ComponentType::ThreePhaseSource; comp.rawTypeStr = "V_3PH";
-            comp.parameters["magnitude"] = "230"; comp.parameters["frequency"] = "50"; comp.parameters["phase"] = "0";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Current Source (I)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("I");
-            comp.label = "I Source"; comp.type = ComponentType::CurrentSource; comp.rawTypeStr = "I";
-            comp.parameters["value"] = "1";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Diode (D)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("D");
-            comp.label = "Diode"; comp.type = ComponentType::Diode; comp.rawTypeStr = "D";
-            comp.parameters["Vf"] = "0.7"; comp.parameters["Ron"] = "10m";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("MOSFET")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("MOSFET");
-            comp.label = "MOSFET"; comp.type = ComponentType::MOSFET; comp.rawTypeStr = "MOSFET";
-            comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Switch (S)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("S");
-            comp.label = "Switch"; comp.type = ComponentType::Switch; comp.rawTypeStr = "S";
-            comp.parameters["Ron"] = "10m"; comp.parameters["Roff"] = "1M";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Ground (GND)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("GND");
-            comp.label = "GND"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "GND";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Voltmeter (VM)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("VM");
-            comp.label = "Voltmeter"; comp.type = ComponentType::Voltmeter; comp.rawTypeStr = "VM";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Ammeter (AM)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("AM");
-            comp.label = "Ammeter"; comp.type = ComponentType::Ammeter; comp.rawTypeStr = "AM";
-            canvas.addComponent(comp);
-        }
-        ImGui::Unindent(8.0f);
-        ImGui::Spacing();
-    }
+            if (ImGui::CollapsingHeader("🎛️ Control Loops", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "control") {
+                        renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
+                    }
+                }
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+            }
 
-    if (ImGui::CollapsingHeader("🎛️ Control & Math Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Indent(8.0f);
-        if (ImGui::Button("Gain (K)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("GAIN");
-            comp.label = "Gain"; comp.type = ComponentType::Gain; comp.rawTypeStr = "GAIN";
-            comp.parameters["K"] = "1.0";
-            canvas.addComponent(comp);
+            if (ImGui::CollapsingHeader("📊 Scope & Probes", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "general") {
+                        renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
+                    }
+                }
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+            }
         }
-        if (ImGui::Button("PID Controller")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("PID");
-            comp.label = "PID"; comp.type = ComponentType::PI_Controller; comp.rawTypeStr = "PID";
-            comp.parameters["Kp"] = "1.0"; comp.parameters["Ki"] = "10"; comp.parameters["Kd"] = "0";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Comparator")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("COMP");
-            comp.label = "Comparator"; comp.type = ComponentType::Comparator; comp.rawTypeStr = "COMP";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("PWM Generator")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("PWM");
-            comp.label = "PWM"; comp.type = ComponentType::PWM_Generator; comp.rawTypeStr = "PWM";
-            comp.parameters["frequency"] = "20000";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Master PWM (PWM_MASTER)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("PWM_MASTER");
-            comp.label = "Master PWM"; comp.type = ComponentType::MasterPWM; comp.rawTypeStr = "PWM_MASTER";
-            comp.parameters["num_carriers"] = "3"; comp.parameters["fc"] = "10k"; comp.parameters["dead_time"] = "1u";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Pulse Generator")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("PULSE_GEN");
-            comp.label = "Pulse Gen"; comp.type = ComponentType::PulseGenerator; comp.rawTypeStr = "PULSE_GEN";
-            comp.parameters["amplitude"] = "1";
-            comp.parameters["period"] = "1";
-            comp.parameters["width"] = "0.5";
-            comp.parameters["delay"] = "0";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Edge Detector (EDGE_DETECT)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("EDGE_DETECT");
-            comp.label = "Edge Detector"; comp.type = ComponentType::EdgeDetector; comp.rawTypeStr = "EDGE_DETECT";
-            comp.parameters["edge"] = "rising"; comp.parameters["pulse_width"] = "1e-3";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Math Function (MATH_FCN)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("MATH_FCN");
-            comp.label = "Math Function"; comp.type = ComponentType::MathFunction; comp.rawTypeStr = "MATH_FCN";
-            comp.parameters["function"] = "square";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Key Trigger (KEY_TRIGGER)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("KEY_TRIGGER");
-            comp.label = "Key Trigger"; comp.type = ComponentType::KeyTrigger; comp.rawTypeStr = "KEY_TRIGGER";
-            comp.parameters["key"] = "Space"; comp.parameters["active_value"] = "1.0"; comp.parameters["inactive_value"] = "0.0";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Constant (CONST)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("CONST");
-            comp.label = "Constant"; comp.type = ComponentType::Constant; comp.rawTypeStr = "CONST";
-            comp.parameters["value"] = "1.0";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Triangle Carrier (TRI)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("TRI");
-            comp.label = "Triangle"; comp.type = ComponentType::Triangle_Carrier; comp.rawTypeStr = "TRI";
-            comp.parameters["frequency"] = "10k";
-            comp.parameters["min"] = "0";
-            comp.parameters["max"] = "1";
-            comp.parameters["phase"] = "0";
-            comp.parameters["phase_source"] = "internal";
-            comp.parameters["freq_source"] = "internal";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Sum (SUM_RECT)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("SUM");
-            comp.label = "Sum"; comp.type = ComponentType::SummingJunction; comp.rawTypeStr = "SUM_RECT";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Sum Round (SUM_ROUND)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("SUM");
-            comp.label = "Sum (Round)"; comp.type = ComponentType::SummingJunction; comp.rawTypeStr = "SUM_ROUND";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Product (PRODUCT_RECT)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("PRODUCT");
-            comp.label = "Product"; comp.type = ComponentType::Product; comp.rawTypeStr = "PRODUCT_RECT";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("AND Gate")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("AND");
-            comp.label = "AND"; comp.type = ComponentType::AND_Gate; comp.rawTypeStr = "AND";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("OR Gate")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("OR");
-            comp.label = "OR"; comp.type = ComponentType::OR_Gate; comp.rawTypeStr = "OR";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("NOT Gate")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("NOT");
-            comp.label = "NOT"; comp.type = ComponentType::NOT_Gate; comp.rawTypeStr = "NOT";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("C-Script (CSCRIPT)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("CSCRIPT");
-            comp.label = "C-Script"; comp.type = ComponentType::CustomScript; comp.rawTypeStr = "CSCRIPT";
-            comp.parameters["code"] = "// Step code\noutputs[0] = inputs[0] * 2.0;\n";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Subsystem Block")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("SUBSYSTEM");
-            comp.label = "Subsystem"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SUBSYSTEM";
-            canvas.addComponent(comp);
-        }
-        ImGui::Unindent(8.0f);
-        ImGui::Spacing();
-    }
+        else {
+            // DETAILED LIBRARY VIEW (Categorized with ALL Web Tool Headings & Subheadings)
+            
+            auto renderSubheading = [&](const char* subcatName, const std::vector<const ComponentMeta*>& compList) {
+                if (ImGui::TreeNodeEx(subcatName, ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Indent(4.0f);
+                    if (compList.empty()) {
+                        ImGui::TextDisabled("(No blocks available yet)");
+                    } else {
+                        for (const auto* item : compList) {
+                            renderCompButton(item->buttonText, item->prefix, item->label, item->type, item->rawTypeStr, item->defaultParams);
+                        }
+                    }
+                    ImGui::Unindent(4.0f);
+                    ImGui::TreePop();
+                }
+                ImGui::Spacing();
+            };
 
-    if (ImGui::CollapsingHeader("📊 Scope & Probe", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Indent(8.0f);
-        if (ImGui::Button("Oscilloscope (SCOPE)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("SCOPE");
-            comp.label = "Oscilloscope"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "SCOPE";
-            comp.parameters["channels"] = "2";
-            canvas.addComponent(comp);
-        }
-        if (ImGui::Button("Active Probe (PROBE)")) {
-            ComponentInstance comp;
-            comp.id = getUniqueId("PROBE");
-            comp.label = "Active Probe"; comp.type = ComponentType::Unknown; comp.rawTypeStr = "PROBE";
-            comp.parameters["target"] = "";
-            comp.parameters["selected_signals"] = "";
-            canvas.addComponent(comp);
-        }
-        ImGui::Unindent(8.0f);
-        ImGui::Spacing();
-    }
-    }
+            // 1. GENERAL BLOCKS (Category: general)
+            if (ImGui::CollapsingHeader("⚙️ General Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
+                
+                std::vector<const ComponentMeta*> portsSubsys, sigRouting, visLogging, execControl;
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "general") {
+                        std::string sub = item.subcategory;
+                        if (sub == "Ports and Subsystems") portsSubsys.push_back(&item);
+                        else if (sub == "Signal Routing") sigRouting.push_back(&item);
+                        else if (sub == "Visualization & Logging") visLogging.push_back(&item);
+                        else if (sub == "Execution Control & Tools") execControl.push_back(&item);
+                    }
+                }
 
+                renderSubheading("Ports and Subsystems", portsSubsys);
+                renderSubheading("Signal Routing", sigRouting);
+                renderSubheading("Visualization & Logging", visLogging);
+                renderSubheading("Execution Control & Tools", execControl);
+
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+            }
+
+            // 2. CONTROL BLOCKS (Category: control)
+            if (ImGui::CollapsingHeader("🎛️ Control Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
+                
+                std::vector<const ComponentMeta*> sources, fnTables, continuous, delays, discrete, discontinuous, logicBitwise, modulators, sigTransforms, filtersMeas, stateMachines, math;
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "control") {
+                        std::string sub = item.subcategory;
+                        if (sub == "Sources") sources.push_back(&item);
+                        else if (sub == "Functions & Tables") fnTables.push_back(&item);
+                        else if (sub == "Continuous") continuous.push_back(&item);
+                        else if (sub == "Delays") delays.push_back(&item);
+                        else if (sub == "Discrete-Time Dynamics") discrete.push_back(&item);
+                        else if (sub == "Discontinuous") discontinuous.push_back(&item);
+                        else if (sub == "Logical & Bitwise") logicBitwise.push_back(&item);
+                        else if (sub == "Modulators") modulators.push_back(&item);
+                        else if (sub == "Signal Transforms") sigTransforms.push_back(&item);
+                        else if (sub == "Filters & Measurements") filtersMeas.push_back(&item);
+                        else if (sub == "State Machines") stateMachines.push_back(&item);
+                        else if (sub == "Math") math.push_back(&item);
+                    }
+                }
+
+                renderSubheading("Sources", sources);
+                renderSubheading("Functions & Tables", fnTables);
+                renderSubheading("Continuous", continuous);
+                renderSubheading("Delays", delays);
+                renderSubheading("Discrete-Time Dynamics", discrete);
+                renderSubheading("Discontinuous", discontinuous);
+                renderSubheading("Logical & Bitwise", logicBitwise);
+                renderSubheading("Modulators", modulators);
+                renderSubheading("Signal Transforms", sigTransforms);
+                renderSubheading("Filters & Measurements", filtersMeas);
+                renderSubheading("State Machines", stateMachines);
+                renderSubheading("Math", math);
+
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+            }
+
+            // 3. ELECTRICAL BLOCKS (Category: electrical)
+            if (ImGui::CollapsingHeader("⚡ Electrical Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
+                
+                std::vector<const ComponentMeta*> connect, elecSources, meters, passives, semiSwitches, switches, transformers, machines, electronics, ics, customLoads;
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "electrical") {
+                        std::string sub = item.subcategory;
+                        if (sub == "Connectivity") connect.push_back(&item);
+                        else if (sub == "Sources") elecSources.push_back(&item);
+                        else if (sub == "Meters (Sensors)") meters.push_back(&item);
+                        else if (sub == "Passive Components") passives.push_back(&item);
+                        else if (sub == "Power Semiconductors (Ideal Behavioral Switches)") semiSwitches.push_back(&item);
+                        else if (sub == "Switches") switches.push_back(&item);
+                        else if (sub == "Transformers") transformers.push_back(&item);
+                        else if (sub == "Electrical Machines") machines.push_back(&item);
+                        else if (sub == "Electronics") electronics.push_back(&item);
+                        else if (sub == "Integrated Circuits (ICs)") ics.push_back(&item);
+                        else if (sub == "Custom Machine/Load Models") customLoads.push_back(&item);
+                    }
+                }
+
+                renderSubheading("Connectivity", connect);
+                renderSubheading("Sources", elecSources);
+                renderSubheading("Meters (Sensors)", meters);
+                renderSubheading("Passive Components", passives);
+                renderSubheading("Power Semiconductors (Ideal Behavioral Switches)", semiSwitches);
+                renderSubheading("Switches", switches);
+                renderSubheading("Transformers", transformers);
+                renderSubheading("Electrical Machines", machines);
+                renderSubheading("Electronics", electronics);
+                renderSubheading("Integrated Circuits (ICs)", ics);
+                renderSubheading("Custom Machine/Load Models", customLoads);
+
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+            }
+        }
+    }
     ImGui::End();
 }
 
