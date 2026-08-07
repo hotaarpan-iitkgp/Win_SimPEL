@@ -697,7 +697,15 @@ void MainWindow::renderComponentPalette() {
             { "FMU (FMU)", "FMU", "FMU", ComponentType::FMU, "FMU", "control", "Functions & Tables", {}, false },
             { "Fourier Series (FOURIER_SERIES)", "Fourier", "FOURIER_SERIES", ComponentType::FourierSeries, "FOURIER_SERIES", "control", "Functions & Tables", {}, false },
 
-            { "PID Controller", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "10"}, {"Kd", "0"}}, true },
+            // Continuous
+            { "Integrator (INTEGRATOR)", "1/s", "INTEGRATOR", ComponentType::Integrator, "INTEGRATOR", "control", "Continuous", {{"initial_condition", "0"}}, false },
+            { "Derivative (DERIVATIVE)", "s", "DERIVATIVE", ComponentType::Derivative, "DERIVATIVE", "control", "Continuous", {}, false },
+            { "Transfer Function (TRANSFER_FCN)", "G(s)", "TRANSFER_FCN", ComponentType::TransferFunction, "TRANSFER_FCN", "control", "Continuous", {{"num", "[1]"}, {"den", "[1, 1]"}}, false },
+            { "State Space (STATE_SPACE)", "State Space", "STATE_SPACE", ComponentType::StateSpace, "STATE_SPACE", "control", "Continuous", {{"A", "[-1]"}, {"B", "[1]"}, {"C", "[1]"}, {"D", "[0]"}, {"x0", "0"}}, false },
+            { "PI Controller (PID)", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "2.5"}, {"Ki", "50.0"}, {"Kd", "0"}}, true },
+            { "Continuous PID Controller (CONT_PID)", "PID(s)", "CONT_PID", ComponentType::ContinuousPID, "CONT_PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "0.0"}, {"Kd", "0.0"}, {"Tf", "0.01"}}, false },
+            { "Single-Phase PLL (PLL_1PH)", "PLL 1Ph", "PLL_1PH", ComponentType::PLL_1PH, "PLL_1PH", "control", "Continuous", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
+            { "Three-Phase PLL (PLL_3PH)", "PLL 3Ph", "PLL_3PH", ComponentType::PLL_3PH, "PLL_3PH", "control", "Continuous", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
 
             { "Comparator", "Comparator", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
 

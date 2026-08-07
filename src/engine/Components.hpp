@@ -80,6 +80,15 @@ enum class ComponentType {
     FMU,              // FMU
     FourierSeries,    // FOURIER_SERIES
 
+    // Control Continuous Detailed Library
+    Integrator,       // INTEGRATOR
+    Derivative,       // DERIVATIVE
+    TransferFunction, // TRANSFER_FCN
+    StateSpace,       // STATE_SPACE
+    ContinuousPID,    // CONT_PID
+    PLL_1PH,          // PLL_1PH
+    PLL_3PH,          // PLL_3PH
+
     Unknown
 };
 
@@ -123,6 +132,13 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "TrigFunction" || typeStr == "TRIG_FCN") return ComponentType::TrigFunction;
     if (typeStr == "Abs" || typeStr == "ABS") return ComponentType::Abs;
     if (typeStr == "Sign" || typeStr == "SIGN") return ComponentType::Sign;
+    if (typeStr == "Integrator" || typeStr == "INTEGRATOR") return ComponentType::Integrator;
+    if (typeStr == "Derivative" || typeStr == "DERIVATIVE") return ComponentType::Derivative;
+    if (typeStr == "TransferFunction" || typeStr == "TRANSFER_FCN") return ComponentType::TransferFunction;
+    if (typeStr == "StateSpace" || typeStr == "STATE_SPACE") return ComponentType::StateSpace;
+    if (typeStr == "ContinuousPID" || typeStr == "CONT_PID") return ComponentType::ContinuousPID;
+    if (typeStr == "PLL_1PH") return ComponentType::PLL_1PH;
+    if (typeStr == "PLL_3PH") return ComponentType::PLL_3PH;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

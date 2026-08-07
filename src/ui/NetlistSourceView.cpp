@@ -300,6 +300,59 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["y"] = comp.parameters.count("y_data") ? comp.parameters.at("y_data") : "[0, 1]";
             cObj["input"] = getIncomingSignal(comp.id, "In");
             ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "INTEGRATOR") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "INTEGRATOR";
+            cObj["initial_condition"] = formatJSStyleDouble(parsedParams.count("initial_condition") ? parsedParams["initial_condition"] : 0.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "DERIVATIVE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "DERIVATIVE";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "TRANSFER_FCN") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "TRANSFER_FCN";
+            cObj["num"] = comp.parameters.count("num") ? comp.parameters.at("num") : "[1]";
+            cObj["den"] = comp.parameters.count("den") ? comp.parameters.at("den") : "[1 1]";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "STATE_SPACE") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "STATE_SPACE";
+            cObj["A"] = comp.parameters.count("A") ? comp.parameters.at("A") : "[-1]";
+            cObj["B"] = comp.parameters.count("B") ? comp.parameters.at("B") : "[1]";
+            cObj["C"] = comp.parameters.count("C") ? comp.parameters.at("C") : "[1]";
+            cObj["D"] = comp.parameters.count("D") ? comp.parameters.at("D") : "[0]";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "CONT_PID") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "CONT_PID";
+            cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 1.0);
+            cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 0.0);
+            cObj["Kd"] = formatJSStyleDouble(parsedParams.count("Kd") ? parsedParams["Kd"] : 0.0);
+            cObj["Tf"] = formatJSStyleDouble(parsedParams.count("Tf") ? parsedParams["Tf"] : 0.01);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["pi_controllers"].push_back(cObj);
+        } else if (t == "PLL_1PH") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "PLL_1PH";
+            cObj["fn"] = formatJSStyleDouble(parsedParams.count("fn") ? parsedParams["fn"] : 50.0);
+            cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 20.0);
+            cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 1000.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
+        } else if (t == "PLL_3PH") {
+            cObj["output_theta"] = comp.id + ".Theta";
+            cObj["output_freq"] = comp.id + ".Freq";
+            cObj["original_type"] = "PLL_3PH";
+            cObj["fn"] = formatJSStyleDouble(parsedParams.count("fn") ? parsedParams["fn"] : 50.0);
+            cObj["input_a"] = getIncomingSignal(comp.id, "A");
+            cObj["input_b"] = getIncomingSignal(comp.id, "B");
+            cObj["input_c"] = getIncomingSignal(comp.id, "C");
+            ctrlLoopsObj["custom_functions"].push_back(cObj);
         } else if (t == "GAIN") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "GAIN";

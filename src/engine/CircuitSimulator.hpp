@@ -65,6 +65,15 @@ enum class ComponentType {
     FMU,
     FourierSeries,
 
+    // Control Continuous Detailed Library
+    Integrator,
+    Derivative,
+    TransferFunction,
+    StateSpace,
+    ContinuousPID,
+    PLL_1PH,
+    PLL_3PH,
+
     Unknown
 };
 
@@ -122,6 +131,12 @@ struct FastCompiledComponent {
     std::string outKey;
     std::string targetKey;
     std::string polarity;
+    std::string vAlphaKey;
+    std::string vBetaKey;
+
+    double stateVal = 0.0;
+    double filterState = 0.0;
+    std::vector<double> stateVector;
 
     int stateIdx = -1;
     int in0SignalIdx = -1;

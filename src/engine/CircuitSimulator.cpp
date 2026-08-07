@@ -290,6 +290,22 @@ void CircuitSimulator::buildIndexMaps() {
             if (ctrlComp.parameters.count("x_data")) fc.polarity = getParamString(ctrlComp, "x_data", "[0, 1]");
             fc.vPlotKey = getParamString(ctrlComp, "y", "[0, 1]");
             if (ctrlComp.parameters.count("y_data")) fc.vPlotKey = getParamString(ctrlComp, "y_data", "[0, 1]");
+        } else if (ctrlComp.type == ComponentType::Integrator) {
+            fc.val = evaluateParam(ctrlComp, "initial_condition", 0.0);
+            if (ctrlComp.parameters.count("initial_value")) fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
+            if (ctrlComp.parameters.count("x0")) fc.val = evaluateParam(ctrlComp, "x0", 0.0);
+        } else if (ctrlComp.type == ComponentType::TransferFunction) {
+            fc.polarity = getParamString(ctrlComp, "num", "[1]");
+            fc.vPlotKey = getParamString(ctrlComp, "den", "[1, 1]");
+        } else if (ctrlComp.type == ComponentType::ContinuousPID) {
+            fc.gain = evaluateParam(ctrlComp, "Kp", 1.0);
+            fc.vAlphaKey = std::to_string(evaluateParam(ctrlComp, "Ki", 0.0));
+            fc.vBetaKey = std::to_string(evaluateParam(ctrlComp, "Kd", 0.0));
+            fc.minVal = evaluateParam(ctrlComp, "Tf", 0.01);
+        } else if (ctrlComp.type == ComponentType::PLL_1PH || ctrlComp.type == ComponentType::PLL_3PH) {
+            fc.freq = evaluateParam(ctrlComp, "fn", 50.0);
+            fc.gain = evaluateParam(ctrlComp, "Kp", 20.0);
+            fc.maxVal = evaluateParam(ctrlComp, "Ki", 1000.0);
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -641,6 +657,102 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     double y0 = vy[idx], y1 = vy[idx + 1];
                     val = y0 + (y1 - y0) * (inVal - x0) / (x1 - x0);
                 }
+            }
+            else if (fc.type == ComponentType::Integrator) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                if (currentTime == 0.0) {
+                    fc.stateVal = fc.val;
+                } else {
+                    fc.stateVal += inVal * dt;
+                }
+                val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::Derivative) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                if (currentTime == 0.0) {
+                    fc.stateVal = inVal;
+                    val = 0.0;
+                } else {
+                    val = (inVal - fc.stateVal) / dt;
+                    fc.stateVal = inVal;
+                }
+            }
+            else if (fc.type == ComponentType::TransferFunction) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                auto parseVec = [](std::string s) -> std::vector<double> {
+                    s.erase(std::remove(s.begin(), s.end(), '['), s.end());
+                    s.erase(std::remove(s.begin(), s.end(), ']'), s.end());
+                    std::stringstream ss(s);
+                    std::string token;
+                    std::vector<double> vec;
+                    while (std::getline(ss, token, ',')) {
+                        if (!token.empty()) {
+                            try { vec.push_back(std::stod(token)); } catch (...) {}
+                        }
+                    }
+                    return vec;
+                };
+                std::vector<double> num = parseVec(fc.polarity);
+                std::vector<double> den = parseVec(fc.vPlotKey);
+                if (num.empty()) num = {1.0};
+                if (den.empty()) den = {1.0, 1.0};
+                size_t n = den.size() - 1;
+                if (n < 1) {
+                    val = (num[0] / den[0]) * inVal;
+                } else {
+                    double an = den[0] != 0.0 ? den[0] : 1.0;
+                    std::vector<double> denNorm(den.size()), numNorm(den.size(), 0.0);
+                    for (size_t i = 0; i < den.size(); ++i) denNorm[i] = den[i] / an;
+                    for (size_t i = 0; i < num.size(); ++i) numNorm[numNorm.size() - num.size() + i] = num[i] / an;
+
+                    if (fc.stateVector.size() != n) fc.stateVector.assign(n, 0.0);
+
+                    std::vector<double> xDot(n, 0.0);
+                    for (size_t k = 0; k < n - 1; ++k) xDot[k] = fc.stateVector[k + 1];
+                    double sumA = 0.0;
+                    for (size_t k = 0; k < n; ++k) sumA += denNorm[n - k] * fc.stateVector[k];
+                    xDot[n - 1] = -sumA + inVal;
+
+                    if (currentTime > 0.0) {
+                        for (size_t k = 0; k < n; ++k) fc.stateVector[k] += xDot[k] * dt;
+                    }
+
+                    double bn = numNorm[0];
+                    double sumC = 0.0;
+                    for (size_t k = 0; k < n; ++k) {
+                        sumC += (numNorm[n - k] - bn * denNorm[n - k]) * fc.stateVector[k];
+                    }
+                    val = sumC + bn * inVal;
+                }
+            }
+            else if (fc.type == ComponentType::ContinuousPID) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                double Kp = fc.gain;
+                double Ki = std::atof(fc.vAlphaKey.c_str());
+                double Kd = std::atof(fc.vBetaKey.c_str());
+                double Tf = (fc.minVal > 0.0) ? fc.minVal : 0.01;
+
+                if (currentTime == 0.0) {
+                    fc.stateVal = 0.0;
+                    fc.filterState = 0.0;
+                }
+                fc.stateVal += Ki * inVal * dt;
+                double dTerm = (Kd / (Tf + dt)) * (inVal - fc.filterState);
+                fc.filterState = (Tf / (Tf + dt)) * fc.filterState + (dt / (Tf + dt)) * inVal;
+                val = Kp * inVal + fc.stateVal + dTerm;
+            }
+            else if (fc.type == ComponentType::PLL_1PH || fc.type == ComponentType::PLL_3PH) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                double w0 = 2.0 * 3.141592653589793 * fn;
+                if (currentTime == 0.0) fc.stateVal = 0.0;
+                fc.stateVal = std::fmod(fc.stateVal + w0 * dt, 2.0 * 3.141592653589793);
+                val = fc.stateVal;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

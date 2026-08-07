@@ -46,6 +46,13 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "DLL") return ComponentType::DLL;
     if (t == "FMU") return ComponentType::FMU;
     if (t == "FourierSeries" || t == "FOURIER_SERIES") return ComponentType::FourierSeries;
+    if (t == "Integrator" || t == "INTEGRATOR" || t == "integrators") return ComponentType::Integrator;
+    if (t == "Derivative" || t == "DERIVATIVE" || t == "derivatives") return ComponentType::Derivative;
+    if (t == "TransferFunction" || t == "TRANSFER_FCN" || t == "transfer_functions") return ComponentType::TransferFunction;
+    if (t == "StateSpace" || t == "STATE_SPACE" || t == "state_space_blocks") return ComponentType::StateSpace;
+    if (t == "ContinuousPID" || t == "CONT_PID") return ComponentType::ContinuousPID;
+    if (t == "PLL_1PH") return ComponentType::PLL_1PH;
+    if (t == "PLL_3PH") return ComponentType::PLL_3PH;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;
