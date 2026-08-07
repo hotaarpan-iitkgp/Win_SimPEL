@@ -1344,28 +1344,43 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 if (isDraggingSegmentHorizontal) {
                     float snapY = worldToScreen(0, wire.manualPath[0].y, canvasPos).y;
                     c1 = ImVec2(p1_stub.x, snapY);
-                    c2 = ImVec2(p2.x, snapY);
+                    c2 = ImVec2(p2_stub.x, snapY);
                 } else {
                     float snapX = worldToScreen(wire.manualPath[0].x, 0, canvasPos).x;
                     c1 = ImVec2(snapX, p1_stub.y);
-                    c2 = ImVec2(snapX, p2.y);
+                    c2 = ImVec2(snapX, p2_stub.y);
                 }
             } else {
-                ImVec2 mid = fromIsVertical ? ImVec2(p1_stub.x, p2.y) : ImVec2(p2.x, p1_stub.y);
-                c1 = mid;
-                c2 = mid;
+                if (fromIsVertical) {
+                    c1 = ImVec2(p1_stub.x, p2_stub.y);
+                    c2 = c1;
+                } else {
+                    if (p1_stub.x <= p2_stub.x) {
+                        float midX = (p1_stub.x + p2_stub.x) * 0.5f;
+                        c1 = ImVec2(midX, p1_stub.y);
+                        c2 = ImVec2(midX, p2_stub.y);
+                    } else {
+                        float midY = (p1_stub.y + p2_stub.y) * 0.5f;
+                        if (std::abs(p1_stub.y - p2_stub.y) < 15.0f * zoomLevel) {
+                            midY += 40.0f * zoomLevel;
+                        }
+                        c1 = ImVec2(p1_stub.x, midY);
+                        c2 = ImVec2(p2_stub.x, midY);
+                    }
+                }
             }
 
-            wirePointsMap[wire.id] = {p1_stub, c1, c2, p2};
+            wirePointsMap[wire.id] = {p1_stub, c1, c2, p2_stub};
 
-            float d0 = 0, d1 = 0, d2 = 0, d3 = 0;
+            float d0 = 0, d1 = 0, d2 = 0, d3 = 0, d4 = 0;
             ImVec2 q0 = getClosestPointOnSegment(mousePos, p1, p1_stub, d0);
             ImVec2 q1 = getClosestPointOnSegment(mousePos, p1_stub, c1, d1);
             ImVec2 q2 = getClosestPointOnSegment(mousePos, c1, c2, d2);
-            ImVec2 q3 = getClosestPointOnSegment(mousePos, c2, p2, d3);
+            ImVec2 q3 = getClosestPointOnSegment(mousePos, c2, p2_stub, d3);
+            ImVec2 q4 = getClosestPointOnSegment(mousePos, p2_stub, p2, d4);
 
-            float bestD = std::min({d0, d1, d2, d3});
-            ImVec2 bestQ = (bestD == d0) ? q0 : ((bestD == d1) ? q1 : ((bestD == d2) ? q2 : q3));
+            float bestD = std::min({d0, d1, d2, d3, d4});
+            ImVec2 bestQ = (bestD == d0) ? q0 : ((bestD == d1) ? q1 : ((bestD == d2) ? q2 : ((bestD == d3) ? q3 : q4)));
 
             bool isWireHovered = (bestD < 12.0f * zoomLevel);
 
@@ -1404,17 +1419,19 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 drawList->AddLine(p1, p1_stub, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
                 drawList->AddLine(p1_stub, c1, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
                 drawList->AddLine(c1, c2, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
-                drawList->AddLine(c2, p2, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
+                drawList->AddLine(c2, p2_stub, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
+                drawList->AddLine(p2_stub, p2, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
             }
             
-            // Render 100% Strictly Orthogonal Wire Path matching Image 2
+            // Render 100% Strictly Orthogonal Wire Path with Port Stubs
             drawList->AddLine(p1, p1_stub, wireColor, thickness);
             drawList->AddLine(p1_stub, c1, wireColor, thickness);
             drawList->AddLine(c1, c2, wireColor, thickness);
-            drawList->AddLine(c2, p2, wireColor, thickness);
+            drawList->AddLine(c2, p2_stub, wireColor, thickness);
+            drawList->AddLine(p2_stub, p2, wireColor, thickness);
 
             // Real-time Current & Signal Flow Particle Animation Overlay
-            drawCurrentFlowAnimation(drawList, p1_stub, c1, c2, p2, isControlNet, (float)ImGui::GetTime());
+            drawCurrentFlowAnimation(drawList, p1_stub, c1, c2, p2_stub, isControlNet, (float)ImGui::GetTime());
 
             if (wire.to.isWireJunction) {
                 drawList->AddCircleFilled(p2, 4.0f * zoomLevel, isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255));
