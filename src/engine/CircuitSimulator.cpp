@@ -459,6 +459,24 @@ void CircuitSimulator::buildIndexMaps() {
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutA"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutB"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutC"));
+        } else if (ctrlComp.type == ComponentType::FourierTrans || ctrlComp.type == ComponentType::FourierAnalysis) {
+            fc.outKey = ctrlComp.id + ".Mag";
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Mag");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Phase");
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Mag"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Phase"));
+        } else if (ctrlComp.type == ComponentType::PllLoop) {
+            fc.outKey = ctrlComp.id + ".Theta";
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Theta");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Freq");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Cos");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Sin");
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Theta"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Freq"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Cos"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Sin"));
+        } else if (ctrlComp.type == ComponentType::PeriodicImpAvg) {
+            fc.ctrlSigKey = getParamString(ctrlComp, "Trig", "");
         }
 
         if (fc.outKey.empty()) {
@@ -1342,6 +1360,185 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
                 if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
                 val = outA;
+            }
+            else if (fc.type == ComponentType::PerAvg) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double period = (fc.delayDuration > 0.0) ? fc.delayDuration : 0.02;
+                if (currentTime > fc.lastTime) {
+                    fc.shiftBuffer.push_back(inVal);
+                    if ((int)fc.shiftBuffer.size() > 1000) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.lastTime = currentTime;
+                }
+                double sum = 0.0;
+                for (double v : fc.shiftBuffer) sum += v;
+                val = fc.shiftBuffer.empty() ? inVal : (sum / fc.shiftBuffer.size());
+            }
+            else if (fc.type == ComponentType::PeriodicImpAvg) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double trigVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                bool isRising = (fc.prev_clk <= 0.5 && trigVal > 0.5);
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                if (currentTime == 0.0) {
+                    fc.stateVal = 0.0; // accumulated integral
+                    fc.filterState = 0.0; // accumulated time
+                    fc.prevOut = fc.val; // held output
+                }
+                if (isRising && fc.filterState > 0.0) {
+                    fc.prevOut = fc.stateVal / fc.filterState;
+                    fc.stateVal = 0.0;
+                    fc.filterState = 0.0;
+                } else {
+                    fc.stateVal += inVal * dt;
+                    fc.filterState += dt;
+                }
+                if (currentTime > fc.lastTime) {
+                    fc.prev_clk = trigVal;
+                    fc.lastTime = currentTime;
+                }
+                val = fc.prevOut;
+            }
+            else if (fc.type == ComponentType::FourierTrans || fc.type == ComponentType::FourierAnalysis) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                double harmonic = (fc.shiftLength > 0) ? (double)fc.shiftLength : 1.0;
+                double ts = (fc.delay > 0.0) ? fc.delay : (config.stepSize > 0.0 ? config.stepSize : 1e-4);
+                int N = (int)std::round(1.0 / (fn * ts));
+                if (N < 2) N = 2;
+
+                if (currentTime > fc.lastTime) {
+                    fc.shiftBuffer.push_back(inVal);
+                    if ((int)fc.shiftBuffer.size() > N) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.lastTime = currentTime;
+                }
+
+                double Re = 0.0, Im = 0.0;
+                int bufSize = (int)fc.shiftBuffer.size();
+                double omega = 2.0 * 3.141592653589793 * harmonic / N;
+                for (int i = 0; i < bufSize; ++i) {
+                    Re += fc.shiftBuffer[i] * std::cos(omega * i);
+                    Im += fc.shiftBuffer[i] * std::sin(omega * i);
+                }
+                Re = (2.0 / (bufSize > 0 ? bufSize : 1)) * Re;
+                Im = (2.0 / (bufSize > 0 ? bufSize : 1)) * Im;
+
+                double mag = std::sqrt(Re * Re + Im * Im);
+                double phase = std::atan2(-Im, Re) * (180.0 / 3.141592653589793);
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = mag;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = phase;
+                val = mag;
+            }
+            else if (fc.type == ComponentType::MovAvg) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                int win = (fc.shiftLength > 0) ? fc.shiftLength : 10;
+                if (currentTime > fc.lastTime) {
+                    fc.shiftBuffer.push_back(inVal);
+                    if ((int)fc.shiftBuffer.size() > win) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.lastTime = currentTime;
+                }
+                double sum = 0.0;
+                for (double v : fc.shiftBuffer) sum += v;
+                val = fc.shiftBuffer.empty() ? inVal : (sum / fc.shiftBuffer.size());
+            }
+            else if (fc.type == ComponentType::Filter1st) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 1000.0;
+                double tau = 1.0 / (2.0 * 3.141592653589793 * fcHz);
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                if (currentTime == 0.0) fc.filterState = inVal;
+                else fc.filterState = (tau / (tau + dt)) * fc.filterState + (dt / (tau + dt)) * inVal;
+                val = fc.filterState;
+            }
+            else if (fc.type == ComponentType::Filter2nd) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 1000.0;
+                double Q = (fc.gain > 0.0) ? fc.gain : 0.707;
+                double w0 = 2.0 * 3.141592653589793 * fcHz;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                if (currentTime == 0.0) {
+                    fc.stateVal = inVal; // y
+                    fc.filterState = 0.0; // dy/dt
+                } else {
+                    double d2y = w0 * w0 * (inVal - fc.stateVal) - (w0 / Q) * fc.filterState;
+                    fc.filterState += d2y * dt;
+                    fc.stateVal += fc.filterState * dt;
+                }
+                val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::RmsVal) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                int N = (int)std::round(1.0 / (fn * (config.stepSize > 0 ? config.stepSize : 1e-4)));
+                if (N < 2) N = 2;
+                if (currentTime > fc.lastTime) {
+                    fc.shiftBuffer.push_back(inVal * inVal);
+                    if ((int)fc.shiftBuffer.size() > N) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.lastTime = currentTime;
+                }
+                double sumSq = 0.0;
+                for (double v2 : fc.shiftBuffer) sumSq += v2;
+                val = std::sqrt(fc.shiftBuffer.empty() ? 0.0 : (sumSq / fc.shiftBuffer.size()));
+            }
+            else if (fc.type == ComponentType::ThdVal) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                int N = (int)std::round(1.0 / (fn * (config.stepSize > 0 ? config.stepSize : 1e-4)));
+                if (N < 2) N = 2;
+                if (currentTime > fc.lastTime) {
+                    fc.shiftBuffer.push_back(inVal);
+                    if ((int)fc.shiftBuffer.size() > N) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.lastTime = currentTime;
+                }
+                double sumSq = 0.0;
+                for (double v : fc.shiftBuffer) sumSq += v * v;
+                double totalRms = std::sqrt(fc.shiftBuffer.empty() ? 0.0 : (sumSq / fc.shiftBuffer.size()));
+
+                // Fundamental component amplitude (H1)
+                double Re = 0.0, Im = 0.0;
+                int bufSize = (int)fc.shiftBuffer.size();
+                double omega = 2.0 * 3.141592653589793 / N;
+                for (int i = 0; i < bufSize; ++i) {
+                    Re += fc.shiftBuffer[i] * std::cos(omega * i);
+                    Im += fc.shiftBuffer[i] * std::sin(omega * i);
+                }
+                Re = (2.0 / (bufSize > 0 ? bufSize : 1)) * Re;
+                Im = (2.0 / (bufSize > 0 ? bufSize : 1)) * Im;
+                double fundRms = std::sqrt(Re * Re + Im * Im) / 1.4142135623730951;
+
+                if (fundRms < 1e-6) val = 0.0;
+                else {
+                    double harmonicSquare = totalRms * totalRms - fundRms * fundRms;
+                    val = (harmonicSquare > 0.0) ? std::sqrt(harmonicSquare) / fundRms : 0.0;
+                }
+            }
+            else if (fc.type == ComponentType::PllLoop) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                double w0 = 2.0 * 3.141592653589793 * fn;
+                if (currentTime == 0.0) {
+                    fc.stateVal = 0.0;     // theta
+                    fc.filterState = w0;  // omega
+                }
+                // Phase detector error (inVal * cos(theta))
+                double err = inVal * std::cos(fc.stateVal);
+                double Kp = (fc.gain > 0.0) ? fc.gain : 20.0;
+                double Ki = (fc.maxVal > 0.0) ? fc.maxVal : 1000.0;
+                fc.filterState += Ki * err * dt;
+                double omega_total = fc.filterState + Kp * err;
+                fc.stateVal = std::fmod(fc.stateVal + omega_total * dt, 2.0 * 3.141592653589793);
+                if (fc.stateVal < 0.0) fc.stateVal += 2.0 * 3.141592653589793;
+
+                double theta = fc.stateVal;
+                double freqEstimated = omega_total / (2.0 * 3.141592653589793);
+                double cosVal = std::cos(theta);
+                double sinVal = std::sin(theta);
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = theta;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = freqEstimated;
+                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = cosVal;
+                if (fc.outputSigIndices.size() > 3 && fc.outputSigIndices[3] >= 0 && fc.outputSigIndices[3] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[3]] = sinVal;
+                val = theta;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

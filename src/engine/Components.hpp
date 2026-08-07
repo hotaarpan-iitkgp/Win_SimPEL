@@ -127,6 +127,18 @@ enum class ComponentType {
     InvClarke,            // INV_CLARKE
     InvPark,              // INV_PARK
 
+    // Control Filters & Measurements
+    PerAvg,               // PER_AVG
+    PeriodicImpAvg,       // PERIODIC_IMP_AVG
+    FourierTrans,         // FOURIER_TRANS
+    MovAvg,               // MOV_AVG
+    Filter1st,            // FILTER_1ST
+    Filter2nd,            // FILTER_2ND
+    FourierAnalysis,      // FOURIER_ANALYSIS
+    RmsVal,               // RMS_VAL
+    ThdVal,               // THD_VAL
+    PllLoop,              // PLL_LOOP
+
     Unknown
 };
 
@@ -208,6 +220,16 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "PARK" || typeStr == "Park") return ComponentType::Park;
     if (typeStr == "INV_CLARKE" || typeStr == "InvClarke") return ComponentType::InvClarke;
     if (typeStr == "INV_PARK" || typeStr == "InvPark") return ComponentType::InvPark;
+    if (typeStr == "PER_AVG" || typeStr == "PerAvg") return ComponentType::PerAvg;
+    if (typeStr == "PERIODIC_IMP_AVG" || typeStr == "PeriodicImpAvg") return ComponentType::PeriodicImpAvg;
+    if (typeStr == "FOURIER_TRANS" || typeStr == "FourierTrans") return ComponentType::FourierTrans;
+    if (typeStr == "MOV_AVG" || typeStr == "MovAvg") return ComponentType::MovAvg;
+    if (typeStr == "FILTER_1ST" || typeStr == "Filter1st") return ComponentType::Filter1st;
+    if (typeStr == "FILTER_2ND" || typeStr == "Filter2nd") return ComponentType::Filter2nd;
+    if (typeStr == "FOURIER_ANALYSIS" || typeStr == "FourierAnalysis") return ComponentType::FourierAnalysis;
+    if (typeStr == "RMS_VAL" || typeStr == "RmsVal") return ComponentType::RmsVal;
+    if (typeStr == "THD_VAL" || typeStr == "ThdVal") return ComponentType::ThdVal;
+    if (typeStr == "PLL_LOOP" || typeStr == "PllLoop") return ComponentType::PllLoop;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

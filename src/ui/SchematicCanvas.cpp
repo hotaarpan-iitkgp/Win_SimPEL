@@ -109,6 +109,18 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "PWM_3PH" || t == "SVPWM") {
         return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"OutA", 20, -15, 1, 0, true}, {"OutB", 20, 0, 1, 0, true}, {"OutC", 20, 15, 1, 0, true}};
     }
+    if (t == "PER_AVG" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" || t == "RMS_VAL" || t == "THD_VAL") {
+        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "PERIODIC_IMP_AVG") {
+        return {{"In", -20, -10, -1, 0, true}, {"Trig", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "FOURIER_TRANS" || t == "FOURIER_ANALYSIS") {
+        return {{"In", -20, 0, -1, 0, true}, {"Mag", 20, -10, 1, 0, true}, {"Phase", 20, 10, 1, 0, true}};
+    }
+    if (t == "PLL_LOOP") {
+        return {{"In", -20, 0, -1, 0, true}, {"Theta", 20, -15, 1, 0, true}, {"Freq", 20, -5, 1, 0, true}, {"Cos", 20, 5, 1, 0, true}, {"Sin", 20, 15, 1, 0, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {
@@ -197,6 +209,8 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" ||
         t == "RELATIONAL_OPERATOR" || t == "COMPARE_TO_CONSTANT" || t == "D_FLIP_FLOP" || t == "JK_FLIP_FLOP" || t == "SHIFT_REG" ||
         t == "CLARKE" || t == "INV_CLARKE" || t == "PARK" || t == "INV_PARK" || t == "PWM_3PH" || t == "SVPWM" ||
+        t == "PER_AVG" || t == "PERIODIC_IMP_AVG" || t == "FOURIER_TRANS" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" ||
+        t == "FOURIER_ANALYSIS" || t == "RMS_VAL" || t == "THD_VAL" || t == "PLL_LOOP" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||

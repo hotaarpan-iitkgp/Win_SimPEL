@@ -674,6 +674,85 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input_b"] = getIncomingSignal(comp.id, "B");
             cObj["input_c"] = getIncomingSignal(comp.id, "C");
             ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "PER_AVG") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "PER_AVG";
+            cObj["period"] = formatJSStyleDouble(parsedParams.count("period") ? parsedParams["period"] : 0.02);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "PERIODIC_IMP_AVG") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "PERIODIC_IMP_AVG";
+            cObj["initial_value"] = formatJSStyleDouble(parsedParams.count("initial_value") ? parsedParams["initial_value"] : 0.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Trig");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "FOURIER_TRANS") {
+            cObj["output_mag"] = comp.id + ".Mag";
+            cObj["output_phase"] = comp.id + ".Phase";
+            cObj["original_type"] = "FOURIER_TRANS";
+            cObj["f"] = formatJSStyleDouble(parsedParams.count("f") ? parsedParams["f"] : 50.0);
+            cObj["harmonic"] = parsedParams.count("harmonic") ? (int)parsedParams["harmonic"] : 1;
+            cObj["ts"] = comp.parameters.count("ts") ? comp.parameters.at("ts") : "100u";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MOV_AVG") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MOV_AVG";
+            cObj["window"] = parsedParams.count("window") ? (int)parsedParams["window"] : 10;
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "FILTER_1ST") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "FILTER_1ST";
+            cObj["type"] = comp.parameters.count("type") ? comp.parameters.at("type") : "Lowpass";
+            cObj["fc"] = comp.parameters.count("fc") ? comp.parameters.at("fc") : "1k";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "FILTER_2ND") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "FILTER_2ND";
+            cObj["type"] = comp.parameters.count("type") ? comp.parameters.at("type") : "Lowpass";
+            cObj["fc"] = comp.parameters.count("fc") ? comp.parameters.at("fc") : "1k";
+            cObj["Q"] = formatJSStyleDouble(parsedParams.count("Q") ? parsedParams["Q"] : 0.707);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "FOURIER_ANALYSIS") {
+            cObj["output_mag"] = comp.id + ".Mag";
+            cObj["output_phase"] = comp.id + ".Phase";
+            cObj["original_type"] = "FOURIER_ANALYSIS";
+            cObj["f"] = formatJSStyleDouble(parsedParams.count("f") ? parsedParams["f"] : 50.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "RMS_VAL") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "RMS_VAL";
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "THD_VAL") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "THD_VAL";
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0);
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "PLL_LOOP") {
+            cObj["output_theta"] = comp.id + ".Theta";
+            cObj["output_freq"] = comp.id + ".Freq";
+            cObj["output_cos"] = comp.id + ".Cos";
+            cObj["output_sin"] = comp.id + ".Sin";
+            cObj["original_type"] = "PLL_LOOP";
+            cObj["fn"] = formatJSStyleDouble(parsedParams.count("fn") ? parsedParams["fn"] : 50.0);
+            cObj["Kp"] = formatJSStyleDouble(parsedParams.count("Kp") ? parsedParams["Kp"] : 20.0);
+            cObj["Ki"] = formatJSStyleDouble(parsedParams.count("Ki") ? parsedParams["Ki"] : 1000.0);
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;

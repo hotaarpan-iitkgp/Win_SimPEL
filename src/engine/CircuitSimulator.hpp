@@ -112,6 +112,18 @@ enum class ComponentType {
     InvClarke,
     InvPark,
 
+    // Control Filters & Measurements
+    PerAvg,
+    PeriodicImpAvg,
+    FourierTrans,
+    MovAvg,
+    Filter1st,
+    Filter2nd,
+    FourierAnalysis,
+    RmsVal,
+    ThdVal,
+    PllLoop,
+
     Unknown
 };
 

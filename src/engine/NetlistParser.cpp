@@ -84,6 +84,16 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "PARK" || t == "Park") return ComponentType::Park;
     if (t == "INV_CLARKE" || t == "InvClarke") return ComponentType::InvClarke;
     if (t == "INV_PARK" || t == "InvPark") return ComponentType::InvPark;
+    if (t == "PER_AVG" || t == "PerAvg") return ComponentType::PerAvg;
+    if (t == "PERIODIC_IMP_AVG" || t == "PeriodicImpAvg") return ComponentType::PeriodicImpAvg;
+    if (t == "FOURIER_TRANS" || t == "FourierTrans") return ComponentType::FourierTrans;
+    if (t == "MOV_AVG" || t == "MovAvg") return ComponentType::MovAvg;
+    if (t == "FILTER_1ST" || t == "Filter1st") return ComponentType::Filter1st;
+    if (t == "FILTER_2ND" || t == "Filter2nd") return ComponentType::Filter2nd;
+    if (t == "FOURIER_ANALYSIS" || t == "FourierAnalysis") return ComponentType::FourierAnalysis;
+    if (t == "RMS_VAL" || t == "RmsVal") return ComponentType::RmsVal;
+    if (t == "THD_VAL" || t == "ThdVal") return ComponentType::ThdVal;
+    if (t == "PLL_LOOP" || t == "PllLoop") return ComponentType::PllLoop;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;

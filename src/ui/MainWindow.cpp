@@ -751,6 +751,18 @@ void MainWindow::renderComponentPalette() {
             { "Inverse Clarke Transform (INV_CLARKE)", "αβ-abc", "INV_CLARKE", ComponentType::InvClarke, "INV_CLARKE", "control", "Signal Transforms", {}, false },
             { "Inverse Park Transform (INV_PARK)", "dq-αβ", "INV_PARK", ComponentType::InvPark, "INV_PARK", "control", "Signal Transforms", {}, false },
 
+            // Filters & Measurements sub-library
+            { "Periodic Average (PER_AVG)", "Avg T", "PER_AVG", ComponentType::PerAvg, "PER_AVG", "control", "Filters & Measurements", {{"period", "0.02"}}, false },
+            { "Periodic Impulse Average (PERIODIC_IMP_AVG)", "Imp Avg", "PERIODIC_IMP_AVG", ComponentType::PeriodicImpAvg, "PERIODIC_IMP_AVG", "control", "Filters & Measurements", {{"initial_value", "0.0"}}, false },
+            { "Fourier Transform (FOURIER_TRANS)", "Fourier", "FOURIER_TRANS", ComponentType::FourierTrans, "FOURIER_TRANS", "control", "Filters & Measurements", {{"f", "50.0"}, {"harmonic", "1"}, {"ts", "100u"}}, false },
+            { "Moving Average (MOV_AVG)", "MovAvg", "MOV_AVG", ComponentType::MovAvg, "MOV_AVG", "control", "Filters & Measurements", {{"window", "10"}}, false },
+            { "First-Order Filter (FILTER_1ST)", "Filt1st", "FILTER_1ST", ComponentType::Filter1st, "FILTER_1ST", "control", "Filters & Measurements", {{"type", "Lowpass"}, {"fc", "1k"}}, false },
+            { "Second-Order Filter (FILTER_2ND)", "Filt2nd", "FILTER_2ND", ComponentType::Filter2nd, "FILTER_2ND", "control", "Filters & Measurements", {{"type", "Lowpass"}, {"fc", "1k"}, {"Q", "0.707"}}, false },
+            { "Fourier Analysis (FOURIER_ANALYSIS)", "Fourier", "FOURIER_ANALYSIS", ComponentType::FourierAnalysis, "FOURIER_ANALYSIS", "control", "Filters & Measurements", {{"f", "50.0"}}, false },
+            { "RMS (RMS_VAL)", "RMS", "RMS_VAL", ComponentType::RmsVal, "RMS_VAL", "control", "Filters & Measurements", {{"frequency", "50"}}, false },
+            { "THD (THD_VAL)", "THD", "THD_VAL", ComponentType::ThdVal, "THD_VAL", "control", "Filters & Measurements", {{"frequency", "50"}}, false },
+            { "PLL (Phase-Locked Loop) (PLL_LOOP)", "PLL", "PLL_LOOP", ComponentType::PllLoop, "PLL_LOOP", "control", "Filters & Measurements", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
+
             { "Sum (SUM_RECT)", "Sum", "SUM", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {}, true },
             { "Sum Round (SUM_ROUND)", "Sum (Round)", "SUM", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {}, true },
             { "Product (PRODUCT_RECT)", "Product", "PRODUCT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {}, true },
