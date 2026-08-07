@@ -26,6 +26,17 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "ThreePhaseCurrentSource" || t == "I_3PH") return ComponentType::ThreePhaseCurrentSource;
     if (t == "ElectricalPort" || t == "E_PORT") return ComponentType::ElectricalPort;
     if (t == "ElectricalLabel" || t == "E_LABEL") return ComponentType::ElectricalLabel;
+    if (t == "VM_3PH" || t == "Voltmeter3Ph") return ComponentType::Voltmeter3Ph;
+    if (t == "AM_3PH" || t == "Ammeter3Ph") return ComponentType::Ammeter3Ph;
+    if (t == "VAR_R" || t == "VariableResistor") return ComponentType::VariableResistor;
+    if (t == "VAR_L" || t == "VariableInductor") return ComponentType::VariableInductor;
+    if (t == "VAR_C" || t == "VariableCapacitor") return ComponentType::VariableCapacitor;
+    if (t == "SAT_L" || t == "SaturableInductor") return ComponentType::SaturableInductor;
+    if (t == "SAT_C" || t == "SaturableCapacitor") return ComponentType::SaturableCapacitor;
+    if (t == "PI_SECTION" || t == "PiSectionLine") return ComponentType::PiSectionLine;
+    if (t == "LINE_3PH" || t == "TransmissionLine3Ph") return ComponentType::TransmissionLine3Ph;
+    if (t == "PWL_R" || t == "PWLResistor") return ComponentType::PWLResistor;
+    if (t == "E_ALGEBRAIC" || t == "ElectricalAlgebraic") return ComponentType::ElectricalAlgebraic;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
     if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
     if (t == "Voltmeter" || t == "VM" || t == "voltmeters") return ComponentType::Voltmeter;

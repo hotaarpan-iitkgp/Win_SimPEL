@@ -203,6 +203,43 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             json csA; csA["id"] = comp.id + "_A"; csA["nodes"] = json::array({nodeA, "node_0"}); csA["value"] = formatJSStyleDouble(amp); csA["src_type"] = "dc"; physStageObj["current_sources"].push_back(csA);
             json csB; csB["id"] = comp.id + "_B"; csB["nodes"] = json::array({nodeB, "node_0"}); csB["value"] = formatJSStyleDouble(amp); csB["src_type"] = "dc"; physStageObj["current_sources"].push_back(csB);
             json csC; csC["id"] = comp.id + "_C"; csC["nodes"] = json::array({nodeC, "node_0"}); csC["value"] = formatJSStyleDouble(amp); csC["src_type"] = "dc"; physStageObj["current_sources"].push_back(csC);
+        } else if (t == "VM" || t == "VOLTMETER") {
+            cObj["nodes"] = formattedNodes;
+            cObj["signal"] = comp.id + ".Out";
+            physStageObj["voltmeters"].push_back(cObj);
+        } else if (t == "AM" || t == "AMMETER") {
+            cObj["nodes"] = formattedNodes;
+            cObj["signal"] = comp.id + ".Out";
+            physStageObj["ammeters"].push_back(cObj);
+        } else if (t == "VM_3PH" || t == "VOLTMETER3PH") {
+            cObj["nodes"] = formattedNodes;
+            cObj["signal"] = comp.id + ".Out";
+            physStageObj["voltmeters"].push_back(cObj);
+        } else if (t == "AM_3PH" || t == "AMMETER3PH") {
+            cObj["nodes"] = formattedNodes;
+            cObj["signal"] = comp.id + ".Out";
+            physStageObj["ammeters"].push_back(cObj);
+        } else if (t == "VAR_R" || t == "PWL_R" || t == "E_ALGEBRAIC") {
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 10.0);
+            cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["src_type"] = (t == "VAR_R") ? "variable" : "static";
+            physStageObj["resistors"].push_back(cObj);
+        } else if (t == "VAR_L" || t == "SAT_L") {
+            cObj["nodes"] = formattedNodes;
+            cObj["L"] = formatJSStyleDouble(parsedParams.count("L") ? parsedParams["L"] : 0.01);
+            cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
+            cObj["iL0"] = formatJSStyleDouble(parsedParams.count("iL0") ? parsedParams["iL0"] : 0.0);
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            physStageObj["inductors"].push_back(cObj);
+        } else if (t == "VAR_C" || t == "SAT_C") {
+            cObj["nodes"] = formattedNodes;
+            cObj["C"] = formatJSStyleDouble(parsedParams.count("C") ? parsedParams["C"] : 1e-4);
+            cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
+            cObj["vC0"] = formatJSStyleDouble(parsedParams.count("vC0") ? parsedParams["vC0"] : 0.0);
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            physStageObj["capacitors"].push_back(cObj);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";
             cObj["nodes"] = formattedNodes;

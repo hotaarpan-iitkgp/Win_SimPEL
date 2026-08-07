@@ -151,6 +151,18 @@ enum class ComponentType {
     ElectricalLabel,      // E_LABEL
     ThreePhaseCurrentSource, // I_3PH
 
+    // Electrical Meters & Passives
+    Voltmeter3Ph,         // VM_3PH
+    Ammeter3Ph,           // AM_3PH
+    VariableInductor,     // VAR_L
+    VariableCapacitor,    // VAR_C
+    SaturableInductor,    // SAT_L
+    SaturableCapacitor,   // SAT_C
+    PiSectionLine,        // PI_SECTION
+    TransmissionLine3Ph,  // LINE_3PH
+    PWLResistor,          // PWL_R
+    ElectricalAlgebraic,  // E_ALGEBRAIC
+
     Unknown
 };
 
@@ -178,6 +190,17 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "GenEBlock" || typeStr == "GEN_EBLOCK") return ComponentType::GenEBlock;
     if (typeStr == "Voltmeter" || typeStr == "VM") return ComponentType::Voltmeter;
     if (typeStr == "Ammeter" || typeStr == "AM") return ComponentType::Ammeter;
+    if (typeStr == "VM_3PH" || typeStr == "Voltmeter3Ph") return ComponentType::Voltmeter3Ph;
+    if (typeStr == "AM_3PH" || typeStr == "Ammeter3Ph") return ComponentType::Ammeter3Ph;
+    if (typeStr == "VAR_R" || typeStr == "VariableResistor") return ComponentType::VariableResistor;
+    if (typeStr == "VAR_L" || typeStr == "VariableInductor") return ComponentType::VariableInductor;
+    if (typeStr == "VAR_C" || typeStr == "VariableCapacitor") return ComponentType::VariableCapacitor;
+    if (typeStr == "SAT_L" || typeStr == "SaturableInductor") return ComponentType::SaturableInductor;
+    if (typeStr == "SAT_C" || typeStr == "SaturableCapacitor") return ComponentType::SaturableCapacitor;
+    if (typeStr == "PI_SECTION" || typeStr == "PiSectionLine") return ComponentType::PiSectionLine;
+    if (typeStr == "LINE_3PH" || typeStr == "TransmissionLine3Ph") return ComponentType::TransmissionLine3Ph;
+    if (typeStr == "PWL_R" || typeStr == "PWLResistor") return ComponentType::PWLResistor;
+    if (typeStr == "E_ALGEBRAIC" || typeStr == "ElectricalAlgebraic") return ComponentType::ElectricalAlgebraic;
     if (typeStr == "Oscilloscope" || typeStr == "SCOPE") return ComponentType::Oscilloscope;
     if (typeStr == "UnifiedProbe" || typeStr == "PROBE") return ComponentType::UnifiedProbe;
     if (typeStr == "PI_Controller" || typeStr == "PID") return ComponentType::PI_Controller;

@@ -136,6 +136,24 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "I_3PH") {
         return {{"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}, {"Ctrl", -20, 0, -1, 0, true}};
     }
+    if (t == "VM" || t == "AM") {
+        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Out", 0, -20, 0, -1, true}};
+    }
+    if (t == "VM_3PH") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"N", 20, 0, 1, 0, true}, {"Out", 0, -20, 0, -1, true}};
+    }
+    if (t == "AM_3PH") {
+        return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}, {"Out", 0, -20, 0, -1, true}};
+    }
+    if (t == "VAR_R" || t == "VAR_L" || t == "VAR_C" || t == "SAT_L" || t == "SAT_C") {
+        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
+    }
+    if (t == "PI_SECTION" || t == "PWL_R" || t == "E_ALGEBRAIC") {
+        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}};
+    }
+    if (t == "LINE_3PH") {
+        return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {
