@@ -180,6 +180,16 @@ enum class ComponentType {
     SRSwitch,             // SR_SWITCH
     TripleSwitch,         // TRPL_SWITCH
 
+    // Transformers
+    IdealTransformer,     // IDEAL_XFMR
+    Transformer2W,        // XFMR_2W
+    Transformer3W,        // XFMR_3W
+    MutualInductor2W,     // MUTUAL_2W
+    MutualInductor3W,     // MUTUAL_3W
+    SaturableTransformer, // SAT_XFMR
+    Transformer3Ph2W,     // XFMR_3PH_2W
+    Transformer3Ph3W,     // XFMR_3PH_3W
+
     Unknown
 };
 
@@ -216,6 +226,14 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "BJT") return ComponentType::BJT;
     if (typeStr == "JFET") return ComponentType::JFET;
     if (typeStr == "Transformer" || typeStr == "XFMR") return ComponentType::Transformer;
+    if (typeStr == "IDEAL_XFMR" || typeStr == "IdealTransformer") return ComponentType::IdealTransformer;
+    if (typeStr == "XFMR_2W" || typeStr == "Transformer2W") return ComponentType::Transformer2W;
+    if (typeStr == "XFMR_3W" || typeStr == "Transformer3W") return ComponentType::Transformer3W;
+    if (typeStr == "MUTUAL_2W" || typeStr == "MutualInductor2W") return ComponentType::MutualInductor2W;
+    if (typeStr == "MUTUAL_3W" || typeStr == "MutualInductor3W") return ComponentType::MutualInductor3W;
+    if (typeStr == "SAT_XFMR" || typeStr == "SaturableTransformer") return ComponentType::SaturableTransformer;
+    if (typeStr == "XFMR_3PH_2W" || typeStr == "Transformer3Ph2W") return ComponentType::Transformer3Ph2W;
+    if (typeStr == "XFMR_3PH_3W" || typeStr == "Transformer3Ph3W") return ComponentType::Transformer3Ph3W;
     if (typeStr == "OpAmp" || typeStr == "OPAMP") return ComponentType::OpAmp;
     if (typeStr == "EComp" || typeStr == "E_COMP") return ComponentType::EComp;
     if (typeStr == "GenEBlock" || typeStr == "GEN_EBLOCK") return ComponentType::GenEBlock;

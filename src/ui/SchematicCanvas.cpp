@@ -175,6 +175,15 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
         return {{"A1", -20, -15, -1, 0, true}, {"A2", -20, 0, -1, 0, true}, {"A3", -20, 15, -1, 0, true}, {"B1", 20, -15, 1, 0, true}, {"B2", 20, 0, 1, 0, true}, {"B3", 20, 15, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
     }
+    if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR") {
+        return {{"P1", -20, -10, -1, 0, true}, {"P2", -20, 10, -1, 0, true}, {"S1", 20, -10, 1, 0, true}, {"S2", 20, 10, 1, 0, true}};
+    }
+    if (t == "XFMR_3W" || t == "MUTUAL_3W") {
+        return {{"P1", -20, -10, -1, 0, true}, {"P2", -20, 10, -1, 0, true}, {"S1_1", 20, -15, 1, 0, true}, {"S1_2", 20, -5, 1, 0, true}, {"S2_1", 20, 5, 1, 0, true}, {"S2_2", 20, 15, 1, 0, true}};
+    }
+    if (t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"a", 20, -15, 1, 0, true}, {"b", 20, 0, 1, 0, true}, {"c", 20, 15, 1, 0, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {

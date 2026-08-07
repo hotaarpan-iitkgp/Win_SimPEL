@@ -833,7 +833,15 @@ void MainWindow::renderComponentPalette() {
             { "Manual Double Switch (MAN_DBL_SWITCH)", "Man 2Sw", "MAN_DBL_SWITCH", ComponentType::ManualDoubleSwitch, "MAN_DBL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
             { "Manual Triple Switch (MAN_TRPL_SWITCH)", "Man 3Sw", "MAN_TRPL_SWITCH", ComponentType::ManualTripleSwitch, "MAN_TRPL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
             { "Set/Reset Switch (SR_SWITCH)", "SR Sw", "SR_SWITCH", ComponentType::SRSwitch, "SR_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "Triple Switch (TRPL_SWITCH)", "3-Phase Sw", "TRPL_SWITCH", ComponentType::TripleSwitch, "TRPL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
+            // Electrical Domain Transformers sub-library
+            { "Ideal Transformer (IDEAL_XFMR)", "Ideal XFMR", "IDEAL_XFMR", ComponentType::IdealTransformer, "IDEAL_XFMR", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
+            { "Linear Transformer (2-Winding) (XFMR_2W)", "XFMR 2W", "XFMR_2W", ComponentType::Transformer2W, "XFMR_2W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, true },
+            { "Linear Transformer (3-Winding) (XFMR_3W)", "XFMR 3W", "XFMR_3W", ComponentType::Transformer3W, "XFMR_3W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100, 100"}}, false },
+            { "Mutual Inductor (2-Winding) (MUTUAL_2W)", "Mut 2W", "MUTUAL_2W", ComponentType::MutualInductor2W, "MUTUAL_2W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
+            { "Mutual Inductor (3-Winding) (MUTUAL_3W)", "Mut 3W", "MUTUAL_3W", ComponentType::MutualInductor3W, "MUTUAL_3W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100, 100"}}, false },
+            { "Saturable Transformer (SAT_XFMR)", "Sat XFMR", "SAT_XFMR", ComponentType::SaturableTransformer, "SAT_XFMR", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
+            { "Transformers (3-Phase 2-Winding) (XFMR_3PH_2W)", "3Ph 2W XFMR", "XFMR_3PH_2W", ComponentType::Transformer3Ph2W, "XFMR_3PH_2W", "electrical", "Transformers", {}, false },
+            { "Transformers (3-Phase 3-Winding) (XFMR_3PH_3W)", "3Ph 3W XFMR", "XFMR_3PH_3W", ComponentType::Transformer3Ph3W, "XFMR_3PH_3W", "electrical", "Transformers", {}, false },
         };
 
         // Filter search results if search query is non-empty

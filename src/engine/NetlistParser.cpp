@@ -50,6 +50,14 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "MAN_TRPL_SWITCH" || t == "ManualTripleSwitch") return ComponentType::ManualTripleSwitch;
     if (t == "SR_SWITCH" || t == "SRSwitch") return ComponentType::SRSwitch;
     if (t == "TRPL_SWITCH" || t == "TripleSwitch") return ComponentType::TripleSwitch;
+    if (t == "IDEAL_XFMR" || t == "IdealTransformer") return ComponentType::IdealTransformer;
+    if (t == "XFMR_2W" || t == "Transformer2W") return ComponentType::Transformer2W;
+    if (t == "XFMR_3W" || t == "Transformer3W") return ComponentType::Transformer3W;
+    if (t == "MUTUAL_2W" || t == "MutualInductor2W") return ComponentType::MutualInductor2W;
+    if (t == "MUTUAL_3W" || t == "MutualInductor3W") return ComponentType::MutualInductor3W;
+    if (t == "SAT_XFMR" || t == "SaturableTransformer") return ComponentType::SaturableTransformer;
+    if (t == "XFMR_3PH_2W" || t == "Transformer3Ph2W") return ComponentType::Transformer3Ph2W;
+    if (t == "XFMR_3PH_3W" || t == "Transformer3Ph3W") return ComponentType::Transformer3Ph3W;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
     if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
     if (t == "Voltmeter" || t == "VM" || t == "voltmeters") return ComponentType::Voltmeter;

@@ -278,8 +278,29 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Roff"] = formatJSStyleDouble(rOff);
             cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : (parsedParams.count("Vf") ? parsedParams["Vf"] : 0.8));
             cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : (parsedParams.count("Ih") ? parsedParams["Ih"] : 0.01));
-            cObj["Vgt"] = formatJSStyleDouble(parsedParams.count("Vgt") ? parsedParams["Vgt"] : (parsedParams.count("Vgate") ? parsedParams["Vgate"] : 0.5));
             physStageObj["analog_switches"].push_back(cObj);
+        } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "SAT_XFMR" || t == "MUTUAL_2W") {
+            json xObj;
+            xObj["id"] = comp.id;
+            std::string nP1 = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            std::string nP2 = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            std::string nS1 = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
+            std::string nS2 = (formattedNodes.size() > 3) ? formattedNodes[3].get<std::string>() : "node_0";
+            xObj["primary_windings"] = json::array({{{"nodes", json::array({nP1, nP2})}, {"turns", 100}}});
+            xObj["secondary_windings"] = json::array({{{"nodes", json::array({nS1, nS2})}, {"turns", 100}}});
+            xObj["core_permeability"] = formatJSStyleDouble(parsedParams.count("permeability") ? parsedParams["permeability"] : 2000.0);
+            physStageObj["transformers"].push_back(xObj);
+        } else if (t == "XFMR_3W" || t == "MUTUAL_3W" || t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {
+            json xObj;
+            xObj["id"] = comp.id;
+            std::string nP1 = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            std::string nP2 = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            std::string nS1 = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
+            std::string nS2 = (formattedNodes.size() > 3) ? formattedNodes[3].get<std::string>() : "node_0";
+            xObj["primary_windings"] = json::array({{{"nodes", json::array({nP1, nP2})}, {"turns", 100}}});
+            xObj["secondary_windings"] = json::array({{{"nodes", json::array({nS1, nS2})}, {"turns", 100}}});
+            xObj["core_permeability"] = formatJSStyleDouble(parsedParams.count("permeability") ? parsedParams["permeability"] : 2000.0);
+            physStageObj["transformers"].push_back(xObj);
         } else if (t == "CONST" || t == "CONSTANT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "CONST";
