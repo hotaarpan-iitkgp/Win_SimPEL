@@ -295,9 +295,17 @@ void CircuitSimulator::buildIndexMaps() {
             if (ctrlComp.parameters.count("initial_value")) fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
             if (ctrlComp.parameters.count("x0")) fc.val = evaluateParam(ctrlComp, "x0", 0.0);
         } else if (ctrlComp.type == ComponentType::TransferFunction) {
-            fc.polarity = getParamString(ctrlComp, "num", "[1]");
-            fc.vPlotKey = getParamString(ctrlComp, "den", "[1, 1]");
+            fc.polarity = getParamString(ctrlComp, "num", "");
+            if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "numerator", "");
+            if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "n", "[1]");
+
+            fc.vPlotKey = getParamString(ctrlComp, "den", "");
+            if (fc.vPlotKey.empty()) fc.vPlotKey = getParamString(ctrlComp, "denominator", "");
+            if (fc.vPlotKey.empty()) fc.vPlotKey = getParamString(ctrlComp, "d", "[1, 1]");
+
             fc.gain = evaluateParam(ctrlComp, "K", 1.0);
+            if (ctrlComp.parameters.count("gain")) fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
+            if (ctrlComp.parameters.count("k")) fc.gain = evaluateParam(ctrlComp, "k", 1.0);
         } else if (ctrlComp.type == ComponentType::ContinuousPID) {
             fc.gain = evaluateParam(ctrlComp, "Kp", 1.0);
             fc.vAlphaKey = std::to_string(evaluateParam(ctrlComp, "Ki", 0.0));
@@ -848,6 +856,11 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::TransferFunction) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+
+                if (currentTime == 0.0) {
+                    fc.stateVector.clear();
+                }
+
                 auto parseVec = [](std::string s) -> std::vector<double> {
                     std::vector<double> vec;
                     if (s.empty()) return vec;
@@ -858,17 +871,18 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     }
                     std::stringstream ss(s);
                     double v = 0.0;
-                    while (ss >> v) {
-                        vec.push_back(v);
-                    }
+                    while (ss >> v) vec.push_back(v);
                     return vec;
                 };
+
                 std::vector<double> num = parseVec(fc.polarity);
                 std::vector<double> den = parseVec(fc.vPlotKey);
                 double gainK = (fc.gain != 0.0) ? fc.gain : 1.0;
                 for (double& nCoeff : num) nCoeff *= gainK;
+
                 if (num.empty()) num = {1.0};
                 if (den.empty()) den = {1.0, 1.0};
+
                 size_t n = den.size() - 1;
                 if (n < 1) {
                     val = (num[0] / den[0]) * inVal;
@@ -880,14 +894,32 @@ void CircuitSimulator::evaluateControls(double currentTime) {
 
                     if (fc.stateVector.size() != n) fc.stateVector.assign(n, 0.0);
 
-                    std::vector<double> xDot(n, 0.0);
-                    for (size_t k = 0; k < n - 1; ++k) xDot[k] = fc.stateVector[k + 1];
-                    double sumA = 0.0;
-                    for (size_t k = 0; k < n; ++k) sumA += denNorm[n - k] * fc.stateVector[k];
-                    xDot[n - 1] = -sumA + inVal;
+                    auto getXDot = [&](const std::vector<double>& xCurr, double uVal) -> std::vector<double> {
+                        std::vector<double> xD(n, 0.0);
+                        for (size_t k = 0; k < n - 1; ++k) xD[k] = xCurr[k + 1];
+                        double sumA = 0.0;
+                        for (size_t k = 0; k < n; ++k) sumA += denNorm[n - k] * xCurr[k];
+                        xD[n - 1] = -sumA + uVal;
+                        return xD;
+                    };
 
-                    if (currentTime > 0.0) {
-                        for (size_t k = 0; k < n; ++k) fc.stateVector[k] += xDot[k] * dt;
+                    // 4th-order Runge-Kutta integration for state vector
+                    std::vector<double> k1 = getXDot(fc.stateVector, inVal);
+
+                    std::vector<double> x2(n);
+                    for (size_t k = 0; k < n; ++k) x2[k] = fc.stateVector[k] + 0.5 * dt * k1[k];
+                    std::vector<double> k2 = getXDot(x2, inVal);
+
+                    std::vector<double> x3(n);
+                    for (size_t k = 0; k < n; ++k) x3[k] = fc.stateVector[k] + 0.5 * dt * k2[k];
+                    std::vector<double> k3 = getXDot(x3, inVal);
+
+                    std::vector<double> x4(n);
+                    for (size_t k = 0; k < n; ++k) x4[k] = fc.stateVector[k] + dt * k3[k];
+                    std::vector<double> k4 = getXDot(x4, inVal);
+
+                    for (size_t k = 0; k < n; ++k) {
+                        fc.stateVector[k] += (dt / 6.0) * (k1[k] + 2.0 * k2[k] + 2.0 * k3[k] + k4[k]);
                     }
 
                     double bn = numNorm[0];
