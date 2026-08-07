@@ -636,6 +636,7 @@ void MainWindow::renderComponentPalette() {
 
         // Helper lambda to render component button
         auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::vector<std::pair<std::string, std::string>>& defaultParams = {}) {
+            ImGui::PushID(rawTypeStr.c_str());
             if (ImGui::Button(buttonText)) {
                 ComponentInstance comp;
                 comp.id = getUniqueId(prefix);
@@ -647,6 +648,7 @@ void MainWindow::renderComponentPalette() {
                 }
                 canvas.addComponent(comp);
             }
+            ImGui::PopID();
         };
 
         // Helper metadata for library component categorization matching Web Tool
@@ -829,6 +831,7 @@ void MainWindow::renderComponentPalette() {
         else if (!showDetailedLibrary) {
             // BASIC LIBRARY VIEW (Only simple original basic blocks)
             if (ImGui::CollapsingHeader("⚡ Power Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::PushID("basic_power");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
                     if (item.isBasic && std::string(item.category) == "electrical") {
@@ -837,9 +840,11 @@ void MainWindow::renderComponentPalette() {
                 }
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
+                ImGui::PopID();
             }
 
             if (ImGui::CollapsingHeader("🎛️ Control Loops", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::PushID("basic_control");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
                     if (item.isBasic && std::string(item.category) == "control") {
@@ -848,9 +853,11 @@ void MainWindow::renderComponentPalette() {
                 }
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
+                ImGui::PopID();
             }
 
             if (ImGui::CollapsingHeader("📊 Scope & Probes", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::PushID("basic_general");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
                     if (item.isBasic && std::string(item.category) == "general") {
@@ -859,6 +866,7 @@ void MainWindow::renderComponentPalette() {
                 }
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
+                ImGui::PopID();
             }
         }
         else {
@@ -882,6 +890,7 @@ void MainWindow::renderComponentPalette() {
 
             // 1. GENERAL BLOCKS (Category: general)
             if (ImGui::CollapsingHeader("⚙️ General Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::PushID("cat_general");
                 ImGui::Indent(8.0f);
                 
                 std::vector<const ComponentMeta*> portsSubsys, sigRouting, visLogging, execControl;
@@ -902,10 +911,12 @@ void MainWindow::renderComponentPalette() {
 
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
+                ImGui::PopID();
             }
 
             // 2. CONTROL BLOCKS (Category: control)
             if (ImGui::CollapsingHeader("🎛️ Control Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::PushID("cat_control");
                 ImGui::Indent(8.0f);
                 
                 std::vector<const ComponentMeta*> sources, fnTables, continuous, delays, discrete, discontinuous, logicBitwise, modulators, sigTransforms, filtersMeas, stateMachines, math;
@@ -942,10 +953,12 @@ void MainWindow::renderComponentPalette() {
 
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
+                ImGui::PopID();
             }
 
             // 3. ELECTRICAL BLOCKS (Category: electrical)
             if (ImGui::CollapsingHeader("⚡ Electrical Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::PushID("cat_electrical");
                 ImGui::Indent(8.0f);
                 
                 std::vector<const ComponentMeta*> connect, elecSources, meters, passives, semiSwitches, switches, transformers, machines, electronics, ics, customLoads;
@@ -980,6 +993,7 @@ void MainWindow::renderComponentPalette() {
 
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
+                ImGui::PopID();
             }
         }
     }
