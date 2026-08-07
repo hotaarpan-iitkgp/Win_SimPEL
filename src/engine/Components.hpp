@@ -119,6 +119,14 @@ enum class ComponentType {
     JKFlipFlop,           // JK_FLIP_FLOP
     ShiftReg,             // SHIFT_REG
 
+    // Control Modulators & Signal Transforms
+    PWM_3PH,              // PWM_3PH
+    SVPWM,                // SVPWM
+    Clarke,               // CLARKE
+    Park,                 // PARK
+    InvClarke,            // INV_CLARKE
+    InvPark,              // INV_PARK
+
     Unknown
 };
 
@@ -194,6 +202,12 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "DFlipFlop" || typeStr == "D_FLIP_FLOP") return ComponentType::DFlipFlop;
     if (typeStr == "JKFlipFlop" || typeStr == "JK_FLIP_FLOP") return ComponentType::JKFlipFlop;
     if (typeStr == "ShiftReg" || typeStr == "SHIFT_REG") return ComponentType::ShiftReg;
+    if (typeStr == "PWM_3PH") return ComponentType::PWM_3PH;
+    if (typeStr == "SVPWM") return ComponentType::SVPWM;
+    if (typeStr == "CLARKE" || typeStr == "Clarke") return ComponentType::Clarke;
+    if (typeStr == "PARK" || typeStr == "Park") return ComponentType::Park;
+    if (typeStr == "INV_CLARKE" || typeStr == "InvClarke") return ComponentType::InvClarke;
+    if (typeStr == "INV_PARK" || typeStr == "InvPark") return ComponentType::InvPark;
     if (typeStr == "Round" || typeStr == "ROUND") return ComponentType::Round;
     if (typeStr == "MinMax" || typeStr == "MIN_MAX") return ComponentType::MinMax;
     if (typeStr == "LUT_1D") return ComponentType::LUT_1D;

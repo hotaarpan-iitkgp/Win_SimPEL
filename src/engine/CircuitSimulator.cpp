@@ -397,6 +397,58 @@ void CircuitSimulator::buildIndexMaps() {
             }
         }
 
+        if (ctrlComp.type == ComponentType::Clarke) {
+            fc.outKey = ctrlComp.id + ".Alpha";
+            std::string inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", "");
+            std::string inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", "");
+            std::string inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
+        } else if (ctrlComp.type == ComponentType::InvClarke) {
+            fc.outKey = ctrlComp.id + ".A";
+            std::string inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", "");
+            std::string inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".A"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".B"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".C"));
+        } else if (ctrlComp.type == ComponentType::Park) {
+            fc.outKey = ctrlComp.id + ".d";
+            std::string inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", "");
+            std::string inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
+            std::string inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".d"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".q"));
+        } else if (ctrlComp.type == ComponentType::InvPark) {
+            fc.outKey = ctrlComp.id + ".Alpha";
+            std::string inD = getParamString(ctrlComp, "d", ""); if (inD.empty()) inD = getParamString(ctrlComp, "In1", "");
+            std::string inQ = getParamString(ctrlComp, "q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "In2", "");
+            std::string inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inD));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inQ));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
+        } else if (ctrlComp.type == ComponentType::PWM_3PH || ctrlComp.type == ComponentType::SVPWM) {
+            fc.outKey = ctrlComp.id + ".OutA";
+            std::string inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", "");
+            std::string inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", "");
+            std::string inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutA"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutB"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutC"));
+        }
+
         if (fc.outKey.empty()) {
             if (ctrlComp.type == ComponentType::UnifiedProbe && !fc.ctrlSigKey.empty()) {
                 fc.outKey = ctrlComp.id + "." + fc.ctrlSigKey;
@@ -1174,6 +1226,110 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                         }
                     }
                 }
+            }
+            else if (fc.type == ComponentType::Clarke) {
+                double va = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double vb = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double vc = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double alpha = (2.0 * va - vb - vc) / 3.0;
+                double beta = (vb - vc) / 1.7320508075688772;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = alpha;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = beta;
+                val = alpha;
+            }
+            else if (fc.type == ComponentType::InvClarke) {
+                double alpha = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double beta = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+
+                double va = alpha;
+                double vb = -0.5 * alpha + (1.7320508075688772 / 2.0) * beta;
+                double vc = -0.5 * alpha - (1.7320508075688772 / 2.0) * beta;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = va;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = vb;
+                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = vc;
+                val = va;
+            }
+            else if (fc.type == ComponentType::Park) {
+                double alpha = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double beta = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double theta = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double cosT = std::cos(theta);
+                double sinT = std::sin(theta);
+
+                double vd = alpha * cosT + beta * sinT;
+                double vq = -alpha * sinT + beta * cosT;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = vd;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = vq;
+                val = vd;
+            }
+            else if (fc.type == ComponentType::InvPark) {
+                double vd = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double vq = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double theta = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double cosT = std::cos(theta);
+                double sinT = std::sin(theta);
+
+                double alpha = vd * cosT - vq * sinT;
+                double beta = vd * sinT + vq * cosT;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = alpha;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = beta;
+                val = alpha;
+            }
+            else if (fc.type == ComponentType::PWM_3PH) {
+                double freq = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double period = 1.0 / freq;
+                double phaseIn = std::fmod(currentTime, period) / period;
+                if (phaseIn < 0.0) phaseIn += 1.0;
+                double v_car = (phaseIn < 0.5) ? (4.0 * phaseIn - 1.0) : (3.0 - 4.0 * phaseIn); // -1 to +1 triangle wave
+
+                double va = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double vb = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double vc = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double outA = (va > v_car) ? 1.0 : 0.0;
+                double outB = (vb > v_car) ? 1.0 : 0.0;
+                double outC = (vc > v_car) ? 1.0 : 0.0;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = outA;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
+                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
+                val = outA;
+            }
+            else if (fc.type == ComponentType::SVPWM) {
+                double freq = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double period = 1.0 / freq;
+                double phaseIn = std::fmod(currentTime, period) / period;
+                if (phaseIn < 0.0) phaseIn += 1.0;
+                double v_car = (phaseIn < 0.5) ? (4.0 * phaseIn - 1.0) : (3.0 - 4.0 * phaseIn); // -1 to +1 triangle wave
+
+                double va = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double vb = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double vc = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                // Zero-sequence min-max offset injection (SVPWM equivalence)
+                double v_max = std::max(va, std::max(vb, vc));
+                double v_min = std::min(va, std::min(vb, vc));
+                double v_offset = -0.5 * (v_max + v_min);
+
+                double v_refA = va + v_offset;
+                double v_refB = vb + v_offset;
+                double v_refC = vc + v_offset;
+
+                double outA = (v_refA > v_car) ? 1.0 : 0.0;
+                double outB = (v_refB > v_car) ? 1.0 : 0.0;
+                double outC = (v_refC > v_car) ? 1.0 : 0.0;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = outA;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
+                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
+                val = outA;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

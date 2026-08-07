@@ -739,8 +739,17 @@ void MainWindow::renderComponentPalette() {
             { "JK Flip-Flop (JK_FLIP_FLOP)", "JK-FF", "JK_FLIP_FLOP", ComponentType::JKFlipFlop, "JK_FLIP_FLOP", "control", "Logical & Bitwise", {{"initial_state", "0.0"}, {"trigger_edge", "rising"}}, false },
             { "Shift Register (SHIFT_REG)", "Shift", "SHIFT_REG", ComponentType::ShiftReg, "SHIFT_REG", "control", "Logical & Bitwise", {{"length", "4"}}, false },
 
+            // Modulators sub-library
             { "PWM Generator", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "20000"}}, true },
             { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"num_carriers", "3"}, {"fc", "10k"}, {"dead_time", "1u"}}, true },
+            { "PWM (3-Phase) (PWM_3PH)", "PWM 3Ph", "PWM_3PH", ComponentType::PWM_3PH, "PWM_3PH", "control", "Modulators", {{"frequency", "10k"}}, false },
+            { "Space Vector PWM (SVPWM)", "SVPWM", "SVPWM", ComponentType::SVPWM, "SVPWM", "control", "Modulators", {{"frequency", "10k"}}, false },
+
+            // Signal Transforms sub-library
+            { "Clarke Transform (CLARKE)", "abc-αβ", "CLARKE", ComponentType::Clarke, "CLARKE", "control", "Signal Transforms", {}, false },
+            { "Park Transform (PARK)", "αβ-dq", "PARK", ComponentType::Park, "PARK", "control", "Signal Transforms", {}, false },
+            { "Inverse Clarke Transform (INV_CLARKE)", "αβ-abc", "INV_CLARKE", ComponentType::InvClarke, "INV_CLARKE", "control", "Signal Transforms", {}, false },
+            { "Inverse Park Transform (INV_PARK)", "dq-αβ", "INV_PARK", ComponentType::InvPark, "INV_PARK", "control", "Signal Transforms", {}, false },
 
             { "Sum (SUM_RECT)", "Sum", "SUM", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {}, true },
             { "Sum Round (SUM_ROUND)", "Sum (Round)", "SUM", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {}, true },

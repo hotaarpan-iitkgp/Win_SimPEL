@@ -622,6 +622,58 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["D"] = getIncomingSignal(comp.id, "D");
             cObj["Clk"] = getIncomingSignal(comp.id, "Ctrl");
             ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "CLARKE") {
+            cObj["output_alpha"] = comp.id + ".Alpha";
+            cObj["output_beta"] = comp.id + ".Beta";
+            cObj["original_type"] = "CLARKE";
+            cObj["input_a"] = getIncomingSignal(comp.id, "A");
+            cObj["input_b"] = getIncomingSignal(comp.id, "B");
+            cObj["input_c"] = getIncomingSignal(comp.id, "C");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "INV_CLARKE") {
+            cObj["output_a"] = comp.id + ".A";
+            cObj["output_b"] = comp.id + ".B";
+            cObj["output_c"] = comp.id + ".C";
+            cObj["original_type"] = "INV_CLARKE";
+            cObj["input_alpha"] = getIncomingSignal(comp.id, "Alpha");
+            cObj["input_beta"] = getIncomingSignal(comp.id, "Beta");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "PARK") {
+            cObj["output_d"] = comp.id + ".d";
+            cObj["output_q"] = comp.id + ".q";
+            cObj["original_type"] = "PARK";
+            cObj["input_alpha"] = getIncomingSignal(comp.id, "Alpha");
+            cObj["input_beta"] = getIncomingSignal(comp.id, "Beta");
+            cObj["input_theta"] = getIncomingSignal(comp.id, "Theta");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "INV_PARK") {
+            cObj["output_alpha"] = comp.id + ".Alpha";
+            cObj["output_beta"] = comp.id + ".Beta";
+            cObj["original_type"] = "INV_PARK";
+            cObj["input_d"] = getIncomingSignal(comp.id, "d");
+            cObj["input_q"] = getIncomingSignal(comp.id, "q");
+            cObj["input_theta"] = getIncomingSignal(comp.id, "Theta");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "PWM_3PH") {
+            cObj["output_a"] = comp.id + ".OutA";
+            cObj["output_b"] = comp.id + ".OutB";
+            cObj["output_c"] = comp.id + ".OutC";
+            cObj["original_type"] = "PWM_3PH";
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 10000.0);
+            cObj["input_a"] = getIncomingSignal(comp.id, "A");
+            cObj["input_b"] = getIncomingSignal(comp.id, "B");
+            cObj["input_c"] = getIncomingSignal(comp.id, "C");
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SVPWM") {
+            cObj["output_a"] = comp.id + ".OutA";
+            cObj["output_b"] = comp.id + ".OutB";
+            cObj["output_c"] = comp.id + ".OutC";
+            cObj["original_type"] = "SVPWM";
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 10000.0);
+            cObj["input_a"] = getIncomingSignal(comp.id, "A");
+            cObj["input_b"] = getIncomingSignal(comp.id, "B");
+            cObj["input_c"] = getIncomingSignal(comp.id, "C");
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;

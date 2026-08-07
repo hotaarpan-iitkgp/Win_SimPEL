@@ -104,6 +104,14 @@ enum class ComponentType {
     JKFlipFlop,
     ShiftReg,
 
+    // Control Modulators & Signal Transforms
+    PWM_3PH,
+    SVPWM,
+    Clarke,
+    Park,
+    InvClarke,
+    InvPark,
+
     Unknown
 };
 

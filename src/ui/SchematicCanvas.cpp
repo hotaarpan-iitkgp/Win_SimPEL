@@ -94,6 +94,21 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "SHIFT_REG") {
         return {{"D", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Out", 20, 0, 1, 0, true}};
     }
+    if (t == "CLARKE") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"Alpha", 20, -10, 1, 0, true}, {"Beta", 20, 10, 1, 0, true}};
+    }
+    if (t == "INV_CLARKE") {
+        return {{"Alpha", -20, -10, -1, 0, true}, {"Beta", -20, 10, -1, 0, true}, {"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}};
+    }
+    if (t == "PARK") {
+        return {{"Alpha", -20, -15, -1, 0, true}, {"Beta", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"d", 20, -10, 1, 0, true}, {"q", 20, 10, 1, 0, true}};
+    }
+    if (t == "INV_PARK") {
+        return {{"d", -20, -15, -1, 0, true}, {"q", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"Alpha", 20, -10, 1, 0, true}, {"Beta", 20, 10, 1, 0, true}};
+    }
+    if (t == "PWM_3PH" || t == "SVPWM") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"OutA", 20, -15, 1, 0, true}, {"OutB", 20, 0, 1, 0, true}, {"OutC", 20, 15, 1, 0, true}};
+    }
     if (t == "SCOPE") {
         int numCh = 2;
         if (comp.parameters.count("channels")) {
@@ -181,6 +196,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "QUANTIZER" || t == "SIGNAL_SWITCH" || t == "MANUAL_SWITCH" || t == "MULTIPORT_SWITCH" || t == "HIT_CROSSING" || t == "SATURATION" || t == "DEAD_ZONE" || t == "RATE_LIMITER" || t == "RELAY" ||
         t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" ||
         t == "RELATIONAL_OPERATOR" || t == "COMPARE_TO_CONSTANT" || t == "D_FLIP_FLOP" || t == "JK_FLIP_FLOP" || t == "SHIFT_REG" ||
+        t == "CLARKE" || t == "INV_CLARKE" || t == "PARK" || t == "INV_PARK" || t == "PWM_3PH" || t == "SVPWM" ||
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" ||
         t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" ||
         t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||

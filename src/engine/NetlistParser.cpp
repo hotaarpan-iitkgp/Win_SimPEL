@@ -78,6 +78,12 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "DFlipFlop" || t == "D_FLIP_FLOP") return ComponentType::DFlipFlop;
     if (t == "JKFlipFlop" || t == "JK_FLIP_FLOP") return ComponentType::JKFlipFlop;
     if (t == "ShiftReg" || t == "SHIFT_REG") return ComponentType::ShiftReg;
+    if (t == "PWM_3PH") return ComponentType::PWM_3PH;
+    if (t == "SVPWM") return ComponentType::SVPWM;
+    if (t == "CLARKE" || t == "Clarke") return ComponentType::Clarke;
+    if (t == "PARK" || t == "Park") return ComponentType::Park;
+    if (t == "INV_CLARKE" || t == "InvClarke") return ComponentType::InvClarke;
+    if (t == "INV_PARK" || t == "InvPark") return ComponentType::InvPark;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;
