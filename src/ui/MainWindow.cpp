@@ -635,7 +635,7 @@ void MainWindow::renderComponentPalette() {
         };
 
         // Helper lambda to render component button
-        auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::initializer_list<std::pair<std::string, std::string>>& defaultParams = {}) {
+        auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::vector<std::pair<std::string, std::string>>& defaultParams = {}) {
             if (ImGui::Button(buttonText)) {
                 ComponentInstance comp;
                 comp.id = getUniqueId(prefix);
@@ -658,7 +658,7 @@ void MainWindow::renderComponentPalette() {
             const char* rawTypeStr;
             const char* category;       // "general", "control", "electrical"
             const char* subcategory;    // Subheading matching webtool
-            std::initializer_list<std::pair<std::string, std::string>> defaultParams;
+            std::vector<std::pair<std::string, std::string>> defaultParams;
         };
 
         static const std::vector<ComponentMeta> allComponents = {
