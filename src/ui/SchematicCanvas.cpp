@@ -1319,18 +1319,18 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         bool isControlNet = (wDom == DomainType::Control);
 
         bool fromIsVertical = false;
-        for (const auto& comp : design.components) {
-            if (comp.id == wire.from.compId) {
-                foundFrom = getTerminalPortStub(comp, wire.from.terminal, canvasPos, zoomLevel, p1, p1_stub, fromIsVertical);
-            }
-            if (comp.id == wire.to.compId) {
-                bool dummyVert;
-                foundTo = getTerminalPortStub(comp, wire.to.terminal, canvasPos, zoomLevel, p2, p2_stub, dummyVert);
+        if (wire.from.isWireJunction) {
+            p1 = worldToScreen(wire.from.junctionX, wire.from.junctionY, canvasPos);
+            p1_stub = p1;
+            foundFrom = true;
+        } else {
+            for (const auto& comp : design.components) {
+                if (comp.id == wire.from.compId) {
+                    foundFrom = getTerminalPortStub(comp, wire.from.terminal, canvasPos, zoomLevel, p1, p1_stub, fromIsVertical);
+                    break;
+                }
             }
         }
-
-        if (!foundFrom) p1_stub = p1;
-        if (!foundTo) p2_stub = p2;
 
         if (wire.to.isWireJunction) {
             std::string targetLower = wire.to.targetWireId;
@@ -1365,7 +1365,18 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 p2_stub = p2;
                 foundTo = true;
             }
+        } else {
+            for (const auto& comp : design.components) {
+                if (comp.id == wire.to.compId) {
+                    bool dummyVert;
+                    foundTo = getTerminalPortStub(comp, wire.to.terminal, canvasPos, zoomLevel, p2, p2_stub, dummyVert);
+                    break;
+                }
+            }
         }
+
+        if (!foundFrom) p1_stub = p1;
+        if (!foundTo) p2_stub = p2;
 
         if (foundFrom && foundTo) {
             if (fromIsVertical) {
@@ -1474,6 +1485,9 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 
             if (wire.to.isWireJunction) {
                 drawList->AddCircleFilled(p2, 4.0f * zoomLevel, isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255));
+            }
+            if (wire.from.isWireJunction) {
+                drawList->AddCircleFilled(p1, 4.0f * zoomLevel, isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255));
             }
 
             // Interactive Segment Drag Handles (Horizontal / Vertical 4-Way Dragging)
