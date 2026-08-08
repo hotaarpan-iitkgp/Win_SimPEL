@@ -368,7 +368,11 @@ void MainWindow::renderMenuBar() {
                                         float jx = cd.wires[wj].to.junctionX;
                                         float jy = cd.wires[wj].to.junctionY;
                                         
-                                        if (!cd.wires[wi].to.isWireJunction || std::abs(cd.wires[wi].to.junctionX - jx) > 5.0f || std::abs(cd.wires[wi].to.junctionY - jy) > 5.0f) {
+                                        float dToEnd = 1000.0f;
+                                        if (cd.wires[wi].to.isWireJunction) {
+                                            dToEnd = std::sqrt((cd.wires[wi].to.junctionX - jx)*(cd.wires[wi].to.junctionX - jx) + (cd.wires[wi].to.junctionY - jy)*(cd.wires[wi].to.junctionY - jy));
+                                        }
+                                        if (dToEnd > 15.0f) {
                                             WireInstance seg2;
                                             maxWNum++;
                                             seg2.id = "w" + std::to_string(maxWNum);

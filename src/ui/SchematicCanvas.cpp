@@ -317,6 +317,27 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
     return DomainType::Power;
 }
 
+static ImVec2 getEndpointWorldPos(const WireEndpoint& ep, const CircuitDesign& design) {
+    if (ep.isWireJunction) {
+        return ImVec2(ep.junctionX, ep.junctionY);
+    }
+    for (const auto& comp : design.components) {
+        if (comp.id == ep.compId) {
+            auto terms = getTerminals(comp);
+            for (const auto& t : terms) {
+                if (t.name == ep.terminal) {
+                    float rad = comp.rotation * 3.14159265f / 180.0f;
+                    float rx = t.relX * std::cos(rad) - t.relY * std::sin(rad);
+                    float ry = t.relX * std::sin(rad) + t.relY * std::cos(rad);
+                    return ImVec2(comp.x + rx, comp.y + ry);
+                }
+            }
+            return ImVec2(comp.x, comp.y);
+        }
+    }
+    return ImVec2(ep.junctionX, ep.junctionY);
+}
+
 static DomainType getWireDomain(const WireInstance& wire, const CircuitDesign& design) {
     for (const auto& comp : design.components) {
         if (comp.id == wire.from.compId) {
@@ -2358,26 +2379,37 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                         wire.to.junctionY = hoveredWireJunctionPos.y;
                         design.wires.push_back(wire);
 
-                        // Split hoveredWire at junction into independent 2-point wire segments
+                        // Split hoveredWire at junction ONLY if junction is in middle (not at endpoints)
                         for (size_t wi = 0; wi < design.wires.size(); ++wi) {
                             if (design.wires[wi].id == hoveredWireId) {
-                                WireInstance seg2;
-                                candW++;
-                                while (existingWIds.count("w" + std::to_string(candW))) candW++;
-                                seg2.id = "w" + std::to_string(candW);
+                                ImVec2 wP1 = getEndpointWorldPos(design.wires[wi].from, design);
+                                ImVec2 wP2 = getEndpointWorldPos(design.wires[wi].to, design);
 
-                                seg2.from.isWireJunction = true;
-                                seg2.from.targetWireId = wire.id;
-                                seg2.from.junctionX = hoveredWireJunctionPos.x;
-                                seg2.from.junctionY = hoveredWireJunctionPos.y;
-                                seg2.to = design.wires[wi].to;
+                                float jx = hoveredWireJunctionPos.x;
+                                float jy = hoveredWireJunctionPos.y;
 
-                                design.wires[wi].to.isWireJunction = true;
-                                design.wires[wi].to.targetWireId = wire.id;
-                                design.wires[wi].to.junctionX = hoveredWireJunctionPos.x;
-                                design.wires[wi].to.junctionY = hoveredWireJunctionPos.y;
+                                float d1 = std::sqrt((wP1.x - jx)*(wP1.x - jx) + (wP1.y - jy)*(wP1.y - jy));
+                                float d2 = std::sqrt((wP2.x - jx)*(wP2.x - jx) + (wP2.y - jy)*(wP2.y - jy));
 
-                                design.wires.push_back(seg2);
+                                if (d1 > 15.0f && d2 > 15.0f) {
+                                    WireInstance seg2;
+                                    candW++;
+                                    while (existingWIds.count("w" + std::to_string(candW))) candW++;
+                                    seg2.id = "w" + std::to_string(candW);
+
+                                    seg2.from.isWireJunction = true;
+                                    seg2.from.targetWireId = wire.id;
+                                    seg2.from.junctionX = jx;
+                                    seg2.from.junctionY = jy;
+                                    seg2.to = design.wires[wi].to;
+
+                                    design.wires[wi].to.isWireJunction = true;
+                                    design.wires[wi].to.targetWireId = wire.id;
+                                    design.wires[wi].to.junctionX = jx;
+                                    design.wires[wi].to.junctionY = jy;
+
+                                    design.wires.push_back(seg2);
+                                }
                                 break;
                             }
                         }
