@@ -263,8 +263,8 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 }
                 pendingZoom[i].hasPending = false;
             } else if (doFitThisFrame) {
-                // Manual fit with 8% Y padding for breathing room
-                double xMin = data.timeHistory.empty() ? 0.0 : data.timeHistory.front();
+                // Fit with 10% Y padding for exact centering above and below
+                double xMin = 0.0;
                 double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
                 double yMin =  1e30, yMax = -1e30;
                 for (const auto& vp : cat.variables) {
@@ -275,7 +275,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 }
                 if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
                 double yRange = yMax - yMin;
-                double yPad = (yRange > 1e-9) ? yRange * 0.08 : 0.5;
+                double yPad = (yRange > 1e-12) ? (yRange * 0.10) : ((std::abs(yMin) > 1e-6) ? (0.10 * std::abs(yMin)) : 1.0);
                 ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
             }
 

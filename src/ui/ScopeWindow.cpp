@@ -290,9 +290,33 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
     if (renderPanes == 1) {
         // Single plot with all channels overlaid
         if (doFitThisFrame) {
-            double xMin = data.timeHistory.front();
-            double xMax = data.timeHistory.back();
-            ImPlot::SetNextAxesLimits(xMin, xMax, -1.0, 1.0, ImGuiCond_Always);
+            double xMin = 0.0;
+            double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
+            double yMin = 1e30, yMax = -1e30;
+            for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
+                const std::string& sigKey = channelSignalKeys[ch];
+                if (sigKey.empty()) continue;
+                auto it = data.voltages.find(sigKey);
+                if (it == data.voltages.end()) {
+                    std::string alt = sigKey;
+                    if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
+                        alt = alt.substr(0, alt.size()-4);
+                        it = data.voltages.find(alt);
+                    }
+                    if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
+                    if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
+                }
+                if (it != data.voltages.end()) {
+                    for (double v : it->second) {
+                        if (v < yMin) yMin = v;
+                        if (v > yMax) yMax = v;
+                    }
+                }
+            }
+            if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
+            double ySpan = yMax - yMin;
+            double yPad = (ySpan > 1e-12) ? (0.10 * ySpan) : ((std::abs(yMin) > 1e-6) ? (0.10 * std::abs(yMin)) : 1.0);
+            ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
         }
         if (pendingZoom[0].hasPending) {
             if (pendingZoom[0].type == SZ_X_ONLY)
@@ -366,9 +390,32 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                     }
                     pendingZoom[i].hasPending = false;
                 } else if (doFitThisFrame) {
-                    double xMin = data.timeHistory.front();
-                    double xMax = data.timeHistory.back();
-                    ImPlot::SetNextAxesLimits(xMin, xMax, -1.0, 1.0, ImGuiCond_Always);
+                    double xMin = 0.0;
+                    double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
+                    double yMin = 1e30, yMax = -1e30;
+                    if (ch < (int)channelSignalKeys.size()) {
+                        const std::string& sigKey = channelSignalKeys[ch];
+                        auto it = data.voltages.find(sigKey);
+                        if (it == data.voltages.end()) {
+                            std::string alt = sigKey;
+                            if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
+                                alt = alt.substr(0, alt.size()-4);
+                                it = data.voltages.find(alt);
+                            }
+                            if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
+                            if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
+                        }
+                        if (it != data.voltages.end()) {
+                            for (double v : it->second) {
+                                if (v < yMin) yMin = v;
+                                if (v > yMax) yMax = v;
+                            }
+                        }
+                    }
+                    if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
+                    double ySpan = yMax - yMin;
+                    double yPad = (ySpan > 1e-12) ? (0.10 * ySpan) : ((std::abs(yMin) > 1e-6) ? (0.10 * std::abs(yMin)) : 1.0);
+                    ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
                 }
 
                 std::string plotTitle = (ch < (int)channelLabels.size()) ? channelLabels[ch] : ("Ch" + std::to_string(ch+1));
