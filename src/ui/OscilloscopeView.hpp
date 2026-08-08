@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/CircuitSimulator.hpp"
+#include "ScopeWindow.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include <string>
@@ -44,10 +45,17 @@ private:
     bool isCollapsed = false;
     float savedDockHeight = 0.0f; // Stores height before collapse
 
+    // Cursor state
+    ScopeCursorState cursorState;
+
     // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;
     std::array<WaveformPendingZoom, MAX_PANES> pendingZoom = {};
     std::array<CustomZoomDragState, MAX_PANES> customDragState = {};
+
+    void renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data);
+    void renderDataPanel(const CircuitSimEngine::TelemetryData& data);
+    double interpolateSignal(const std::vector<double>& timeHist, const std::vector<double>& signalData, double targetT, bool snap) const;
 
 public:
     OscilloscopeView() = default;

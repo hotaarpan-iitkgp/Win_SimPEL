@@ -36,6 +36,15 @@ struct ScopeDragState {
     ImVec2 currentPx = {0.0f, 0.0f};
 };
 
+struct ScopeCursorState {
+    bool showCursors = false;
+    double cursor1Time = 0.0;
+    double cursor2Time = 0.0;
+    bool initialized = false;
+    bool snapToSample = false;
+    bool lockBoundary = true;
+};
+
 // A standalone PLECS/MATLAB-style scope popup window.
 // Each instance corresponds to one SCOPE component on the schematic.
 // Supports subplots (one per channel), zoom modes, and real-time updates.
@@ -52,9 +61,10 @@ private:
     bool useSubplots = true;   // true = each channel in its own subplot row
     int numPanes = 1;          // how many subplot rows to show (auto or manual)
 
-    // Zoom state
+    // Zoom & Cursor state
     ScopeZoomMode activeZoomMode = ScopeZoomMode::Disabled;
     bool autoFitNext = true;
+    ScopeCursorState cursorState;
 
     // Per-pane zoom & drag state (max 8 channels)
     static constexpr int MAX_PANES = 8;
@@ -74,6 +84,10 @@ private:
     void renderToolbar(const CircuitSimEngine::TelemetryData& data);
     void renderPlots(const CircuitSimEngine::TelemetryData& data);
     void renderZoomOverlay(int paneIdx);
+    void renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data);
+    void renderDataPanel(const CircuitSimEngine::TelemetryData& data);
+
+    double interpolateSignal(const std::vector<double>& timeHist, const std::vector<double>& signalData, double targetT, bool snap) const;
 
 public:
     ScopeWindow() = default;

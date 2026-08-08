@@ -155,6 +155,10 @@ void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
     renderToolbar(data);
     ImGui::Separator();
     renderPlots(data);
+    if (cursorState.showCursors) {
+        ImGui::Separator();
+        renderDataPanel(data);
+    }
 
     ImGui::End();
 }
@@ -220,8 +224,33 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data) {
 
     ImGui::TextDisabled("|");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(90.0f);
-    ImGui::SliderFloat("Width##sw", &traceLineWidth, 1.0f, 6.0f, "%.1f px");
+
+    // Dual Cursors controls
+    if (cursorState.showCursors) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.00f, 0.70f, 0.50f, 1.0f));
+        if (ImGui::Button("Cursors (||)##cur")) cursorState.showCursors = false;
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        if (cursorState.snapToSample) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
+            if (ImGui::Button("Snap ON##cur")) cursorState.snapToSample = false;
+            ImGui::PopStyleColor();
+        } else {
+            if (ImGui::Button("Snap OFF##cur")) cursorState.snapToSample = true;
+        }
+
+        ImGui::SameLine();
+        if (cursorState.lockBoundary) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.45f, 0.00f, 1.0f));
+            if (ImGui::Button("Lock (t1<=t2)##cur")) cursorState.lockBoundary = false;
+            ImGui::PopStyleColor();
+        } else {
+            if (ImGui::Button("Free Order##cur")) cursorState.lockBoundary = true;
+        }
+    } else {
+        if (ImGui::Button("Cursors (||)##cur")) cursorState.showCursors = true;
+    }
 
     ImGui::SameLine();
     ImGui::TextDisabled("| %d pts | t=%.4fs | %d Ch",
@@ -278,6 +307,7 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
             ImPlot::SetupAxes("Time (s)", "Amplitude");
 
             if (isZoomActive) renderZoomOverlay(0);
+            renderCursorOverlay(0, data);
 
             for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
                 const std::string& sigKey = channelSignalKeys[ch];
@@ -344,6 +374,7 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                     ImPlot::SetupAxes("Time (s)", "Amplitude");
 
                     if (isZoomActive) renderZoomOverlay(i);
+                    renderCursorOverlay(i, data);
 
                     const std::string& sigKey = (ch < (int)channelSignalKeys.size()) ? channelSignalKeys[ch] : "";
                     if (!sigKey.empty()) {
@@ -464,6 +495,192 @@ void ScopeWindow::renderZoomOverlay(int paneIdx) {
             pendingZoom[paneIdx].hasPending = true;
         }
     }
+}
+
+double ScopeWindow::interpolateSignal(const std::vector<double>& timeHist, const std::vector<double>& signalData, double targetT, bool snap) const {
+    if (timeHist.empty() || signalData.empty()) return 0.0;
+    int n = std::min((int)timeHist.size(), (int)signalData.size());
+    if (n == 0) return 0.0;
+
+    if (targetT <= timeHist.front()) return signalData.front();
+    if (targetT >= timeHist.back()) return signalData[n - 1];
+
+    auto it = std::lower_bound(timeHist.begin(), timeHist.begin() + n, targetT);
+    int idx = (int)std::distance(timeHist.begin(), it);
+
+    if (idx == 0) return signalData[0];
+    if (idx >= n) return signalData[n - 1];
+
+    if (snap) {
+        double d1 = std::abs(timeHist[idx - 1] - targetT);
+        double d2 = std::abs(timeHist[idx] - targetT);
+        return (d1 < d2) ? signalData[idx - 1] : signalData[idx];
+    }
+
+    double t0 = timeHist[idx - 1];
+    double t1 = timeHist[idx];
+    double y0 = signalData[idx - 1];
+    double y1 = signalData[idx];
+
+    if (std::abs(t1 - t0) < 1e-12) return y0;
+    double alpha = (targetT - t0) / (t1 - t0);
+    return y0 + alpha * (y1 - y0);
+}
+
+void ScopeWindow::renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data) {
+    if (!cursorState.showCursors || data.timeHistory.empty()) return;
+
+    if (!cursorState.initialized) {
+        double tMin = data.timeHistory.front();
+        double tMax = data.timeHistory.back();
+        double span = (tMax > tMin) ? (tMax - tMin) : 1.0;
+        cursorState.cursor1Time = tMin + 0.20 * span;
+        cursorState.cursor2Time = tMin + 0.80 * span;
+        cursorState.initialized = true;
+    }
+
+    ImVec4 c1Color = isDarkMode ? ImVec4(0.00f, 0.90f, 1.00f, 0.90f) : ImVec4(0.00f, 0.45f, 0.85f, 0.90f);
+    ImVec4 c2Color = isDarkMode ? ImVec4(1.00f, 0.70f, 0.00f, 0.90f) : ImVec4(0.85f, 0.45f, 0.00f, 0.90f);
+
+    bool moved1 = ImPlot::DragLineX(1001, &cursorState.cursor1Time, c1Color, 2.0f);
+    bool moved2 = ImPlot::DragLineX(1002, &cursorState.cursor2Time, c2Color, 2.0f);
+
+    if (cursorState.lockBoundary) {
+        if (cursorState.cursor1Time > cursorState.cursor2Time) {
+            if (moved1) cursorState.cursor1Time = cursorState.cursor2Time;
+            else if (moved2) cursorState.cursor2Time = cursorState.cursor1Time;
+            else cursorState.cursor1Time = cursorState.cursor2Time;
+        }
+    }
+
+    if (cursorState.snapToSample && (moved1 || moved2)) {
+        auto snapVal = [&](double& t) {
+            auto it = std::lower_bound(data.timeHistory.begin(), data.timeHistory.end(), t);
+            if (it != data.timeHistory.end()) {
+                if (it != data.timeHistory.begin()) {
+                    auto prev = it - 1;
+                    if (std::abs(*prev - t) < std::abs(*it - t)) t = *prev;
+                    else t = *it;
+                } else {
+                    t = *it;
+                }
+            }
+        };
+        if (moved1) snapVal(cursorState.cursor1Time);
+        if (moved2) snapVal(cursorState.cursor2Time);
+    }
+
+    // Render badge labels "I" and "II"
+    ImDrawList* dl = ImPlot::GetPlotDrawList();
+    ImVec2 plotPos = ImPlot::GetPlotPos();
+    ImVec2 plotSize = ImPlot::GetPlotSize();
+
+    float px1 = ImPlot::PlotToPixels(ImPlotPoint(cursorState.cursor1Time, 0)).x;
+    float px2 = ImPlot::PlotToPixels(ImPlotPoint(cursorState.cursor2Time, 0)).x;
+
+    float tagY = plotPos.y + plotSize.y - 18.0f;
+    if (px1 >= plotPos.x && px1 <= plotPos.x + plotSize.x) {
+        dl->AddRectFilled(ImVec2(px1 - 10, tagY), ImVec2(px1 + 10, tagY + 16), IM_COL32(0, 180, 220, 220), 3.0f);
+        dl->AddText(ImVec2(px1 - 3, tagY + 1), IM_COL32(255, 255, 255, 255), "I");
+    }
+    if (px2 >= plotPos.x && px2 <= plotPos.x + plotSize.x) {
+        dl->AddRectFilled(ImVec2(px2 - 12, tagY), ImVec2(px2 + 12, tagY + 16), IM_COL32(220, 140, 0, 220), 3.0f);
+        dl->AddText(ImVec2(px2 - 6, tagY + 1), IM_COL32(255, 255, 255, 255), "II");
+    }
+}
+
+void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
+    if (!cursorState.showCursors || data.timeHistory.empty()) return;
+
+    double t1 = cursorState.cursor1Time;
+    double t2 = cursorState.cursor2Time;
+    double dt = t2 - t1;
+    double freq = (std::abs(dt) > 1e-12) ? (1.0 / std::abs(dt)) : 0.0;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+    ImGui::BeginChild("ScopeDataPanel", ImVec2(0, 140), true, ImGuiWindowFlags_None);
+
+    ImGui::TextColored(ImVec4(0.00f, 0.85f, 1.00f, 1.00f), "Data & Time-Span Calculations");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(PLECS Scope Style)");
+
+    static ImGuiTableFlags tflags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
+    if (ImGui::BeginTable("##CursorDataTable", 5, tflags)) {
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Cursor 1", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("Cursor 2", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("Delta", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("Frequency / Info", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableHeadersRow();
+
+        // Row 1: Time
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Time (s)");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%.6f", t1);
+        ImGui::TableSetColumnIndex(2);
+        ImGui::Text("%.6f", t2);
+        ImGui::TableSetColumnIndex(3);
+        ImGui::Text("%.6f", dt);
+        ImGui::TableSetColumnIndex(4);
+        if (freq > 0.0) {
+            if (freq >= 1e6) ImGui::Text("%.3f MHz", freq / 1e6);
+            else if (freq >= 1e3) ImGui::Text("%.3f kHz", freq / 1e3);
+            else ImGui::Text("%.2f Hz", freq);
+        } else {
+            ImGui::TextUnformatted("N/A");
+        }
+
+        // Channel signal rows
+        const auto& palette = isDarkMode ? SCOPE_DARK_COLORS : SCOPE_LIGHT_COLORS;
+        constexpr size_t numColors = 8;
+
+        for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
+            const std::string& sigKey = channelSignalKeys[ch];
+            if (sigKey.empty()) continue;
+
+            auto it = data.voltages.find(sigKey);
+            if (it == data.voltages.end()) {
+                std::string alt = sigKey;
+                if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
+                    alt = alt.substr(0, alt.size()-4);
+                    it = data.voltages.find(alt);
+                }
+                if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
+                if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
+            }
+
+            if (it != data.voltages.end() && !it->second.empty()) {
+                double y1 = interpolateSignal(data.timeHistory, it->second, t1, cursorState.snapToSample);
+                double y2 = interpolateSignal(data.timeHistory, it->second, t2, cursorState.snapToSample);
+                double dy = y2 - y1;
+
+                std::string label = (ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey;
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::ColorButton("##cDot", palette[ch % numColors], ImGuiColorEditFlags_NoTooltip, ImVec2(10, 10));
+                ImGui::SameLine();
+                ImGui::TextUnformatted(label.c_str());
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%.5g", y1);
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.5g", y2);
+
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%.5g", dy);
+
+                ImGui::TableSetColumnIndex(4);
+                ImGui::TextDisabled("-");
+            }
+        }
+        ImGui::EndTable();
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
 }
 
 } // namespace CircuitSim
