@@ -24,6 +24,7 @@ set(SOURCES
     src/ui/ConfiguratorDialog.cpp
     src/ui/SchematicCanvas.cpp
     src/ui/OscilloscopeView.cpp
+    src/ui/ScopeWindow.cpp
     src/ui/NetlistSourceView.cpp
     src/ui/MainWindow.cpp
     ${IMGUI_DIR}/imgui.cpp

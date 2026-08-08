@@ -151,6 +151,14 @@ public:
 
     bool isAdaptiveZoomMode() const { return adaptiveZoomMode; }
     void toggleAdaptiveZoom() { adaptiveZoomMode = !adaptiveZoomMode; isBoxZooming = false; }
+
+    // Scope window open request (set by double-click on SCOPE, consumed by MainWindow)
+    struct ScopeOpenRequest {
+        bool pending = false;
+        std::string scopeId;
+        int numChannels = 2;
+    };
+    ScopeOpenRequest scopeOpenRequest;
 };
 
 } // namespace CircuitSim

@@ -2219,6 +2219,19 @@ SimulationOutput CircuitSimulator::runTransient() {
         }
 
         currentTime += h;
+
+        // Periodic live telemetry update (every 500 steps) for real-time plotting
+        if ((iterCount % 500) == 0) {
+            std::lock_guard<std::mutex> lock(telemetryMutex);
+            telemetry.timeHistory = out.time;
+            telemetry.voltages.clear();
+            for (const auto& p : out.voltages) telemetry.voltages[p.first] = p.second;
+            for (const auto& p : out.signals) telemetry.voltages[p.first] = p.second;
+            for (const auto& p : out.inductors) telemetry.voltages[p.first] = p.second;
+            for (const auto& p : out.voltmeters) telemetry.voltages[p.first] = p.second;
+            for (const auto& p : out.ammeters) telemetry.voltages[p.first] = p.second;
+            for (const auto& p : out.custom_plots) telemetry.voltages[p.first] = p.second;
+        }
     }
 
     return out;

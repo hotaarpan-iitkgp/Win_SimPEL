@@ -2683,10 +2683,14 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     strncpy(pulseWidthBuf, width.c_str(), sizeof(pulseWidthBuf));
                     strncpy(pulseDelayBuf, delay.c_str(), sizeof(pulseDelayBuf));
                 } else if (comp.rawTypeStr == "SCOPE") {
-                    showScopeModal = true;
-                    scopeCompIdx = (int)i;
-                    std::string ch = comp.parameters.count("channels") ? comp.parameters["channels"] : "2";
-                    strncpy(scopeChannelsBuf, ch.c_str(), sizeof(scopeChannelsBuf));
+                    // Open the scope popup window (MainWindow will handle creation)
+                    scopeOpenRequest.pending = true;
+                    scopeOpenRequest.scopeId = comp.id;
+                    int ch = 2;
+                    if (comp.parameters.count("channels")) {
+                        try { ch = std::stoi(comp.parameters.at("channels")); } catch (...) {}
+                    }
+                    scopeOpenRequest.numChannels = ch;
                 } else if (comp.rawTypeStr == "SUM_RECT" || comp.rawTypeStr == "SUM_ROUND" || comp.rawTypeStr == "PRODUCT_RECT") {
                     showConfigurator = true;
                     pendingConfigCompIdx = (int)i;

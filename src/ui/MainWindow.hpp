@@ -2,9 +2,14 @@
 
 #include "SchematicCanvas.hpp"
 #include "OscilloscopeView.hpp"
+#include "ScopeWindow.hpp"
 #include "NetlistSourceView.hpp"
 #include "engine/CircuitSimulator.hpp"
 #include "imgui.h"
+#include <vector>
+#include <memory>
+#include <thread>
+#include <atomic>
 
 namespace CircuitSim {
 
@@ -17,6 +22,9 @@ private:
     NetlistSourceView netlistSourceView;
     CircuitSimEngine::CircuitSimulator simulator;
 
+    // Open scope popup windows (PLECS/MATLAB-style)
+    std::vector<ScopeWindow> openScopeWindows;
+
     WorkspaceMode activeWorkspace = WorkspaceMode::SchematicCAD;
     bool isDarkMode = true;
     bool showComponentPalette = true;
@@ -28,6 +36,10 @@ private:
     char simStepSizeBuf[64] = "1u";
     int simSolverIdx = 0;
 
+    // Background simulation thread
+    std::thread simThread;
+    std::atomic<bool> simRunning{false};
+
     void applyDarkTheme();
     void applyLightTheme();
 
@@ -37,8 +49,13 @@ private:
     void renderPropertyInspector();
     void renderSimParamsModal();
 
+    // Scope window helpers
+    void handleScopeOpenRequest();
+    std::vector<std::string> traceScopeInputSignals(const std::string& scopeId, int numChannels);
+
 public:
     MainWindow();
+    ~MainWindow() { if (simThread.joinable()) simThread.join(); }
 
     void startSimulation();
     void loadPresetTemplate(const std::string& name);

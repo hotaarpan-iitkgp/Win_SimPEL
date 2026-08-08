@@ -1,8 +1,10 @@
 #include "OscilloscopeView.hpp"
+#include "imgui_internal.h"
 #include "implot.h"
 #include <iostream>
 #include <algorithm>
 #include <map>
+#include <cfloat>
 
 namespace CircuitSim {
 
@@ -14,6 +16,47 @@ struct SignalCategory {
 
 void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimulator& simulator) {
     ImGui::Begin(title);
+
+    // Handle dock node size for collapse/expand (must be after Begin so window exists)
+    ImGuiWindow* dockWin = ImGui::GetCurrentWindow();
+    if (dockWin && dockWin->DockNode) {
+        ImGuiDockNode* node = dockWin->DockNode;
+        if (isCollapsed) {
+            // Force the dock node to minimal height (just the tab bar)
+            float minH = ImGui::GetFrameHeight() + 8.0f;
+            node->SizeRef.y = minH;
+        } else if (savedDockHeight > 0.0f) {
+            // Restore saved height after expanding
+            node->SizeRef.y = savedDockHeight;
+            savedDockHeight = 0.0f;
+        }
+    }
+
+    // Collapse/Expand toggle button positioned at the beginning of content
+    {
+        const char* btnLabel = isCollapsed ? "\xe2\x96\xb6##OscToggle" : "\xe2\x96\xbc##OscToggle"; // ▶ (collapsed) or ▼ (expanded)
+        if (ImGui::SmallButton(btnLabel)) {
+            if (!isCollapsed) {
+                // Collapsing: save current dock height
+                if (dockWin->DockNode) {
+                    savedDockHeight = dockWin->DockNode->SizeRef.y;
+                    if (savedDockHeight <= 0.0f) savedDockHeight = dockWin->Size.y;
+                }
+            }
+            isCollapsed = !isCollapsed;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(isCollapsed ? "Expand Oscilloscope" : "Collapse Oscilloscope");
+        }
+        ImGui::SameLine();
+    }
+
+    // If collapsed, show title hint on the same line then end early
+    if (isCollapsed) {
+        ImGui::TextDisabled("(Oscilloscope collapsed — click \xe2\x96\xb6 to expand)");
+        ImGui::End();
+        return;
+    }
     
     CircuitSimEngine::TelemetryData data = simulator.getTelemetryCopy();
     

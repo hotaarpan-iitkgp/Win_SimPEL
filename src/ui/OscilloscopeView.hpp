@@ -41,6 +41,8 @@ private:
     ActiveZoomMode activeZoomMode = ActiveZoomMode::Adaptive;
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
+    bool isCollapsed = false;
+    float savedDockHeight = 0.0f; // Stores height before collapse
 
     // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;

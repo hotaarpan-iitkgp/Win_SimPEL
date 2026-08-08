@@ -5,12 +5,14 @@
 #include <string>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <windows.h>
 #include <commdlg.h>
 #include "engine/NetlistParser.hpp"
 #include "nlohmann/json.hpp"
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 #include <set>
 
 using json = nlohmann::json;
@@ -140,6 +142,12 @@ MainWindow::MainWindow() {
 }
 
 void MainWindow::startSimulation() {
+    // Don't start if already running
+    if (simRunning.load()) return;
+
+    // Join previous thread if any
+    if (simThread.joinable()) simThread.join();
+
     NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
 
     std::string jsonNetlist = NetlistSourceView::generateNetlistJson(canvas.getCircuit());
@@ -151,11 +159,19 @@ void MainWindow::startSimulation() {
     CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
 
     simulator.setup(physComps, ctrlComps, simCfg);
-    CircuitSimEngine::SimulationOutput output = simulator.runTransient();
-    simulator.setTelemetryOutput(output);
 
+    // Clear previous telemetry and trigger auto-fit
+    simulator.reset();
     scopeView.triggerAutoFit();
     netlistSourceView.triggerAutoFit();
+
+    // Run simulation on background thread for live/dynamic plotting
+    simRunning.store(true);
+    simThread = std::thread([this]() {
+        CircuitSimEngine::SimulationOutput output = simulator.runTransient();
+        simulator.setTelemetryOutput(output); // Final complete result
+        simRunning.store(false);
+    });
 }
 
 void MainWindow::loadPresetTemplate(const std::string& name) {
@@ -1013,7 +1029,7 @@ void MainWindow::renderComponentPalette() {
             // DETAILED LIBRARY VIEW (Categorized with ALL Web Tool Headings & Subheadings)
             
             auto renderSubheading = [&](const char* subcatName, const std::vector<const ComponentMeta*>& compList) {
-                if (ImGui::TreeNodeEx(subcatName, ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::TreeNodeEx(subcatName, ImGuiTreeNodeFlags_None)) {
                     ImGui::Indent(4.0f);
                     if (compList.empty()) {
                         ImGui::TextDisabled("(No blocks available yet)");
@@ -1029,7 +1045,7 @@ void MainWindow::renderComponentPalette() {
             };
 
             // 1. GENERAL BLOCKS (Category: general)
-            if (ImGui::CollapsingHeader("⚙️ General Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("⚙️ General Blocks")) {
                 ImGui::PushID("cat_general");
                 ImGui::Indent(8.0f);
                 
@@ -1055,7 +1071,7 @@ void MainWindow::renderComponentPalette() {
             }
 
             // 2. CONTROL BLOCKS (Category: control)
-            if (ImGui::CollapsingHeader("🎛️ Control Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("🎛️ Control Blocks")) {
                 ImGui::PushID("cat_control");
                 ImGui::Indent(8.0f);
                 
@@ -1097,7 +1113,7 @@ void MainWindow::renderComponentPalette() {
             }
 
             // 3. ELECTRICAL BLOCKS (Category: electrical)
-            if (ImGui::CollapsingHeader("⚡ Electrical Blocks", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("⚡ Electrical Blocks")) {
                 ImGui::PushID("cat_electrical");
                 ImGui::Indent(8.0f);
                 
@@ -1279,11 +1295,219 @@ void MainWindow::render() {
         renderPropertyInspector();
         canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
         scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
+
+        // Handle scope open requests from double-click on SCOPE components
+        handleScopeOpenRequest();
     } else {
         netlistSourceView.render("Waveform Solver & Raw Netlist Workspace", canvas.getCircuitRef(), simulator);
     }
 
+    // Render all open scope popup windows (they are independent of workspace mode)
+    for (auto& sw : openScopeWindows) {
+        sw.setDarkMode(isDarkMode);
+        sw.render(simulator);
+    }
+    // Remove closed scope windows
+    openScopeWindows.erase(
+        std::remove_if(openScopeWindows.begin(), openScopeWindows.end(),
+            [](const ScopeWindow& sw) { return !sw.isWindowOpen(); }),
+        openScopeWindows.end());
+
     renderSimParamsModal();
+}
+
+void MainWindow::handleScopeOpenRequest() {
+    if (!canvas.scopeOpenRequest.pending) return;
+    canvas.scopeOpenRequest.pending = false;
+
+    const std::string& scopeId = canvas.scopeOpenRequest.scopeId;
+    int numCh = canvas.scopeOpenRequest.numChannels;
+
+    // Check if this scope is already open — if so, bring it to focus
+    for (auto& sw : openScopeWindows) {
+        if (sw.getScopeId() == scopeId) {
+            ImGui::SetWindowFocus(("Scope: " + scopeId + "###ScopeWin_" + scopeId).c_str());
+            return;
+        }
+    }
+
+    // Trace wires to find what signals are connected to this SCOPE's input pins
+    std::vector<std::string> signalKeys = traceScopeInputSignals(scopeId, numCh);
+
+    // Build labels from signal keys (use short readable names)
+    std::vector<std::string> labels;
+    for (int ch = 0; ch < numCh; ++ch) {
+        if (ch < (int)signalKeys.size() && !signalKeys[ch].empty()) {
+            labels.push_back("Ch" + std::to_string(ch + 1) + ": " + signalKeys[ch]);
+        } else {
+            labels.push_back("Ch" + std::to_string(ch + 1) + " (unconnected)");
+        }
+    }
+
+    openScopeWindows.emplace_back(scopeId, numCh, signalKeys, labels);
+}
+
+std::vector<std::string> MainWindow::traceScopeInputSignals(const std::string& scopeId, int numChannels) {
+    std::vector<std::string> signalKeys(numChannels, "");
+    const CircuitDesign& design = canvas.getCircuit();
+
+    // Build a wire lookup map for junction traversal
+    std::unordered_map<std::string, const WireInstance*> wireMap;
+    for (const auto& w : design.wires) {
+        wireMap[w.id] = &w;
+    }
+
+    // Recursive helper: given a wire endpoint, follow junctions until we find a component pin.
+    // Returns {compId, terminal} or empty strings if not found.
+    struct PinResult { std::string compId; std::string terminal; };
+    
+    std::function<PinResult(const WireEndpoint&, std::unordered_set<std::string>&)> resolveEndpoint;
+    resolveEndpoint = [&](const WireEndpoint& ep, std::unordered_set<std::string>& visited) -> PinResult {
+        // Direct component connection
+        if (!ep.compId.empty()) {
+            return {ep.compId, ep.terminal};
+        }
+        // Wire junction — follow targetWireId
+        if (ep.isWireJunction && !ep.targetWireId.empty()) {
+            if (visited.count(ep.targetWireId)) return {"", ""}; // Prevent cycles
+            visited.insert(ep.targetWireId);
+            auto it = wireMap.find(ep.targetWireId);
+            if (it != wireMap.end()) {
+                const WireInstance* targetWire = it->second;
+                // Try both ends of the target wire
+                PinResult r = resolveEndpoint(targetWire->from, visited);
+                if (!r.compId.empty()) return r;
+                r = resolveEndpoint(targetWire->to, visited);
+                if (!r.compId.empty()) return r;
+            }
+        }
+        return {"", ""};
+    };
+
+    // For each wire in the design, find all component pins connected to a net (through junctions).
+    // We need to find a source (output pin) on the same net as the SCOPE's input pin.
+    auto findSourceOnNet = [&](const std::string& startWireId, const std::string& excludeCompId) -> PinResult {
+        // BFS/DFS through wire junctions to find all component pins on this net
+        std::unordered_set<std::string> visitedWires;
+        std::vector<std::string> wireQueue;
+        wireQueue.push_back(startWireId);
+        visitedWires.insert(startWireId);
+
+        std::vector<PinResult> foundPins;
+
+        while (!wireQueue.empty()) {
+            std::string wId = wireQueue.back();
+            wireQueue.pop_back();
+
+            auto it = wireMap.find(wId);
+            if (it == wireMap.end()) continue;
+            const WireInstance* w = it->second;
+
+            // Check both endpoints
+            for (const WireEndpoint* ep : {&w->from, &w->to}) {
+                if (!ep->compId.empty()) {
+                    // Found a component pin
+                    if (ep->compId != excludeCompId) {
+                        foundPins.push_back({ep->compId, ep->terminal});
+                    }
+                } else if (ep->isWireJunction && !ep->targetWireId.empty()) {
+                    // Junction to another wire — add to queue
+                    if (!visitedWires.count(ep->targetWireId)) {
+                        visitedWires.insert(ep->targetWireId);
+                        wireQueue.push_back(ep->targetWireId);
+                    }
+                }
+            }
+
+            // Also find other wires that junction TO this wire
+            for (const auto& pair : wireMap) {
+                if (visitedWires.count(pair.first)) continue;
+                const WireInstance* other = pair.second;
+                if ((other->from.isWireJunction && other->from.targetWireId == wId) ||
+                    (other->to.isWireJunction && other->to.targetWireId == wId)) {
+                    visitedWires.insert(pair.first);
+                    wireQueue.push_back(pair.first);
+                }
+            }
+        }
+
+        // From found pins, prefer output pins (Out, Out1, etc.) as signal sources
+        for (const auto& pin : foundPins) {
+            if (pin.terminal.find("Out") != std::string::npos || 
+                pin.terminal == "A" || pin.terminal == "B") {
+                return pin;
+            }
+        }
+        // Return first found pin if no output pin found
+        if (!foundPins.empty()) return foundPins[0];
+        return {"", ""};
+    };
+
+    for (int ch = 0; ch < numChannels; ++ch) {
+        std::string targetPin = "In" + std::to_string(ch + 1);
+
+        // Find wire that connects TO this SCOPE's input pin (directly or via junction)
+        for (const auto& wire : design.wires) {
+            bool scopeOnTo = (wire.to.compId == scopeId && wire.to.terminal == targetPin);
+            bool scopeOnFrom = (wire.from.compId == scopeId && wire.from.terminal == targetPin);
+
+            if (!scopeOnTo && !scopeOnFrom) continue;
+
+            // Get the other endpoint (source side)
+            const WireEndpoint& sourceEp = scopeOnTo ? wire.from : wire.to;
+
+            PinResult source;
+            if (!sourceEp.compId.empty()) {
+                // Direct connection to a component
+                source = {sourceEp.compId, sourceEp.terminal};
+            } else if (sourceEp.isWireJunction) {
+                // Junction — need to traverse the wire network to find the source component
+                source = findSourceOnNet(wire.id, scopeId);
+            }
+
+            if (!source.compId.empty()) {
+                // Determine the signal key based on source component type
+                std::string sigKey;
+                for (const auto& comp : design.components) {
+                    if (comp.id == source.compId) {
+                        if (comp.type == ComponentType::Voltmeter) {
+                            sigKey = comp.id;
+                        } else if (comp.type == ComponentType::Ammeter) {
+                            sigKey = comp.id;
+                        } else if (comp.type == ComponentType::Resistor || 
+                                   comp.type == ComponentType::Capacitor ||
+                                   comp.type == ComponentType::Inductor ||
+                                   comp.type == ComponentType::VoltageSource ||
+                                   comp.type == ComponentType::ACVoltageSource ||
+                                   comp.type == ComponentType::Diode ||
+                                   comp.type == ComponentType::Switch ||
+                                   comp.type == ComponentType::MOSFET) {
+                            if (source.terminal.find("I") != std::string::npos || source.terminal == "AM") {
+                                sigKey = "I_" + comp.id;
+                            } else {
+                                sigKey = "V_" + comp.id;
+                            }
+                        } else {
+                            // Control blocks: output signal is "compId.Out" or "compId.OutN"
+                            if (source.terminal.find("Out") != std::string::npos) {
+                                sigKey = comp.id + "." + source.terminal;
+                            } else {
+                                sigKey = comp.id + ".Out";
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (!sigKey.empty()) {
+                    signalKeys[ch] = sigKey;
+                }
+                break; // Found the wire for this channel
+            }
+        }
+    }
+
+    return signalKeys;
 }
 
 } // namespace CircuitSim
