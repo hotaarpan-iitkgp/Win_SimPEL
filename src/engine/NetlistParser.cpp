@@ -143,8 +143,8 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "DATATYPE_CONV" || t == "DataTypeConv") return ComponentType::DataTypeConv;
     if (t == "STATE_MACHINE" || t == "StateMachine") return ComponentType::StateMachine;
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
-    if (t == "SummingJunction" || t == "SUM" || t == "summing_junctions") return ComponentType::SummingJunction;
-    if (t == "Product" || t == "PRODUCT" || t == "product_blocks") return ComponentType::Product;
+    if (t == "SummingJunction" || t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT" || t == "SUB" || t == "summing_junctions") return ComponentType::SummingJunction;
+    if (t == "Product" || t == "PRODUCT" || t == "PROD" || t == "PRODUCT_RECT" || t == "product_blocks") return ComponentType::Product;
     if (t == "PWM_Generator" || t == "PWM" || t == "PWM_MASTER" || t == "pwm_generators") return ComponentType::PWM_Generator;
     if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
     if (t == "PI_Controller" || t == "PI" || t == "pi_controllers") return ComponentType::PI_Controller;
