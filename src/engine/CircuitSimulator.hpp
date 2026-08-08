@@ -212,6 +212,8 @@ struct FastCompiledComponent {
     double Ron = 0.01;
     double Roff = 1e6;
     double Vvd = 0.7;
+    double Iholding = 0.01;
+    double Vgt = 0.5;
     double freq = 50.0;
     double turns1 = 100.0;
     double turns2 = 100.0;

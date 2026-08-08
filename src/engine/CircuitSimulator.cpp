@@ -190,7 +190,7 @@ void CircuitSimulator::buildIndexMaps() {
             flatIndCurrents.push_back(indCurrentsPrev[comp.id]);
             flatIndVoltages.push_back(0.0);
         }
-        else if (comp.type == ComponentType::Diode) {
+        else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor) {
             fc.stateIdx = (int)flatDiodeStates.size();
             flatDiodeStates.push_back(0.0);
         }
@@ -202,7 +202,9 @@ void CircuitSimulator::buildIndexMaps() {
         fc.esr = evaluateParam(comp, "esr", 0.0);
         fc.Ron = evaluateParam(comp, "Ron", 0.01);
         fc.Roff = evaluateParam(comp, "Roff", 1e6);
-        fc.Vvd = evaluateParam(comp, "Vd", 0.7);
+        fc.Vvd = evaluateParam(comp, "Vd", 0.8);
+        fc.Iholding = evaluateParam(comp, "Iholding", 0.01);
+        fc.Vgt = evaluateParam(comp, "Vgt", 0.5);
         fc.freq = evaluateParam(comp, "freq", 50.0);
         if (comp.type == ComponentType::ACVoltageSource) {
             // Web-tool netlist uses "amplitude" and "frequency" keys
@@ -1792,6 +1794,32 @@ bool CircuitSimulator::updateDeviceStates() {
                     changed = true;
                 }
             }
+        } else if (fc.type == ComponentType::Thyristor) {
+            double v1 = (fc.n1 >= 0 && fc.n1 < totalDim) ? X[fc.n1] : 0.0;
+            double v2 = (fc.n2 >= 0 && fc.n2 < totalDim) ? X[fc.n2] : 0.0;
+            double vDiff = v1 - v2;
+            double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+
+            double currentState = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double newState = currentState;
+
+            if (currentState > 0.5) {
+                double R = fc.Ron;
+                if (R < 1e-6) R = 1e-6;
+                double iForward = (vDiff - fc.Vvd) / R;
+                double ih = (fc.Iholding > 0.0) ? fc.Iholding : 0.01;
+                if (iForward < ih) newState = 0.0;
+            } else {
+                double vgt = (fc.Vgt > 0.0) ? fc.Vgt : 0.5;
+                if (vDiff >= fc.Vvd && vGate >= vgt) newState = 1.0;
+            }
+
+            if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) {
+                if (std::abs(newState - flatDiodeStates[fc.stateIdx]) > 0.1) {
+                    flatDiodeStates[fc.stateIdx] = newState;
+                    changed = true;
+                }
+            }
         } else if (fc.type == ComponentType::Switch) {
             double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
 
@@ -1878,7 +1906,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             int vIdx = fc.vIdx;
             B[vIdx] = 0.0;
         }
-        else if (fc.type == ComponentType::Diode) {
+        else if (fc.type == ComponentType::Diode || fc.type == ComponentType::Thyristor) {
             double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
             double R = (state > 0.5) ? fc.Ron : fc.Roff;
             if (R < 1e-6) R = 1e-6;
