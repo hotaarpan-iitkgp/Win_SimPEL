@@ -1421,23 +1421,27 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                             break;
                         }
                     }
-                    if (startIsVert) {
+                    if (startIsVert && std::abs(startStub.x - bestQ.x) < 20.0f * zoomLevel) {
                         snapQ.x = startStub.x;
-                    } else {
+                    } else if (!startIsVert && std::abs(startStub.y - bestQ.y) < 20.0f * zoomLevel) {
                         snapQ.y = startStub.y;
                     }
                 }
-                hoveredWireJunctionPos = screenToWorld(snapQ, canvasPos);
+                ImVec2 wJunction = screenToWorld(snapQ, canvasPos);
+                wJunction.x = std::round(wJunction.x / 10.0f) * 10.0f;
+                wJunction.y = std::round(wJunction.y / 10.0f) * 10.0f;
+                hoveredWireJunctionPos = wJunction;
             }
 
             bool isSelected = selectedWireIds.count(wire.id) > 0;
+            bool isThisWireHovered = (wire.id == hoveredWireId);
             ImU32 powerWireColor = isDarkMode ? IM_COL32(0, 230, 120, 255) : IM_COL32(4, 120, 87, 255);
             ImU32 ctrlWireColor = isDarkMode ? IM_COL32(56, 189, 248, 255) : IM_COL32(2, 132, 199, 255);
             ImU32 selColor = isDarkMode ? IM_COL32(255, 180, 0, 255) : IM_COL32(217, 119, 6, 255);
             ImU32 hovColor = isDarkMode ? IM_COL32(255, 220, 100, 255) : IM_COL32(245, 158, 11, 255);
 
-            ImU32 wireColor = isSelected ? selColor : (isWireHovered ? hovColor : (isControlNet ? ctrlWireColor : powerWireColor));
-            float thickness = (isSelected || isWireHovered) ? 3.5f * zoomLevel : 2.5f * zoomLevel;
+            ImU32 wireColor = isSelected ? selColor : (isThisWireHovered ? hovColor : (isControlNet ? ctrlWireColor : powerWireColor));
+            float thickness = (isSelected || isThisWireHovered) ? 3.5f * zoomLevel : 2.5f * zoomLevel;
 
             if (isSelected) {
                 drawList->AddLine(p1, p1_stub, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
