@@ -1,4 +1,5 @@
 #include "ScopeWindow.hpp"
+#include "engine/SignalAnalysis.hpp"
 #include "imgui_internal.h"
 #include "implot.h"
 #include <algorithm>
@@ -598,19 +599,23 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
     double freq = (std::abs(dt) > 1e-12) ? (1.0 / std::abs(dt)) : 0.0;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("ScopeDataPanel", ImVec2(0, 140), true, ImGuiWindowFlags_None);
+    ImGui::BeginChild("ScopeDataPanel", ImVec2(0, 160), true, ImGuiWindowFlags_None);
 
-    ImGui::TextColored(ImVec4(0.00f, 0.85f, 1.00f, 1.00f), "Data & Time-Span Calculations");
+    ImGui::TextColored(ImVec4(0.00f, 0.85f, 1.00f, 1.00f), "Data & Time-Span Mathematical Analysis");
     ImGui::SameLine();
-    ImGui::TextDisabled("(PLECS Scope Style)");
+    ImGui::TextDisabled("(PLECS Scope Metrics Over [t1, t2])");
 
     static ImGuiTableFlags tflags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
-    if (ImGui::BeginTable("##CursorDataTable", 5, tflags)) {
+    if (ImGui::BeginTable("##CursorDataTable", 9, tflags)) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Cursor 1", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-        ImGui::TableSetupColumn("Cursor 2", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-        ImGui::TableSetupColumn("Delta", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-        ImGui::TableSetupColumn("Frequency / Info", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Cursor 1", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("Cursor 2", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("Delta", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("Mean", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("RMS", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("Min", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("Max", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("AbsMax", ImGuiTableColumnFlags_WidthFixed, 85.0f);
         ImGui::TableHeadersRow();
 
         // Row 1: Time
@@ -631,6 +636,10 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
         } else {
             ImGui::TextUnformatted("N/A");
         }
+        ImGui::TableSetColumnIndex(5); ImGui::TextDisabled("-");
+        ImGui::TableSetColumnIndex(6); ImGui::TextDisabled("-");
+        ImGui::TableSetColumnIndex(7); ImGui::TextDisabled("-");
+        ImGui::TableSetColumnIndex(8); ImGui::TextDisabled("-");
 
         // Channel signal rows
         const auto& palette = isDarkMode ? SCOPE_DARK_COLORS : SCOPE_LIGHT_COLORS;
@@ -652,9 +661,7 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
             }
 
             if (it != data.voltages.end() && !it->second.empty()) {
-                double y1 = interpolateSignal(data.timeHistory, it->second, t1, cursorState.snapToSample);
-                double y2 = interpolateSignal(data.timeHistory, it->second, t2, cursorState.snapToSample);
-                double dy = y2 - y1;
+                CircuitSimEngine::SignalStats st = CircuitSimEngine::computeSignalStats(data.timeHistory, it->second, t1, t2);
 
                 std::string label = (ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey;
 
@@ -664,17 +671,14 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
                 ImGui::SameLine();
                 ImGui::TextUnformatted(label.c_str());
 
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%.5g", y1);
-
-                ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%.5g", y2);
-
-                ImGui::TableSetColumnIndex(3);
-                ImGui::Text("%.5g", dy);
-
-                ImGui::TableSetColumnIndex(4);
-                ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(1); ImGui::Text("%.5g", st.yAtT1);
+                ImGui::TableSetColumnIndex(2); ImGui::Text("%.5g", st.yAtT2);
+                ImGui::TableSetColumnIndex(3); ImGui::Text("%.5g", st.yAtT2 - st.yAtT1);
+                ImGui::TableSetColumnIndex(4); ImGui::Text("%.5g", st.mean);
+                ImGui::TableSetColumnIndex(5); ImGui::Text("%.5g", st.rms);
+                ImGui::TableSetColumnIndex(6); ImGui::Text("%.5g", st.minVal);
+                ImGui::TableSetColumnIndex(7); ImGui::Text("%.5g", st.maxVal);
+                ImGui::TableSetColumnIndex(8); ImGui::Text("%.5g", st.absMaxVal);
             }
         }
         ImGui::EndTable();
