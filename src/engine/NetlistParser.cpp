@@ -61,9 +61,9 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR" || t == "InductionMotor") return ComponentType::InductionMotor;
     if (t == "GOTO_SIG" || t == "GOTO" || t == "GotoSignal") return ComponentType::GotoSignal;
     if (t == "FROM_SIG" || t == "FROM" || t == "FromSignal") return ComponentType::FromSignal;
-    if (t == "vg-FET" || t == "VGFET") return ComponentType::VGFET;
+    if (t == "MOSFET" || t == "vg-FET" || t == "VGFET" || t == "Mosfet" || t == "MOSFET_DIODE" || t == "IGBT" || t == "IGBT_DIODE" || t == "mosfets") return ComponentType::MOSFET;
     if (t == "Diode" || t == "D" || t == "diodes") return ComponentType::Diode;
-    if (t == "Switch" || t == "S" || t == "MOSFET" || t == "vg-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET" || t == "BJT" || t == "switches" || t == "analog_switches" || t == "mosfets") return ComponentType::Switch;
+    if (t == "Switch" || t == "S" || t == "switches" || t == "analog_switches") return ComponentType::Switch;
     if (t == "Voltmeter" || t == "VM" || t == "voltmeters") return ComponentType::Voltmeter;
     if (t == "Ammeter" || t == "AM" || t == "ammeters") return ComponentType::Ammeter;
     if (t == "UnifiedProbe" || t == "PROBE" || t == "probes") return ComponentType::UnifiedProbe;

@@ -108,7 +108,7 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (comp.type == ComponentType::Capacitor) {
             double v0 = evaluateParam(comp, "vC0", 0.0);
             capVoltagesPrev[comp.id] = v0;
-        } else if (comp.type == ComponentType::Diode) {
+        } else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor || comp.type == ComponentType::MOSFET) {
             diodeStatePrev[comp.id] = 0.0; // Initially OFF
         } else if (comp.type == ComponentType::Switch) {
             switchStatePrev[comp.id] = 0.0;
@@ -190,7 +190,7 @@ void CircuitSimulator::buildIndexMaps() {
             flatIndCurrents.push_back(indCurrentsPrev[comp.id]);
             flatIndVoltages.push_back(0.0);
         }
-        else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor) {
+        else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor || comp.type == ComponentType::MOSFET) {
             fc.stateIdx = (int)flatDiodeStates.size();
             flatDiodeStates.push_back(0.0);
         }
@@ -1822,6 +1822,23 @@ bool CircuitSimulator::updateDeviceStates() {
                     changed = true;
                 }
             }
+        } else if (fc.type == ComponentType::MOSFET) {
+            double v1 = (fc.n1 >= 0 && fc.n1 < totalDim) ? X[fc.n1] : 0.0;
+            double v2 = (fc.n2 >= 0 && fc.n2 < totalDim) ? X[fc.n2] : 0.0;
+            double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+
+            bool isGateOn = (vGate > 0.5);
+            // Body Diode is anti-parallel from Source (n2) to Drain (n1)
+            bool isBodyDiodeOn = (v2 - v1 >= fc.Vvd - 1e-4);
+
+            double newState = (isGateOn || isBodyDiodeOn) ? 1.0 : 0.0;
+
+            if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) {
+                if (std::abs(newState - flatDiodeStates[fc.stateIdx]) > 0.1) {
+                    flatDiodeStates[fc.stateIdx] = newState;
+                    changed = true;
+                }
+            }
         } else if (fc.type == ComponentType::Switch) {
             double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
 
@@ -1922,6 +1939,28 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             }
 
             if (state > 0.5) {
+                double iEq = g * fc.Vvd;
+                if (n1 >= 0) B[n1] += iEq;
+                if (n2 >= 0) B[n2] -= iEq;
+            }
+        }
+        else if (fc.type == ComponentType::MOSFET) {
+            double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+            bool isGateOn = (vGate > 0.5);
+
+            double R = (state > 0.5) ? fc.Ron : fc.Roff;
+            if (R < 1e-6) R = 1e-6;
+            double g = 1.0 / R;
+
+            if (n1 >= 0) K[n1 * totalDim + n1] += g;
+            if (n2 >= 0) K[n2 * totalDim + n2] += g;
+            if (n1 >= 0 && n2 >= 0) {
+                K[n1 * totalDim + n2] -= g;
+                K[n2 * totalDim + n1] -= g;
+            }
+
+            if (!isGateOn && state > 0.5) {
                 double iEq = g * fc.Vvd;
                 if (n1 >= 0) B[n1] += iEq;
                 if (n2 >= 0) B[n2] -= iEq;

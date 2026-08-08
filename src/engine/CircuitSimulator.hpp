@@ -63,6 +63,7 @@ enum class ComponentType {
     GotoSignal,
     FromSignal,
     VGFET,
+    MOSFET,
     Diode,
     Switch,
     Voltmeter,
