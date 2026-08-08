@@ -202,6 +202,15 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         } else {
             if (ImGui::Button("Free Order##cur_osc")) cursorState.lockBoundary = true;
         }
+
+        ImGui::SameLine();
+        if (cursorState.showHarmonicsWindow) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.20f, 0.80f, 1.0f));
+            if (ImGui::Button("Spectrum (FFT)##cur_osc")) cursorState.showHarmonicsWindow = false;
+            ImGui::PopStyleColor();
+        } else {
+            if (ImGui::Button("Spectrum (FFT)##cur_osc")) cursorState.showHarmonicsWindow = true;
+        }
     } else {
         if (ImGui::Button("Cursors (||)##cur_osc")) cursorState.showCursors = true;
     }
@@ -455,6 +464,9 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         ImGui::Separator();
         renderDataPanel(data);
     }
+    if (cursorState.showHarmonicsWindow) {
+        renderHarmonicsWindow(data);
+    }
 
     ImGui::End();
 }
@@ -623,7 +635,7 @@ void OscilloscopeView::renderDataPanel(const CircuitSimEngine::TelemetryData& da
             if (vals.empty() || name.rfind("node_", 0) == 0 || name == "0") continue;
 
             CircuitSimEngine::SignalStats st = CircuitSimEngine::computeSignalStats(data.timeHistory, vals, t1, t2);
-            CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, vals, t1, t2, 30);
+            CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, vals, t1, t2, cursorState.maxHarmonics);
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -649,6 +661,114 @@ void OscilloscopeView::renderDataPanel(const CircuitSimEngine::TelemetryData& da
     }
     ImGui::EndChild();
     ImGui::PopStyleVar();
+}
+
+void OscilloscopeView::renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& data) {
+    if (!cursorState.showHarmonicsWindow) return;
+
+    double t1 = cursorState.cursor1Time;
+    double t2 = cursorState.cursor2Time;
+
+    ImGui::SetNextWindowSize(ImVec2(750, 480), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Oscilloscope Harmonic Spectrum (FFT / DFT)###OscHarmWin", &cursorState.showHarmonicsWindow)) {
+        ImGui::End();
+        return;
+    }
+
+    if (data.timeHistory.empty()) {
+        ImGui::TextDisabled("No waveform data available.");
+        ImGui::End();
+        return;
+    }
+
+    static const ImVec4 DARK_MODE_COLORS[] = {
+        ImVec4(0.00f, 0.95f, 1.00f, 1.00f), ImVec4(0.10f, 1.00f, 0.45f, 1.00f),
+        ImVec4(1.00f, 0.88f, 0.00f, 1.00f), ImVec4(1.00f, 0.25f, 0.60f, 1.00f)
+    };
+    static const ImVec4 LIGHT_MODE_COLORS[] = {
+        ImVec4(0.05f, 0.35f, 0.75f, 1.00f), ImVec4(0.02f, 0.50f, 0.25f, 1.00f)
+    };
+    const auto& palette = isDarkMode ? DARK_MODE_COLORS : LIGHT_MODE_COLORS;
+
+    double f0 = (std::abs(t2 - t1) > 1e-12) ? (1.0 / std::abs(t2 - t1)) : 0.0;
+    ImGui::TextColored(ImVec4(0.00f, 0.90f, 1.00f, 1.00f), "Fundamental-Aligned Fourier Spectrum");
+    ImGui::SameLine();
+    ImGui::TextDisabled("| f0 = %.2f Hz (T = %.6fs)", f0, std::abs(t2 - t1));
+
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputInt("Max Harmonics (N)##maxH_osc", &cursorState.maxHarmonics, 10, 100);
+    if (cursorState.maxHarmonics < 5) cursorState.maxHarmonics = 5;
+    if (cursorState.maxHarmonics > 2000) cursorState.maxHarmonics = 2000;
+
+    int renderPanes = numPanes;
+    if (renderPanes < 1) renderPanes = 1;
+
+    int maxN = cursorState.maxHarmonics;
+
+    // Collect active signal vectors
+    std::vector<std::pair<std::string, std::vector<double>>> activeSigs;
+    for (const auto& pair : data.voltages) {
+        if (pair.second.empty() || pair.first.rfind("node_", 0) == 0 || pair.first == "0") continue;
+        activeSigs.push_back(pair);
+    }
+
+    if (renderPanes == 1 || activeSigs.empty()) {
+        if (ImPlot::BeginPlot("##OscHarmonicSpectrumSingle", ImVec2(-1, -1))) {
+            ImPlot::SetupAxes("Harmonic Order (n)", "Peak Magnitude (V_n)");
+            ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, (double)maxN + 0.5, ImGuiCond_Always);
+
+            int sigIdx = 0;
+            for (const auto& pair : activeSigs) {
+                CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, pair.second, t1, t2, maxN);
+                if (fr.isValid && !fr.harmonicOrders.empty()) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "%s (THD=%.2f%%, V1=%.4g)", pair.first.c_str(), fr.thdPercent, fr.fundamentalMag);
+
+                    ImPlotSpec spec;
+                    spec.LineColor = palette[sigIdx % 4];
+                    spec.FillColor = palette[sigIdx % 4];
+
+                    ImPlot::PlotBars(buf, fr.harmonicOrders.data(), fr.harmonicMags.data(), (int)fr.harmonicOrders.size(), 0.5, spec);
+                }
+                sigIdx++;
+            }
+            ImPlot::EndPlot();
+        }
+    } else {
+        // Equal subplots matching Oscilloscope view panes
+        if (ImPlot::BeginSubplots("##OscHarmonicsSubplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
+            for (int i = 0; i < renderPanes; ++i) {
+                const auto& pair = activeSigs[i % activeSigs.size()];
+                std::string paneTitle = pair.first;
+
+                if (ImPlot::BeginPlot(paneTitle.c_str(), ImVec2(-1, -1))) {
+                    ImPlot::SetupAxes("Harmonic Order (n)", "Magnitude");
+                    ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, (double)maxN + 0.5, ImGuiCond_Always);
+
+                    CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, pair.second, t1, t2, maxN);
+                    if (fr.isValid && !fr.harmonicOrders.empty()) {
+                        char buf[128];
+                        snprintf(buf, sizeof(buf), "%s (THD=%.2f%%, V1=%.4g)", paneTitle.c_str(), fr.thdPercent, fr.fundamentalMag);
+
+                        ImPlotSpec spec;
+                        spec.LineColor = palette[i % 4];
+                        spec.FillColor = palette[i % 4];
+
+                        ImPlot::PlotBars(buf, fr.harmonicOrders.data(), fr.harmonicMags.data(), (int)fr.harmonicOrders.size(), 0.5, spec);
+                    }
+                    ImPlot::EndPlot();
+                }
+            }
+            ImPlot::EndSubplots();
+        }
+    }
+
+    ImGui::End();
 }
 
 } // namespace CircuitSim

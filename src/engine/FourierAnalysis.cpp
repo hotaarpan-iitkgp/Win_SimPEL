@@ -80,7 +80,7 @@ FourierResult computeFourierSpectrum(const std::vector<double>& timeHist,
     double v0 = dcArea / T;
 
     // 2. Calculate Harmonics n = 1 .. maxHarmonics using exact piecewise linear integration
-    int numHarmonics = std::clamp(maxHarmonics, 1, 100);
+    int numHarmonics = std::clamp(maxHarmonics, 1, 2000);
     result.harmonicOrders.reserve(numHarmonics);
     result.harmonicMags.reserve(numHarmonics);
     result.harmonicPhases.reserve(numHarmonics);

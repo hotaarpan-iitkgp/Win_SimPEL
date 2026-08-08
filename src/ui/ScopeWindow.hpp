@@ -45,6 +45,7 @@ struct ScopeCursorState {
     bool snapToSample = false;
     bool lockBoundary = true;
     bool showHarmonicsWindow = false;
+    int maxHarmonics = 50;
 };
 
 // A standalone PLECS/MATLAB-style scope popup window.

@@ -56,6 +56,7 @@ private:
 
     void renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data);
     void renderDataPanel(const CircuitSimEngine::TelemetryData& data);
+    void renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& data);
     double interpolateSignal(const std::vector<double>& timeHist, const std::vector<double>& signalData, double targetT, bool snap) const;
 
 public:

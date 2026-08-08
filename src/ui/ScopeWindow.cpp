@@ -712,7 +712,7 @@ void ScopeWindow::renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& d
     double t2 = cursorState.cursor2Time;
 
     std::string winTitle = "Harmonic Spectrum (FFT / DFT): " + scopeId + "###HarmWin_" + scopeId;
-    ImGui::SetNextWindowSize(ImVec2(650, 420), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(750, 480), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin(winTitle.c_str(), &cursorState.showHarmonicsWindow)) {
         ImGui::End();
@@ -729,45 +729,107 @@ void ScopeWindow::renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& d
     constexpr size_t numColors = 8;
 
     double f0 = (std::abs(t2 - t1) > 1e-12) ? (1.0 / std::abs(t2 - t1)) : 0.0;
-    ImGui::TextColored(ImVec4(0.00f, 0.90f, 1.00f, 1.00f), "Fundamental-Aligned Discrete Fourier Spectrum");
+    ImGui::TextColored(ImVec4(0.00f, 0.90f, 1.00f, 1.00f), "Fundamental-Aligned Fourier Spectrum");
     ImGui::SameLine();
     ImGui::TextDisabled("| f0 = %.2f Hz (T = %.6fs)", f0, std::abs(t2 - t1));
 
-    if (ImPlot::BeginPlot("##HarmonicSpectrumPlot", ImVec2(-1, -1))) {
-        ImPlot::SetupAxes("Harmonic Order (n)", "Peak Magnitude (V_n)");
-        ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, 30.5, ImGuiCond_Always);
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
 
-        for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
-            const std::string& sigKey = channelSignalKeys[ch];
-            if (sigKey.empty()) continue;
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputInt("Max Harmonics (N)##maxH", &cursorState.maxHarmonics, 10, 100);
+    if (cursorState.maxHarmonics < 5) cursorState.maxHarmonics = 5;
+    if (cursorState.maxHarmonics > 2000) cursorState.maxHarmonics = 2000;
 
-            auto it = data.voltages.find(sigKey);
-            if (it == data.voltages.end()) {
-                std::string alt = sigKey;
-                if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
-                    alt = alt.substr(0, alt.size()-4);
-                    it = data.voltages.find(alt);
+    int renderPanes = std::min(numPanes, numChannels);
+    if (renderPanes < 1) renderPanes = 1;
+
+    int maxN = cursorState.maxHarmonics;
+
+    if (renderPanes == 1) {
+        // Single plot matching Scope single plot view
+        if (ImPlot::BeginPlot("##HarmonicSpectrumSingle", ImVec2(-1, -1))) {
+            ImPlot::SetupAxes("Harmonic Order (n)", "Peak Magnitude (V_n)");
+            ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, (double)maxN + 0.5, ImGuiCond_Always);
+
+            for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
+                const std::string& sigKey = channelSignalKeys[ch];
+                if (sigKey.empty()) continue;
+
+                auto it = data.voltages.find(sigKey);
+                if (it == data.voltages.end()) {
+                    std::string alt = sigKey;
+                    if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
+                        alt = alt.substr(0, alt.size()-4);
+                        it = data.voltages.find(alt);
+                    }
+                    if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
+                    if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
                 }
-                if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
-                if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
-            }
 
-            if (it != data.voltages.end() && !it->second.empty()) {
-                CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, it->second, t1, t2, 30);
-                if (fr.isValid && !fr.harmonicOrders.empty()) {
-                    std::string label = ((ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey) +
-                                        " (THD=" + std::to_string((int)fr.thdPercent) + "." +
-                                        std::to_string((int)(fr.thdPercent * 10) % 10) + "%)";
+                if (it != data.voltages.end() && !it->second.empty()) {
+                    CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, it->second, t1, t2, maxN);
+                    if (fr.isValid && !fr.harmonicOrders.empty()) {
+                        char buf[128];
+                        snprintf(buf, sizeof(buf), "%s (THD=%.2f%%, V1=%.4g)",
+                                 (ch < (int)channelLabels.size()) ? channelLabels[ch].c_str() : sigKey.c_str(),
+                                 fr.thdPercent, fr.fundamentalMag);
 
-                    ImPlotSpec spec;
-                    spec.LineColor = palette[ch % numColors];
-                    spec.FillColor = palette[ch % numColors];
+                        ImPlotSpec spec;
+                        spec.LineColor = palette[ch % numColors];
+                        spec.FillColor = palette[ch % numColors];
 
-                    ImPlot::PlotBars(label.c_str(), fr.harmonicOrders.data(), fr.harmonicMags.data(), (int)fr.harmonicOrders.size(), 0.5, spec);
+                        ImPlot::PlotBars(buf, fr.harmonicOrders.data(), fr.harmonicMags.data(), (int)fr.harmonicOrders.size(), 0.5, spec);
+                    }
                 }
             }
+            ImPlot::EndPlot();
         }
-        ImPlot::EndPlot();
+    } else {
+        // Equal number of subplots as Scope (one per channel pane)
+        if (ImPlot::BeginSubplots("##HarmonicsSubplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
+            for (int i = 0; i < renderPanes; ++i) {
+                int ch = i % numChannels;
+                const std::string& sigKey = (ch < (int)channelSignalKeys.size()) ? channelSignalKeys[ch] : "";
+                std::string paneTitle = (ch < (int)channelLabels.size()) ? channelLabels[ch] : ("Ch" + std::to_string(ch+1));
+
+                if (ImPlot::BeginPlot(paneTitle.c_str(), ImVec2(-1, -1))) {
+                    ImPlot::SetupAxes("Harmonic Order (n)", "Magnitude");
+                    ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, (double)maxN + 0.5, ImGuiCond_Always);
+
+                    if (!sigKey.empty()) {
+                        auto it = data.voltages.find(sigKey);
+                        if (it == data.voltages.end()) {
+                            std::string alt = sigKey;
+                            if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
+                                alt = alt.substr(0, alt.size()-4);
+                                it = data.voltages.find(alt);
+                            }
+                            if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
+                            if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
+                        }
+
+                        if (it != data.voltages.end() && !it->second.empty()) {
+                            CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, it->second, t1, t2, maxN);
+                            if (fr.isValid && !fr.harmonicOrders.empty()) {
+                                char buf[128];
+                                snprintf(buf, sizeof(buf), "%s (THD=%.2f%%, V1=%.4g)",
+                                         paneTitle.c_str(), fr.thdPercent, fr.fundamentalMag);
+
+                                ImPlotSpec spec;
+                                spec.LineColor = palette[ch % numColors];
+                                spec.FillColor = palette[ch % numColors];
+
+                                ImPlot::PlotBars(buf, fr.harmonicOrders.data(), fr.harmonicMags.data(), (int)fr.harmonicOrders.size(), 0.5, spec);
+                            }
+                        }
+                    }
+                    ImPlot::EndPlot();
+                }
+            }
+            ImPlot::EndSubplots();
+        }
     }
 
     ImGui::End();
