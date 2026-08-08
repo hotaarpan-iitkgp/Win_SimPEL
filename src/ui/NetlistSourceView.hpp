@@ -2,6 +2,7 @@
 
 #include "engine/Components.hpp"
 #include "engine/CircuitSimulator.hpp"
+#include "ui/TracePlotter.hpp"
 #include "imgui.h"
 #include <string>
 #include <array>
@@ -18,6 +19,7 @@ private:
     int numPanes = 1;
     bool autoFitNext = false;
     ActiveZoomMode activeZoomMode = ActiveZoomMode::Adaptive;
+    InterpolationMode globalPlotMode = InterpolationMode::AutoHybrid;
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
     float splitRatio = 0.10f;
