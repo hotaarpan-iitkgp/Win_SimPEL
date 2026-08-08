@@ -101,6 +101,7 @@ private:
     
     // Routing & Validation Engine (matching schematic_routing_guide.md)
     void autoSelectWiresForSelectedComponents();
+    void deleteSelected();
     void normalizeControlWires();
     void rebuildNetlist();
     std::vector<ImVec2> simplifyPath(const std::vector<ImVec2>& points) const;
