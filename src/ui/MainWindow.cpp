@@ -10,6 +10,8 @@
 #include "engine/NetlistParser.hpp"
 #include "nlohmann/json.hpp"
 #include <algorithm>
+#include <unordered_set>
+#include <set>
 
 using json = nlohmann::json;
 
@@ -329,6 +331,32 @@ void MainWindow::renderMenuBar() {
                                     }
                                 }
                                 cd.wires.push_back(wire);
+                            }
+
+                            // Sanitize wire IDs and fix duplicate wire targets
+                            std::unordered_set<std::string> seenWIds;
+                            int maxWNum = 0;
+                            for (const auto& w : cd.wires) {
+                                if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
+                                    try {
+                                        int num = std::stoi(w.id.substr(1));
+                                        if (num > maxWNum) maxWNum = num;
+                                    } catch (...) {}
+                                }
+                            }
+                            for (auto& w : cd.wires) {
+                                if (w.id.empty() || seenWIds.count(w.id)) {
+                                    maxWNum++;
+                                    std::string newId = "w" + std::to_string(maxWNum);
+                                    std::string oldId = w.id;
+                                    w.id = newId;
+                                    for (auto& tw : cd.wires) {
+                                        if (tw.to.isWireJunction && tw.to.targetWireId == oldId) {
+                                            tw.to.targetWireId = newId;
+                                        }
+                                    }
+                                }
+                                seenWIds.insert(w.id);
                             }
                         }
                         if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {

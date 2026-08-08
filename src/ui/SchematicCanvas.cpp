@@ -2224,7 +2224,22 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     } else {
                         pushUndoState();
                         WireInstance wire;
-                        wire.id = "w" + std::to_string(design.wires.size() + 1);
+                        
+                        int maxWNum = 0;
+                        std::unordered_set<std::string> existingWIds;
+                        for (const auto& w : design.wires) {
+                            existingWIds.insert(w.id);
+                            if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
+                                try {
+                                    int num = std::stoi(w.id.substr(1));
+                                    if (num > maxWNum) maxWNum = num;
+                                } catch (...) {}
+                            }
+                        }
+                        int candW = maxWNum + 1;
+                        while (existingWIds.count("w" + std::to_string(candW))) candW++;
+                        wire.id = "w" + std::to_string(candW);
+
                         wire.from.compId = wireStartCompId;
                         wire.from.terminal = wireStartPin;
                         wire.to.compId = hoveredPinCompId;
@@ -2259,7 +2274,22 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     } else {
                         pushUndoState();
                         WireInstance wire;
-                        wire.id = "w" + std::to_string(design.wires.size() + 1);
+                        
+                        int maxWNum = 0;
+                        std::unordered_set<std::string> existingWIds;
+                        for (const auto& w : design.wires) {
+                            existingWIds.insert(w.id);
+                            if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
+                                try {
+                                    int num = std::stoi(w.id.substr(1));
+                                    if (num > maxWNum) maxWNum = num;
+                                } catch (...) {}
+                            }
+                        }
+                        int candW = maxWNum + 1;
+                        while (existingWIds.count("w" + std::to_string(candW))) candW++;
+                        wire.id = "w" + std::to_string(candW);
+
                         wire.from.compId = wireStartCompId;
                         wire.from.terminal = wireStartPin;
                         wire.to.isWireJunction = true;

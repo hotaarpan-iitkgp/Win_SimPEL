@@ -80,6 +80,31 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         validCompIds.insert(comp.id);
     }
 
+    std::unordered_set<std::string> seenWIds;
+    int maxWNum = 0;
+    for (const auto& w : tempDesign.wires) {
+        if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
+            try {
+                int num = std::stoi(w.id.substr(1));
+                if (num > maxWNum) maxWNum = num;
+            } catch (...) {}
+        }
+    }
+    for (auto& w : tempDesign.wires) {
+        if (w.id.empty() || seenWIds.count(w.id)) {
+            maxWNum++;
+            std::string newId = "w" + std::to_string(maxWNum);
+            std::string oldId = w.id;
+            w.id = newId;
+            for (auto& tw : tempDesign.wires) {
+                if (tw.to.isWireJunction && tw.to.targetWireId == oldId) {
+                    tw.to.targetWireId = newId;
+                }
+            }
+        }
+        seenWIds.insert(w.id);
+    }
+
     std::function<std::string(const std::string&, const std::string&)> getIncomingSignal;
     std::function<std::string(const std::string&)> getSignalFromWire;
 
