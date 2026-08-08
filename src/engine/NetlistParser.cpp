@@ -93,7 +93,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Derivative" || t == "DERIVATIVE" || t == "derivatives") return ComponentType::Derivative;
     if (t == "TransferFunction" || t == "TRANSFER_FCN" || t == "transfer_functions") return ComponentType::TransferFunction;
     if (t == "StateSpace" || t == "STATE_SPACE" || t == "state_space_blocks") return ComponentType::StateSpace;
-    if (t == "ContinuousPID" || t == "CONT_PID") return ComponentType::ContinuousPID;
+    if (t == "ContinuousPID" || t == "CONT_PID" || t == "PID" || t == "DISCRETE_PID" || t == "pid_controllers") return ComponentType::ContinuousPID;
     if (t == "PLL_1PH") return ComponentType::PLL_1PH;
     if (t == "PLL_3PH") return ComponentType::PLL_3PH;
     if (t == "Delay" || t == "DELAY") return ComponentType::Delay;
@@ -147,7 +147,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Product" || t == "PRODUCT" || t == "PROD" || t == "PRODUCT_RECT" || t == "product_blocks") return ComponentType::Product;
     if (t == "PWM_Generator" || t == "PWM" || t == "PWM_MASTER" || t == "pwm_generators") return ComponentType::PWM_Generator;
     if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
-    if (t == "PI_Controller" || t == "PI" || t == "pi_controllers") return ComponentType::PI_Controller;
+    if (t == "PI_Controller" || t == "PI" || t == "PID" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "pi_controllers" || t == "pid_controllers") return ComponentType::ContinuousPID;
     if (t == "Comparator" || t == "COMP" || t == "E_COMP" || t == "comparators") return ComponentType::Comparator;
     if (t == "CustomScript" || t == "CSCRIPT" || t == "custom_scripts") return ComponentType::CustomScript;
     if (t == "XFMR" || t == "Transformer" || t == "transformers") return ComponentType::Transformer;
