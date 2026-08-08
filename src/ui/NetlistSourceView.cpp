@@ -81,38 +81,103 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     }
 
     std::function<std::string(const std::string&, const std::string&)> getIncomingSignal;
-    getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
+    std::function<std::string(const std::string&)> getSignalFromWire;
+
+    getSignalFromWire = [&](const std::string& wireId) -> std::string {
         for (const auto& w : tempDesign.wires) {
-            std::string otherCompId = "";
-            std::string otherPinName = "";
-            if (w.to.compId == compId && (w.to.terminal == pinName || (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1")))) {
-                otherCompId = w.from.compId;
-                otherPinName = w.from.terminal;
-            } else if (w.from.compId == compId && (w.from.terminal == pinName || (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1")))) {
-                otherCompId = w.to.compId;
-                otherPinName = w.to.terminal;
-            }
-            if (!otherCompId.empty()) {
-                for (const auto& c : tempDesign.components) {
-                    if (c.id == otherCompId) {
-                        std::string ct = c.rawTypeStr;
-                        std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
-                        if (ct == "FROM_SIG" || ct == "FROM") {
-                            std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
-                            for (const auto& g : tempDesign.components) {
-                                std::string gt = g.rawTypeStr;
-                                std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
-                                if (gt == "GOTO_SIG" || gt == "GOTO") {
-                                    std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
-                                    if (gotoTag == fromTag) {
-                                        return getIncomingSignal(g.id, "In");
+            if (w.id == wireId) {
+                if (w.from.isWireJunction) {
+                    return getSignalFromWire(w.from.targetWireId);
+                } else if (!w.from.compId.empty()) {
+                    std::string cId = w.from.compId;
+                    std::string pName = w.from.terminal;
+                    for (const auto& c : tempDesign.components) {
+                        if (c.id == cId) {
+                            std::string ct = c.rawTypeStr;
+                            std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
+                            if (ct == "FROM_SIG" || ct == "FROM") {
+                                std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
+                                for (const auto& g : tempDesign.components) {
+                                    std::string gt = g.rawTypeStr;
+                                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
+                                    if (gt == "GOTO_SIG" || gt == "GOTO") {
+                                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
+                                        if (gotoTag == fromTag) {
+                                            return getIncomingSignal(g.id, "In");
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    return cId + "." + pName;
                 }
-                return otherCompId + "." + otherPinName;
+            }
+        }
+        return "0.0";
+    };
+
+    getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
+        for (const auto& w : tempDesign.wires) {
+            bool matchesTo = (w.to.compId == compId && (w.to.terminal == pinName || (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1"))));
+            bool matchesFrom = (w.from.compId == compId && (w.from.terminal == pinName || (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1"))));
+
+            if (matchesTo) {
+                if (w.from.isWireJunction) {
+                    return getSignalFromWire(w.from.targetWireId);
+                }
+                std::string otherCompId = w.from.compId;
+                std::string otherPinName = w.from.terminal;
+                if (!otherCompId.empty()) {
+                    for (const auto& c : tempDesign.components) {
+                        if (c.id == otherCompId) {
+                            std::string ct = c.rawTypeStr;
+                            std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
+                            if (ct == "FROM_SIG" || ct == "FROM") {
+                                std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
+                                for (const auto& g : tempDesign.components) {
+                                    std::string gt = g.rawTypeStr;
+                                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
+                                    if (gt == "GOTO_SIG" || gt == "GOTO") {
+                                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
+                                        if (gotoTag == fromTag) {
+                                            return getIncomingSignal(g.id, "In");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return otherCompId + "." + otherPinName;
+                }
+            } else if (matchesFrom) {
+                if (w.to.isWireJunction) {
+                    return getSignalFromWire(w.to.targetWireId);
+                }
+                std::string otherCompId = w.to.compId;
+                std::string otherPinName = w.to.terminal;
+                if (!otherCompId.empty()) {
+                    for (const auto& c : tempDesign.components) {
+                        if (c.id == otherCompId) {
+                            std::string ct = c.rawTypeStr;
+                            std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
+                            if (ct == "FROM_SIG" || ct == "FROM") {
+                                std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
+                                for (const auto& g : tempDesign.components) {
+                                    std::string gt = g.rawTypeStr;
+                                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
+                                    if (gt == "GOTO_SIG" || gt == "GOTO") {
+                                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
+                                        if (gotoTag == fromTag) {
+                                            return getIncomingSignal(g.id, "In");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return otherCompId + "." + otherPinName;
+                }
             }
         }
         return "0.0";
