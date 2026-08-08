@@ -119,8 +119,14 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
 
     getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
         for (const auto& w : tempDesign.wires) {
-            bool matchesTo = (w.to.compId == compId && (w.to.terminal == pinName || (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1"))));
-            bool matchesFrom = (w.from.compId == compId && (w.from.terminal == pinName || (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1"))));
+            bool matchesTo = (w.to.compId == compId && (w.to.terminal == pinName ||
+                (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1")) ||
+                ((pinName == "A" || pinName == "Plus") && (w.to.terminal == "A" || w.to.terminal == "Plus" || w.to.terminal == "In1")) ||
+                ((pinName == "B" || pinName == "Minus") && (w.to.terminal == "B" || w.to.terminal == "Minus" || w.to.terminal == "In2"))));
+            bool matchesFrom = (w.from.compId == compId && (w.from.terminal == pinName ||
+                (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1")) ||
+                ((pinName == "A" || pinName == "Plus") && (w.from.terminal == "A" || w.from.terminal == "Plus" || w.from.terminal == "In1")) ||
+                ((pinName == "B" || pinName == "Minus") && (w.from.terminal == "B" || w.from.terminal == "Minus" || w.from.terminal == "In2"))));
 
             if (matchesTo) {
                 if (w.from.isWireJunction) {
@@ -776,8 +782,16 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "COMP" || t == "Comparator") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "COMP";
-            cObj["input_a"] = getIncomingSignal(comp.id, "A");
-            cObj["input_b"] = getIncomingSignal(comp.id, "B");
+            std::string inA = getIncomingSignal(comp.id, "A");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "Plus");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "In1");
+            std::string inB = getIncomingSignal(comp.id, "B");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "Minus");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "In2");
+            cObj["input_a"] = inA;
+            cObj["input_b"] = inB;
+            cObj["input_0"] = inA;
+            cObj["input_1"] = inB;
             ctrlLoopsObj["comparators"].push_back(cObj);
         } else if (t == "LOGIC_OP") {
             cObj["output"] = comp.id + ".Out";
