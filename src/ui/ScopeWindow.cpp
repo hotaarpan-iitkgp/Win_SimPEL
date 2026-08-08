@@ -67,95 +67,77 @@ void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
     {
         ImGuiWindow* win = ImGui::GetCurrentWindow();
         float titleBarHeight = win->TitleBarHeight;
-        float btnSize = 16.0f;
-        float spacing = 4.0f;
-        float padding = 8.0f;
-        float closeBtnWidth = titleBarHeight;
+        if (titleBarHeight > 0.0f) {
+            float btnW = 18.0f;
+            float btnH = 18.0f;
+            float spacing = 3.0f;
+            float rightMargin = 28.0f; // distance from right edge to place before close X button
 
-        float startX = win->Pos.x + win->Size.x - closeBtnWidth - padding - (btnSize + spacing) * 2;
-        float startY = win->Pos.y + (titleBarHeight - btnSize) * 0.5f;
+            float startX = win->Pos.x + win->Size.x - rightMargin - (btnW * 2 + spacing);
+            float startY = win->Pos.y + (titleBarHeight - btnH) * 0.5f;
 
-        ImVec2 savedCursor = ImGui::GetCursorPos();
+            ImVec2 savedCursor = ImGui::GetCursorPos();
 
-        // 1. MINIMIZE BUTTON (-)
-        ImGui::SetCursorScreenPos(ImVec2(startX, startY));
-        if (ImGui::InvisibleButton("##ScopeMinBtn", ImVec2(btnSize, btnSize))) {
-            if (isMinimized) {
-                isMinimized = false;
-                if (hasSavedPosSize) {
-                    ImGui::SetWindowSize(savedWindowSize);
-                    ImGui::SetWindowPos(savedWindowPos);
-                }
-            } else {
-                savedWindowSize = ImGui::GetWindowSize();
-                savedWindowPos = ImGui::GetWindowPos();
-                hasSavedPosSize = true;
-                isMinimized = true;
-            }
-        }
-        {
-            ImVec2 rMin = ImGui::GetItemRectMin();
-            ImVec2 rMax = ImGui::GetItemRectMax();
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            bool hovered = ImGui::IsItemHovered();
+            // Push clip rect covering the title bar so buttons are not clipped by InnerClipRect
+            ImGui::PushClipRect(win->Pos, ImVec2(win->Pos.x + win->Size.x, win->Pos.y + titleBarHeight), false);
 
-            if (hovered) {
-                dl->AddRectFilled(rMin, rMax, IM_COL32(255, 255, 255, 35), 3.0f);
-            }
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.25f, 0.35f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.45f, 0.65f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.35f, 0.75f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.95f, 0.95f, 1.0f));
 
-            float midY = (rMin.y + rMax.y) * 0.5f;
-            dl->AddLine(ImVec2(rMin.x + 3.0f, midY), ImVec2(rMax.x - 3.0f, midY),
-                        hovered ? IM_COL32(255, 255, 255, 255) : IM_COL32(200, 200, 200, 220), 2.0f);
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(isMinimized ? "Restore Window" : "Minimize Window");
-
-        // 2. MAXIMIZE / RESTORE BUTTON (🗖 / ❐)
-        ImGui::SetCursorScreenPos(ImVec2(startX + btnSize + spacing, startY));
-        if (ImGui::InvisibleButton("##ScopeMaxBtn", ImVec2(btnSize, btnSize))) {
-            if (isMaximized) {
-                isMaximized = false;
-                if (hasSavedPosSize) {
-                    ImGui::SetWindowSize(savedWindowSize);
-                    ImGui::SetWindowPos(savedWindowPos);
-                }
-            } else {
-                if (!isMinimized) {
+            // 1. MINIMIZE BUTTON (-)
+            ImGui::SetCursorScreenPos(ImVec2(startX, startY));
+            if (ImGui::Button("-##ScopeMinBtn", ImVec2(btnW, btnH))) {
+                if (isMinimized) {
+                    isMinimized = false;
+                    if (hasSavedPosSize) {
+                        ImGui::SetWindowSize(savedWindowSize);
+                        ImGui::SetWindowPos(savedWindowPos);
+                    }
+                } else {
                     savedWindowSize = ImGui::GetWindowSize();
                     savedWindowPos = ImGui::GetWindowPos();
                     hasSavedPosSize = true;
+                    isMinimized = true;
                 }
-                isMinimized = false;
-                isMaximized = true;
-
-                ImGuiViewport* vp = ImGui::GetMainViewport();
-                ImGui::SetWindowPos(vp->WorkPos);
-                ImGui::SetWindowSize(vp->WorkSize);
             }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(isMinimized ? "Restore Window" : "Minimize Window");
+
+            // 2. MAXIMIZE / RESTORE BUTTON (+ / ❐)
+            ImGui::SetCursorScreenPos(ImVec2(startX + btnW + spacing, startY));
+            const char* maxSymbol = isMaximized ? "❐" : "+";
+            if (ImGui::Button((std::string(maxSymbol) + "##ScopeMaxBtn").c_str(), ImVec2(btnW, btnH))) {
+                if (isMaximized) {
+                    isMaximized = false;
+                    if (hasSavedPosSize) {
+                        ImGui::SetWindowSize(savedWindowSize);
+                        ImGui::SetWindowPos(savedWindowPos);
+                    }
+                } else {
+                    if (!isMinimized) {
+                        savedWindowSize = ImGui::GetWindowSize();
+                        savedWindowPos = ImGui::GetWindowPos();
+                        hasSavedPosSize = true;
+                    }
+                    isMinimized = false;
+                    isMaximized = true;
+
+                    ImGuiViewport* vp = ImGui::GetMainViewport();
+                    ImGui::SetWindowPos(vp->WorkPos);
+                    ImGui::SetWindowSize(vp->WorkSize);
+                }
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(isMaximized ? "Restore Down" : "Maximize Window");
+
+            ImGui::PopStyleColor(4);
+            ImGui::PopStyleVar(2);
+            ImGui::PopClipRect();
+
+            ImGui::SetCursorPos(savedCursor);
         }
-        {
-            ImVec2 rMin = ImGui::GetItemRectMin();
-            ImVec2 rMax = ImGui::GetItemRectMax();
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            bool hovered = ImGui::IsItemHovered();
-
-            if (hovered) {
-                dl->AddRectFilled(rMin, rMax, IM_COL32(255, 255, 255, 35), 3.0f);
-            }
-
-            ImU32 iconColor = hovered ? IM_COL32(255, 255, 255, 255) : IM_COL32(200, 200, 200, 220);
-
-            if (isMaximized) {
-                // Overlapping boxes ❐
-                dl->AddRect(ImVec2(rMin.x + 5.0f, rMin.y + 2.0f), ImVec2(rMax.x - 2.0f, rMax.y - 5.0f), iconColor, 0.0f, 0, 1.5f);
-                dl->AddRect(ImVec2(rMin.x + 2.0f, rMin.y + 5.0f), ImVec2(rMax.x - 5.0f, rMax.y - 2.0f), iconColor, 0.0f, 0, 1.5f);
-            } else {
-                // Single box 🗖
-                dl->AddRect(ImVec2(rMin.x + 3.0f, rMin.y + 3.0f), ImVec2(rMax.x - 3.0f, rMax.y - 3.0f), iconColor, 0.0f, 0, 1.5f);
-            }
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(isMaximized ? "Restore Down" : "Maximize Window");
-
-        ImGui::SetCursorPos(savedCursor);
     }
 
     if (isMinimized) {
