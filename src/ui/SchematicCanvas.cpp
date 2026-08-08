@@ -41,7 +41,10 @@ static ImVec2 getClosestPointOnSegment(ImVec2 p, ImVec2 a, ImVec2 b, float& outD
 std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     const std::string& t = comp.rawTypeStr;
     
-    if (t == "R" || t == "L" || t == "C" || t == "V" || t == "I" || t == "D" || t == "AC_V") {
+    if (t == "D" || t == "DIODE") {
+        return {{"A", 0, -40, 0, -1, false}, {"K", 0, 40, 0, 1, false}};
+    }
+    if (t == "R" || t == "L" || t == "C" || t == "V" || t == "I" || t == "AC_V") {
         return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}};
     }
     if (t == "VM" || t == "AM") {
