@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/CircuitSimulator.hpp"
+#include "engine/FourierAnalysis.hpp"
 #include "ScopeWindow.hpp"
 #include "imgui.h"
 #include "implot.h"

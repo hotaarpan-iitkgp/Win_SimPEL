@@ -22,6 +22,7 @@ set(SOURCES
     src/engine/ExpressionEvaluator.cpp
     src/engine/NetlistBuilder.cpp
     src/engine/SignalAnalysis.cpp
+    src/engine/FourierAnalysis.cpp
     src/ui/ConfiguratorDialog.cpp
     src/ui/SchematicCanvas.cpp
     src/ui/OscilloscopeView.cpp

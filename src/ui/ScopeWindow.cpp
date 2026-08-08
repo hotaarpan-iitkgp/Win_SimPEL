@@ -160,6 +160,9 @@ void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
         ImGui::Separator();
         renderDataPanel(data);
     }
+    if (cursorState.showHarmonicsWindow) {
+        renderHarmonicsWindow(data);
+    }
 
     ImGui::End();
 }
@@ -248,6 +251,15 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data) {
             ImGui::PopStyleColor();
         } else {
             if (ImGui::Button("Free Order##cur")) cursorState.lockBoundary = true;
+        }
+
+        ImGui::SameLine();
+        if (cursorState.showHarmonicsWindow) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.20f, 0.80f, 1.0f));
+            if (ImGui::Button("Spectrum (FFT)##cur")) cursorState.showHarmonicsWindow = false;
+            ImGui::PopStyleColor();
+        } else {
+            if (ImGui::Button("Spectrum (FFT)##cur")) cursorState.showHarmonicsWindow = true;
         }
     } else {
         if (ImGui::Button("Cursors (||)##cur")) cursorState.showCursors = true;
@@ -606,16 +618,17 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
     ImGui::TextDisabled("(PLECS Scope Metrics Over [t1, t2])");
 
     static ImGuiTableFlags tflags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
-    if (ImGui::BeginTable("##CursorDataTable", 9, tflags)) {
+    if (ImGui::BeginTable("##CursorDataTable", 10, tflags)) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Cursor 1", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("Cursor 2", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("Delta", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("Mean", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("RMS", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("Min", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("Max", ImGuiTableColumnFlags_WidthFixed, 85.0f);
-        ImGui::TableSetupColumn("AbsMax", ImGuiTableColumnFlags_WidthFixed, 85.0f);
+        ImGui::TableSetupColumn("Cursor 1", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Cursor 2", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Delta", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("THD %", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("Mean", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("RMS", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Min", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Max", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("AbsMax", ImGuiTableColumnFlags_WidthFixed, 80.0f);
         ImGui::TableHeadersRow();
 
         // Row 1: Time
@@ -640,6 +653,7 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
         ImGui::TableSetColumnIndex(6); ImGui::TextDisabled("-");
         ImGui::TableSetColumnIndex(7); ImGui::TextDisabled("-");
         ImGui::TableSetColumnIndex(8); ImGui::TextDisabled("-");
+        ImGui::TableSetColumnIndex(9); ImGui::TextDisabled("-");
 
         // Channel signal rows
         const auto& palette = isDarkMode ? SCOPE_DARK_COLORS : SCOPE_LIGHT_COLORS;
@@ -662,6 +676,7 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
 
             if (it != data.voltages.end() && !it->second.empty()) {
                 CircuitSimEngine::SignalStats st = CircuitSimEngine::computeSignalStats(data.timeHistory, it->second, t1, t2);
+                CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, it->second, t1, t2, 30);
 
                 std::string label = (ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey;
 
@@ -674,17 +689,88 @@ void ScopeWindow::renderDataPanel(const CircuitSimEngine::TelemetryData& data) {
                 ImGui::TableSetColumnIndex(1); ImGui::Text("%.5g", st.yAtT1);
                 ImGui::TableSetColumnIndex(2); ImGui::Text("%.5g", st.yAtT2);
                 ImGui::TableSetColumnIndex(3); ImGui::Text("%.5g", st.yAtT2 - st.yAtT1);
-                ImGui::TableSetColumnIndex(4); ImGui::Text("%.5g", st.mean);
-                ImGui::TableSetColumnIndex(5); ImGui::Text("%.5g", st.rms);
-                ImGui::TableSetColumnIndex(6); ImGui::Text("%.5g", st.minVal);
-                ImGui::TableSetColumnIndex(7); ImGui::Text("%.5g", st.maxVal);
-                ImGui::TableSetColumnIndex(8); ImGui::Text("%.5g", st.absMaxVal);
+                ImGui::TableSetColumnIndex(4);
+                if (fr.isValid) ImGui::Text("%.2f%%", fr.thdPercent);
+                else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(5); ImGui::Text("%.5g", st.mean);
+                ImGui::TableSetColumnIndex(6); ImGui::Text("%.5g", st.rms);
+                ImGui::TableSetColumnIndex(7); ImGui::Text("%.5g", st.minVal);
+                ImGui::TableSetColumnIndex(8); ImGui::Text("%.5g", st.maxVal);
+                ImGui::TableSetColumnIndex(9); ImGui::Text("%.5g", st.absMaxVal);
             }
         }
         ImGui::EndTable();
     }
     ImGui::EndChild();
     ImGui::PopStyleVar();
+}
+
+void ScopeWindow::renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& data) {
+    if (!cursorState.showHarmonicsWindow) return;
+
+    double t1 = cursorState.cursor1Time;
+    double t2 = cursorState.cursor2Time;
+
+    std::string winTitle = "Harmonic Spectrum (FFT / DFT): " + scopeId + "###HarmWin_" + scopeId;
+    ImGui::SetNextWindowSize(ImVec2(650, 420), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin(winTitle.c_str(), &cursorState.showHarmonicsWindow)) {
+        ImGui::End();
+        return;
+    }
+
+    if (data.timeHistory.empty()) {
+        ImGui::TextDisabled("No waveform data available.");
+        ImGui::End();
+        return;
+    }
+
+    const auto& palette = isDarkMode ? SCOPE_DARK_COLORS : SCOPE_LIGHT_COLORS;
+    constexpr size_t numColors = 8;
+
+    double f0 = (std::abs(t2 - t1) > 1e-12) ? (1.0 / std::abs(t2 - t1)) : 0.0;
+    ImGui::TextColored(ImVec4(0.00f, 0.90f, 1.00f, 1.00f), "Fundamental-Aligned Discrete Fourier Spectrum");
+    ImGui::SameLine();
+    ImGui::TextDisabled("| f0 = %.2f Hz (T = %.6fs)", f0, std::abs(t2 - t1));
+
+    if (ImPlot::BeginPlot("##HarmonicSpectrumPlot", ImVec2(-1, -1))) {
+        ImPlot::SetupAxes("Harmonic Order (n)", "Peak Magnitude (V_n)");
+        ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, 30.5, ImGuiCond_Always);
+
+        for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
+            const std::string& sigKey = channelSignalKeys[ch];
+            if (sigKey.empty()) continue;
+
+            auto it = data.voltages.find(sigKey);
+            if (it == data.voltages.end()) {
+                std::string alt = sigKey;
+                if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
+                    alt = alt.substr(0, alt.size()-4);
+                    it = data.voltages.find(alt);
+                }
+                if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
+                if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
+            }
+
+            if (it != data.voltages.end() && !it->second.empty()) {
+                CircuitSimEngine::FourierResult fr = CircuitSimEngine::computeFourierSpectrum(data.timeHistory, it->second, t1, t2, 30);
+                if (fr.isValid && !fr.harmonicOrders.empty()) {
+                    std::string label = ((ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey) +
+                                        " (THD=" + std::to_string((int)fr.thdPercent) + "." +
+                                        std::to_string((int)(fr.thdPercent * 10) % 10) + "%)";
+
+                    ImPlotSpec spec;
+                    spec.LineColor = palette[ch % numColors];
+                    spec.FillColor = palette[ch % numColors];
+
+                    ImPlot::PlotBars(label.c_str(), fr.harmonicOrders.data(), fr.harmonicMags.data(), (int)fr.harmonicOrders.size(), 0.5, spec);
+                }
+            }
+        }
+        ImPlot::EndPlot();
+    }
+
+    ImGui::End();
 }
 
 } // namespace CircuitSim

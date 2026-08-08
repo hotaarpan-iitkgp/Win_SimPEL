@@ -2,6 +2,7 @@
 
 #include "engine/CircuitSimulator.hpp"
 #include "engine/Components.hpp"
+#include "engine/FourierAnalysis.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include <string>
@@ -43,6 +44,7 @@ struct ScopeCursorState {
     bool initialized = false;
     bool snapToSample = false;
     bool lockBoundary = true;
+    bool showHarmonicsWindow = false;
 };
 
 // A standalone PLECS/MATLAB-style scope popup window.
@@ -86,6 +88,7 @@ private:
     void renderZoomOverlay(int paneIdx);
     void renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data);
     void renderDataPanel(const CircuitSimEngine::TelemetryData& data);
+    void renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& data);
 
     double interpolateSignal(const std::vector<double>& timeHist, const std::vector<double>& signalData, double targetT, bool snap) const;
 
