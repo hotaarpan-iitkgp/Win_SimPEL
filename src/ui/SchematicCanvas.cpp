@@ -710,13 +710,37 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddLine(rotatePt(0, -20*s, c.x, c.y, rot), rotatePt(13*s, 16*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 20*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-6*s, 0, c.x, c.y, rot), color, 2.0f*s);
-    } else if (t == "D") {
-        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -10*s, c.x, c.y, rot), color, 2.0f*s);
-        ImVec2 tri[] = {rotatePt(-15*s, -10*s, c.x, c.y, rot), rotatePt(15*s, -10*s, c.x, c.y, rot), rotatePt(0, 12*s, c.x, c.y, rot)};
+    } else if (t == "D" || t == "DIODE") {
+        drawList->AddLine(rotatePt(0, -20*s, c.x, c.y, rot), rotatePt(0, -8*s, c.x, c.y, rot), color, 2.0f*s);
+        ImVec2 tri[] = {rotatePt(-12*s, -8*s, c.x, c.y, rot), rotatePt(12*s, -8*s, c.x, c.y, rot), rotatePt(0, 8*s, c.x, c.y, rot)};
         drawList->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(0, 230, 120, 30));
         drawList->AddTriangle(tri[0], tri[1], tri[2], color, 2.0f*s);
-        drawList->AddLine(rotatePt(-15*s, 12*s, c.x, c.y, rot), rotatePt(15*s, 12*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(0, 12*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-12*s, 8*s, c.x, c.y, rot), rotatePt(12*s, 8*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, 8*s, c.x, c.y, rot), rotatePt(0, 20*s, c.x, c.y, rot), color, 2.0f*s);
+    } else if (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT") {
+        // Anode lead
+        drawList->AddLine(rotatePt(0, -20*s, c.x, c.y, rot), rotatePt(0, -8*s, c.x, c.y, rot), color, 2.0f*s);
+        // Diode Triangle Body
+        ImVec2 tri[] = {
+            rotatePt(-12*s, -8*s, c.x, c.y, rot),
+            rotatePt(12*s, -8*s, c.x, c.y, rot),
+            rotatePt(0, 8*s, c.x, c.y, rot)
+        };
+        drawList->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(0, 230, 120, 30));
+        drawList->AddTriangle(tri[0], tri[1], tri[2], color, 2.0f*s);
+        // Cathode Bar
+        drawList->AddLine(rotatePt(-12*s, 8*s, c.x, c.y, rot), rotatePt(12*s, 8*s, c.x, c.y, rot), color, 2.0f*s);
+        // Cathode lead
+        drawList->AddLine(rotatePt(0, 8*s, c.x, c.y, rot), rotatePt(0, 20*s, c.x, c.y, rot), color, 2.0f*s);
+        // Gate lead angling from Gate pin (-20, 10) to Cathode bar (-5, 8)
+        ImVec2 g1 = rotatePt(-20*s, 10*s, c.x, c.y, rot);
+        ImVec2 g2 = rotatePt(-10*s, 10*s, c.x, c.y, rot);
+        ImVec2 g3 = rotatePt(-5*s, 8*s, c.x, c.y, rot);
+        drawList->AddLine(g1, g2, color, 2.0f*s);
+        drawList->AddLine(g2, g3, color, 2.0f*s);
+        if (t == "GTO" || t == "IGCT") {
+            drawList->AddLine(rotatePt(-12*s, 6*s, c.x, c.y, rot), rotatePt(-8*s, 14*s, c.x, c.y, rot), color, 2.0f*s);
+        }
     } else if (t == "MOSFET" || t == "vg-FET" || t == "VGFET") {
         drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -15*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 15*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
