@@ -1379,18 +1379,8 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                     c1 = ImVec2(p1_stub.x, p2_stub.y);
                     c2 = c1;
                 } else {
-                    if (p1_stub.x <= p2_stub.x) {
-                        float midX = (p1_stub.x + p2_stub.x) * 0.5f;
-                        c1 = ImVec2(midX, p1_stub.y);
-                        c2 = ImVec2(midX, p2_stub.y);
-                    } else {
-                        float midY = (p1_stub.y + p2_stub.y) * 0.5f;
-                        if (std::abs(p1_stub.y - p2_stub.y) < 15.0f * zoomLevel) {
-                            midY += 40.0f * zoomLevel;
-                        }
-                        c1 = ImVec2(p1_stub.x, midY);
-                        c2 = ImVec2(p2_stub.x, midY);
-                    }
+                    c1 = ImVec2(p2_stub.x, p1_stub.y);
+                    c2 = c1;
                 }
             }
 
