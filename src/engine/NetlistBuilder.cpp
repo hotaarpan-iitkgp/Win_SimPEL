@@ -1,7 +1,9 @@
 #include "NetlistBuilder.hpp"
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 
 namespace CircuitSim {
 
@@ -27,6 +29,45 @@ struct DSU {
     }
 };
 
+static std::string getResolvedPin(const WireEndpoint& ep, const CircuitDesign& design, const std::unordered_map<std::string, WireInstance>& wireMap, std::unordered_set<std::string>& visited) {
+    if (!ep.compId.empty()) {
+        return ep.compId + ":" + ep.terminal;
+    }
+    if (ep.isWireJunction) {
+        if (!ep.targetWireId.empty() && wireMap.count(ep.targetWireId) && visited.find(ep.targetWireId) == visited.end()) {
+            visited.insert(ep.targetWireId);
+            const auto& targetW = wireMap.at(ep.targetWireId);
+            std::string p = getResolvedPin(targetW.from, design, wireMap, visited);
+            if (!p.empty()) return p;
+            p = getResolvedPin(targetW.to, design, wireMap, visited);
+            if (!p.empty()) return p;
+        }
+        // Fallback: Spatial search for closest component terminal at (junctionX, junctionY)
+        float jx = ep.junctionX;
+        float jy = ep.junctionY;
+        float minD = 1e9f;
+        std::string bestPin = "";
+        
+        for (const auto& comp : design.components) {
+            auto terms = getTerminals(comp);
+            for (const auto& term : terms) {
+                float rad = comp.rotation * 3.14159265f / 180.0f;
+                float rx = term.relX * std::cos(rad) - term.relY * std::sin(rad);
+                float ry = term.relX * std::sin(rad) + term.relY * std::cos(rad);
+                float px = comp.x + rx;
+                float py = comp.y + ry;
+                float dist = std::sqrt((px - jx)*(px - jx) + (py - jy)*(py - jy));
+                if (dist < minD) {
+                    minD = dist;
+                    bestPin = comp.id + ":" + term.name;
+                }
+            }
+        }
+        if (minD <= 25.0f) return bestPin;
+    }
+    return "";
+}
+
 void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
     DSU dsu;
 
@@ -46,16 +87,12 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
 
     // Unite pins connected by wires and wire junctions
     for (const auto& wire : design.wires) {
-        std::string pin1 = wire.from.compId + ":" + wire.from.terminal;
-        if (!wire.to.isWireJunction) {
-            std::string pin2 = wire.to.compId + ":" + wire.to.terminal;
+        std::unordered_set<std::string> visited1, visited2;
+        std::string pin1 = getResolvedPin(wire.from, design, wireMap, visited1);
+        std::string pin2 = getResolvedPin(wire.to, design, wireMap, visited2);
+
+        if (!pin1.empty() && !pin2.empty() && pin1 != pin2) {
             dsu.unite(pin1, pin2);
-        } else {
-            if (wireMap.count(wire.to.targetWireId)) {
-                const auto& targetW = wireMap[wire.to.targetWireId];
-                std::string targetPin = targetW.from.compId + ":" + targetW.from.terminal;
-                dsu.unite(pin1, targetPin);
-            }
         }
     }
 

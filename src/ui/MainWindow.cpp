@@ -395,6 +395,20 @@ void MainWindow::renderMenuBar() {
                             for (auto& s : splitSegments) {
                                 cd.wires.push_back(s);
                             }
+
+                            // Re-bind any stale wire junction target IDs to existing wires
+                            std::unordered_set<std::string> validWireIds;
+                            for (const auto& w : cd.wires) validWireIds.insert(w.id);
+                            for (auto& w : cd.wires) {
+                                if (w.to.isWireJunction && validWireIds.find(w.to.targetWireId) == validWireIds.end()) {
+                                    for (const auto& candW : cd.wires) {
+                                        if (candW.id != w.id) {
+                                            w.to.targetWireId = candW.id;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                         }
                         if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
                             const auto& ss = j["simulationSettings"];
