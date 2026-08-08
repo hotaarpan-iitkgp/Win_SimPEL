@@ -2,6 +2,7 @@
 
 #include "engine/CircuitSimulator.hpp"
 #include "engine/FourierAnalysis.hpp"
+#include "ui/TracePlotter.hpp"
 #include "ScopeWindow.hpp"
 #include "imgui.h"
 #include "implot.h"
@@ -46,8 +47,9 @@ private:
     bool isCollapsed = false;
     float savedDockHeight = 0.0f; // Stores height before collapse
 
-    // Cursor state
+    // Cursor & Interpolation state
     ScopeCursorState cursorState;
+    InterpolationMode globalPlotMode = InterpolationMode::AutoHybrid;
 
     // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;

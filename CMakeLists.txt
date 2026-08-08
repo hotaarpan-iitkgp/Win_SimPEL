@@ -27,6 +27,7 @@ set(SOURCES
     src/ui/SchematicCanvas.cpp
     src/ui/OscilloscopeView.cpp
     src/ui/ScopeWindow.cpp
+    src/ui/TracePlotter.cpp
     src/ui/NetlistSourceView.cpp
     src/ui/MainWindow.cpp
     ${IMGUI_DIR}/imgui.cpp

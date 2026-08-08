@@ -215,6 +215,21 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         if (ImGui::Button("Cursors (||)##cur_osc")) cursorState.showCursors = true;
     }
 
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    // Plot Interpolation Mode selector
+    const char* modeNamesOsc[] = { "Hybrid (Auto)", "Linear", "Stairs" };
+    int currentModeIdxOsc = (int)globalPlotMode;
+    ImGui::SetNextItemWidth(110.0f);
+    if (ImGui::Combo("##PlotModeComboOsc", &currentModeIdxOsc, modeNamesOsc, 3)) {
+        globalPlotMode = (InterpolationMode)currentModeIdxOsc;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Interpolation Mode:\n- Hybrid: Step at switching events (e.g. V_ds, V_L), Linear elsewhere\n- Linear: Continuous linear interpolation\n- Stairs: Step plot (e.g. Gate Pulses)");
+    }
+
     ImGui::Separator();
 
     int renderPanes = std::min(numPanes, (int)categories.size());
@@ -450,7 +465,23 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                         ImPlotSpec spec;
                         spec.LineColor = palette[varIdx % numColors];
                         spec.LineWeight = traceLineWidth;
-                        ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count, spec);
+
+                        InterpolationMode mode = globalPlotMode;
+                        if (globalPlotMode == InterpolationMode::AutoHybrid) {
+                            mode = detectDefaultInterpolationMode(varName);
+                        }
+
+                        if (mode == InterpolationMode::AlwaysStairs) {
+                            ImPlot::PlotStairs(varName.c_str(), data.timeHistory.data(), vals.data(), count, spec);
+                        } else if (mode == InterpolationMode::AutoHybrid) {
+                            std::vector<double> rawT(data.timeHistory.begin(), data.timeHistory.begin() + count);
+                            std::vector<double> rawY(vals.begin(), vals.begin() + count);
+                            std::vector<double> hT, hY;
+                            buildHybridVertices(rawT, rawY, hT, hY);
+                            ImPlot::PlotLine(varName.c_str(), hT.data(), hY.data(), (int)hT.size(), spec);
+                        } else {
+                            ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count, spec);
+                        }
                     }
                     varIdx++;
                 }

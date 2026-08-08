@@ -268,6 +268,21 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data) {
     }
 
     ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    // Plot Interpolation Mode selector
+    const char* modeNames[] = { "Hybrid (Auto)", "Linear", "Stairs" };
+    int currentModeIdx = (int)globalPlotMode;
+    ImGui::SetNextItemWidth(110.0f);
+    if (ImGui::Combo("##PlotModeCombo", &currentModeIdx, modeNames, 3)) {
+        globalPlotMode = (InterpolationMode)currentModeIdx;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Interpolation Mode:\n- Hybrid: Step at switching events (e.g. V_ds, V_L), Linear elsewhere\n- Linear: Continuous linear interpolation\n- Stairs: Step plot (e.g. Gate Pulses)");
+    }
+
+    ImGui::SameLine();
     ImGui::TextDisabled("| %d pts | t=%.4fs | %d Ch",
         (int)data.timeHistory.size(),
         data.timeHistory.empty() ? 0.0 : data.timeHistory.back(),
@@ -368,7 +383,23 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                     spec.LineColor = palette[ch % numColors];
                     spec.LineWeight = traceLineWidth;
                     std::string lbl = (ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey;
-                    ImPlot::PlotLine(lbl.c_str(), timeData, it->second.data(), pts, spec);
+
+                    InterpolationMode mode = globalPlotMode;
+                    if (globalPlotMode == InterpolationMode::AutoHybrid) {
+                        mode = detectDefaultInterpolationMode(sigKey);
+                    }
+
+                    if (mode == InterpolationMode::AlwaysStairs) {
+                        ImPlot::PlotStairs(lbl.c_str(), timeData, it->second.data(), pts, spec);
+                    } else if (mode == InterpolationMode::AutoHybrid) {
+                        std::vector<double> rawT(timeData, timeData + pts);
+                        std::vector<double> rawY(it->second.begin(), it->second.begin() + pts);
+                        std::vector<double> hT, hY;
+                        buildHybridVertices(rawT, rawY, hT, hY);
+                        ImPlot::PlotLine(lbl.c_str(), hT.data(), hY.data(), (int)hT.size(), spec);
+                    } else {
+                        ImPlot::PlotLine(lbl.c_str(), timeData, it->second.data(), pts, spec);
+                    }
                 }
             }
             ImPlot::EndPlot();
@@ -456,7 +487,23 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                             spec.LineColor = palette[ch % numColors];
                             spec.LineWeight = traceLineWidth;
                             std::string lbl = (ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey;
-                            ImPlot::PlotLine(lbl.c_str(), timeData, it->second.data(), pts, spec);
+
+                            InterpolationMode mode = globalPlotMode;
+                            if (globalPlotMode == InterpolationMode::AutoHybrid) {
+                                mode = detectDefaultInterpolationMode(sigKey);
+                            }
+
+                            if (mode == InterpolationMode::AlwaysStairs) {
+                                ImPlot::PlotStairs(lbl.c_str(), timeData, it->second.data(), pts, spec);
+                            } else if (mode == InterpolationMode::AutoHybrid) {
+                                std::vector<double> rawT(timeData, timeData + pts);
+                                std::vector<double> rawY(it->second.begin(), it->second.begin() + pts);
+                                std::vector<double> hT, hY;
+                                buildHybridVertices(rawT, rawY, hT, hY);
+                                ImPlot::PlotLine(lbl.c_str(), hT.data(), hY.data(), (int)hT.size(), spec);
+                            } else {
+                                ImPlot::PlotLine(lbl.c_str(), timeData, it->second.data(), pts, spec);
+                            }
                         }
                     }
                     ImPlot::EndPlot();

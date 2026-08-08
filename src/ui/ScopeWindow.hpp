@@ -3,6 +3,7 @@
 #include "engine/CircuitSimulator.hpp"
 #include "engine/Components.hpp"
 #include "engine/FourierAnalysis.hpp"
+#include "ui/TracePlotter.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include <string>
@@ -64,8 +65,9 @@ private:
     bool useSubplots = true;   // true = each channel in its own subplot row
     int numPanes = 1;          // how many subplot rows to show (auto or manual)
 
-    // Zoom & Cursor state
+    // Zoom & Cursor & Interpolation state
     ScopeZoomMode activeZoomMode = ScopeZoomMode::Disabled;
+    InterpolationMode globalPlotMode = InterpolationMode::AutoHybrid;
     bool autoFitNext = true;
     ScopeCursorState cursorState;
 
