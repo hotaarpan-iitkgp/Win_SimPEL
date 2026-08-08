@@ -1855,8 +1855,6 @@ void SchematicCanvas::deleteSelected() {
 void SchematicCanvas::copySelected() {
     if (selectedComponentIds.empty() && selectedWireIds.empty()) return;
 
-    autoSelectWiresForSelectedComponents();
-
     nlohmann::json jData;
     jData["components"] = nlohmann::json::array();
     jData["wires"] = nlohmann::json::array();
@@ -2062,10 +2060,10 @@ void SchematicCanvas::pasteSelected() {
                 std::string oldFromComp = jw.value("fromComp", "");
                 std::string oldToComp = jw.value("toComp", "");
 
-                wire.from.compId = oldToNewId.count(oldFromComp) ? oldToNewId[oldFromComp] : oldFromComp;
-                wire.from.terminal = jw.value("fromTerm", "");
-                wire.to.compId = oldToNewId.count(oldToComp) ? oldToNewId[oldToComp] : oldToComp;
-                wire.to.terminal = jw.value("toTerm", "");
+                wire.from.compId = oldToNewId.count(oldFromComp) ? oldToNewId[oldFromComp] : "";
+                wire.from.terminal = oldToNewId.count(oldFromComp) ? jw.value("fromTerm", "") : "";
+                wire.to.compId = oldToNewId.count(oldToComp) ? oldToNewId[oldToComp] : "";
+                wire.to.terminal = oldToNewId.count(oldToComp) ? jw.value("toTerm", "") : "";
 
                 wire.to.isWireJunction = jw.value("isJunction", false);
                 std::string origTargetW = jw.value("targetWireId", "");
@@ -2530,7 +2528,23 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
             }
         }
 
-        autoSelectWiresForSelectedComponents();
+        // Select wire segments that lie inside or intersect selection box
+        auto lineSegIntersectsBox = [](ImVec2 p1, ImVec2 p2, ImVec2 bMin, ImVec2 bMax) -> bool {
+            float minX = std::min(p1.x, p2.x), maxX = std::max(p1.x, p2.x);
+            float minY = std::min(p1.y, p2.y), maxY = std::max(p1.y, p2.y);
+            return !(maxX < bMin.x || minX > bMax.x || maxY < bMin.y || minY > bMax.y);
+        };
+
+        for (const auto& w : design.wires) {
+            ImVec2 wp1 = getEndpointWorldPos(w.from, design);
+            ImVec2 wp2 = getEndpointWorldPos(w.to, design);
+            ImVec2 sp1 = worldToScreen(wp1.x, wp1.y, canvasPos);
+            ImVec2 sp2 = worldToScreen(wp2.x, wp2.y, canvasPos);
+
+            if (lineSegIntersectsBox(sp1, sp2, minP, maxP)) {
+                selectedWireIds.insert(w.id);
+            }
+        }
     }
 
     // Commit adaptive box zoom on mouse release
