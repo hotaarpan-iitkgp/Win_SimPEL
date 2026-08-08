@@ -1379,19 +1379,7 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         if (!foundTo) p2_stub = p2;
 
         if (foundFrom && foundTo) {
-            if (fromIsVertical) {
-                float distP1P2 = std::abs(p2.y - p1.y);
-                float distP1Stub = std::abs(p1_stub.y - p1.y);
-                if (distP1P2 <= distP1Stub) {
-                    p1_stub = p1;
-                }
-            } else {
-                float distP1P2 = std::abs(p2.x - p1.x);
-                float distP1Stub = std::abs(p1_stub.x - p1.x);
-                if (distP1P2 <= distP1Stub) {
-                    p1_stub = p1;
-                }
-            }
+            // ALWAYS PRESERVE PORT STUB (never collapse p1_stub = p1 so wire doesn't turn right at pin)
 
             ImVec2 c1(0, 0), c2(0, 0);
             bool hasCustomOffset = !wire.manualPath.empty();
@@ -1407,12 +1395,60 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                     c2 = ImVec2(snapX, p2_stub.y);
                 }
             } else {
+                // Find source component to check if wire path cuts through component body
+                const ComponentInstance* fromComp = nullptr;
+                if (!wire.from.compId.empty()) {
+                    for (const auto& comp : design.components) {
+                        if (comp.id == wire.from.compId) { fromComp = &comp; break; }
+                    }
+                }
+
                 if (fromIsVertical) {
                     c1 = ImVec2(p1_stub.x, p2_stub.y);
                     c2 = c1;
+
+                    // Obstacle avoidance: check if routing vertically back toward component cuts through component body
+                    if (fromComp) {
+                        ImVec2 compCenter = worldToScreen(fromComp->x, fromComp->y, canvasPos);
+                        float hw = 25.0f * zoomLevel, hh = 25.0f * zoomLevel;
+                        getComponentBounds(*fromComp, hw, hh);
+
+                        // If p1_stub and p2_stub are on opposite Y-sides of component center,
+                        // or if p2_stub.y is inside component Y bounds:
+                        bool cutsThroughY = ((p1_stub.y - compCenter.y) * (p2_stub.y - compCenter.y) < 0) ||
+                                            (std::abs(p2_stub.y - compCenter.y) <= hh);
+                        bool alignsX = (std::abs(p1_stub.x - compCenter.x) <= hw + 10.0f * zoomLevel);
+
+                        if (cutsThroughY && alignsX) {
+                            // Detour around component side to create clean Z/L shape
+                            float detourX = (p2_stub.x >= compCenter.x) ? 
+                                            (compCenter.x + hw + 25.0f * zoomLevel) : 
+                                            (compCenter.x - hw - 25.0f * zoomLevel);
+                            c1 = ImVec2(detourX, p1_stub.y);
+                            c2 = ImVec2(detourX, p2_stub.y);
+                        }
+                    }
                 } else {
                     c1 = ImVec2(p2_stub.x, p1_stub.y);
                     c2 = c1;
+
+                    if (fromComp) {
+                        ImVec2 compCenter = worldToScreen(fromComp->x, fromComp->y, canvasPos);
+                        float hw = 25.0f * zoomLevel, hh = 25.0f * zoomLevel;
+                        getComponentBounds(*fromComp, hw, hh);
+
+                        bool cutsThroughX = ((p1_stub.x - compCenter.x) * (p2_stub.x - compCenter.x) < 0) ||
+                                            (std::abs(p2_stub.x - compCenter.x) <= hw);
+                        bool alignsY = (std::abs(p1_stub.y - compCenter.y) <= hh + 10.0f * zoomLevel);
+
+                        if (cutsThroughX && alignsY) {
+                            float detourY = (p2_stub.y >= compCenter.y) ? 
+                                            (compCenter.y + hh + 25.0f * zoomLevel) : 
+                                            (compCenter.y - hh - 25.0f * zoomLevel);
+                            c1 = ImVec2(p1_stub.x, detourY);
+                            c2 = ImVec2(p2_stub.x, detourY);
+                        }
+                    }
                 }
             }
 
