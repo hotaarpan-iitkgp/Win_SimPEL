@@ -178,8 +178,12 @@ void CircuitSimulator::buildIndexMaps() {
             fc.polarity = getParamString(comp, "polarity", "");
         }
 
-        fc.val = evaluateParam(comp, "value", 1000.0);
-        if (comp.type == ComponentType::Capacitor) {
+        fc.val = evaluateParam(comp, "val", 0.0);
+        if (fc.val == 0.0 && comp.parameters.count("value")) fc.val = evaluateParam(comp, "value", 0.0);
+        if (fc.val == 0.0 && comp.parameters.count("v")) fc.val = evaluateParam(comp, "v", 0.0);
+        if (fc.val == 0.0 && comp.parameters.count("V")) fc.val = evaluateParam(comp, "V", 0.0);
+        if (fc.val == 0.0 && comp.parameters.count("amplitude")) fc.val = evaluateParam(comp, "amplitude", 0.0);
+        if (fc.type == ComponentType::Capacitor) {
             fc.val = evaluateParam(comp, "C", 1e-6);
             fc.stateIdx = (int)flatCapVoltages.size();
             flatCapVoltages.push_back(capVoltagesPrev[comp.id]);
@@ -502,10 +506,45 @@ void CircuitSimulator::buildIndexMaps() {
             fc.ctrlSigKey = getParamString(ctrlComp, "Trig", "");
         }
 
+        if (ctrlComp.type == ComponentType::UnifiedProbe) {
+            std::string targetComp = getParamString(ctrlComp, "target", "");
+            std::string selSigs = getParamString(ctrlComp, "selected_signals", "");
+            std::string probeType = getParamString(ctrlComp, "probe_type", "Voltage");
+            std::string probeSig = getParamString(ctrlComp, "probe_signal", "");
+
+            std::string srcKey = "";
+            if (!selSigs.empty()) {
+                srcKey = selSigs;
+                size_t comma = srcKey.find(',');
+                if (comma != std::string::npos) srcKey = srcKey.substr(0, comma);
+            } else if (!probeSig.empty()) {
+                srcKey = probeSig;
+            } else if (!targetComp.empty()) {
+                if (targetComp.rfind("V_", 0) == 0 || targetComp.rfind("I_", 0) == 0) {
+                    srcKey = targetComp;
+                } else if (probeType == "Current" || probeType == "I") {
+                    srcKey = "I_" + targetComp;
+                } else {
+                    srcKey = "V_" + targetComp;
+                }
+            }
+
+            fc.ctrlSigKey = srcKey;
+            fc.outKey = ctrlComp.id + ".Out";
+
+            // Register output signal indices so PROBE outputs to .Out, PROBE ID, and custom_plots
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Out");
+            fc.outputSigKeys.push_back(ctrlComp.id);
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Out"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id));
+            if (!srcKey.empty()) {
+                fc.ctrlSigSignalIdx = getOrCreateSignalIdx(srcKey);
+                fc.targetSignalIdx = getOrCreateSignalIdx(srcKey);
+            }
+        }
+
         if (fc.outKey.empty()) {
-            if (ctrlComp.type == ComponentType::UnifiedProbe && !fc.ctrlSigKey.empty()) {
-                fc.outKey = ctrlComp.id + "." + fc.ctrlSigKey;
-            } else if (ctrlComp.type == ComponentType::DFlipFlop || ctrlComp.type == ComponentType::JKFlipFlop) {
+            if (ctrlComp.type == ComponentType::DFlipFlop || ctrlComp.type == ComponentType::JKFlipFlop) {
                 fc.outKey = ctrlComp.id + ".Q";
                 // Register both Q and Q_bar in outputSigIndices
                 fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q"));
@@ -518,8 +557,10 @@ void CircuitSimulator::buildIndexMaps() {
         fc.in0SignalIdx = getOrCreateSignalIdx(fc.in0Key);
         fc.in1SignalIdx = getOrCreateSignalIdx(fc.in1Key);
         fc.outSignalIdx = getOrCreateSignalIdx(fc.outKey);
-        fc.targetSignalIdx = getOrCreateSignalIdx(fc.targetKey);
-        fc.ctrlSigSignalIdx = getOrCreateSignalIdx(fc.ctrlSigKey);
+        if (ctrlComp.type != ComponentType::UnifiedProbe) {
+            fc.targetSignalIdx = getOrCreateSignalIdx(fc.targetKey);
+            fc.ctrlSigSignalIdx = getOrCreateSignalIdx(fc.ctrlSigKey);
+        }
         getOrCreateSignalIdx(fc.id);
 
         if (ctrlComp.type == ComponentType::CustomScript) {
@@ -718,15 +759,41 @@ bool CircuitSimulator::solveLUFast(int n) {
 
 void CircuitSimulator::evaluateControls(double currentTime) {
     for (auto& fc : fastPhysComps) {
-        if (fc.type == ComponentType::Voltmeter) {
-            int n1 = fc.n1, n2 = fc.n2;
-            double v1 = (n1 >= 0 && n1 < totalDim) ? X[n1] : 0.0;
-            double v2 = (n2 >= 0 && n2 < totalDim) ? X[n2] : 0.0;
-            double vDiff = v1 - v2;
-            int sigIdx = fc.outSignalIdx;
-            if (sigIdx >= 0 && sigIdx < (int)flatControlSignals.size()) {
-                flatControlSignals[sigIdx] = vDiff;
-            }
+        int n1 = fc.n1, n2 = fc.n2;
+        double v1 = (n1 >= 0 && n1 < totalDim) ? X[n1] : 0.0;
+        double v2 = (n2 >= 0 && n2 < totalDim) ? X[n2] : 0.0;
+        double vDiff = v1 - v2;
+        if (std::abs(vDiff) < 1e-12 && (fc.type == ComponentType::VoltageSource || fc.type == ComponentType::ACVoltageSource)) {
+            vDiff = fc.val;
+        }
+
+        if (fc.vPlotSignalIdx >= 0 && fc.vPlotSignalIdx < (int)flatControlSignals.size()) {
+            flatControlSignals[fc.vPlotSignalIdx] = vDiff;
+        }
+
+        double iComp = 0.0;
+        if (fc.type == ComponentType::Resistor) {
+            double Rtotal = fc.val + fc.esr;
+            if (Rtotal < 1e-6) Rtotal = 1e-6;
+            iComp = vDiff / Rtotal;
+        } else if (fc.type == ComponentType::Inductor) {
+            if (fc.lIdx >= 0 && fc.lIdx < totalDim) iComp = X[fc.lIdx];
+        } else if (fc.type == ComponentType::VoltageSource || fc.type == ComponentType::ACVoltageSource || fc.type == ComponentType::Ammeter) {
+            if (fc.vIdx >= 0 && fc.vIdx < totalDim) iComp = X[fc.vIdx];
+        } else if (fc.type == ComponentType::Diode) {
+            double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double R = (state > 0.5) ? fc.Ron : fc.Roff;
+            iComp = (state > 0.5) ? ((vDiff - fc.Vvd) / R) : (vDiff / R);
+        } else if (fc.type == ComponentType::Switch) {
+            double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+            iComp = vDiff / ((ctrlVal > 0.5) ? fc.Ron : fc.Roff);
+        }
+
+        if (fc.iPlotSignalIdx >= 0 && fc.iPlotSignalIdx < (int)flatControlSignals.size()) {
+            flatControlSignals[fc.iPlotSignalIdx] = iComp;
+        }
+        if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) {
+            flatControlSignals[fc.outSignalIdx] = (fc.type == ComponentType::Ammeter) ? iComp : vDiff;
         }
     }
 
@@ -1757,14 +1824,26 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             }
             else if (fc.type == ComponentType::UnifiedProbe) {
                 double pVal = 0.0;
-                if (fc.ctrlSigPtr) pVal = *fc.ctrlSigPtr;
-                else if (fc.targetPtr) pVal = *fc.targetPtr;
+                if (fc.ctrlSigPtr && *fc.ctrlSigPtr != 0.0) pVal = *fc.ctrlSigPtr;
+                else if (fc.targetPtr && *fc.targetPtr != 0.0) pVal = *fc.targetPtr;
 
+                if (pVal == 0.0 && fc.ctrlSigSignalIdx >= 0 && fc.ctrlSigSignalIdx < (int)flatControlSignals.size()) {
+                    pVal = flatControlSignals[fc.ctrlSigSignalIdx];
+                }
                 val = pVal;
+
+                for (int sIdx : fc.outputSigIndices) {
+                    if (sIdx >= 0 && sIdx < (int)flatControlSignals.size()) {
+                        flatControlSignals[sIdx] = val;
+                    }
+                }
             }
 
             if (fc.outPtr) {
                 *fc.outPtr = val;
+            }
+            if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) {
+                flatControlSignals[fc.outSignalIdx] = val;
             }
         }
     }

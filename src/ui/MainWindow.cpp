@@ -1171,10 +1171,60 @@ void MainWindow::renderPropertyInspector() {
     }
 
     ImGui::Spacing();
-    ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Parameters:");
-    
+    std::string t = comp->rawTypeStr;
+    std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+    if (t == "PROBE" || t == "UNIFIEDPROBE") {
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Probe Settings:");
+        
+        // Target Component Combo
+        std::vector<std::string> allTargetIds;
+        for (const auto& c : canvas.getCircuitRef().components) {
+            if (c.id != comp->id && c.rawTypeStr != "PROBE") {
+                allTargetIds.push_back(c.id);
+            }
+        }
+
+        std::string currentTarget = comp->parameters.count("target") ? comp->parameters.at("target") : "";
+        if (currentTarget.empty() && !allTargetIds.empty()) currentTarget = allTargetIds[0];
+
+        if (ImGui::BeginCombo("Target Component##probe", currentTarget.c_str())) {
+            for (const auto& targetId : allTargetIds) {
+                bool isSelected = (currentTarget == targetId);
+                if (ImGui::Selectable(targetId.c_str(), isSelected)) {
+                    currentTarget = targetId;
+                    comp->parameters["target"] = targetId;
+                    std::string pType = comp->parameters.count("probe_type") ? comp->parameters.at("probe_type") : "Voltage";
+                    if (pType == "Current" || pType == "I") comp->parameters["selected_signals"] = "I_" + targetId;
+                    else comp->parameters["selected_signals"] = "V_" + targetId;
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        // Measure Type Combo
+        std::string currentType = comp->parameters.count("probe_type") ? comp->parameters.at("probe_type") : "Voltage";
+        const char* probeTypes[] = { "Voltage (V)", "Current (I)" };
+        int typeIdx = (currentType == "Current" || currentType == "I") ? 1 : 0;
+        if (ImGui::Combo("Measure Type##probe", &typeIdx, probeTypes, 2)) {
+            std::string newType = (typeIdx == 1) ? "Current" : "Voltage";
+            comp->parameters["probe_type"] = newType;
+            if (!currentTarget.empty()) {
+                comp->parameters["selected_signals"] = (typeIdx == 1) ? ("I_" + currentTarget) : ("V_" + currentTarget);
+            }
+        }
+
+        // Custom Signal String fallback
+        std::string selSig = comp->parameters.count("selected_signals") ? comp->parameters.at("selected_signals") : "";
+        char sigBuf[256] = {0};
+        strncpy(sigBuf, selSig.c_str(), sizeof(sigBuf) - 1);
+        if (ImGui::InputText("Signal Key##probe", sigBuf, sizeof(sigBuf))) {
+            comp->parameters["selected_signals"] = sigBuf;
+        }
+    }
+
     for (auto& pair : comp->parameters) {
-        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals") continue;
+        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type") continue;
         char valBuf[256] = {0};
         strncpy(valBuf, pair.second.c_str(), sizeof(valBuf) - 1);
         std::string inputLabel = pair.first + "##" + comp->id;
@@ -1190,8 +1240,7 @@ void MainWindow::renderPropertyInspector() {
 
     // Determine signals to plot/probe based on component type (matching Web Tool)
     std::vector<std::string> availableSignals;
-    std::string t = comp->rawTypeStr;
-    std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+    // t is already defined and upper-cased above
 
     bool isElectrical = (t == "R" || t == "L" || t == "C" || t == "V" || t == "AC_V" || t == "I" || t == "S" || t == "D" || t == "MOSFET" || t == "VM" || t == "AM" || t == "GND");
     if (isElectrical) {

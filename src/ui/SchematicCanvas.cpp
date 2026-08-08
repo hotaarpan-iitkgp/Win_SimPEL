@@ -2757,9 +2757,14 @@ void SchematicCanvas::syncProbeSignals() {
     }
 
     for (auto& comp : design.components) {
-        if (comp.rawTypeStr == "PROBE") {
-            comp.parameters["selected_signals"] = sigStr;
-            comp.parameters["target"] = targetStr;
+        if (comp.rawTypeStr == "PROBE" || comp.type == ComponentType::UnifiedProbe) {
+            // Only set default probed targets if comp currently has NO target or selected_signals specified
+            if (!comp.parameters.count("target") || comp.parameters["target"].empty()) {
+                if (!targetStr.empty()) comp.parameters["target"] = targetStr;
+            }
+            if (!comp.parameters.count("selected_signals") || comp.parameters["selected_signals"].empty()) {
+                if (!sigStr.empty()) comp.parameters["selected_signals"] = sigStr;
+            }
         }
     }
 }
