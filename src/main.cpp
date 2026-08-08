@@ -82,6 +82,62 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
+static HICON createCircuitSimIcon(int size) {
+    std::vector<DWORD> pixels(size * size);
+    float center = size / 2.0f;
+    float radius = size * 0.44f;
+
+    for (int y = 0; y < size; ++y) {
+        for (int x = 0; x < size; ++x) {
+            float dx = x - center;
+            float dy = y - center;
+            float dist = std::sqrt(dx * dx + dy * dy);
+
+            if (dist <= radius) {
+                if (dist >= radius - 2.5f) {
+                    pixels[y * size + x] = 0xFFF8BD38; // Cyan/Gold border (BGRA)
+                } else {
+                    pixels[y * size + x] = 0xFF2A170F; // Dark navy background
+                }
+            } else {
+                pixels[y * size + x] = 0x00000000; // Transparent
+            }
+        }
+    }
+
+    int midX = size / 2;
+    int upperY = (int)(center - size * 0.18f);
+    int lowerY = (int)(center + size * 0.22f);
+    int arm = std::max(2, size / 7);
+
+    // Draw '+' symbol
+    for (int d = -arm; d <= arm; ++d) {
+        if (upperY >= 0 && upperY < size && midX + d >= 0 && midX + d < size)
+            pixels[upperY * size + (midX + d)] = 0xFF00E6FF;
+        if (upperY + d >= 0 && upperY + d < size && midX >= 0 && midX < size)
+            pixels[(upperY + d) * size + midX] = 0xFF00E6FF;
+    }
+
+    // Draw '-' symbol
+    for (int d = -arm; d <= arm; ++d) {
+        if (lowerY >= 0 && lowerY < size && midX + d >= 0 && midX + d < size)
+            pixels[lowerY * size + (midX + d)] = 0xFF00E6FF;
+    }
+
+    HBITMAP hColor = CreateBitmap(size, size, 1, 32, pixels.data());
+    HBITMAP hMask = CreateBitmap(size, size, 1, 1, NULL);
+
+    ICONINFO ii = {0};
+    ii.fIcon = TRUE;
+    ii.hbmColor = hColor;
+    ii.hbmMask = hMask;
+
+    HICON hIcon = CreateIconIndirect(&ii);
+    DeleteObject(hColor);
+    DeleteObject(hMask);
+    return hIcon;
+}
+
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(customUnhandledExceptionFilter);
     std::set_terminate(customTerminateHandler);
@@ -90,10 +146,16 @@ int main(int argc, char** argv) {
     std::signal(SIGFPE, customSignalHandler);
     std::signal(SIGILL, customSignalHandler);
 
+    HICON hIconBig = createCircuitSimIcon(32);
+    HICON hIconSmall = createCircuitSimIcon(16);
+
     // Register Win32 Window Class
-    WNDCLASSEXW wc = { sizeof(WNDCLASSEXW), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"CircuitSimProWinClass", NULL };
+    WNDCLASSEXW wc = { sizeof(WNDCLASSEXW), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(NULL), hIconBig, NULL, NULL, NULL, L"CircuitSimProWinClass", hIconSmall };
     RegisterClassExW(&wc);
     HWND hwnd = CreateWindowW(wc.lpszClassName, L"CircuitSim Pro - Native High Performance C++ Windows Desktop Tool", WS_OVERLAPPEDWINDOW, 100, 100, 1400, 900, NULL, NULL, wc.hInstance, NULL);
+
+    SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIconBig);
+    SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
 
     // Initialize OpenGL Context
     PIXELFORMATDESCRIPTOR pfd = {

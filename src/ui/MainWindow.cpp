@@ -986,7 +986,7 @@ void MainWindow::renderComponentPalette() {
         }
         else if (!showDetailedLibrary) {
             // BASIC LIBRARY VIEW (Only simple original basic blocks)
-            if (ImGui::CollapsingHeader("⚡ Power Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("[PWR] Power Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::PushID("basic_power");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
@@ -999,7 +999,7 @@ void MainWindow::renderComponentPalette() {
                 ImGui::PopID();
             }
 
-            if (ImGui::CollapsingHeader("🎛️ Control Loops", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("[CTRL] Control Loops", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::PushID("basic_control");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
@@ -1012,7 +1012,7 @@ void MainWindow::renderComponentPalette() {
                 ImGui::PopID();
             }
 
-            if (ImGui::CollapsingHeader("📊 Scope & Probes", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("[SCOPE] Scope & Probes", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::PushID("basic_general");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
@@ -1045,7 +1045,7 @@ void MainWindow::renderComponentPalette() {
             };
 
             // 1. GENERAL BLOCKS (Category: general)
-            if (ImGui::CollapsingHeader("⚙️ General Blocks")) {
+            if (ImGui::CollapsingHeader("[GEN] General Blocks")) {
                 ImGui::PushID("cat_general");
                 ImGui::Indent(8.0f);
                 
@@ -1071,7 +1071,7 @@ void MainWindow::renderComponentPalette() {
             }
 
             // 2. CONTROL BLOCKS (Category: control)
-            if (ImGui::CollapsingHeader("🎛️ Control Blocks")) {
+            if (ImGui::CollapsingHeader("[CTRL] Control Blocks")) {
                 ImGui::PushID("cat_control");
                 ImGui::Indent(8.0f);
                 
@@ -1113,7 +1113,7 @@ void MainWindow::renderComponentPalette() {
             }
 
             // 3. ELECTRICAL BLOCKS (Category: electrical)
-            if (ImGui::CollapsingHeader("⚡ Electrical Blocks")) {
+            if (ImGui::CollapsingHeader("[ELEC] Electrical Blocks")) {
                 ImGui::PushID("cat_electrical");
                 ImGui::Indent(8.0f);
                 
