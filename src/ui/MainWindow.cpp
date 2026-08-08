@@ -358,6 +358,39 @@ void MainWindow::renderMenuBar() {
                                 }
                                 seenWIds.insert(w.id);
                             }
+
+                            // Automatically split junctioned wires into independent 2-point wire segments
+                            std::vector<WireInstance> splitSegments;
+                            for (size_t wi = 0; wi < cd.wires.size(); ++wi) {
+                                for (size_t wj = 0; wj < cd.wires.size(); ++wj) {
+                                    if (wi == wj) continue;
+                                    if (cd.wires[wj].to.isWireJunction && cd.wires[wj].to.targetWireId == cd.wires[wi].id) {
+                                        float jx = cd.wires[wj].to.junctionX;
+                                        float jy = cd.wires[wj].to.junctionY;
+                                        
+                                        if (!cd.wires[wi].to.isWireJunction || std::abs(cd.wires[wi].to.junctionX - jx) > 5.0f || std::abs(cd.wires[wi].to.junctionY - jy) > 5.0f) {
+                                            WireInstance seg2;
+                                            maxWNum++;
+                                            seg2.id = "w" + std::to_string(maxWNum);
+                                            seg2.from.isWireJunction = true;
+                                            seg2.from.targetWireId = cd.wires[wj].id;
+                                            seg2.from.junctionX = jx;
+                                            seg2.from.junctionY = jy;
+                                            seg2.to = cd.wires[wi].to;
+
+                                            cd.wires[wi].to.isWireJunction = true;
+                                            cd.wires[wi].to.targetWireId = cd.wires[wj].id;
+                                            cd.wires[wi].to.junctionX = jx;
+                                            cd.wires[wi].to.junctionY = jy;
+
+                                            splitSegments.push_back(seg2);
+                                        }
+                                    }
+                                }
+                            }
+                            for (auto& s : splitSegments) {
+                                cd.wires.push_back(s);
+                            }
                         }
                         if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
                             const auto& ss = j["simulationSettings"];

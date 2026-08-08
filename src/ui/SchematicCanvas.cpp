@@ -2357,6 +2357,31 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                         wire.to.junctionX = hoveredWireJunctionPos.x;
                         wire.to.junctionY = hoveredWireJunctionPos.y;
                         design.wires.push_back(wire);
+
+                        // Split hoveredWire at junction into independent 2-point wire segments
+                        for (size_t wi = 0; wi < design.wires.size(); ++wi) {
+                            if (design.wires[wi].id == hoveredWireId) {
+                                WireInstance seg2;
+                                candW++;
+                                while (existingWIds.count("w" + std::to_string(candW))) candW++;
+                                seg2.id = "w" + std::to_string(candW);
+
+                                seg2.from.isWireJunction = true;
+                                seg2.from.targetWireId = wire.id;
+                                seg2.from.junctionX = hoveredWireJunctionPos.x;
+                                seg2.from.junctionY = hoveredWireJunctionPos.y;
+                                seg2.to = design.wires[wi].to;
+
+                                design.wires[wi].to.isWireJunction = true;
+                                design.wires[wi].to.targetWireId = wire.id;
+                                design.wires[wi].to.junctionX = hoveredWireJunctionPos.x;
+                                design.wires[wi].to.junctionY = hoveredWireJunctionPos.y;
+
+                                design.wires.push_back(seg2);
+                                break;
+                            }
+                        }
+
                         normalizeControlWires();
                         isWiring = false;
                         activeWireCorners.clear();
