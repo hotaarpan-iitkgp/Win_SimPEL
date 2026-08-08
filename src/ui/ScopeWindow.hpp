@@ -76,6 +76,7 @@ private:
 
     // Minimize/maximize state
     bool isMinimized = false;
+    bool isMaximized = false;
     ImVec2 savedWindowSize = {700.0f, 450.0f};
     ImVec2 savedWindowPos = {0.0f, 0.0f};
     bool hasSavedPosSize = false;
