@@ -29,8 +29,45 @@ struct DSU {
     }
 };
 
+static bool isTerminalMatch(const std::string& compTypeStr, const std::string& termA, const std::string& termB) {
+    if (termA == termB) return true;
+    std::string a = termA, b = termB;
+    std::transform(a.begin(), a.end(), a.begin(), ::toupper);
+    std::transform(b.begin(), b.end(), b.begin(), ::toupper);
+    if (a == b) return true;
+
+    bool isP1_A = (a == "P1" || a == "P1A" || a == "P1_1" || a == "PA");
+    bool isP1_B = (b == "P1" || b == "P1A" || b == "P1_1" || b == "PA");
+    if (isP1_A && isP1_B) return true;
+
+    bool isP2_A = (a == "P2" || a == "P1B" || a == "P1_2" || a == "PB");
+    bool isP2_B = (b == "P2" || b == "P1B" || b == "P1_2" || b == "PB");
+    if (isP2_A && isP2_B) return true;
+
+    bool isS1_A = (a == "S1" || a == "S1A" || a == "S1_1" || a == "SA");
+    bool isS1_B = (b == "S1" || b == "S1A" || b == "S1_1" || b == "SA");
+    if (isS1_A && isS1_B) return true;
+
+    bool isS2_A = (a == "S2" || a == "S1B" || a == "S1_2" || a == "SB" || a == "S2A");
+    bool isS2_B = (b == "S2" || b == "S1B" || b == "S1_2" || b == "SB" || b == "S2A");
+    if (isS2_A && isS2_B) return true;
+
+    return false;
+}
+
 static std::string getResolvedPin(const WireEndpoint& ep, const CircuitDesign& design, const std::unordered_map<std::string, WireInstance>& wireMap, std::unordered_set<std::string>& visited) {
     if (!ep.compId.empty()) {
+        for (const auto& comp : design.components) {
+            if (comp.id == ep.compId) {
+                auto terms = getTerminals(comp);
+                for (const auto& term : terms) {
+                    if (isTerminalMatch(comp.rawTypeStr, term.name, ep.terminal)) {
+                        return comp.id + ":" + term.name;
+                    }
+                }
+                break;
+            }
+        }
         return ep.compId + ":" + ep.terminal;
     }
     if (ep.isWireJunction) {
