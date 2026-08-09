@@ -417,15 +417,30 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : (parsedParams.count("Vf") ? parsedParams["Vf"] : 0.8));
             cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : (parsedParams.count("Ih") ? parsedParams["Ih"] : 0.01));
             physStageObj["analog_switches"].push_back(cObj);
-        } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "SAT_XFMR" || t == "MUTUAL_2W") {
+        } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "SAT_XFMR" || t == "MUTUAL_2W" || t == "Transformer" || t == "IdealTransformer" || t == "IDEAL_TRANSFORMER") {
             json xObj;
             xObj["id"] = comp.id;
             std::string nP1 = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
             std::string nP2 = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
             std::string nS1 = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
             std::string nS2 = (formattedNodes.size() > 3) ? formattedNodes[3].get<std::string>() : "node_0";
-            xObj["primary_windings"] = json::array({{{"nodes", json::array({nP1, nP2})}, {"turns", 100}}});
-            xObj["secondary_windings"] = json::array({{{"nodes", json::array({nS1, nS2})}, {"turns", 100}}});
+
+            double pTurns = 100.0, sTurns = 100.0;
+            if (parsedParams.count("primary_turns")) pTurns = parsedParams["primary_turns"];
+            else if (parsedParams.count("n1")) pTurns = parsedParams["n1"];
+            else if (parsedParams.count("N1")) pTurns = parsedParams["N1"];
+
+            if (parsedParams.count("secondary_turns")) sTurns = parsedParams["secondary_turns"];
+            else if (parsedParams.count("n2")) sTurns = parsedParams["n2"];
+            else if (parsedParams.count("N2")) sTurns = parsedParams["N2"];
+
+            if (parsedParams.count("turns_ratio") && parsedParams["turns_ratio"] > 0) {
+                pTurns = parsedParams["turns_ratio"];
+                sTurns = 1.0;
+            }
+
+            xObj["primary_windings"] = json::array({{{"nodes", json::array({nP1, nP2})}, {"turns", pTurns}}});
+            xObj["secondary_windings"] = json::array({{{"nodes", json::array({nS1, nS2})}, {"turns", sTurns}}});
             xObj["core_permeability"] = formatJSStyleDouble(parsedParams.count("permeability") ? parsedParams["permeability"] : 2000.0);
             physStageObj["transformers"].push_back(xObj);
         } else if (t == "XFMR_3W" || t == "MUTUAL_3W" || t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {

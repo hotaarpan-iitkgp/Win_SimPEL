@@ -175,7 +175,7 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
         return {{"A1", -20, -15, -1, 0, true}, {"A2", -20, 0, -1, 0, true}, {"A3", -20, 15, -1, 0, true}, {"B1", 20, -15, 1, 0, true}, {"B2", 20, 0, 1, 0, true}, {"B3", 20, 15, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
     }
-    if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR") {
+    if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER") {
         return {{"P1", -20, -10, -1, 0, true}, {"P2", -20, 10, -1, 0, true}, {"S1", 20, -10, 1, 0, true}, {"S2", 20, 10, 1, 0, true}};
     }
     if (t == "XFMR_3W" || t == "MUTUAL_3W") {
@@ -1254,6 +1254,36 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 30*s, c.y - 8*s}, color, "[ C++ Script ]");
+    } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER") {
+        // Primary Winding (2 circular arcs on left)
+        ImVec2 pCenter1 = rotatePt(-6*s, -8*s, c.x, c.y, rot);
+        ImVec2 pCenter2 = rotatePt(-6*s, 8*s, c.x, c.y, rot);
+        drawList->AddCircle(pCenter1, 8.0f * s, color, 24, 2.0f * s);
+        drawList->AddCircle(pCenter2, 8.0f * s, color, 24, 2.0f * s);
+
+        // Secondary Winding (2 circular arcs on right)
+        ImVec2 sCenter1 = rotatePt(6*s, -8*s, c.x, c.y, rot);
+        ImVec2 sCenter2 = rotatePt(6*s, 8*s, c.x, c.y, rot);
+        drawList->AddCircle(sCenter1, 8.0f * s, color, 24, 2.0f * s);
+        drawList->AddCircle(sCenter2, 8.0f * s, color, 24, 2.0f * s);
+
+        // Center magnetic core lines
+        ImVec2 core1_top = rotatePt(-1.5f * s, -16*s, c.x, c.y, rot);
+        ImVec2 core1_bot = rotatePt(-1.5f * s, 16*s, c.x, c.y, rot);
+        ImVec2 core2_top = rotatePt(1.5f * s, -16*s, c.x, c.y, rot);
+        ImVec2 core2_bot = rotatePt(1.5f * s, 16*s, c.x, c.y, rot);
+        drawList->AddLine(core1_top, core1_bot, color, 1.5f * s);
+        drawList->AddLine(core2_top, core2_bot, color, 1.5f * s);
+
+        // Terminal lead lines
+        drawList->AddLine(rotatePt(-20*s, -10*s, c.x, c.y, rot), rotatePt(-14*s, -10*s, c.x, c.y, rot), color, 2.0f * s);
+        drawList->AddLine(rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(-14*s, 10*s, c.x, c.y, rot), color, 2.0f * s);
+        drawList->AddLine(rotatePt(14*s, -10*s, c.x, c.y, rot), rotatePt(20*s, -10*s, c.x, c.y, rot), color, 2.0f * s);
+        drawList->AddLine(rotatePt(14*s, 10*s, c.x, c.y, rot), rotatePt(20*s, 10*s, c.x, c.y, rot), color, 2.0f * s);
+
+        // Polarity dots
+        drawList->AddCircleFilled(rotatePt(-12*s, -14*s, c.x, c.y, rot), 2.5f * s, color);
+        drawList->AddCircleFilled(rotatePt(12*s, -14*s, c.x, c.y, rot), 2.5f * s, color);
     } else {
         drawList->AddRect({c.x - 20*s, c.y - 20*s}, {c.x + 20*s, c.y + 20*s}, color, 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 12*s, c.y - 5*s}, color, t.c_str());

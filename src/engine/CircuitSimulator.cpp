@@ -34,6 +34,18 @@ static std::string getParamString(const ComponentModel& comp, const std::string&
     return defaultStr;
 }
 
+static bool isTransformerType(ComponentType t) {
+    return t == ComponentType::Transformer ||
+           t == ComponentType::IdealTransformer ||
+           t == ComponentType::Transformer2W ||
+           t == ComponentType::Transformer3W ||
+           t == ComponentType::MutualInductor2W ||
+           t == ComponentType::MutualInductor3W ||
+           t == ComponentType::SaturableTransformer ||
+           t == ComponentType::Transformer3Ph2W ||
+           t == ComponentType::Transformer3Ph3W;
+}
+
 static std::vector<double> parseTurnsVector(const std::string& str, double defaultVal = 100.0) {
     if (str.empty()) return { defaultVal };
     std::string clean = str;
@@ -112,7 +124,7 @@ void CircuitSimulator::buildIndexMaps() {
             diodeStatePrev[comp.id] = 0.0; // Initially OFF
         } else if (comp.type == ComponentType::Switch) {
             switchStatePrev[comp.id] = 0.0;
-        } else if (comp.type == ComponentType::Transformer) {
+        } else if (isTransformerType(comp.type)) {
             int wCount = (int)comp.nodes.size() / 2;
             if (wCount < 2) wCount = 2;
             numXfmrWindings += wCount;
@@ -153,7 +165,7 @@ void CircuitSimulator::buildIndexMaps() {
         if (vSourceToIdx.count(comp.id)) fc.vIdx = numNodes + vSourceToIdx[comp.id];
         if (inductorToIdx.count(comp.id)) fc.lIdx = numNodes + (int)vSourceToIdx.size() + inductorToIdx[comp.id];
 
-        if (comp.type == ComponentType::Transformer) {
+        if (isTransformerType(comp.type)) {
             std::string pStr = getParamString(comp, "primary_turns", "[100]");
             std::string sStr = getParamString(comp, "secondary_turns", "[100]");
             auto pTurns = parseTurnsVector(pStr, 100.0);
@@ -678,7 +690,7 @@ void CircuitSimulator::buildIndexMaps() {
                 K_static[lIdx * totalDim + n2] += 1.0;
             }
         }
-        else if (fc.type == ComponentType::Transformer) {
+        else if (isTransformerType(fc.type)) {
             if (fc.windings.empty()) continue;
 
             // 1. KCL contributions of all windings (rows n1..n2, column wIdx)
@@ -2266,7 +2278,7 @@ SimulationOutput CircuitSimulator::runTransient() {
                 double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
                 iComp = vDiff / ((ctrlVal > 0.5) ? fc.Ron : fc.Roff);
             }
-            else if (fc.type == ComponentType::Transformer) {
+            else if (isTransformerType(fc.type)) {
                 int w0 = fc.wIdx0;
                 if (w0 >= 0 && w0 < totalDim) {
                     iComp = X[w0];
