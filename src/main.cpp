@@ -199,9 +199,42 @@ int main(int argc, char** argv) {
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
+    // Global HGLRC context reference for multi-viewport rendering
+    static HGLRC s_hglrc = hglrc;
+    static HDC s_mainHdc = hdc;
+
     // Initialize ImGui Win32 & OpenGL3 Backends
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplOpenGL3_Init("#version 130");
+
+    // Setup platform renderer callback for secondary viewport OS windows
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+        platform_io.Renderer_RenderWindow = [](ImGuiViewport* viewport, void*) {
+            HWND hwnd = (HWND)viewport->PlatformHandle;
+            if (!hwnd) return;
+            HDC hdc = ::GetDC(hwnd);
+            if (hdc) {
+                PIXELFORMATDESCRIPTOR pfd = {
+                    sizeof(PIXELFORMATDESCRIPTOR), 1, PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+                    PFD_TYPE_RGBA, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 8, 0, PFD_MAIN_PLANE, 0, 0, 0, 0
+                };
+                int pf = ::ChoosePixelFormat(hdc, &pfd);
+                if (pf) {
+                    ::SetPixelFormat(hdc, pf, &pfd);
+                }
+                ::wglMakeCurrent(hdc, s_hglrc);
+                ::glViewport(0, 0, (GLsizei)viewport->Size.x, (GLsizei)viewport->Size.y);
+                ::glClearColor(0.12f, 0.12f, 0.14f, 1.0f);
+                ::glClear(GL_COLOR_BUFFER_BIT);
+                if (viewport->DrawData) {
+                    ImGui_ImplOpenGL3_RenderDrawData(viewport->DrawData);
+                }
+                ::SwapBuffers(hdc);
+                ::ReleaseDC(hwnd, hdc);
+            }
+        };
+    }
 
     CircuitSim::MainWindow mainWindow;
 
