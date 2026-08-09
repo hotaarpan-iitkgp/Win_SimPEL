@@ -485,28 +485,48 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
 
                     outPhysical.push_back(c);
                 }
-                else if (c.type == ComponentType::Transformer) {
-                    // Multi-winding pin discovery: P1A/P1B..P4A/P4B, S1A/S1B..S4A/S4B
+                else if (c.type == ComponentType::Transformer || c.type == ComponentType::IdealTransformer || 
+                         c.type == ComponentType::Transformer2W || c.type == ComponentType::Transformer3W ||
+                         c.type == ComponentType::MutualInductor2W || c.type == ComponentType::MutualInductor3W ||
+                         c.type == ComponentType::SaturableTransformer || c.type == ComponentType::Transformer3Ph2W || 
+                         c.type == ComponentType::Transformer3Ph3W) {
+                    // Multi-winding pin discovery: P1A/P1B..P4A/P4B, P1/P2, S1A/S1B..S4A/S4B, S1/S2
                     if (c.nodes.empty()) {
                         for (int w = 1; w <= 4; ++w) {
                             std::string pA = c.id + ".P" + std::to_string(w) + "A";
                             std::string pB = c.id + ".P" + std::to_string(w) + "B";
+                            std::string p1 = c.id + ".P" + std::to_string(w);
+                            std::string p2 = c.id + ".P" + std::to_string(w + 1);
+
                             std::string rA = dset.find(pA);
                             std::string rB = dset.find(pB);
-                            if (!rA.empty() || !rB.empty() || w == 1) {
+                            std::string r1 = dset.find(p1);
+
+                            if (!rA.empty() || !rB.empty()) {
                                 c.nodes.push_back(getNodeNameForPin(pA));
                                 c.nodes.push_back(getNodeNameForPin(pB));
+                            } else if (!r1.empty() || w == 1) {
+                                c.nodes.push_back(getNodeNameForPin(p1));
+                                c.nodes.push_back(getNodeNameForPin(p2));
                             }
                         }
 
                         for (int w = 1; w <= 4; ++w) {
                             std::string sA = c.id + ".S" + std::to_string(w) + "A";
                             std::string sB = c.id + ".S" + std::to_string(w) + "B";
+                            std::string s1 = c.id + ".S" + std::to_string(w);
+                            std::string s2 = c.id + ".S" + std::to_string(w + 1);
+
                             std::string rA = dset.find(sA);
                             std::string rB = dset.find(sB);
-                            if (!rA.empty() || !rB.empty() || w == 1) {
+                            std::string r1 = dset.find(s1);
+
+                            if (!rA.empty() || !rB.empty()) {
                                 c.nodes.push_back(getNodeNameForPin(sA));
                                 c.nodes.push_back(getNodeNameForPin(sB));
+                            } else if (!r1.empty() || w == 1) {
+                                c.nodes.push_back(getNodeNameForPin(s1));
+                                c.nodes.push_back(getNodeNameForPin(s2));
                             }
                         }
                     }

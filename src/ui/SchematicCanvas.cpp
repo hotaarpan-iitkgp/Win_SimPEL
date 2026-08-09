@@ -279,6 +279,23 @@ static bool isTerminalMatch(const std::string& compTypeStr, const std::string& t
     bool isOutB = (b == "OUT" || b == "OUT1" || b == "OUTPUT" || b == "OUTPUT_0" || b == "OUTDIRECT1");
     if (isOutA && isOutB) return true;
 
+    // Transformer pin aliases (P1/P1A, P2/P1B, S1/S1A, S2/S1B)
+    bool isP1_A = (a == "P1" || a == "P1A" || a == "P1_1" || a == "PA");
+    bool isP1_B = (b == "P1" || b == "P1A" || b == "P1_1" || b == "PA");
+    if (isP1_A && isP1_B) return true;
+
+    bool isP2_A = (a == "P2" || a == "P1B" || a == "P1_2" || a == "PB");
+    bool isP2_B = (b == "P2" || b == "P1B" || b == "P1_2" || b == "PB");
+    if (isP2_A && isP2_B) return true;
+
+    bool isS1_A = (a == "S1" || a == "S1A" || a == "S1_1" || a == "SA");
+    bool isS1_B = (b == "S1" || b == "S1A" || b == "S1_1" || b == "SA");
+    if (isS1_A && isS1_B) return true;
+
+    bool isS2_A = (a == "S2" || a == "S1B" || a == "S1_2" || a == "SB");
+    bool isS2_B = (b == "S2" || b == "S1B" || b == "S1_2" || b == "SB");
+    if (isS2_A && isS2_B) return true;
+
     return false;
 }
 
