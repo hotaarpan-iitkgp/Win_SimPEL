@@ -702,21 +702,31 @@ void CircuitSimulator::buildIndexMaps() {
             const auto& w0 = fc.windings[0];
             std::string polStr = fc.polarity;
 
+            auto getEffectiveTurns = [&](const FastCompiledComponent::WindingInfo& w, size_t idx) -> double {
+                double t = w.turns;
+                if (polStr == "inverted" && idx >= 1) {
+                    return -std::abs(t);
+                }
+                return t;
+            };
+
+            double n0 = getEffectiveTurns(w0, 0);
+
             // 2. Ampere's Law (MMF balance) in row w0.wIdx: Sum(N_k * I_wk) = 0
             for (size_t k = 0; k < fc.windings.size(); ++k) {
                 const auto& w = fc.windings[k];
-                double polSign = (polStr == "inverted" && k == 1) ? -1.0 : 1.0;
-                K_static[w0.wIdx * totalDim + w.wIdx] += polSign * w.turns;
+                double nk = getEffectiveTurns(w, k);
+                K_static[w0.wIdx * totalDim + w.wIdx] += nk;
             }
 
             // 3. Faraday's Law (Voltage ratio) in row w_k.wIdx: N_k * (V0_1 - V0_2) - N0 * (Vk_1 - Vk_2) = 0
             for (size_t k = 1; k < fc.windings.size(); ++k) {
                 const auto& wk = fc.windings[k];
-                double polSign = (polStr == "inverted" && k == 1) ? -1.0 : 1.0;
-                if (w0.n1 >= 0) K_static[wk.wIdx * totalDim + w0.n1] += polSign * wk.turns;
-                if (w0.n2 >= 0) K_static[wk.wIdx * totalDim + w0.n2] -= polSign * wk.turns;
-                if (wk.n1 >= 0) K_static[wk.wIdx * totalDim + wk.n1] -= w0.turns;
-                if (wk.n2 >= 0) K_static[wk.wIdx * totalDim + wk.n2] += w0.turns;
+                double nk = getEffectiveTurns(wk, k);
+                if (w0.n1 >= 0) K_static[wk.wIdx * totalDim + w0.n1] += nk;
+                if (w0.n2 >= 0) K_static[wk.wIdx * totalDim + w0.n2] -= nk;
+                if (wk.n1 >= 0) K_static[wk.wIdx * totalDim + wk.n1] -= n0;
+                if (wk.n2 >= 0) K_static[wk.wIdx * totalDim + wk.n2] += n0;
             }
         }
     }
