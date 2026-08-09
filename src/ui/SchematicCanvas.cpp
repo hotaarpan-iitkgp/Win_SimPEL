@@ -1902,8 +1902,70 @@ void SchematicCanvas::deleteSelected() {
         design.wires.push_back(kw);
     }
 
+    cleanupOrphanedJunctions();
+
     selectedComponentIds.clear();
     selectedWireIds.clear();
+}
+
+void SchematicCanvas::cleanupOrphanedJunctions() {
+    std::unordered_set<std::string> validWireIds;
+    for (const auto& w : design.wires) {
+        validWireIds.insert(w.id);
+    }
+
+    // 1. Clear junction flag if targetWireId no longer exists
+    for (auto& w : design.wires) {
+        if (w.from.isWireJunction && !w.from.targetWireId.empty()) {
+            if (validWireIds.count(w.from.targetWireId) == 0) {
+                w.from.isWireJunction = false;
+                w.from.targetWireId.clear();
+            }
+        }
+        if (w.to.isWireJunction && !w.to.targetWireId.empty()) {
+            if (validWireIds.count(w.to.targetWireId) == 0) {
+                w.to.isWireJunction = false;
+                w.to.targetWireId.clear();
+            }
+        }
+    }
+
+    // 2. Count connections at every junction location (jx, jy)
+    auto getJunctionKey = [](float x, float y) {
+        int ix = (int)std::round(x / 2.0f);
+        int iy = (int)std::round(y / 2.0f);
+        return std::to_string(ix) + "_" + std::to_string(iy);
+    };
+
+    std::unordered_map<std::string, int> junctionCountMap;
+    for (const auto& w : design.wires) {
+        if (w.from.isWireJunction) {
+            std::string key = getJunctionKey(w.from.junctionX, w.from.junctionY);
+            junctionCountMap[key]++;
+        }
+        if (w.to.isWireJunction) {
+            std::string key = getJunctionKey(w.to.junctionX, w.to.junctionY);
+            junctionCountMap[key]++;
+        }
+    }
+
+    // Any junction location with fewer than 2 connected junction endpoints is orphaned
+    for (auto& w : design.wires) {
+        if (w.from.isWireJunction) {
+            std::string key = getJunctionKey(w.from.junctionX, w.from.junctionY);
+            if (junctionCountMap[key] < 2) {
+                w.from.isWireJunction = false;
+                w.from.targetWireId.clear();
+            }
+        }
+        if (w.to.isWireJunction) {
+            std::string key = getJunctionKey(w.to.junctionX, w.to.junctionY);
+            if (junctionCountMap[key] < 2) {
+                w.to.isWireJunction = false;
+                w.to.targetWireId.clear();
+            }
+        }
+    }
 }
 
 void SchematicCanvas::copySelected() {
@@ -2667,16 +2729,68 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
 
     // Drag selected group (with Ctrl+Drag cloning support)
     static bool hasClonedForCtrlDrag = false;
-    if (ImGui::IsWindowHovered() && !selectedComponentIds.empty() && !isWiring && !isBoxSelecting && !isBoxZooming && !isDraggingWireSegment) {
+    if (ImGui::IsWindowHovered() && (!selectedComponentIds.empty() || !selectedWireIds.empty()) && !isWiring && !isBoxSelecting && !isBoxZooming && !isDraggingWireSegment) {
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
             if (io.KeyCtrl && !hasClonedForCtrlDrag) {
                 duplicateSelected();
                 hasClonedForCtrlDrag = true;
             }
+            ImVec2 deltaWorld(io.MouseDelta.x / zoomLevel, io.MouseDelta.y / zoomLevel);
+
+            // 1. Move selected components
+            std::unordered_set<std::string> movedCompIds;
             for (auto& comp : design.components) {
                 if (selectedComponentIds.count(comp.id)) {
-                    comp.x += io.MouseDelta.x / zoomLevel;
-                    comp.y += io.MouseDelta.y / zoomLevel;
+                    comp.x += deltaWorld.x;
+                    comp.y += deltaWorld.y;
+                    movedCompIds.insert(comp.id);
+                }
+            }
+
+            // 2. Identify junction points that belong to the moving selection
+            auto getJKey = [](float x, float y) {
+                int ix = (int)std::round(x / 2.0f);
+                int iy = (int)std::round(y / 2.0f);
+                return std::to_string(ix) + "_" + std::to_string(iy);
+            };
+
+            std::set<std::string> movedJunctionKeys;
+            for (const auto& w : design.wires) {
+                bool fromSel = (!w.from.compId.empty() && movedCompIds.count(w.from.compId) > 0) || selectedWireIds.count(w.id) > 0;
+                bool toSel = (!w.to.compId.empty() && movedCompIds.count(w.to.compId) > 0) || selectedWireIds.count(w.id) > 0;
+
+                if (w.from.isWireJunction && (fromSel || toSel)) {
+                    movedJunctionKeys.insert(getJKey(w.from.junctionX, w.from.junctionY));
+                }
+                if (w.to.isWireJunction && (fromSel || toSel)) {
+                    movedJunctionKeys.insert(getJKey(w.to.junctionX, w.to.junctionY));
+                }
+            }
+
+            // 3. Move junction coordinates & manual paths for affected wires
+            for (auto& w : design.wires) {
+                if (w.from.isWireJunction) {
+                    std::string key = getJKey(w.from.junctionX, w.from.junctionY);
+                    if (movedJunctionKeys.count(key) > 0) {
+                        w.from.junctionX += deltaWorld.x;
+                        w.from.junctionY += deltaWorld.y;
+                    }
+                }
+                if (w.to.isWireJunction) {
+                    std::string key = getJKey(w.to.junctionX, w.to.junctionY);
+                    if (movedJunctionKeys.count(key) > 0) {
+                        w.to.junctionX += deltaWorld.x;
+                        w.to.junctionY += deltaWorld.y;
+                    }
+                }
+
+                bool fromIn = !w.from.compId.empty() && movedCompIds.count(w.from.compId) > 0;
+                bool toIn = !w.to.compId.empty() && movedCompIds.count(w.to.compId) > 0;
+                if (selectedWireIds.count(w.id) > 0 || (fromIn && toIn)) {
+                    for (auto& pt : w.manualPath) {
+                        pt.x += deltaWorld.x;
+                        pt.y += deltaWorld.y;
+                    }
                 }
             }
         } else {
