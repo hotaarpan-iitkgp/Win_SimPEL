@@ -1828,11 +1828,11 @@ void SchematicCanvas::autoSelectWiresForSelectedComponents() {
             bool toIsSel = isCompSel(w.to.compId) || isNodeSel(w.toNode);
 
             if (w.to.isWireJunction) {
-                if (fromIsSel) {
+                if (fromIsSel && selectedWireIds.count(w.to.targetWireId) > 0) {
                     selectedWireIds.insert(w.id);
                     addedAny = true;
                 }
-            } else if (fromIsSel || toIsSel) {
+            } else if (fromIsSel && toIsSel) {
                 selectedWireIds.insert(w.id);
                 addedAny = true;
             }
@@ -1918,7 +1918,7 @@ void SchematicCanvas::cleanupOrphanedJunctions() {
         validWireIds.insert(w.id);
     }
 
-    // 1. Clear junction flag if targetWireId no longer exists
+    // Clear junction flag if targetWireId no longer exists in design.wires
     for (auto& w : design.wires) {
         if (w.from.isWireJunction && !w.from.targetWireId.empty()) {
             if (validWireIds.count(w.from.targetWireId) == 0) {
@@ -1928,43 +1928,6 @@ void SchematicCanvas::cleanupOrphanedJunctions() {
         }
         if (w.to.isWireJunction && !w.to.targetWireId.empty()) {
             if (validWireIds.count(w.to.targetWireId) == 0) {
-                w.to.isWireJunction = false;
-                w.to.targetWireId.clear();
-            }
-        }
-    }
-
-    // 2. Count connections at every junction location (jx, jy)
-    auto getJunctionKey = [](float x, float y) {
-        int ix = (int)std::round(x / 2.0f);
-        int iy = (int)std::round(y / 2.0f);
-        return std::to_string(ix) + "_" + std::to_string(iy);
-    };
-
-    std::unordered_map<std::string, int> junctionCountMap;
-    for (const auto& w : design.wires) {
-        if (w.from.isWireJunction) {
-            std::string key = getJunctionKey(w.from.junctionX, w.from.junctionY);
-            junctionCountMap[key]++;
-        }
-        if (w.to.isWireJunction) {
-            std::string key = getJunctionKey(w.to.junctionX, w.to.junctionY);
-            junctionCountMap[key]++;
-        }
-    }
-
-    // Any junction location with fewer than 2 connected junction endpoints is orphaned
-    for (auto& w : design.wires) {
-        if (w.from.isWireJunction) {
-            std::string key = getJunctionKey(w.from.junctionX, w.from.junctionY);
-            if (junctionCountMap[key] < 2) {
-                w.from.isWireJunction = false;
-                w.from.targetWireId.clear();
-            }
-        }
-        if (w.to.isWireJunction) {
-            std::string key = getJunctionKey(w.to.junctionX, w.to.junctionY);
-            if (junctionCountMap[key] < 2) {
                 w.to.isWireJunction = false;
                 w.to.targetWireId.clear();
             }
