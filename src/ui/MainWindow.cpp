@@ -583,6 +583,7 @@ void MainWindow::renderControlBar() {
     
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + menuBarHeight));
     ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, 26.0f));
+    ImGui::SetNextWindowViewport(viewport->ID);
     
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar | 
                                    ImGuiWindowFlags_NoResize | 

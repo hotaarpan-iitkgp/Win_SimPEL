@@ -1433,11 +1433,12 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
         updateFromCircuit(design);
     }
 
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(0, 52), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y - 54), ImGuiCond_Always);
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x, viewport->WorkPos.y + 26.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, viewport->WorkSize.y - 26.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(viewport->ID);
 
-    ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
+    ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking);
 
     float availWidth = ImGui::GetContentRegionAvail().x;
     float splitterWidth = 8.0f;
