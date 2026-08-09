@@ -1464,13 +1464,15 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                     // Obstacle avoidance: check if routing vertically back toward component cuts through component body
                     if (fromComp) {
                         ImVec2 compCenter = worldToScreen(fromComp->x, fromComp->y, canvasPos);
-                        float hw = 25.0f * zoomLevel, hh = 25.0f * zoomLevel;
-                        getComponentBounds(*fromComp, hw, hh);
+                        float rawHw = 25.0f, rawHh = 25.0f;
+                        getComponentBounds(*fromComp, rawHw, rawHh);
+                        float hw = rawHw * zoomLevel;
+                        float hh = rawHh * zoomLevel;
 
                         // If p1_stub and p2_stub are on opposite Y-sides of component center,
                         // or if p2_stub.y is inside component Y bounds:
                         bool cutsThroughY = ((p1_stub.y - compCenter.y) * (p2_stub.y - compCenter.y) < 0) ||
-                                            (std::abs(p2_stub.y - compCenter.y) <= hh);
+                                             (std::abs(p2_stub.y - compCenter.y) <= hh);
                         bool alignsX = (std::abs(p1_stub.x - compCenter.x) <= hw + 10.0f * zoomLevel);
 
                         if (cutsThroughY && alignsX) {
@@ -1488,8 +1490,10 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 
                     if (fromComp) {
                         ImVec2 compCenter = worldToScreen(fromComp->x, fromComp->y, canvasPos);
-                        float hw = 25.0f * zoomLevel, hh = 25.0f * zoomLevel;
-                        getComponentBounds(*fromComp, hw, hh);
+                        float rawHw = 25.0f, rawHh = 25.0f;
+                        getComponentBounds(*fromComp, rawHw, rawHh);
+                        float hw = rawHw * zoomLevel;
+                        float hh = rawHh * zoomLevel;
 
                         bool cutsThroughX = ((p1_stub.x - compCenter.x) * (p2_stub.x - compCenter.x) < 0) ||
                                             (std::abs(p2_stub.x - compCenter.x) <= hw);
