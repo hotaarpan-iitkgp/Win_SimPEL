@@ -987,7 +987,7 @@ void MainWindow::renderComponentPalette() {
         }
         else if (!showDetailedLibrary) {
             // BASIC LIBRARY VIEW (Only simple original basic blocks)
-            if (ImGui::CollapsingHeader("[PWR] Power Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("[PWR] Power Stage")) {
                 ImGui::PushID("basic_power");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
@@ -1000,7 +1000,7 @@ void MainWindow::renderComponentPalette() {
                 ImGui::PopID();
             }
 
-            if (ImGui::CollapsingHeader("[CTRL] Control Loops", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("[CTRL] Control Loops")) {
                 ImGui::PushID("basic_control");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
@@ -1013,7 +1013,7 @@ void MainWindow::renderComponentPalette() {
                 ImGui::PopID();
             }
 
-            if (ImGui::CollapsingHeader("[SCOPE] Scope & Probes", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("[SCOPE] Scope & Probes")) {
                 ImGui::PushID("basic_general");
                 ImGui::Indent(8.0f);
                 for (const auto& item : allComponents) {
