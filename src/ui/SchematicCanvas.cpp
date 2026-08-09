@@ -338,13 +338,67 @@ static ImVec2 getEndpointWorldPos(const WireEndpoint& ep, const CircuitDesign& d
     return ImVec2(ep.junctionX, ep.junctionY);
 }
 
-static DomainType getWireDomain(const WireInstance& wire, const CircuitDesign& design) {
-    for (const auto& comp : design.components) {
-        if (comp.id == wire.from.compId) {
-            return getPinDomain(comp, wire.from.terminal);
+static DomainType getWireDomainInternal(const WireInstance& wire, const CircuitDesign& design, std::set<std::string>& visitedWires) {
+    if (visitedWires.count(wire.id)) return DomainType::Power;
+    visitedWires.insert(wire.id);
+
+    // 1. Check direct component pin on 'from'
+    if (!wire.from.isWireJunction && !wire.from.compId.empty()) {
+        for (const auto& comp : design.components) {
+            if (comp.id == wire.from.compId) {
+                DomainType dom = getPinDomain(comp, wire.from.terminal);
+                if (dom == DomainType::Control) return DomainType::Control;
+            }
         }
     }
+
+    // 2. Check direct component pin on 'to'
+    if (!wire.to.isWireJunction && !wire.to.compId.empty()) {
+        for (const auto& comp : design.components) {
+            if (comp.id == wire.to.compId) {
+                DomainType dom = getPinDomain(comp, wire.to.terminal);
+                if (dom == DomainType::Control) return DomainType::Control;
+            }
+        }
+    }
+
+    // 3. Trace target wire if 'from' is a junction
+    if (wire.from.isWireJunction && !wire.from.targetWireId.empty()) {
+        for (const auto& w : design.wires) {
+            if (w.id == wire.from.targetWireId) {
+                DomainType dom = getWireDomainInternal(w, design, visitedWires);
+                if (dom == DomainType::Control) return DomainType::Control;
+            }
+        }
+    }
+
+    // 4. Trace target wire if 'to' is a junction
+    if (wire.to.isWireJunction && !wire.to.targetWireId.empty()) {
+        for (const auto& w : design.wires) {
+            if (w.id == wire.to.targetWireId) {
+                DomainType dom = getWireDomainInternal(w, design, visitedWires);
+                if (dom == DomainType::Control) return DomainType::Control;
+            }
+        }
+    }
+
+    // 5. Trace any wire that branches off from this wire
+    for (const auto& w : design.wires) {
+        if (w.id == wire.id) continue;
+        bool branchesFromThis = (w.from.isWireJunction && w.from.targetWireId == wire.id) ||
+                               (w.to.isWireJunction && w.to.targetWireId == wire.id);
+        if (branchesFromThis) {
+            DomainType dom = getWireDomainInternal(w, design, visitedWires);
+            if (dom == DomainType::Control) return DomainType::Control;
+        }
+    }
+
     return DomainType::Power;
+}
+
+static DomainType getWireDomain(const WireInstance& wire, const CircuitDesign& design) {
+    std::set<std::string> visited;
+    return getWireDomainInternal(wire, design, visited);
 }
 
 static bool isControlOutputPin(const ComponentInstance& comp, const std::string& pinName) {
@@ -1551,7 +1605,7 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 }
             }
 
-            if (isControlNet) {
+            if (isControlNet && !wire.to.isWireJunction) {
                 float arrLen = 8.0f * zoomLevel;
                 ImVec2 arr1(p2.x - arrLen, p2.y - arrLen * 0.5f);
                 ImVec2 arr2(p2.x - arrLen, p2.y + arrLen * 0.5f);
