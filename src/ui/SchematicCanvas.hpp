@@ -75,6 +75,7 @@ private:
     bool showCScriptModal = false;
     int cscriptCompIdx = -1;
     char cscriptCodeBuf[4096] = "";
+    char cscriptTimestepBuf[64] = "0";
 
     bool showScopeModal = false;
     int scopeCompIdx = -1;
@@ -145,6 +146,8 @@ public:
     
     void undo();
     void redo();
+
+    void openCScriptModalForComp(const std::string& compId);
 
     const std::set<std::string>& getSelectedComponentIds() const { return selectedComponentIds; }
     const std::set<std::string>& getSelectedWireIds() const { return selectedWireIds; }

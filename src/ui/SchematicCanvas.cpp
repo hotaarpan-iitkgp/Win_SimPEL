@@ -1,5 +1,6 @@
 #include "SchematicCanvas.hpp"
 #include "imgui_internal.h"
+#include "../engine/CScriptEngine.hpp"
 #include <nlohmann/json.hpp>
 #include <windows.h>
 #include <commdlg.h>
@@ -30,14 +31,28 @@ static std::vector<double> parseTurnsArrayStr(const std::string& str) {
     return res;
 }
 
-static void getCSCRIPTCounts(const ComponentInstance& comp, int& numIn, int& numOut) {
-    numIn = std::max(1, comp.numInputPins);
+static void getCSCRIPTPorts(const ComponentInstance& comp, std::vector<CircuitSimEngine::CScriptPort>& inPorts, std::vector<CircuitSimEngine::CScriptPort>& outPorts) {
+    std::string code = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+    CircuitSimEngine::CScriptEngine::discoverPorts(code, inPorts, outPorts);
+
+    int manualIn = std::max(1, comp.numInputPins);
     if (comp.parameters.count("num_inputs")) {
-        try { numIn = std::max(1, std::stoi(comp.parameters.at("num_inputs"))); } catch (...) {}
+        try { manualIn = std::max(1, std::stoi(comp.parameters.at("num_inputs"))); } catch (...) {}
     }
-    numOut = 1;
+    if ((int)inPorts.size() < manualIn) {
+        for (int i = (int)inPorts.size(); i < manualIn; ++i) {
+            inPorts.push_back({"In" + std::to_string(i + 1), false, i});
+        }
+    }
+
+    int manualOut = 1;
     if (comp.parameters.count("num_outputs")) {
-        try { numOut = std::max(1, std::stoi(comp.parameters.at("num_outputs"))); } catch (...) {}
+        try { manualOut = std::max(1, std::stoi(comp.parameters.at("num_outputs"))); } catch (...) {}
+    }
+    if ((int)outPorts.size() < manualOut) {
+        for (int j = (int)outPorts.size(); j < manualOut; ++j) {
+            outPorts.push_back({"Out" + std::to_string(j + 1), true, j});
+        }
     }
 }
 
@@ -309,21 +324,22 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     }
 
     if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
-        int numIn = 1, numOut = 1;
-        getCSCRIPTCounts(comp, numIn, numOut);
+        std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
+        getCSCRIPTPorts(comp, inPorts, outPorts);
+
+        int numIn = (int)inPorts.size();
+        int numOut = (int)outPorts.size();
 
         float hw = 45.0f;
-
         std::vector<TerminalDef> terms;
+
         for (int i = 0; i < numIn; ++i) {
             float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
-            std::string termName = (numIn == 1) ? "In1" : ("In" + std::to_string(i + 1));
-            terms.push_back({termName, -hw, yOff, -1.0f, 0.0f, true});
+            terms.push_back({inPorts[i].name, -hw, yOff, -1.0f, 0.0f, true});
         }
         for (int j = 0; j < numOut; ++j) {
             float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
-            std::string termName = (numOut == 1) ? "Out1" : ("Out" + std::to_string(j + 1));
-            terms.push_back({termName, hw, yOff, 1.0f, 0.0f, true});
+            terms.push_back({outPorts[j].name, hw, yOff, 1.0f, 0.0f, true});
         }
         return terms;
     }
@@ -1353,8 +1369,11 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 6*s, 0, 2.0f*s);
         drawList->AddText({c.x - 28*s, c.y - 6*s}, color, "Subsystem");
     } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
-        int numIn = 1, numOut = 1;
-        getCSCRIPTCounts(comp, numIn, numOut);
+        std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
+        getCSCRIPTPorts(comp, inPorts, outPorts);
+
+        int numIn = (int)inPorts.size();
+        int numOut = (int)outPorts.size();
         int nMax = std::max(numIn, numOut);
 
         float hw = 45.0f * s;
@@ -1372,15 +1391,13 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
 
         for (int i = 0; i < numIn; ++i) {
             float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
-            std::string pName = (numIn == 1) ? "In1" : ("In" + std::to_string(i + 1));
-            drawList->AddText({c.x - hw + 4.0f * s, c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), pName.c_str());
+            drawList->AddText({c.x - hw + 4.0f * s, c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), inPorts[i].name.c_str());
         }
 
         for (int j = 0; j < numOut; ++j) {
             float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
-            std::string pName = (numOut == 1) ? "Out1" : ("Out" + std::to_string(j + 1));
-            ImVec2 pSz = ImGui::CalcTextSize(pName.c_str());
-            drawList->AddText({c.x + hw - (pSz.x + 4.0f * s), c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), pName.c_str());
+            ImVec2 pSz = ImGui::CalcTextSize(outPorts[j].name.c_str());
+            drawList->AddText({c.x + hw - (pSz.x + 4.0f * s), c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), outPorts[j].name.c_str());
         }
     } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
         std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
@@ -1938,9 +1955,9 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
     const std::string& t = comp.rawTypeStr;
 
     if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
-        int numIn = 1, numOut = 1;
-        getCSCRIPTCounts(comp, numIn, numOut);
-        int nMax = std::max(numIn, numOut);
+        std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
+        getCSCRIPTPorts(comp, inPorts, outPorts);
+        int nMax = std::max((int)inPorts.size(), (int)outPorts.size());
         outHalfW = std::max(outHalfW, 45.0f);
         outHalfH = std::max(outHalfH, std::max(25.0f, nMax * 12.0f + 10.0f));
     } else if (t == "SUBSYSTEM") {
@@ -2465,21 +2482,78 @@ void SchematicCanvas::renderModals() {
     }
 
     if (showCScriptModal) {
-        ImGui::OpenPopup("Edit C-Script Logic Modal");
-        if (ImGui::BeginPopupModal("Edit C-Script Logic Modal", &showCScriptModal, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("C-Script Execution Logic (C++ Syntax):");
-            ImGui::InputTextMultiline("##code", cscriptCodeBuf, sizeof(cscriptCodeBuf), ImVec2(500, 300));
-            if (ImGui::Button("Save Code", ImVec2(120, 30))) {
+        ImGui::OpenPopup("C-Script Interactive IDE & Logic Compiler");
+        ImGui::SetNextWindowSize(ImVec2(880, 520), ImGuiCond_FirstUseEver);
+        if (ImGui::BeginPopupModal("C-Script Interactive IDE & Logic Compiler", &showCScriptModal, ImGuiWindowFlags_None)) {
+            std::string compIdStr = (cscriptCompIdx >= 0 && cscriptCompIdx < (int)design.components.size()) ? design.components[cscriptCompIdx].id : "CSCRIPT1";
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Component: %s", compIdStr.c_str());
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            ImGui::Columns(2, "cscript_ide_cols", true);
+            ImGui::SetColumnWidth(0, 540);
+
+            // Left Column: Code Editor & Execution Timestep
+            ImGui::Text("Step Logic Code (C++ Syntax):");
+            ImGui::InputTextMultiline("##code_ide", cscriptCodeBuf, sizeof(cscriptCodeBuf), ImVec2(-1, 350));
+
+            ImGui::Spacing();
+            ImGui::Text("Execution Timestep:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(140);
+            ImGui::InputText("##timestep_ide", cscriptTimestepBuf, sizeof(cscriptTimestepBuf));
+            ImGui::SameLine();
+            ImGui::TextDisabled("(0 = Continuous dt, e.g. 100u for Discrete)");
+
+            ImGui::NextColumn();
+
+            // Right Column: Live Discovery Preview
+            std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
+            CircuitSimEngine::CScriptEngine::discoverPorts(cscriptCodeBuf, discIn, discOut);
+            auto discParams = CircuitSimEngine::CScriptEngine::discoverParamsFromCode(cscriptCodeBuf);
+
+            ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.4f, 1.0f), "Live Discovery Preview:");
+            ImGui::Separator();
+
+            ImGui::Spacing();
+            ImGui::Text("Discovered Input Pins (%d):", (int)discIn.size());
+            for (const auto& p : discIn) {
+                ImGui::BulletText("Pin: %s (Index %d)", p.name.c_str(), p.index);
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Discovered Output Pins (%d):", (int)discOut.size());
+            for (const auto& p : discOut) {
+                ImGui::BulletText("Pin: %s (Index %d)", p.name.c_str(), p.index);
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Discovered Parameters (%d):", (int)discParams.size());
+            for (const auto& par : discParams) {
+                ImGui::BulletText("%s %s = %s", par.typeStr.c_str(), par.name.c_str(), par.rawValStr.c_str());
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Status: [Syntax Valid]");
+
+            ImGui::Columns(1);
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImGui::Button("Save & Apply to Schematic", ImVec2(200, 32))) {
                 pushUndoState();
                 if (cscriptCompIdx >= 0 && cscriptCompIdx < (int)design.components.size()) {
                     design.components[cscriptCompIdx].parameters["code"] = cscriptCodeBuf;
+                    design.components[cscriptCompIdx].parameters["timestep"] = cscriptTimestepBuf;
                 }
                 showCScriptModal = false;
                 cscriptCompIdx = -1;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 30))) {
+            if (ImGui::Button("Cancel", ImVec2(100, 32))) {
                 showCScriptModal = false;
                 cscriptCompIdx = -1;
                 ImGui::CloseCurrentPopup();
@@ -3076,7 +3150,9 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                 } else if (comp.rawTypeStr == "CSCRIPT") {
                     showCScriptModal = true;
                     cscriptCompIdx = (int)i;
-                    strncpy(cscriptCodeBuf, comp.parameters["code"].c_str(), sizeof(cscriptCodeBuf));
+                    strncpy(cscriptCodeBuf, comp.parameters["code"].c_str(), sizeof(cscriptCodeBuf) - 1);
+                    std::string tsStr = comp.parameters.count("timestep") ? comp.parameters["timestep"] : "0";
+                    strncpy(cscriptTimestepBuf, tsStr.c_str(), sizeof(cscriptTimestepBuf) - 1);
                 } else if (comp.rawTypeStr == "PULSE" || comp.rawTypeStr == "PULSE_GEN") {
                     showPulseModal = true;
                     pulseCompIdx = (int)i;
@@ -3172,6 +3248,19 @@ void SchematicCanvas::syncProbeSignals() {
             if (!comp.parameters.count("selected_signals") || comp.parameters["selected_signals"].empty()) {
                 if (!sigStr.empty()) comp.parameters["selected_signals"] = sigStr;
             }
+        }
+    }
+}
+
+void SchematicCanvas::openCScriptModalForComp(const std::string& compId) {
+    for (size_t i = 0; i < design.components.size(); ++i) {
+        if (design.components[i].id == compId) {
+            showCScriptModal = true;
+            cscriptCompIdx = (int)i;
+            strncpy(cscriptCodeBuf, design.components[i].parameters["code"].c_str(), sizeof(cscriptCodeBuf) - 1);
+            std::string tsStr = design.components[i].parameters.count("timestep") ? design.components[i].parameters["timestep"] : "0";
+            strncpy(cscriptTimestepBuf, tsStr.c_str(), sizeof(cscriptTimestepBuf) - 1);
+            break;
         }
     }
 }

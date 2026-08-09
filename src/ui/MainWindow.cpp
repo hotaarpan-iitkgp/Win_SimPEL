@@ -9,6 +9,8 @@
 #include <windows.h>
 #include <commdlg.h>
 #include "engine/NetlistParser.hpp"
+#include "engine/CScriptEngine.hpp"
+#include "engine/ExpressionEvaluator.hpp"
 #include "nlohmann/json.hpp"
 #include <algorithm>
 #include <unordered_set>
@@ -1225,30 +1227,42 @@ void MainWindow::renderPropertyInspector() {
     }
 
     if (t == "CSCRIPT") {
-        int nIn = std::max(1, comp->numInputPins);
-        if (comp->parameters.count("num_inputs")) {
-            try { nIn = std::max(1, std::stoi(comp->parameters.at("num_inputs"))); } catch (...) {}
+        if (ImGui::Button("Open C-Script IDE Editor", ImVec2(-1, 28))) {
+            canvas.openCScriptModalForComp(comp->id);
         }
-        if (ImGui::InputInt("Number of Inputs", &nIn)) {
-            if (nIn < 1) nIn = 1;
-            if (nIn > 16) nIn = 16;
-            comp->numInputPins = nIn;
-            comp->parameters["num_inputs"] = std::to_string(nIn);
+        ImGui::Spacing();
+
+        std::string tsStr = comp->parameters.count("timestep") ? comp->parameters.at("timestep") : "0";
+        char tsBuf[64] = {0};
+        strncpy(tsBuf, tsStr.c_str(), sizeof(tsBuf) - 1);
+        if (ImGui::InputText("Timestep (0=Cont)##cscript", tsBuf, sizeof(tsBuf))) {
+            comp->parameters["timestep"] = tsBuf;
         }
 
-        int nOut = 1;
-        if (comp->parameters.count("num_outputs")) {
-            try { nOut = std::max(1, std::stoi(comp->parameters.at("num_outputs"))); } catch (...) {}
-        }
-        if (ImGui::InputInt("Number of Outputs", &nOut)) {
-            if (nOut < 1) nOut = 1;
-            if (nOut > 16) nOut = 16;
-            comp->parameters["num_outputs"] = std::to_string(nOut);
+        // Custom Parameters Section (Auto-Discovered from C-Script Code)
+        std::string codeStr = comp->parameters.count("code") ? comp->parameters.at("code") : "";
+        auto discParams = CircuitSimEngine::CScriptEngine::discoverParamsFromCode(codeStr);
+
+        if (!discParams.empty()) {
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Custom Parameters (Auto-Discovered):");
+            for (const auto& dp : discParams) {
+                char pBuf[64] = {0};
+                snprintf(pBuf, sizeof(pBuf), "%.9g", dp.value);
+                std::string labelStr = dp.name + " (" + dp.typeStr + ")##" + comp->id;
+                if (ImGui::InputText(labelStr.c_str(), pBuf, sizeof(pBuf))) {
+                    try {
+                        double nVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(pBuf);
+                        std::string updatedCode = CircuitSimEngine::CScriptEngine::updateParamInCode(codeStr, dp.name, nVal);
+                        comp->parameters["code"] = updatedCode;
+                    } catch (...) {}
+                }
+            }
         }
     }
 
     for (auto& pair : comp->parameters) {
-        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type" || pair.first == "num_inputs" || pair.first == "num_outputs") continue;
+        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type" || pair.first == "num_inputs" || pair.first == "num_outputs" || pair.first == "timestep") continue;
 
         if (pair.first == "code") {
             char codeBuf[4096] = {0};

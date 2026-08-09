@@ -5,6 +5,8 @@
 #include <cmath>
 #include <algorithm>
 #include <cctype>
+#include <regex>
+#include <unordered_set>
 
 namespace CircuitSimEngine {
 
@@ -493,6 +495,12 @@ std::vector<FastCompiledCScriptStmt> CScriptEngine::parseBlockStatements(const s
 
 void CScriptEngine::setup(const std::string& inputCode, const std::unordered_map<std::string, std::string>& overrideParams) {
     codeStr = inputCode;
+    timestep = 0.0;
+    if (overrideParams.count("timestep")) {
+        try { timestep = ExpressionEvaluator::parseScientific(overrideParams.at("timestep")); } catch (...) {}
+    }
+    nextSampleTime = 0.0;
+
     std::string cleanCode = stripComments(inputCode);
     flatVars.clear();
     varNameToIdx.clear();
@@ -506,7 +514,7 @@ void CScriptEngine::setup(const std::string& inputCode, const std::unordered_map
     getOrRegisterVar("M_PI", 3.14159265358979323846);
 
     for (const auto& [k, v] : overrideParams) {
-        if (!v.empty() && k != "code" && k != "id" && k != "type" && k != "inputs" && k != "outputs") {
+        if (!v.empty() && k != "code" && k != "id" && k != "type" && k != "inputs" && k != "outputs" && k != "timestep") {
             getOrRegisterVar(k, ExpressionEvaluator::parseScientific(v));
         }
     }
@@ -566,6 +574,13 @@ void CScriptEngine::execCompiledStmts(const std::vector<FastCompiledCScriptStmt>
 }
 
 void CScriptEngine::step(double currentTime, const std::vector<double>& inVals, double dt) {
+    if (timestep > 1e-12) {
+        if (currentTime < nextSampleTime - 1e-12 && currentTime > 1e-12) {
+            return;
+        }
+        nextSampleTime = currentTime + timestep;
+    }
+
     inputs = inVals;
     if (inputs.size() < 20) inputs.resize(20, 0.0);
 
@@ -582,6 +597,14 @@ double CScriptEngine::getOutput(size_t index) const {
     return 0.0;
 }
 
+double CScriptEngine::getOutputByName(const std::string& name) const {
+    auto it = namedOutputToIdx.find(name);
+    if (it != namedOutputToIdx.end() && it->second < (int)outputs.size()) {
+        return outputs[it->second];
+    }
+    return getVar(name);
+}
+
 double CScriptEngine::getVar(const std::string& name) const {
     auto it = varNameToIdx.find(name);
     if (it != varNameToIdx.end() && it->second < (int)flatVars.size()) return flatVars[it->second];
@@ -594,6 +617,111 @@ std::unordered_map<std::string, double> CScriptEngine::getAllVars() const {
         if (i < idxToVarName.size()) res[idxToVarName[i]] = flatVars[i];
     }
     return res;
+}
+
+void CScriptEngine::discoverPorts(const std::string& code, std::vector<CScriptPort>& outInputs, std::vector<CScriptPort>& outOutputs) {
+    outInputs.clear();
+    outOutputs.clear();
+
+    std::unordered_set<std::string> seenIn;
+    std::unordered_set<std::string> seenOut;
+
+    std::regex inNamedRegex(R"(inputs\s*\[\s*["']([^"']+)["']\s*\]|inputs\.get\s*\(\s*["']([^"']+)["']\s*\))");
+    std::regex inIdxRegex(R"(inputs\s*\[\s*(\d+)\s*\])");
+
+    std::regex outNamedRegex(R"(outputs\s*\[\s*["']([^"']+)["']\s*\]|outputs\.set\s*\(\s*["']([^"']+)["']\s*,\s*|outputs\s*\.\s*([a-zA-Z0-9_]+))");
+    std::regex outIdxRegex(R"(outputs\s*\[\s*(\d+)\s*\])");
+
+    auto inBegin = std::sregex_iterator(code.begin(), code.end(), inNamedRegex);
+    auto inEnd = std::sregex_iterator();
+    for (std::sregex_iterator i = inBegin; i != inEnd; ++i) {
+        std::smatch m = *i;
+        std::string pName = m[1].matched ? m[1].str() : m[2].str();
+        if (!pName.empty() && !seenIn.count(pName)) {
+            seenIn.insert(pName);
+            outInputs.push_back({pName, false, (int)outInputs.size()});
+        }
+    }
+
+    auto inIdxBegin = std::sregex_iterator(code.begin(), code.end(), inIdxRegex);
+    for (std::sregex_iterator i = inIdxBegin; i != inEnd; ++i) {
+        std::smatch m = *i;
+        int idx = std::stoi(m[1].str());
+        std::string pName = (idx == 0 && outInputs.empty()) ? "In1" : ("In" + std::to_string(idx + 1));
+        if (!seenIn.count(pName)) {
+            seenIn.insert(pName);
+            outInputs.push_back({pName, false, idx});
+        }
+    }
+
+    auto outBegin = std::sregex_iterator(code.begin(), code.end(), outNamedRegex);
+    for (std::sregex_iterator i = outBegin; i != inEnd; ++i) {
+        std::smatch m = *i;
+        std::string pName = m[1].matched ? m[1].str() : (m[2].matched ? m[2].str() : m[3].str());
+        if (!pName.empty() && pName != "set" && !seenOut.count(pName)) {
+            seenOut.insert(pName);
+            outOutputs.push_back({pName, true, (int)outOutputs.size()});
+        }
+    }
+
+    auto outIdxBegin = std::sregex_iterator(code.begin(), code.end(), outIdxRegex);
+    for (std::sregex_iterator i = outIdxBegin; i != inEnd; ++i) {
+        std::smatch m = *i;
+        int idx = std::stoi(m[1].str());
+        std::string pName = (idx == 0 && outOutputs.empty()) ? "Out1" : ("Out" + std::to_string(idx + 1));
+        if (!seenOut.count(pName)) {
+            seenOut.insert(pName);
+            outOutputs.push_back({pName, true, idx});
+        }
+    }
+
+    if (outInputs.empty()) {
+        outInputs.push_back({"In1", false, 0});
+    }
+    if (outOutputs.empty()) {
+        outOutputs.push_back({"Out1", true, 0});
+    }
+}
+
+std::vector<CScriptParam> CScriptEngine::discoverParamsFromCode(const std::string& code) {
+    std::vector<CScriptParam> res;
+    std::stringstream ss(code);
+    std::string line;
+    std::regex paramRegex(R"(^\s*(double|float|int)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*;)");
+
+    while (std::getline(ss, line)) {
+        std::smatch m;
+        if (std::regex_search(line, m, paramRegex)) {
+            CScriptParam p;
+            p.typeStr = m[1].str();
+            p.name = m[2].str();
+            p.rawValStr = m[3].str();
+            try { p.value = ExpressionEvaluator::parseScientific(p.rawValStr); } catch (...) { p.value = 0.0; }
+            res.push_back(p);
+        }
+    }
+    return res;
+}
+
+std::string CScriptEngine::updateParamInCode(const std::string& code, const std::string& paramName, double newValue) {
+    std::stringstream ss(code);
+    std::stringstream outCode;
+    std::string line;
+    std::regex paramRegex(R"(^\s*(double|float|int)\s+)" + paramName + R"(\s*=\s*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*;)");
+
+    char valStrBuf[64];
+    snprintf(valStrBuf, sizeof(valStrBuf), "%.9g", newValue);
+
+    while (std::getline(ss, line)) {
+        std::smatch m;
+        if (std::regex_search(line, m, paramRegex)) {
+            std::string typeStr = m[1].str();
+            outCode << typeStr << " " << paramName << " = " << valStrBuf << ";\n";
+        } else {
+            outCode << line << "\n";
+        }
+    }
+    return outCode.str();
 }
 
 } // namespace CircuitSimEngine

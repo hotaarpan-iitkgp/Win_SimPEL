@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "engine/ExpressionEvaluator.hpp"
+#include "../engine/CScriptEngine.hpp"
 #include <unordered_set>
 #include <cmath>
 
@@ -1312,27 +1313,30 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["inputs"] = inputsArr;
             ctrlLoopsObj["logic_gates"].push_back(cObj);
         } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
-            cObj["output"] = comp.id + ".Out1";
+            std::string scriptCode = comp.parameters.count("code") ? comp.parameters.at("code") : "";
             cObj["original_type"] = "CSCRIPT";
-            cObj["code"] = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+            cObj["code"] = scriptCode;
 
-            int numIn = std::max(1, comp.numInputPins);
-            if (comp.parameters.count("num_inputs")) {
-                try { numIn = std::max(1, std::stoi(comp.parameters.at("num_inputs"))); } catch (...) {}
-            }
-            int numOut = 1;
-            if (comp.parameters.count("num_outputs")) {
-                try { numOut = std::max(1, std::stoi(comp.parameters.at("num_outputs"))); } catch (...) {}
-            }
+            std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
+            CircuitSimEngine::CScriptEngine::discoverPorts(scriptCode, discIn, discOut);
+
+            int numIn = (int)discIn.size();
+            int numOut = (int)discOut.size();
 
             cObj["num_inputs"] = numIn;
             cObj["num_outputs"] = numOut;
+            cObj["output"] = discOut.empty() ? (comp.id + ".Out1") : (comp.id + "." + discOut[0].name);
+
+            double ts = 0.0;
+            if (comp.parameters.count("timestep")) {
+                try { ts = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("timestep")); } catch (...) {}
+            }
+            cObj["timestep"] = ts;
 
             json inputsArr = json::array();
-            for (int i = 1; i <= numIn; ++i) {
-                std::string pinName = (numIn == 1) ? "In1" : ("In" + std::to_string(i));
-                std::string inSig = getIncomingSignal(comp.id, pinName);
-                if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In" + std::to_string(i));
+            for (size_t i = 0; i < discIn.size(); ++i) {
+                std::string inSig = getIncomingSignal(comp.id, discIn[i].name);
+                if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In" + std::to_string(i + 1));
                 inputsArr.push_back(inSig);
             }
             cObj["inputs"] = inputsArr;

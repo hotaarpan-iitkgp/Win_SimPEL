@@ -36,6 +36,11 @@ private:
     char simStepSizeBuf[64] = "1u";
     int simSolverIdx = 0;
 
+    bool showCSCRIPTEditorModal = false;
+    std::string editingCSCRIPTCompId = "";
+    char cscriptCodeBuf[8192] = "";
+    char cscriptTimestepBuf[64] = "0";
+
     // Background simulation thread
     std::thread simThread;
     std::atomic<bool> simRunning{false};
@@ -48,6 +53,8 @@ private:
     void renderComponentPalette();
     void renderPropertyInspector();
     void renderSimParamsModal();
+    void renderCSCRIPTEditorModal();
+    void openCSCRIPTEditor(const std::string& compId);
 
     // Scope window helpers
     void handleScopeOpenRequest();
