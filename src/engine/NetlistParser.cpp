@@ -9,6 +9,22 @@ using json = nlohmann::json;
 
 namespace CircuitSimEngine {
 
+static std::vector<double> parseTurnsArrayStr(const std::string& str) {
+    std::vector<double> res;
+    if (str.empty()) { res.push_back(100.0); return res; }
+    std::string clean = str;
+    clean.erase(std::remove(clean.begin(), clean.end(), '['), clean.end());
+    clean.erase(std::remove(clean.begin(), clean.end(), ']'), clean.end());
+    std::replace(clean.begin(), clean.end(), ',', ' ');
+    std::stringstream ss(clean);
+    double val;
+    while (ss >> val) {
+        res.push_back(val);
+    }
+    if (res.empty()) res.push_back(100.0);
+    return res;
+}
+
 static ComponentType stringToComponentType(const std::string& typeStr, const std::string& fallbackCategory = "") {
     std::string t = typeStr;
     if (t.empty()) t = fallbackCategory;
@@ -490,44 +506,36 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                          c.type == ComponentType::MutualInductor2W || c.type == ComponentType::MutualInductor3W ||
                          c.type == ComponentType::SaturableTransformer || c.type == ComponentType::Transformer3Ph2W || 
                          c.type == ComponentType::Transformer3Ph3W) {
-                    // Multi-winding pin discovery: P1A/P1B..P4A/P4B, P1/P2, S1A/S1B..S4A/S4B, S1/S2
                     if (c.nodes.empty()) {
-                        for (int w = 1; w <= 4; ++w) {
-                            std::string pA = c.id + ".P" + std::to_string(w) + "A";
-                            std::string pB = c.id + ".P" + std::to_string(w) + "B";
-                            std::string p1 = c.id + ".P" + std::to_string(w);
-                            std::string p2 = c.id + ".P" + std::to_string(w + 1);
+                        std::string pStr = c.parameters.count("primary_turns") ? c.parameters.at("primary_turns") : "[100]";
+                        std::string sStr = c.parameters.count("secondary_turns") ? c.parameters.at("secondary_turns") : "[100]";
+                        auto pTurns = parseTurnsArrayStr(pStr);
+                        auto sTurns = parseTurnsArrayStr(sStr);
 
-                            std::string rA = dset.find(pA);
-                            std::string rB = dset.find(pB);
-                            std::string r1 = dset.find(p1);
-
-                            if (!rA.empty() || !rB.empty()) {
-                                c.nodes.push_back(getNodeNameForPin(pA));
-                                c.nodes.push_back(getNodeNameForPin(pB));
-                            } else if (!r1.empty() || w == 1) {
-                                c.nodes.push_back(getNodeNameForPin(p1));
-                                c.nodes.push_back(getNodeNameForPin(p2));
+                        for (size_t i = 0; i < pTurns.size(); ++i) {
+                            std::string pA = c.id + ".P" + std::to_string(i + 1) + "A";
+                            std::string pB = c.id + ".P" + std::to_string(i + 1) + "B";
+                            if (pTurns.size() == 1) {
+                                std::string rA = dset.find(pA);
+                                if (rA.empty()) pA = c.id + ".P1";
+                                std::string rB = dset.find(pB);
+                                if (rB.empty()) pB = c.id + ".P2";
                             }
+                            c.nodes.push_back(getNodeNameForPin(pA));
+                            c.nodes.push_back(getNodeNameForPin(pB));
                         }
 
-                        for (int w = 1; w <= 4; ++w) {
-                            std::string sA = c.id + ".S" + std::to_string(w) + "A";
-                            std::string sB = c.id + ".S" + std::to_string(w) + "B";
-                            std::string s1 = c.id + ".S" + std::to_string(w);
-                            std::string s2 = c.id + ".S" + std::to_string(w + 1);
-
-                            std::string rA = dset.find(sA);
-                            std::string rB = dset.find(sB);
-                            std::string r1 = dset.find(s1);
-
-                            if (!rA.empty() || !rB.empty()) {
-                                c.nodes.push_back(getNodeNameForPin(sA));
-                                c.nodes.push_back(getNodeNameForPin(sB));
-                            } else if (!r1.empty() || w == 1) {
-                                c.nodes.push_back(getNodeNameForPin(s1));
-                                c.nodes.push_back(getNodeNameForPin(s2));
+                        for (size_t j = 0; j < sTurns.size(); ++j) {
+                            std::string sA = c.id + ".S" + std::to_string(j + 1) + "A";
+                            std::string sB = c.id + ".S" + std::to_string(j + 1) + "B";
+                            if (sTurns.size() == 1) {
+                                std::string rA = dset.find(sA);
+                                if (rA.empty()) sA = c.id + ".S1";
+                                std::string rB = dset.find(sB);
+                                if (rB.empty()) sB = c.id + ".S2";
                             }
+                            c.nodes.push_back(getNodeNameForPin(sA));
+                            c.nodes.push_back(getNodeNameForPin(sB));
                         }
                     }
 

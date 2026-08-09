@@ -16,6 +16,22 @@ using json = nlohmann::json;
 
 namespace CircuitSim {
 
+static std::vector<double> parseTurnsArrayStr(const std::string& str) {
+    std::vector<double> res;
+    if (str.empty()) { res.push_back(100.0); return res; }
+    std::string clean = str;
+    clean.erase(std::remove(clean.begin(), clean.end(), '['), clean.end());
+    clean.erase(std::remove(clean.begin(), clean.end(), ']'), clean.end());
+    std::replace(clean.begin(), clean.end(), ',', ' ');
+    std::stringstream ss(clean);
+    double val;
+    while (ss >> val) {
+        res.push_back(val);
+    }
+    if (res.empty()) res.push_back(100.0);
+    return res;
+}
+
 static double roundToDigits(double val, int digits = 9) {
     if (val == 0.0) return 0.0;
     double scale = std::pow(10.0, digits);
@@ -417,31 +433,39 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : (parsedParams.count("Vf") ? parsedParams["Vf"] : 0.8));
             cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : (parsedParams.count("Ih") ? parsedParams["Ih"] : 0.01));
             physStageObj["analog_switches"].push_back(cObj);
-        } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "SAT_XFMR" || t == "MUTUAL_2W" || t == "Transformer" || t == "IdealTransformer" || t == "IDEAL_TRANSFORMER") {
+        } else if (t == "XFMR" || t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "SAT_XFMR" || t == "MUTUAL_2W" || t == "Transformer" || t == "IdealTransformer" || t == "IDEAL_TRANSFORMER") {
             json xObj;
             xObj["id"] = comp.id;
-            std::string nP1 = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
-            std::string nP2 = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
-            std::string nS1 = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
-            std::string nS2 = (formattedNodes.size() > 3) ? formattedNodes[3].get<std::string>() : "node_0";
 
-            double pTurns = 100.0, sTurns = 100.0;
-            if (parsedParams.count("primary_turns")) pTurns = parsedParams["primary_turns"];
-            else if (parsedParams.count("n1")) pTurns = parsedParams["n1"];
-            else if (parsedParams.count("N1")) pTurns = parsedParams["N1"];
+            std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
+            std::string sStr = comp.parameters.count("secondary_turns") ? comp.parameters.at("secondary_turns") : "[100]";
+            auto pTurns = parseTurnsArrayStr(pStr);
+            auto sTurns = parseTurnsArrayStr(sStr);
 
-            if (parsedParams.count("secondary_turns")) sTurns = parsedParams["secondary_turns"];
-            else if (parsedParams.count("n2")) sTurns = parsedParams["n2"];
-            else if (parsedParams.count("N2")) sTurns = parsedParams["N2"];
-
-            if (parsedParams.count("turns_ratio") && parsedParams["turns_ratio"] > 0) {
-                pTurns = parsedParams["turns_ratio"];
-                sTurns = 1.0;
+            json pArr = json::array();
+            for (size_t i = 0; i < pTurns.size(); ++i) {
+                int idxA = (int)i * 2;
+                int idxB = (int)i * 2 + 1;
+                std::string nA = (idxA < (int)formattedNodes.size()) ? formattedNodes[idxA].get<std::string>() : "node_0";
+                std::string nB = (idxB < (int)formattedNodes.size()) ? formattedNodes[idxB].get<std::string>() : "node_0";
+                pArr.push_back({{"nodes", json::array({nA, nB})}, {"turns", pTurns[i]}});
             }
 
-            xObj["primary_windings"] = json::array({{{"nodes", json::array({nP1, nP2})}, {"turns", pTurns}}});
-            xObj["secondary_windings"] = json::array({{{"nodes", json::array({nS1, nS2})}, {"turns", sTurns}}});
+            int pNodeOffset = (int)pTurns.size() * 2;
+            json sArr = json::array();
+            for (size_t j = 0; j < sTurns.size(); ++j) {
+                int idxA = pNodeOffset + (int)j * 2;
+                int idxB = pNodeOffset + (int)j * 2 + 1;
+                std::string nA = (idxA < (int)formattedNodes.size()) ? formattedNodes[idxA].get<std::string>() : "node_0";
+                std::string nB = (idxB < (int)formattedNodes.size()) ? formattedNodes[idxB].get<std::string>() : "node_0";
+                sArr.push_back({{"nodes", json::array({nA, nB})}, {"turns", sTurns[j]}});
+            }
+
+            xObj["primary_windings"] = pArr;
+            xObj["secondary_windings"] = sArr;
             xObj["core_permeability"] = formatJSStyleDouble(parsedParams.count("permeability") ? parsedParams["permeability"] : 2000.0);
+            if (comp.parameters.count("polarity")) xObj["polarity"] = comp.parameters.at("polarity");
+
             physStageObj["transformers"].push_back(xObj);
         } else if (t == "XFMR_3W" || t == "MUTUAL_3W" || t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {
             json xObj;

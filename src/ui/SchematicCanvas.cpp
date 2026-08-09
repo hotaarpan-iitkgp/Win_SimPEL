@@ -14,6 +14,22 @@ namespace CircuitSim {
 
 static std::string g_internalClipboard;
 
+static std::vector<double> parseTurnsArrayStr(const std::string& str) {
+    std::vector<double> res;
+    if (str.empty()) { res.push_back(100.0); return res; }
+    std::string clean = str;
+    clean.erase(std::remove(clean.begin(), clean.end(), '['), clean.end());
+    clean.erase(std::remove(clean.begin(), clean.end(), ']'), clean.end());
+    std::replace(clean.begin(), clean.end(), ',', ' ');
+    std::stringstream ss(clean);
+    double val;
+    while (ss >> val) {
+        res.push_back(val);
+    }
+    if (res.empty()) res.push_back(100.0);
+    return res;
+}
+
 enum class DomainType { Power, Control };
 
 static ImVec2 rotatePt(float px, float py, float cx, float cy, float angleDeg) {
@@ -175,8 +191,37 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
         return {{"A1", -20, -15, -1, 0, true}, {"A2", -20, 0, -1, 0, true}, {"A3", -20, 15, -1, 0, true}, {"B1", 20, -15, 1, 0, true}, {"B2", 20, 0, 1, 0, true}, {"B3", 20, 15, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
     }
-    if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER") {
-        return {{"P1", -20, -10, -1, 0, true}, {"P2", -20, 10, -1, 0, true}, {"S1", 20, -10, 1, 0, true}, {"S2", 20, 10, 1, 0, true}};
+
+    if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
+        std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
+        std::string sStr = comp.parameters.count("secondary_turns") ? comp.parameters.at("secondary_turns") : "[100]";
+        auto pTurns = parseTurnsArrayStr(pStr);
+        auto sTurns = parseTurnsArrayStr(sStr);
+
+        int np = (int)pTurns.size();
+        int ns = (int)sTurns.size();
+
+        std::vector<TerminalDef> terms;
+
+        // Primary terminals (Left side, x = -25)
+        for (int i = 0; i < np; ++i) {
+            float yCenter = (np > 1) ? (-25.0f * (np - 1) + 50.0f * i) : 0.0f;
+            std::string nameA = (np == 1) ? "P1A" : ("P" + std::to_string(i + 1) + "A");
+            std::string nameB = (np == 1) ? "P1B" : ("P" + std::to_string(i + 1) + "B");
+            terms.push_back({nameA, -25.0f, yCenter - 14.0f, -1.0f, 0.0f, true});
+            terms.push_back({nameB, -25.0f, yCenter + 14.0f, -1.0f, 0.0f, true});
+        }
+
+        // Secondary terminals (Right side, x = +25)
+        for (int j = 0; j < ns; ++j) {
+            float yCenter = (ns > 1) ? (-25.0f * (ns - 1) + 50.0f * j) : 0.0f;
+            std::string nameA = (ns == 1) ? "S1A" : ("S" + std::to_string(j + 1) + "A");
+            std::string nameB = (ns == 1) ? "S1B" : ("S" + std::to_string(j + 1) + "B");
+            terms.push_back({nameA, 25.0f, yCenter - 14.0f, 1.0f, 0.0f, true});
+            terms.push_back({nameB, 25.0f, yCenter + 14.0f, 1.0f, 0.0f, true});
+        }
+
+        return terms;
     }
     if (t == "XFMR_3W" || t == "MUTUAL_3W") {
         return {{"P1", -20, -10, -1, 0, true}, {"P2", -20, 10, -1, 0, true}, {"S1_1", 20, -15, 1, 0, true}, {"S1_2", 20, -5, 1, 0, true}, {"S2_1", 20, 5, 1, 0, true}, {"S2_2", 20, 15, 1, 0, true}};
@@ -1271,36 +1316,93 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 30*s, c.y - 8*s}, color, "[ C++ Script ]");
-    } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER") {
-        // Primary Winding (2 circular arcs on left)
-        ImVec2 pCenter1 = rotatePt(-6*s, -8*s, c.x, c.y, rot);
-        ImVec2 pCenter2 = rotatePt(-6*s, 8*s, c.x, c.y, rot);
-        drawList->AddCircle(pCenter1, 8.0f * s, color, 24, 2.0f * s);
-        drawList->AddCircle(pCenter2, 8.0f * s, color, 24, 2.0f * s);
+    } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
+        std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
+        std::string sStr = comp.parameters.count("secondary_turns") ? comp.parameters.at("secondary_turns") : "[100]";
+        auto pTurns = parseTurnsArrayStr(pStr);
+        auto sTurns = parseTurnsArrayStr(sStr);
 
-        // Secondary Winding (2 circular arcs on right)
-        ImVec2 sCenter1 = rotatePt(6*s, -8*s, c.x, c.y, rot);
-        ImVec2 sCenter2 = rotatePt(6*s, 8*s, c.x, c.y, rot);
-        drawList->AddCircle(sCenter1, 8.0f * s, color, 24, 2.0f * s);
-        drawList->AddCircle(sCenter2, 8.0f * s, color, 24, 2.0f * s);
+        int np = (int)pTurns.size();
+        int ns = (int)sTurns.size();
+        int nMax = std::max({1, np, ns});
 
-        // Center magnetic core lines
-        ImVec2 core1_top = rotatePt(-1.5f * s, -16*s, c.x, c.y, rot);
-        ImVec2 core1_bot = rotatePt(-1.5f * s, 16*s, c.x, c.y, rot);
-        ImVec2 core2_top = rotatePt(1.5f * s, -16*s, c.x, c.y, rot);
-        ImVec2 core2_bot = rotatePt(1.5f * s, 16*s, c.x, c.y, rot);
-        drawList->AddLine(core1_top, core1_bot, color, 1.5f * s);
-        drawList->AddLine(core2_top, core2_bot, color, 1.5f * s);
+        float totalHalfH = std::max(22.0f, nMax * 24.0f + 4.0f) * s;
+        float hw = 22.0f * s;
 
-        // Terminal lead lines
-        drawList->AddLine(rotatePt(-20*s, -10*s, c.x, c.y, rot), rotatePt(-14*s, -10*s, c.x, c.y, rot), color, 2.0f * s);
-        drawList->AddLine(rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(-14*s, 10*s, c.x, c.y, rot), color, 2.0f * s);
-        drawList->AddLine(rotatePt(14*s, -10*s, c.x, c.y, rot), rotatePt(20*s, -10*s, c.x, c.y, rot), color, 2.0f * s);
-        drawList->AddLine(rotatePt(14*s, 10*s, c.x, c.y, rot), rotatePt(20*s, 10*s, c.x, c.y, rot), color, 2.0f * s);
+        // 1. Dashed outer orange/red bounding box (matching WebTool style)
+        drawList->AddRect(
+            {c.x - hw, c.y - totalHalfH}, 
+            {c.x + hw, c.y + totalHalfH}, 
+            IM_COL32(234, 88, 12, 180), 
+            4.0f * s, 0, 1.5f * s
+        );
 
-        // Polarity dots
-        drawList->AddCircleFilled(rotatePt(-12*s, -14*s, c.x, c.y, rot), 2.5f * s, color);
-        drawList->AddCircleFilled(rotatePt(12*s, -14*s, c.x, c.y, rot), 2.5f * s, color);
+        // 2. Central vertical magnetic core lines (2 parallel lines)
+        ImVec2 core1_top = rotatePt(-2.0f * s, -totalHalfH + 6.0f * s, c.x, c.y, rot);
+        ImVec2 core1_bot = rotatePt(-2.0f * s, totalHalfH - 6.0f * s, c.x, c.y, rot);
+        ImVec2 core2_top = rotatePt(2.0f * s, -totalHalfH + 6.0f * s, c.x, c.y, rot);
+        ImVec2 core2_bot = rotatePt(2.0f * s, totalHalfH - 6.0f * s, c.x, c.y, rot);
+        drawList->AddLine(core1_top, core1_bot, color, 1.8f * s);
+        drawList->AddLine(core2_top, core2_bot, color, 1.8f * s);
+
+        // 3. Draw Primary Windings (Left side)
+        for (int i = 0; i < np; ++i) {
+            float wyCenter = (np > 1) ? (-25.0f * (np - 1) + 50.0f * i) : 0.0f;
+            float wxLeft = -6.0f;
+
+            // 3 scalloped arcs for this primary winding
+            for (int k = -1; k <= 1; ++k) {
+                float arcY = wyCenter + k * 8.0f;
+                ImVec2 arcCenter = rotatePt(wxLeft * s, arcY * s, c.x, c.y, rot);
+                drawList->AddCircle(arcCenter, 4.5f * s, color, 16, 1.8f * s);
+            }
+
+            // Lead lines to terminal ports
+            ImVec2 topLeadStart = rotatePt(wxLeft * s, (wyCenter - 14.0f) * s, c.x, c.y, rot);
+            ImVec2 topLeadEnd = rotatePt(-25.0f * s, (wyCenter - 14.0f) * s, c.x, c.y, rot);
+            ImVec2 botLeadStart = rotatePt(wxLeft * s, (wyCenter + 14.0f) * s, c.x, c.y, rot);
+            ImVec2 botLeadEnd = rotatePt(-25.0f * s, (wyCenter + 14.0f) * s, c.x, c.y, rot);
+
+            drawList->AddLine(topLeadStart, topLeadEnd, color, 1.8f * s);
+            drawList->AddLine(botLeadStart, botLeadEnd, color, 1.8f * s);
+
+            // Circular terminal port rings (matching WebTool UI)
+            drawList->AddCircle(topLeadEnd, 3.5f * s, IM_COL32(0, 102, 204, 255), 16, 2.0f * s);
+            drawList->AddCircle(botLeadEnd, 3.5f * s, IM_COL32(0, 102, 204, 255), 16, 2.0f * s);
+
+            // Polarity dot at top of winding
+            drawList->AddCircleFilled(rotatePt(-14.0f * s, (wyCenter - 18.0f) * s, c.x, c.y, rot), 2.5f * s, color);
+        }
+
+        // 4. Draw Secondary Windings (Right side)
+        for (int j = 0; j < ns; ++j) {
+            float wyCenter = (ns > 1) ? (-25.0f * (ns - 1) + 50.0f * j) : 0.0f;
+            float wxRight = 6.0f;
+
+            for (int k = -1; k <= 1; ++k) {
+                float arcY = wyCenter + k * 8.0f;
+                ImVec2 arcCenter = rotatePt(wxRight * s, arcY * s, c.x, c.y, rot);
+                drawList->AddCircle(arcCenter, 4.5f * s, color, 16, 1.8f * s);
+            }
+
+            ImVec2 topLeadStart = rotatePt(wxRight * s, (wyCenter - 14.0f) * s, c.x, c.y, rot);
+            ImVec2 topLeadEnd = rotatePt(25.0f * s, (wyCenter - 14.0f) * s, c.x, c.y, rot);
+            ImVec2 botLeadStart = rotatePt(wxRight * s, (wyCenter + 14.0f) * s, c.x, c.y, rot);
+            ImVec2 botLeadEnd = rotatePt(25.0f * s, (wyCenter + 14.0f) * s, c.x, c.y, rot);
+
+            drawList->AddLine(topLeadStart, topLeadEnd, color, 1.8f * s);
+            drawList->AddLine(botLeadStart, botLeadEnd, color, 1.8f * s);
+
+            // Circular terminal port rings (matching WebTool UI)
+            drawList->AddCircle(topLeadEnd, 3.5f * s, IM_COL32(0, 102, 204, 255), 16, 2.0f * s);
+            drawList->AddCircle(botLeadEnd, 3.5f * s, IM_COL32(0, 102, 204, 255), 16, 2.0f * s);
+
+            // Polarity dot (inverted if turns < 0 or polarity == "inverted")
+            std::string polStr = comp.parameters.count("polarity") ? comp.parameters.at("polarity") : "normal";
+            bool isInv = (polStr == "inverted" && j == 0) || (sTurns[j] < 0.0f);
+            float dotY = isInv ? (wyCenter + 18.0f) : (wyCenter - 18.0f);
+            drawList->AddCircleFilled(rotatePt(14.0f * s, dotY * s, c.x, c.y, rot), 2.5f * s, color);
+        }
     } else {
         drawList->AddRect({c.x - 20*s, c.y - 20*s}, {c.x + 20*s, c.y + 20*s}, color, 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 12*s, c.y - 5*s}, color, t.c_str());
@@ -1786,6 +1888,14 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
         if (numCh < 1) numCh = 1;
         outHalfW = std::max(outHalfW, 18.0f);
         outHalfH = std::max(outHalfH, std::max(18.0f, numCh * 10.0f + 2.0f));
+    } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
+        std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
+        std::string sStr = comp.parameters.count("secondary_turns") ? comp.parameters.at("secondary_turns") : "[100]";
+        auto pTurns = parseTurnsArrayStr(pStr);
+        auto sTurns = parseTurnsArrayStr(sStr);
+        int nMax = std::max(1, std::max((int)pTurns.size(), (int)sTurns.size()));
+        outHalfW = std::max(outHalfW, 25.0f);
+        outHalfH = std::max(outHalfH, std::max(25.0f, nMax * 25.0f + 5.0f));
     } else if (t == "PROBE") {
         std::string sigStr = comp.parameters.count("selected_signals") ? comp.parameters.at("selected_signals") : "";
         int count = 0;
