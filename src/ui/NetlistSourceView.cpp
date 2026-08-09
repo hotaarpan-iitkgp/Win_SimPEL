@@ -1379,14 +1379,47 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     };
 
     compactNodes(physStageObj["voltage_sources"]);
-    compactNodes(physStageObj["analog_switches"]);
-    compactNodes(physStageObj["diodes"]);
     compactNodes(physStageObj["inductors"]);
+    compactNodes(physStageObj["analog_switches"]);
+
+    for (auto& xfmr : physStageObj["transformers"]) {
+        if (xfmr.contains("primary_windings") && xfmr["primary_windings"].is_array()) {
+            for (auto& pw : xfmr["primary_windings"]) {
+                if (pw.contains("nodes") && pw["nodes"].is_array()) {
+                    json newNodes = json::array();
+                    for (const auto& nVal : pw["nodes"]) {
+                        std::string nStr = nVal.get<std::string>();
+                        if (nodeRemap.find(nStr) == nodeRemap.end()) {
+                            nodeRemap[nStr] = "node_" + std::to_string(physNodeCounter++);
+                        }
+                        newNodes.push_back(nodeRemap[nStr]);
+                    }
+                    pw["nodes"] = newNodes;
+                }
+            }
+        }
+        if (xfmr.contains("secondary_windings") && xfmr["secondary_windings"].is_array()) {
+            for (auto& sw : xfmr["secondary_windings"]) {
+                if (sw.contains("nodes") && sw["nodes"].is_array()) {
+                    json newNodes = json::array();
+                    for (const auto& nVal : sw["nodes"]) {
+                        std::string nStr = nVal.get<std::string>();
+                        if (nodeRemap.find(nStr) == nodeRemap.end()) {
+                            nodeRemap[nStr] = "node_" + std::to_string(physNodeCounter++);
+                        }
+                        newNodes.push_back(nodeRemap[nStr]);
+                    }
+                    sw["nodes"] = newNodes;
+                }
+            }
+        }
+    }
+
+    compactNodes(physStageObj["diodes"]);
     compactNodes(physStageObj["capacitors"]);
     compactNodes(physStageObj["resistors"]);
     compactNodes(physStageObj["current_sources"]);
     compactNodes(physStageObj["switches"]);
-    compactNodes(physStageObj["transformers"]);
     compactNodes(physStageObj["voltmeters"]);
     compactNodes(physStageObj["ammeters"]);
 

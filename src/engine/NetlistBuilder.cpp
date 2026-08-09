@@ -93,28 +93,10 @@ static std::string getResolvedPin(const WireEndpoint& ep, const CircuitDesign& d
             p = getResolvedPin(targetW.to, design, wireMap, visited);
             if (!p.empty()) return p;
         }
-        // Fallback: Spatial search for closest component terminal at (junctionX, junctionY)
-        float jx = ep.junctionX;
-        float jy = ep.junctionY;
-        float minD = 1e9f;
-        std::string bestPin = "";
-        
-        for (const auto& comp : design.components) {
-            auto terms = getTerminals(comp);
-            for (const auto& term : terms) {
-                float rad = comp.rotation * 3.14159265f / 180.0f;
-                float rx = term.relX * std::cos(rad) - term.relY * std::sin(rad);
-                float ry = term.relX * std::sin(rad) + term.relY * std::cos(rad);
-                float px = comp.x + rx;
-                float py = comp.y + ry;
-                float dist = std::sqrt((px - jx)*(px - jx) + (py - jy)*(py - jy));
-                if (dist < minD) {
-                    minD = dist;
-                    bestPin = comp.id + ":" + term.name;
-                }
-            }
-        }
-        if (minD <= 25.0f) return bestPin;
+        // Junction without valid targetWireId: return unique coordinate-based junction ID
+        char jbuf[64];
+        snprintf(jbuf, sizeof(jbuf), "Junc_%.1f_%.1f", ep.junctionX, ep.junctionY);
+        return std::string(jbuf);
     }
     return "";
 }
