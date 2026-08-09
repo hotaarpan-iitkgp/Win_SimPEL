@@ -36,21 +36,35 @@ static bool isTerminalMatch(const std::string& compTypeStr, const std::string& t
     std::transform(b.begin(), b.end(), b.begin(), ::toupper);
     if (a == b) return true;
 
-    bool isP1_A = (a == "P1" || a == "P1A" || a == "P1_1" || a == "PA");
-    bool isP1_B = (b == "P1" || b == "P1A" || b == "P1_1" || b == "PA");
-    if (isP1_A && isP1_B) return true;
+    // Primary 1 Top (P1, P1A, P1_1, PA)
+    bool isP1A_A = (a == "P1" || a == "P1A" || a == "P1_1" || a == "PA");
+    bool isP1A_B = (b == "P1" || b == "P1A" || b == "P1_1" || b == "PA");
+    if (isP1A_A && isP1A_B) return true;
 
-    bool isP2_A = (a == "P2" || a == "P1B" || a == "P1_2" || a == "PB");
-    bool isP2_B = (b == "P2" || b == "P1B" || b == "P1_2" || b == "PB");
-    if (isP2_A && isP2_B) return true;
+    // Primary 1 Bottom (P2, P1B, P1_2, PB)
+    bool isP1B_A = (a == "P2" || a == "P1B" || a == "P1_2" || a == "PB");
+    bool isP1B_B = (b == "P2" || b == "P1B" || b == "P1_2" || b == "PB");
+    if (isP1B_A && isP1B_B) return true;
 
-    bool isS1_A = (a == "S1" || a == "S1A" || a == "S1_1" || a == "SA");
-    bool isS1_B = (b == "S1" || b == "S1A" || b == "S1_1" || b == "SA");
-    if (isS1_A && isS1_B) return true;
+    // Secondary 1 Top (S1, S1A, S1_1, SA)
+    bool isS1A_A = (a == "S1" || a == "S1A" || a == "S1_1" || a == "SA");
+    bool isS1A_B = (b == "S1" || b == "S1A" || b == "S1_1" || b == "SA");
+    if (isS1A_A && isS1A_B) return true;
 
-    bool isS2_A = (a == "S2" || a == "S1B" || a == "S1_2" || a == "SB" || a == "S2A");
-    bool isS2_B = (b == "S2" || b == "S1B" || b == "S1_2" || b == "SB" || b == "S2A");
-    if (isS2_A && isS2_B) return true;
+    // Secondary 1 Bottom (S2, S1B, S1_2, SB)
+    bool isS1B_A = (a == "S2" || a == "S1B" || a == "S1_2" || a == "SB");
+    bool isS1B_B = (b == "S2" || b == "S1B" || b == "S1_2" || b == "SB");
+    if (isS1B_A && isS1B_B) return true;
+
+    // Secondary 2 Top (S2A, S3, S2_1)
+    bool isS2A_A = (a == "S2A" || a == "S3" || a == "S2_1");
+    bool isS2A_B = (b == "S2A" || b == "S3" || b == "S2_1");
+    if (isS2A_A && isS2A_B) return true;
+
+    // Secondary 2 Bottom (S2B, S4, S2_2)
+    bool isS2B_A = (a == "S2B" || a == "S4" || a == "S2_2");
+    bool isS2B_B = (b == "S2B" || b == "S4" || b == "S2_2");
+    if (isS2B_A && isS2B_B) return true;
 
     return false;
 }
