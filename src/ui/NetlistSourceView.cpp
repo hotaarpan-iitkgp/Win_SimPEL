@@ -390,7 +390,12 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             physStageObj["diodes"].push_back(cObj);
         } else if (t == "S" || t == "BREAKER" || t == "SR_SWITCH" || t == "DBL_SWITCH" || t == "MAN_SWITCH" || t == "MAN_DBL_SWITCH" || t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
             cObj["type"] = "Switch";
-            cObj["nodes"] = formattedNodes;
+            json pNodes = json::array();
+            if (formattedNodes.size() >= 2) {
+                pNodes.push_back(formattedNodes[0]);
+                pNodes.push_back(formattedNodes[1]);
+            } else pNodes = formattedNodes;
+            cObj["nodes"] = pNodes;
             double rOn = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
             double rOff = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
             if (rOff < rOn * 1e4 || rOff <= 1.0) rOff = 1000000.0;
@@ -404,7 +409,12 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             std::string termG = isBJT ? "B" : "G";
 
             cObj["type"] = (t == "VG-FET" || t == "VGFET") ? "MOSFET" : comp.rawTypeStr;
-            cObj["nodes"] = formattedNodes;
+            json pNodes = json::array();
+            if (formattedNodes.size() >= 2) {
+                pNodes.push_back(formattedNodes[0]);
+                pNodes.push_back(formattedNodes[1]);
+            } else pNodes = formattedNodes;
+            cObj["nodes"] = pNodes;
             cObj["control_node"] = comp.id + "." + termG;
             if (t == "VG-FET" || t == "VGFET") {
                 std::string gateTag = comp.parameters.count("Gate_Signal_Label") ? comp.parameters.at("Gate_Signal_Label") : (comp.parameters.count("tag") ? comp.parameters.at("tag") : "S1");
