@@ -1825,10 +1825,28 @@ void SchematicCanvas::autoSelectWiresForSelectedComponents() {
             if (selectedWireIds.count(w.id) > 0) continue;
 
             bool fromIsSel = isCompSel(w.from.compId) || isNodeSel(w.fromNode);
-            bool toIsSel = isCompSel(w.to.compId) || isNodeSel(w.toNode);
+            if (w.from.isWireJunction && !w.from.targetWireId.empty()) {
+                if (selectedWireIds.count(w.from.targetWireId) > 0) fromIsSel = true;
+            }
 
-            if (w.to.isWireJunction) {
-                if (fromIsSel && selectedWireIds.count(w.to.targetWireId) > 0) {
+            bool toIsSel = isCompSel(w.to.compId) || isNodeSel(w.toNode);
+            if (w.to.isWireJunction && !w.to.targetWireId.empty()) {
+                if (selectedWireIds.count(w.to.targetWireId) > 0) toIsSel = true;
+            }
+
+            // A wire branching into another wire is selected if its component is selected and its target wire is selected, OR if both ends are selected
+            if (w.to.isWireJunction && fromIsSel) {
+                // If targetWireId is connected to any selected component, select this branch wire too
+                bool targetConnectedToSel = false;
+                for (const auto& tw : design.wires) {
+                    if (tw.id == w.to.targetWireId) {
+                        if (isCompSel(tw.from.compId) || isCompSel(tw.to.compId) || selectedWireIds.count(tw.id) > 0) {
+                            targetConnectedToSel = true;
+                            break;
+                        }
+                    }
+                }
+                if (targetConnectedToSel) {
                     selectedWireIds.insert(w.id);
                     addedAny = true;
                 }
