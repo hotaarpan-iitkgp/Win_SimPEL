@@ -2748,6 +2748,7 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
             }
 
             // 2. Identify junction points that belong to the moving selection
+            // A junction node only moves if the wire itself is selected OR if both endpoints are selected (whole sub-circuit)
             auto getJKey = [](float x, float y) {
                 int ix = (int)std::round(x / 2.0f);
                 int iy = (int)std::round(y / 2.0f);
@@ -2756,14 +2757,19 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
 
             std::set<std::string> movedJunctionKeys;
             for (const auto& w : design.wires) {
-                bool fromSel = (!w.from.compId.empty() && movedCompIds.count(w.from.compId) > 0) || selectedWireIds.count(w.id) > 0;
-                bool toSel = (!w.to.compId.empty() && movedCompIds.count(w.to.compId) > 0) || selectedWireIds.count(w.id) > 0;
+                bool wireSelected = selectedWireIds.count(w.id) > 0;
+                bool fromCompSelected = !w.from.compId.empty() && movedCompIds.count(w.from.compId) > 0;
+                bool toCompSelected = !w.to.compId.empty() && movedCompIds.count(w.to.compId) > 0;
 
-                if (w.from.isWireJunction && (fromSel || toSel)) {
-                    movedJunctionKeys.insert(getJKey(w.from.junctionX, w.from.junctionY));
-                }
-                if (w.to.isWireJunction && (fromSel || toSel)) {
-                    movedJunctionKeys.insert(getJKey(w.to.junctionX, w.to.junctionY));
+                bool shouldMoveJunction = wireSelected || (fromCompSelected && toCompSelected);
+
+                if (shouldMoveJunction) {
+                    if (w.from.isWireJunction) {
+                        movedJunctionKeys.insert(getJKey(w.from.junctionX, w.from.junctionY));
+                    }
+                    if (w.to.isWireJunction) {
+                        movedJunctionKeys.insert(getJKey(w.to.junctionX, w.to.junctionY));
+                    }
                 }
             }
 
