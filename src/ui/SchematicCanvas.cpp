@@ -2167,16 +2167,21 @@ void SchematicCanvas::pasteSelected() {
         if (jData.contains("wires") && jData["wires"].is_array()) {
             std::unordered_map<std::string, std::string> oldWireIdToNewWireId;
 
+            // Pass 1: Map old wire IDs to new wire IDs
             for (const auto& jw : jData["wires"]) {
-                WireInstance wire;
                 std::string oldWId = jw.value("id", "");
                 std::string origWId = jw.value("oldId", "");
                 std::string newWId = "wire_" + std::to_string(rand() % 100000);
-                
                 if (!oldWId.empty()) oldWireIdToNewWireId[oldWId] = newWId;
                 if (!origWId.empty()) oldWireIdToNewWireId[origWId] = newWId;
+            }
 
-                wire.id = newWId;
+            // Pass 2: Reconstruct copied wires cleanly
+            for (const auto& jw : jData["wires"]) {
+                WireInstance wire;
+                std::string oldWId = jw.value("id", "");
+                wire.id = oldWireIdToNewWireId.count(oldWId) ? oldWireIdToNewWireId[oldWId] : ("wire_" + std::to_string(rand() % 100000));
+
                 std::string oldFromComp = jw.value("fromComp", "");
                 std::string oldToComp = jw.value("toComp", "");
 
@@ -2185,12 +2190,26 @@ void SchematicCanvas::pasteSelected() {
                 wire.to.compId = oldToNewId.count(oldToComp) ? oldToNewId[oldToComp] : "";
                 wire.to.terminal = oldToNewId.count(oldToComp) ? jw.value("toTerm", "") : "";
 
-                wire.to.isWireJunction = jw.value("isJunction", false);
+                bool isJunc = jw.value("isJunction", false);
                 std::string origTargetW = jw.value("targetWireId", "");
-                wire.to.targetWireId = oldWireIdToNewWireId.count(origTargetW) ? oldWireIdToNewWireId[origTargetW] : origTargetW;
-                
-                wire.to.junctionX = jw.value("jX", 0.0f) + offsetX;
-                wire.to.junctionY = jw.value("jY", 0.0f) + offsetY;
+
+                // Only preserve junction if the target wire was ALSO copied in this selection!
+                if (isJunc && !origTargetW.empty() && oldWireIdToNewWireId.count(origTargetW) > 0) {
+                    wire.to.isWireJunction = true;
+                    wire.to.targetWireId = oldWireIdToNewWireId[origTargetW];
+                    wire.to.junctionX = jw.value("jX", 0.0f) + offsetX;
+                    wire.to.junctionY = jw.value("jY", 0.0f) + offsetY;
+                } else {
+                    wire.to.isWireJunction = false;
+                    wire.to.targetWireId.clear();
+                    wire.to.junctionX = 0.0f;
+                    wire.to.junctionY = 0.0f;
+                }
+
+                // Skip orphaned wires that connect to nothing at all
+                bool hasFrom = !wire.from.compId.empty() || wire.from.isWireJunction;
+                bool hasTo = !wire.to.compId.empty() || wire.to.isWireJunction;
+                if (!hasFrom && !hasTo) continue;
 
                 wire.fromNode = wire.from.compId + "." + wire.from.terminal;
                 wire.toNode = wire.to.isWireJunction ? (wire.to.targetWireId + ".junction") : (wire.to.compId + "." + wire.to.terminal);
@@ -2205,9 +2224,11 @@ void SchematicCanvas::pasteSelected() {
                 }
 
                 design.wires.push_back(wire);
-                selectedWireIds.insert(newWId);
+                selectedWireIds.insert(wire.id);
             }
         }
+
+        cleanupOrphanedJunctions();
     } catch (...) {}
 }
 
