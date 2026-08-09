@@ -1148,7 +1148,7 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input1"] = "0.0";
             cObj["input2"] = "0.0";
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "TRI" || t == "TRIANGLE" || t == "TRIANGLE_CARRIER") {
+        } else if (t == "TRI" || t == "TRI_GEN" || t == "TRIANGLE" || t == "TRIANGLE_CARRIER" || comp.type == ComponentType::Triangle_Carrier) {
             cObj["output"] = comp.id + ".Out";
             double freq = 10000.0;
             if (comp.parameters.count("frequency")) freq = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("frequency"));
@@ -1371,7 +1371,7 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "L" || t == "INDUCTOR" || t == "D" || t == "DIODE" || t == "MOSFET" || t == "S") {
             std::string varName = "I_" + comp.id;
             if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
-        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "PWM" || t == "CONST" || t == "CONSTANT" || t == "GAIN" || t == "TRI" || t == "TRIANGLE") {
+        } else if (t == "PULSE" || t == "PULSE_GEN" || t == "PWM" || t == "CONST" || t == "CONSTANT" || t == "GAIN" || t == "TRI" || t == "TRI_GEN" || t == "TRIANGLE" || comp.type == ComponentType::Triangle_Carrier) {
             std::string varName = comp.id + ".Out";
             if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
         } else if (t == "SCOPE" || t == "OSCILLOSCOPE") {
