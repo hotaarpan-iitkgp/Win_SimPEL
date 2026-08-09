@@ -30,6 +30,17 @@ static std::vector<double> parseTurnsArrayStr(const std::string& str) {
     return res;
 }
 
+static void getCSCRIPTCounts(const ComponentInstance& comp, int& numIn, int& numOut) {
+    numIn = std::max(1, comp.numInputPins);
+    if (comp.parameters.count("num_inputs")) {
+        try { numIn = std::max(1, std::stoi(comp.parameters.at("num_inputs"))); } catch (...) {}
+    }
+    numOut = 1;
+    if (comp.parameters.count("num_outputs")) {
+        try { numOut = std::max(1, std::stoi(comp.parameters.at("num_outputs"))); } catch (...) {}
+    }
+}
+
 enum class DomainType { Power, Control };
 
 static ImVec2 rotatePt(float px, float py, float cx, float cy, float angleDeg) {
@@ -296,8 +307,25 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "MUX") {
         return {{"In1", -20, -12, -1, 0, true}, {"In2", -20, 12, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
-    if (t == "CSCRIPT") {
-        return {{"In1", -80, 0, -1, 0, true}, {"Out1", 80, -30, 1, 0, true}, {"Out2", 80, -10, 1, 0, true}, {"Out3", 80, 10, 1, 0, true}, {"Out4", 80, 30, 1, 0, true}};
+
+    if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
+        int numIn = 1, numOut = 1;
+        getCSCRIPTCounts(comp, numIn, numOut);
+
+        float hw = 45.0f;
+
+        std::vector<TerminalDef> terms;
+        for (int i = 0; i < numIn; ++i) {
+            float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
+            std::string termName = (numIn == 1) ? "In1" : ("In" + std::to_string(i + 1));
+            terms.push_back({termName, -hw, yOff, -1.0f, 0.0f, true});
+        }
+        for (int j = 0; j < numOut; ++j) {
+            float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
+            std::string termName = (numOut == 1) ? "Out1" : ("Out" + std::to_string(j + 1));
+            terms.push_back({termName, hw, yOff, 1.0f, 0.0f, true});
+        }
+        return terms;
     }
     return {};
 }
@@ -1324,11 +1352,36 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 6*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 6*s, 0, 2.0f*s);
         drawList->AddText({c.x - 28*s, c.y - 6*s}, color, "Subsystem");
-    } else if (t == "CSCRIPT") {
-        float hw = 80*s, hh = 40*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
-        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText({c.x - 30*s, c.y - 8*s}, color, "[ C++ Script ]");
+    } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
+        int numIn = 1, numOut = 1;
+        getCSCRIPTCounts(comp, numIn, numOut);
+        int nMax = std::max(numIn, numOut);
+
+        float hw = 45.0f * s;
+        float hh = std::max(25.0f, nMax * 12.0f + 10.0f) * s;
+
+        ImU32 cscriptBg = IM_COL32(30, 41, 59, 240);
+        ImU32 cscriptBorder = IM_COL32(59, 130, 246, 255);
+
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, cscriptBg, 4.0f * s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, cscriptBorder, 4.0f * s, 0, 1.5f * s);
+
+        std::string labelText = comp.label.empty() ? "C-Script" : comp.label;
+        ImVec2 txtSz = ImGui::CalcTextSize(labelText.c_str());
+        drawList->AddText({c.x - (txtSz.x * 0.5f), c.y - 6.0f * s}, IM_COL32(255, 255, 255, 240), labelText.c_str());
+
+        for (int i = 0; i < numIn; ++i) {
+            float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
+            std::string pName = (numIn == 1) ? "In1" : ("In" + std::to_string(i + 1));
+            drawList->AddText({c.x - hw + 4.0f * s, c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), pName.c_str());
+        }
+
+        for (int j = 0; j < numOut; ++j) {
+            float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
+            std::string pName = (numOut == 1) ? "Out1" : ("Out" + std::to_string(j + 1));
+            ImVec2 pSz = ImGui::CalcTextSize(pName.c_str());
+            drawList->AddText({c.x + hw - (pSz.x + 4.0f * s), c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), pName.c_str());
+        }
     } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
         std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
         std::string sStr = comp.parameters.count("secondary_turns") ? comp.parameters.at("secondary_turns") : "[100]";
@@ -1884,9 +1937,12 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
 
     const std::string& t = comp.rawTypeStr;
 
-    if (t == "CSCRIPT") {
-        outHalfW = std::max(outHalfW, 82.0f);
-        outHalfH = std::max(outHalfH, 42.0f);
+    if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
+        int numIn = 1, numOut = 1;
+        getCSCRIPTCounts(comp, numIn, numOut);
+        int nMax = std::max(numIn, numOut);
+        outHalfW = std::max(outHalfW, 45.0f);
+        outHalfH = std::max(outHalfH, std::max(25.0f, nMax * 12.0f + 10.0f));
     } else if (t == "SUBSYSTEM") {
         outHalfW = std::max(outHalfW, 52.0f);
         outHalfH = std::max(outHalfH, 42.0f);

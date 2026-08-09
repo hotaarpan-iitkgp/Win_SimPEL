@@ -1315,6 +1315,28 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["output"] = comp.id + ".Out1";
             cObj["original_type"] = "CSCRIPT";
             cObj["code"] = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+
+            int numIn = std::max(1, comp.numInputPins);
+            if (comp.parameters.count("num_inputs")) {
+                try { numIn = std::max(1, std::stoi(comp.parameters.at("num_inputs"))); } catch (...) {}
+            }
+            int numOut = 1;
+            if (comp.parameters.count("num_outputs")) {
+                try { numOut = std::max(1, std::stoi(comp.parameters.at("num_outputs"))); } catch (...) {}
+            }
+
+            cObj["num_inputs"] = numIn;
+            cObj["num_outputs"] = numOut;
+
+            json inputsArr = json::array();
+            for (int i = 1; i <= numIn; ++i) {
+                std::string pinName = (numIn == 1) ? "In1" : ("In" + std::to_string(i));
+                std::string inSig = getIncomingSignal(comp.id, pinName);
+                if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In" + std::to_string(i));
+                inputsArr.push_back(inSig);
+            }
+            cObj["inputs"] = inputsArr;
+
             ctrlLoopsObj["custom_scripts"].push_back(cObj);
         }
     }

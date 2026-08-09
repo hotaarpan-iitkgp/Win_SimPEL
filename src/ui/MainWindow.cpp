@@ -1224,8 +1224,41 @@ void MainWindow::renderPropertyInspector() {
         }
     }
 
+    if (t == "CSCRIPT") {
+        int nIn = std::max(1, comp->numInputPins);
+        if (comp->parameters.count("num_inputs")) {
+            try { nIn = std::max(1, std::stoi(comp->parameters.at("num_inputs"))); } catch (...) {}
+        }
+        if (ImGui::InputInt("Number of Inputs", &nIn)) {
+            if (nIn < 1) nIn = 1;
+            if (nIn > 16) nIn = 16;
+            comp->numInputPins = nIn;
+            comp->parameters["num_inputs"] = std::to_string(nIn);
+        }
+
+        int nOut = 1;
+        if (comp->parameters.count("num_outputs")) {
+            try { nOut = std::max(1, std::stoi(comp->parameters.at("num_outputs"))); } catch (...) {}
+        }
+        if (ImGui::InputInt("Number of Outputs", &nOut)) {
+            if (nOut < 1) nOut = 1;
+            if (nOut > 16) nOut = 16;
+            comp->parameters["num_outputs"] = std::to_string(nOut);
+        }
+    }
+
     for (auto& pair : comp->parameters) {
-        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type") continue;
+        if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type" || pair.first == "num_inputs" || pair.first == "num_outputs") continue;
+
+        if (pair.first == "code") {
+            char codeBuf[4096] = {0};
+            strncpy(codeBuf, pair.second.c_str(), sizeof(codeBuf) - 1);
+            if (ImGui::InputTextMultiline("Code##cscript", codeBuf, sizeof(codeBuf), ImVec2(-1, 120))) {
+                pair.second = codeBuf;
+            }
+            continue;
+        }
+
         char valBuf[256] = {0};
         strncpy(valBuf, pair.second.c_str(), sizeof(valBuf) - 1);
         std::string inputLabel = pair.first + "##" + comp->id;
