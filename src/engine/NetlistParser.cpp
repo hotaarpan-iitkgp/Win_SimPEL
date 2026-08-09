@@ -76,7 +76,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "RandomNumbers" || t == "RANDOM_NUM") return ComponentType::RandomNumbers;
     if (t == "SineWave" || t == "SINE_WAVE") return ComponentType::SineWave;
     if (t == "Step" || t == "STEP") return ComponentType::Step;
-    if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "TRI_GEN" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
+    if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "TRI" || t == "TRI_GEN" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
     if (t == "WhiteNoise" || t == "WHITE_NOISE") return ComponentType::WhiteNoise;
     if (t == "TrigFunction" || t == "TRIG_FCN") return ComponentType::TrigFunction;
     if (t == "Abs" || t == "ABS") return ComponentType::Abs;
@@ -146,7 +146,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "SummingJunction" || t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT" || t == "SUB" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "PROD" || t == "PRODUCT_RECT" || t == "product_blocks") return ComponentType::Product;
     if (t == "PWM_Generator" || t == "PWM" || t == "PWM_MASTER" || t == "pwm_generators") return ComponentType::PWM_Generator;
-    if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
+    if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "TRI" || t == "TRI_GEN" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
     if (t == "PI_Controller" || t == "PI" || t == "PID" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "pi_controllers" || t == "pid_controllers") return ComponentType::ContinuousPID;
     if (t == "Comparator" || t == "COMP" || t == "E_COMP" || t == "comparators") return ComponentType::Comparator;
     if (t == "CustomScript" || t == "CSCRIPT" || t == "custom_scripts") return ComponentType::CustomScript;

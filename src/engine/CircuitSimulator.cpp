@@ -262,7 +262,32 @@ void CircuitSimulator::buildIndexMaps() {
         if (ctrlComp.parameters.count("amplitude")) fc.amplitude = evaluateParam(ctrlComp, "amplitude", 1.0);
 
         if (ctrlComp.type == ComponentType::Triangle_Carrier) {
-            fc.delay = evaluateParam(ctrlComp, "phase", 0.0); // phase degrees
+            fc.minVal = evaluateParam(ctrlComp, "min", 0.0);
+            if (ctrlComp.parameters.count("minVal")) fc.minVal = evaluateParam(ctrlComp, "minVal", fc.minVal);
+            if (ctrlComp.parameters.count("v_min")) fc.minVal = evaluateParam(ctrlComp, "v_min", fc.minVal);
+            if (ctrlComp.parameters.count("min_val")) fc.minVal = evaluateParam(ctrlComp, "min_val", fc.minVal);
+
+            fc.maxVal = evaluateParam(ctrlComp, "max", 1.0);
+            if (ctrlComp.parameters.count("maxVal")) fc.maxVal = evaluateParam(ctrlComp, "maxVal", fc.maxVal);
+            if (ctrlComp.parameters.count("v_max")) fc.maxVal = evaluateParam(ctrlComp, "v_max", fc.maxVal);
+            if (ctrlComp.parameters.count("max_val")) fc.maxVal = evaluateParam(ctrlComp, "max_val", fc.maxVal);
+
+            if (ctrlComp.parameters.count("frequency")) fc.freq = evaluateParam(ctrlComp, "frequency", 10000.0);
+            if (ctrlComp.parameters.count("freq")) fc.freq = evaluateParam(ctrlComp, "freq", fc.freq);
+            if (ctrlComp.parameters.count("period")) {
+                double p = evaluateParam(ctrlComp, "period", 0.0001);
+                if (p > 0.0) fc.freq = 1.0 / p;
+            }
+
+            if (ctrlComp.parameters.count("phase")) fc.delay = evaluateParam(ctrlComp, "phase", 0.0);
+            if (ctrlComp.parameters.count("phase_deg")) fc.delay = evaluateParam(ctrlComp, "phase_deg", fc.delay);
+
+            if (ctrlComp.parameters.count("amplitude") && !ctrlComp.parameters.count("min") && !ctrlComp.parameters.count("v_min")) {
+                double amp = evaluateParam(ctrlComp, "amplitude", 1.0);
+                fc.minVal = -amp;
+                fc.maxVal = amp;
+            }
+
             fc.polarity = getParamString(ctrlComp, "phase_source", "internal");
             fc.vPlotKey = getParamString(ctrlComp, "freq_source", "internal");
         } else if (ctrlComp.type == ComponentType::Step) {

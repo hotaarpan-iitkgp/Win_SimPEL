@@ -2527,7 +2527,8 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
             }
         } else {
             bool hitComp = false;
-            for (auto& comp : design.components) {
+            for (auto it = design.components.rbegin(); it != design.components.rend(); ++it) {
+                auto& comp = *it;
                 ImVec2 center = worldToScreen(comp.x, comp.y, canvasPos);
                 float hw = 25.0f, hh = 25.0f;
                 getComponentBounds(comp, hw, hh);
