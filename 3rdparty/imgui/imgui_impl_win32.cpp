@@ -1205,7 +1205,14 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport* viewport)
 
     // Select style and parent window
     ImGui_ImplWin32_GetWin32StyleFromViewportFlags(viewport->Flags, &vd->DwStyle, &vd->DwExStyle);
-    vd->HwndParent = ImGui_ImplWin32_GetHwndFromViewport(viewport->ParentViewport);
+    
+    // For standalone secondary windows (like Scope windows):
+    // Set HwndParent = nullptr so they are unowned top-level windows that can freely move behind main app
+    vd->HwndParent = nullptr;
+    if (!(viewport->Flags & ImGuiViewportFlags_NoDecoration)) {
+        vd->DwStyle = WS_OVERLAPPEDWINDOW;
+        vd->DwExStyle = WS_EX_APPWINDOW;
+    }
 
     // Create window
     RECT rect = { (LONG)viewport->Pos.x, (LONG)viewport->Pos.y, (LONG)(viewport->Pos.x + viewport->Size.x), (LONG)(viewport->Pos.y + viewport->Size.y) };
@@ -1271,13 +1278,10 @@ static void ImGui_ImplWin32_UpdateWindow(ImGuiViewport* viewport)
     // Unlike style settings derived from configuration flags, this is more likely to change for advanced apps that are manipulating ParentViewportID manually.
     HWND new_parent = ImGui_ImplWin32_GetHwndFromViewport(viewport->ParentViewport);
     if (new_parent != vd->HwndParent)
+    HWND new_parent = nullptr; // Unowned top-level window so secondary windows don't get forced back on top of main window
+    if (vd->HwndParent != new_parent)
     {
-        // Win32 windows can either have a "Parent" (for WS_CHILD window) or an "Owner" (which among other thing keeps window above its owner).
-        // Our Dear Imgui-side concept of parenting only mostly care about what Win32 call "Owner".
-        // The parent parameter of CreateWindowEx() sets up Parent OR Owner depending on WS_CHILD flag. In our case an Owner as we never use WS_CHILD.
-        // Calling ::SetParent() here would be incorrect: it will create a full child relation, alter coordinate system and clipping.
-        // Calling ::SetWindowLongPtr() with GWLP_HWNDPARENT seems correct although poorly documented.
-        // https://devblogs.microsoft.com/oldnewthing/20100315-00/?p=14613
+        // Change parent
         vd->HwndParent = new_parent;
         ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)vd->HwndParent);
     }
