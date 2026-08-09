@@ -55,7 +55,7 @@ void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
         ImGui::SetNextWindowSize(ImVec2(700, 450), ImGuiCond_FirstUseEver);
     }
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_None;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking; // Force separate OS window via viewports
     if (isMinimized) flags |= ImGuiWindowFlags_NoResize;
 
     if (!ImGui::Begin(windowTitle.c_str(), &isOpen, flags)) {

@@ -179,6 +179,7 @@ int main(int argc, char** argv) {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     // Load Crisp High-Quality TrueType Vector Font (Segoe UI)
     if (GetFileAttributesA("C:\\Windows\\Fonts\\segoeui.ttf") != INVALID_FILE_ATTRIBUTES) {
@@ -190,6 +191,13 @@ int main(int argc, char** argv) {
     }
 
     ImGui::StyleColorsDark();
+
+    // When viewports are enabled, tweak WindowRounding/WindowBg so platform windows look consistent
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
 
     // Initialize ImGui Win32 & OpenGL3 Backends
     ImGui_ImplWin32_Init(hwnd);
@@ -265,10 +273,22 @@ int main(int argc, char** argv) {
 
         // Rendering
         ImGui::Render();
-        glViewport(0, 0, 1400, 900);
+        RECT clientRect;
+        GetClientRect(hwnd, &clientRect);
+        int fbW = clientRect.right - clientRect.left;
+        int fbH = clientRect.bottom - clientRect.top;
+        glViewport(0, 0, fbW, fbH);
         glClearColor(0.96f, 0.95f, 0.81f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Multi-viewport: update and render additional platform windows
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            wglMakeCurrent(hdc, hglrc); // Restore main context after rendering sub-viewports
+        }
+
         SwapBuffers(hdc);
     }
 
