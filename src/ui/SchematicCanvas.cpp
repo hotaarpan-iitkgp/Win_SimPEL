@@ -2658,8 +2658,14 @@ void SchematicCanvas::renderModals() {
             if (ImGui::Button("Save & Apply to Schematic", ImVec2(200, 32))) {
                 pushUndoState();
                 if (cscriptCompIdx >= 0 && cscriptCompIdx < (int)design.components.size()) {
-                    design.components[cscriptCompIdx].parameters["code"] = cscriptCodeBuf;
-                    design.components[cscriptCompIdx].parameters["timestep"] = cscriptTimestepBuf;
+                    auto& comp = design.components[cscriptCompIdx];
+                    comp.parameters["code"] = cscriptCodeBuf;
+                    comp.parameters["timestep"] = cscriptTimestepBuf;
+
+                    auto discParams = CircuitSimEngine::CScriptEngine::discoverParamsFromCode(cscriptCodeBuf);
+                    for (const auto& par : discParams) {
+                        comp.parameters[par.name] = par.rawValStr;
+                    }
                 }
                 showCScriptModal = false;
                 cscriptCompIdx = -1;

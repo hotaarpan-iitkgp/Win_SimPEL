@@ -687,15 +687,15 @@ std::vector<CScriptParam> CScriptEngine::discoverParamsFromCode(const std::strin
     std::vector<CScriptParam> res;
     std::stringstream ss(code);
     std::string line;
-    std::regex paramRegex(R"(^\s*(double|float|int)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*;)");
+    std::regex paramRegex(R"(^\s*(const\s+)?(double|float|int)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*;)");
 
     while (std::getline(ss, line)) {
         std::smatch m;
         if (std::regex_search(line, m, paramRegex)) {
             CScriptParam p;
-            p.typeStr = m[1].str();
-            p.name = m[2].str();
-            p.rawValStr = m[3].str();
+            p.typeStr = (m[1].matched ? m[1].str() : "") + m[2].str();
+            p.name = m[3].str();
+            p.rawValStr = m[4].str();
             try { p.value = ExpressionEvaluator::parseScientific(p.rawValStr); } catch (...) { p.value = 0.0; }
             res.push_back(p);
         }
@@ -707,16 +707,15 @@ std::string CScriptEngine::updateParamInCode(const std::string& code, const std:
     std::stringstream ss(code);
     std::stringstream outCode;
     std::string line;
-    std::regex paramRegex(R"(^\s*(double|float|int)\s+)" + paramName + R"(\s*=\s*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*;)");
+    std::regex paramRegex(R"(^(\s*(?:const\s+)?(?:double|float|int)\s+)" + paramName + R"(\s*=\s*)([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)(.*)$)");
 
     char valStrBuf[64];
     snprintf(valStrBuf, sizeof(valStrBuf), "%.9g", newValue);
 
     while (std::getline(ss, line)) {
         std::smatch m;
-        if (std::regex_search(line, m, paramRegex)) {
-            std::string typeStr = m[1].str();
-            outCode << typeStr << " " << paramName << " = " << valStrBuf << ";\n";
+        if (std::regex_match(line, m, paramRegex)) {
+            outCode << m[1].str() << valStrBuf << m[3].str() << "\n";
         } else {
             outCode << line << "\n";
         }

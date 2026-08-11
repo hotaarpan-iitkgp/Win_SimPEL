@@ -1256,27 +1256,40 @@ void MainWindow::renderPropertyInspector() {
         // Custom Parameters Section (Auto-Discovered from C-Script Code)
         std::string codeStr = comp->parameters.count("code") ? comp->parameters.at("code") : "";
         auto discParams = CircuitSimEngine::CScriptEngine::discoverParamsFromCode(codeStr);
+        std::set<std::string> discParamNames;
+        for (const auto& dp : discParams) discParamNames.insert(dp.name);
 
         if (!discParams.empty()) {
             ImGui::Spacing();
             ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Custom Parameters (Auto-Discovered):");
             for (const auto& dp : discParams) {
+                std::string curValStr = comp->parameters.count(dp.name) ? comp->parameters.at(dp.name) : dp.rawValStr;
                 char pBuf[64] = {0};
-                snprintf(pBuf, sizeof(pBuf), "%.9g", dp.value);
+                strncpy(pBuf, curValStr.c_str(), sizeof(pBuf) - 1);
                 std::string labelStr = dp.name + " (" + dp.typeStr + ")##" + comp->id;
                 if (ImGui::InputText(labelStr.c_str(), pBuf, sizeof(pBuf))) {
+                    comp->parameters[dp.name] = pBuf;
                     try {
                         double nVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(pBuf);
                         std::string updatedCode = CircuitSimEngine::CScriptEngine::updateParamInCode(codeStr, dp.name, nVal);
                         comp->parameters["code"] = updatedCode;
+                        codeStr = updatedCode;
                     } catch (...) {}
                 }
             }
         }
     }
 
+    std::set<std::string> handledCScriptParams;
+    if (t == "CSCRIPT") {
+        std::string codeStr = comp->parameters.count("code") ? comp->parameters.at("code") : "";
+        auto discParams = CircuitSimEngine::CScriptEngine::discoverParamsFromCode(codeStr);
+        for (const auto& dp : discParams) handledCScriptParams.insert(dp.name);
+    }
+
     for (auto& pair : comp->parameters) {
         if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type" || pair.first == "num_inputs" || pair.first == "num_outputs" || pair.first == "timestep") continue;
+        if (handledCScriptParams.count(pair.first)) continue;
 
         if (pair.first == "code") {
             char codeBuf[4096] = {0};
@@ -1292,6 +1305,14 @@ void MainWindow::renderPropertyInspector() {
         std::string inputLabel = pair.first + "##" + comp->id;
         if (ImGui::InputText(inputLabel.c_str(), valBuf, sizeof(valBuf))) {
             pair.second = valBuf;
+            if (t == "CSCRIPT") {
+                try {
+                    double nVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(valBuf);
+                    std::string codeStr = comp->parameters.count("code") ? comp->parameters.at("code") : "";
+                    std::string updatedCode = CircuitSimEngine::CScriptEngine::updateParamInCode(codeStr, pair.first, nVal);
+                    comp->parameters["code"] = updatedCode;
+                } catch (...) {}
+            }
         }
     }
 

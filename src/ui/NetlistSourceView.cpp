@@ -1315,6 +1315,17 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             ctrlLoopsObj["logic_gates"].push_back(cObj);
         } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
             std::string scriptCode = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+
+            auto discParams = CircuitSimEngine::CScriptEngine::discoverParamsFromCode(scriptCode);
+            for (const auto& dp : discParams) {
+                if (comp.parameters.count(dp.name)) {
+                    std::string pValStr = comp.parameters.at(dp.name);
+                    try {
+                        double nVal = CircuitSimEngine::ExpressionEvaluator::parseScientific(pValStr);
+                        scriptCode = CircuitSimEngine::CScriptEngine::updateParamInCode(scriptCode, dp.name, nVal);
+                    } catch (...) {}
+                }
+            }
             cObj["code"] = scriptCode;
 
             std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
