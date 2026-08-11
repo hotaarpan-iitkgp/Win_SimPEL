@@ -443,6 +443,7 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Roff"] = formatJSStyleDouble(rOff);
             cObj["Vd"] = formatJSStyleDouble(parsedParams.count("Vd") ? parsedParams["Vd"] : (parsedParams.count("Vf") ? parsedParams["Vf"] : 0.8));
             cObj["Iholding"] = formatJSStyleDouble(parsedParams.count("Iholding") ? parsedParams["Iholding"] : (parsedParams.count("Ih") ? parsedParams["Ih"] : 0.01));
+            cObj["Vgt"] = formatJSStyleDouble(parsedParams.count("Vgt") ? parsedParams["Vgt"] : 0.5);
             physStageObj["analog_switches"].push_back(cObj);
         } else if (t == "XFMR" || t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "SAT_XFMR" || t == "MUTUAL_2W" || t == "Transformer" || t == "IdealTransformer" || t == "IDEAL_TRANSFORMER") {
             json xObj;
@@ -1314,32 +1315,39 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             ctrlLoopsObj["logic_gates"].push_back(cObj);
         } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
             std::string scriptCode = comp.parameters.count("code") ? comp.parameters.at("code") : "";
-            cObj["original_type"] = "CSCRIPT";
             cObj["code"] = scriptCode;
 
             std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
             CircuitSimEngine::CScriptEngine::discoverPorts(scriptCode, discIn, discOut);
 
-            int numIn = (int)discIn.size();
-            int numOut = (int)discOut.size();
-
-            cObj["num_inputs"] = numIn;
-            cObj["num_outputs"] = numOut;
-            cObj["output"] = discOut.empty() ? (comp.id + ".Out1") : (comp.id + "." + discOut[0].name);
-
-            double ts = 0.0;
-            if (comp.parameters.count("timestep")) {
-                try { ts = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("timestep")); } catch (...) {}
-            }
-            cObj["timestep"] = ts;
-
             json inputsArr = json::array();
             for (size_t i = 0; i < discIn.size(); ++i) {
                 std::string inSig = getIncomingSignal(comp.id, discIn[i].name);
                 if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In" + std::to_string(i + 1));
-                inputsArr.push_back(inSig);
+                if (!inSig.empty() && inSig != "0.0") {
+                    inputsArr.push_back(inSig);
+                }
             }
             cObj["inputs"] = inputsArr;
+
+            json outputsArr = json::array();
+            if (!discOut.empty()) {
+                for (size_t j = 0; j < discOut.size(); ++j) {
+                    outputsArr.push_back(comp.id + "." + discOut[j].name);
+                }
+            } else {
+                outputsArr.push_back(comp.id + ".Out1");
+            }
+            cObj["outputs"] = outputsArr;
+
+            std::string tsStr = comp.parameters.count("timestep") ? comp.parameters.at("timestep") : "0";
+            cObj["timestep"] = tsStr;
+
+            for (const auto& [pk, pv] : comp.parameters) {
+                if (pk != "code" && pk != "timestep" && pk != "id" && pk != "type" && pk != "num_inputs" && pk != "num_outputs" && pk != "original_type") {
+                    cObj[pk] = pv;
+                }
+            }
 
             ctrlLoopsObj["custom_scripts"].push_back(cObj);
         } else if (t == "INPORT" || t == "IN") {
