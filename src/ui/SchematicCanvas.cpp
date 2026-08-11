@@ -322,6 +322,51 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "MUX") {
         return {{"In1", -20, -12, -1, 0, true}, {"In2", -20, 12, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
+    if (t == "INPORT" || t == "IN") {
+        return {{"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "OUTPORT" || t == "OUT") {
+        return {{"In", -20, 0, -1, 0, true}};
+    }
+    if (t == "PHYSICAL_INPORT" || t == "PIN") {
+        return {{"A", 20, 0, 1, 0, true}};
+    }
+    if (t == "PHYSICAL_OUTPORT" || t == "POUT") {
+        return {{"A", -20, 0, -1, 0, true}};
+    }
+    if (t == "ENABLE_PORT") {
+        return {{"Enable", 0, -20, 0, -1, true}};
+    }
+    if (t == "TRIGGER_PORT") {
+        return {{"Trigger", 0, -20, 0, -1, true}};
+    }
+    if (t == "BUS_CREATOR") {
+        int n = 2;
+        if (comp.parameters.count("inputs")) {
+            try { n = std::stoi(comp.parameters.at("inputs")); } catch (...) {}
+        }
+        if (n < 1) n = 1; if (n > 8) n = 8;
+        std::vector<TerminalDef> terms;
+        for (int i = 0; i < n; ++i) {
+            float yOff = (n > 1) ? (-15.0f * (n - 1) / 2.0f + 15.0f * i) : 0.0f;
+            terms.push_back({"In" + std::to_string(i + 1), -20.0f, yOff, -1.0f, 0.0f, true});
+        }
+        terms.push_back({"Bus", 20.0f, 0.0f, 1.0f, 0.0f, true});
+        return terms;
+    }
+    if (t == "BUS_SELECTOR") {
+        std::vector<TerminalDef> terms;
+        terms.push_back({"Bus", -20.0f, 0.0f, -1.0f, 0.0f, true});
+        terms.push_back({"Out1", 20.0f, -10.0f, 1.0f, 0.0f, true});
+        terms.push_back({"Out2", 20.0f, 10.0f, 1.0f, 0.0f, true});
+        return terms;
+    }
+    if (t == "TERMINATOR") {
+        return {{"In", -15, 0, -1, 0, true}};
+    }
+    if (t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT") {
+        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
 
     if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
         std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
@@ -1368,6 +1413,59 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 6*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 6*s, 0, 2.0f*s);
         drawList->AddText({c.x - 28*s, c.y - 6*s}, color, "Subsystem");
+    } else if (t == "INPORT" || t == "IN") {
+        float hw = 22*s, hh = 15*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string pNum = comp.parameters.count("port_number") ? comp.parameters.at("port_number") : "1";
+        std::string lbl = "In " + pNum;
+        drawList->AddText({c.x - 12*s, c.y - 6*s}, color, lbl.c_str());
+    } else if (t == "OUTPORT" || t == "OUT") {
+        float hw = 22*s, hh = 15*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        std::string pNum = comp.parameters.count("port_number") ? comp.parameters.at("port_number") : "1";
+        std::string lbl = "Out " + pNum;
+        drawList->AddText({c.x - 14*s, c.y - 6*s}, color, lbl.c_str());
+    } else if (t == "PHYSICAL_INPORT" || t == "PIN") {
+        float hw = 22*s, hh = 15*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(40, 50, 70, 240), 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(234, 179, 8, 255), 4*s, 0, 2.0f*s);
+        drawList->AddText({c.x - 14*s, c.y - 6*s}, IM_COL32(234, 179, 8, 255), "pIn");
+    } else if (t == "PHYSICAL_OUTPORT" || t == "POUT") {
+        float hw = 22*s, hh = 15*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(40, 50, 70, 240), 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(234, 179, 8, 255), 4*s, 0, 2.0f*s);
+        drawList->AddText({c.x - 16*s, c.y - 6*s}, IM_COL32(234, 179, 8, 255), "pOut");
+    } else if (t == "ENABLE_PORT") {
+        float hw = 22*s, hh = 18*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText({c.x - 18*s, c.y - 6*s}, color, "Enable");
+    } else if (t == "TRIGGER_PORT") {
+        float hw = 22*s, hh = 18*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText({c.x - 18*s, c.y - 6*s}, color, "Trig");
+    } else if (t == "BUS_CREATOR" || t == "BUS_SELECTOR") {
+        float hw = 8*s, hh = 25*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(30, 30, 30, 255), 2*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(200, 200, 200, 255), 2*s, 0, 1.5f*s);
+    } else if (t == "TERMINATOR") {
+        float hw = 15*s, hh = 15*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 2*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 2*s, 0, 1.5f*s);
+        drawList->AddLine({c.x + 4*s, c.y - 8*s}, {c.x + 4*s, c.y + 8*s}, color, 2.0f*s);
+    } else if (t == "POLYNOMIAL") {
+        float hw = 35*s, hh = 22*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText({c.x - 25*s, c.y - 6*s}, color, "Poly P(u)");
+    } else if (t == "ALGEBRAIC_CONSTRAINT") {
+        float hw = 35*s, hh = 22*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+        drawList->AddText({c.x - 22*s, c.y - 6*s}, color, "f(z) = 0");
     } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
         std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
         getCSCRIPTPorts(comp, inPorts, outPorts);
@@ -1963,6 +2061,21 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
     } else if (t == "SUBSYSTEM") {
         outHalfW = std::max(outHalfW, 52.0f);
         outHalfH = std::max(outHalfH, 42.0f);
+    } else if (t == "INPORT" || t == "OUTPORT" || t == "IN" || t == "OUT" || t == "PIN" || t == "POUT" || t == "PHYSICAL_INPORT" || t == "PHYSICAL_OUTPORT") {
+        outHalfW = std::max(outHalfW, 24.0f);
+        outHalfH = std::max(outHalfH, 16.0f);
+    } else if (t == "ENABLE_PORT" || t == "TRIGGER_PORT") {
+        outHalfW = std::max(outHalfW, 24.0f);
+        outHalfH = std::max(outHalfH, 20.0f);
+    } else if (t == "BUS_CREATOR" || t == "BUS_SELECTOR") {
+        outHalfW = std::max(outHalfW, 10.0f);
+        outHalfH = std::max(outHalfH, 28.0f);
+    } else if (t == "TERMINATOR") {
+        outHalfW = std::max(outHalfW, 16.0f);
+        outHalfH = std::max(outHalfH, 16.0f);
+    } else if (t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT") {
+        outHalfW = std::max(outHalfW, 36.0f);
+        outHalfH = std::max(outHalfH, 24.0f);
     } else if (t == "PULSE" || t == "PULSE_GEN") {
         outHalfW = std::max(outHalfW, 24.0f);
         outHalfH = std::max(outHalfH, 18.0f);

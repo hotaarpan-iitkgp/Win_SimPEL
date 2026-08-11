@@ -767,7 +767,18 @@ void MainWindow::renderComponentPalette() {
 
         static const std::vector<ComponentMeta> allComponents = {
             // General Domain
-            { "Subsystem Block", "Subsystem", "SUBSYSTEM", ComponentType::Unknown, "SUBSYSTEM", "general", "Ports and Subsystems", {}, true },
+            // General Domain - Ports and Subsystems
+            { "Subsystem Block", "Subsystem", "SUBSYSTEM", ComponentType::Subsystem, "SUBSYSTEM", "general", "Ports and Subsystems", {}, true },
+            { "Inport (INPORT)", "Inport", "INPORT", ComponentType::Inport, "INPORT", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
+            { "Outport (OUTPORT)", "Outport", "OUTPORT", ComponentType::Outport, "OUTPORT", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
+            { "Physical Inport (PIN)", "Phys Inport", "PIN", ComponentType::PhysicalInport, "PIN", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
+            { "Physical Outport (POUT)", "Phys Outport", "POUT", ComponentType::PhysicalOutport, "POUT", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
+            { "Enable Port (ENABLE_PORT)", "Enable", "ENABLE_PORT", ComponentType::EnablePort, "ENABLE_PORT", "general", "Ports and Subsystems", {{"states_when_disabled", "held"}}, true },
+            { "Trigger Port (TRIGGER_PORT)", "Trigger", "TRIGGER_PORT", ComponentType::TriggerPort, "TRIGGER_PORT", "general", "Ports and Subsystems", {{"trigger_type", "rising"}}, true },
+            { "Bus Creator (BUS_CREATOR)", "Bus Creator", "BUS_CREATOR", ComponentType::BusCreator, "BUS_CREATOR", "general", "Ports and Subsystems", {{"inputs", "2"}}, true },
+            { "Bus Selector (BUS_SELECTOR)", "Bus Selector", "BUS_SELECTOR", ComponentType::BusSelector, "BUS_SELECTOR", "general", "Ports and Subsystems", {{"signals", "signal1,signal2"}}, true },
+            { "Terminator (TERMINATOR)", "Terminator", "TERMINATOR", ComponentType::Terminator, "TERMINATOR", "general", "Ports and Subsystems", {}, true },
+
             { "Active Probe (PROBE)", "Active Probe", "PROBE", ComponentType::Unknown, "PROBE", "general", "Signal Routing", {{"target", ""}, {"selected_signals", ""}}, true },
             { "Oscilloscope (SCOPE)", "Oscilloscope", "SCOPE", ComponentType::Unknown, "SCOPE", "general", "Visualization & Logging", {{"channels", "2"}}, true },
 
@@ -785,6 +796,7 @@ void MainWindow::renderComponentPalette() {
 
             // Functions & Tables
             { "Gain Scalar (GAIN)", "Gain", "GAIN", ComponentType::Gain, "GAIN", "control", "Functions & Tables", {{"K", "2.5"}}, true },
+            { "Sum (SUM_RECT)", "Sum", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Functions & Tables", {{"inputs", "++"}}, true },
             { "Product (PROD)", "Product", "PROD", ComponentType::Product, "PRODUCT_RECT", "control", "Functions & Tables", {{"operators", "*/"}}, true },
             { "Trigonometric Function (TRIG_FCN)", "Trig", "TRIG_FCN", ComponentType::TrigFunction, "TRIG_FCN", "control", "Functions & Tables", {{"function", "sin"}}, false },
             { "Math Function (MATH_FCN)", "Math Function", "MATH_FCN", ComponentType::MathFunction, "MATH_FCN", "control", "Functions & Tables", {{"function", "exp"}}, true },
@@ -792,10 +804,12 @@ void MainWindow::renderComponentPalette() {
             { "Sign (SIGN)", "Sign", "SIGN", ComponentType::Sign, "SIGN", "control", "Functions & Tables", {}, false },
             { "Round (ROUND)", "Round", "ROUND", ComponentType::Round, "ROUND", "control", "Functions & Tables", {{"mode", "nearest"}}, false },
             { "Min/Max (MIN_MAX)", "MinMax", "MIN_MAX", ComponentType::MinMax, "MIN_MAX", "control", "Functions & Tables", {{"function", "min"}}, false },
+            { "Polynomial (POLYNOMIAL)", "Polynomial", "POLYNOMIAL", ComponentType::Polynomial, "POLYNOMIAL", "control", "Functions & Tables", {{"coefficients", "[1, 0]"}}, true },
             { "1D Look-Up Table (LUT_1D)", "LUT 1D", "LUT_1D", ComponentType::LUT_1D, "LUT_1D", "control", "Functions & Tables", {{"x_data", "[0, 1, 2]"}, {"y_data", "[0, 2, 4]"}}, false },
             { "2D Look-Up Table (LUT_2D)", "LUT 2D", "LUT_2D", ComponentType::LUT_2D, "LUT_2D", "control", "Functions & Tables", {{"x_data", "[0, 1]"}, {"y_data", "[0, 1]"}, {"z_data", "[[0, 1], [1, 2]]"}}, false },
             { "3D Look-Up Table (LUT_3D)", "LUT 3D", "LUT_3D", ComponentType::LUT_3D, "LUT_3D", "control", "Functions & Tables", {}, false },
             { "C-Script (CSCRIPT)", "C-Script", "CSCRIPT", ComponentType::CustomScript, "CSCRIPT", "control", "Functions & Tables", {{"code", "// Step code\noutputs[0] = inputs[0] * 2.0;\n"}}, true },
+            { "Algebraic Constraint (ALGEBRAIC_CONSTRAINT)", "Alg Constraint", "ALGEBRAIC_CONSTRAINT", ComponentType::AlgebraicConstraint, "ALGEBRAIC_CONSTRAINT", "control", "Functions & Tables", {{"initial_guess", "0.0"}}, true },
             { "DLL (DLL)", "DLL", "DLL", ComponentType::DLL, "DLL", "control", "Functions & Tables", {}, false },
             { "FMU (FMU)", "FMU", "FMU", ComponentType::FMU, "FMU", "control", "Functions & Tables", {}, false },
             { "Fourier Series (FOURIER_SERIES)", "Fourier", "FOURIER_SERIES", ComponentType::FourierSeries, "FOURIER_SERIES", "control", "Functions & Tables", {}, false },

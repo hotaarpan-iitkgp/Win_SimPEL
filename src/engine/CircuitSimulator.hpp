@@ -104,12 +104,26 @@ enum class ComponentType {
     Sign,
     Round,
     MinMax,
+    Polynomial,
+    AlgebraicConstraint,
     LUT_1D,
     LUT_2D,
     LUT_3D,
     DLL,
     FMU,
     FourierSeries,
+
+    // Ports and Subsystems
+    Subsystem,
+    Inport,
+    Outport,
+    PhysicalInport,
+    PhysicalOutport,
+    EnablePort,
+    TriggerPort,
+    BusCreator,
+    BusSelector,
+    Terminator,
 
     // Control Continuous Detailed Library
     Integrator,
@@ -263,6 +277,7 @@ struct FastCompiledComponent {
     bool edgeActive = false;     // Active pulse output for EDGE_DETECT / MONOSTABLE / MONOFLOP
     double triggerTime = -1.0;   // Time pulse was triggered
     double pulseDuration = 0.1;  // Duration of pulse output
+    std::vector<double> polyCoeffs;
     bool retriggerable = false;  // Whether monoflop is retriggerable
     std::string edgeMode;        // "rising", "falling", "either"
     std::vector<double> shiftBuffer;  // Buffer for SHIFT_REG

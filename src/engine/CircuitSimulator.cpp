@@ -1866,6 +1866,29 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 else if (f == "rem") { double m = (v2 == 0.0 ? 1.0 : v2); val = std::fmod(v1, m); }
                 else val = v1 * v1;
             }
+            else if (fc.type == ComponentType::Polynomial) {
+                double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double polyVal = 0.0;
+                if (!fc.polyCoeffs.empty()) {
+                    for (size_t i = 0; i < fc.polyCoeffs.size(); ++i) {
+                        polyVal = polyVal * u + fc.polyCoeffs[i];
+                    }
+                } else {
+                    polyVal = u;
+                }
+                val = polyVal;
+            }
+            else if (fc.type == ComponentType::AlgebraicConstraint) {
+                double f_z = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double z_prev = fc.stateVal;
+                double z_new = z_prev - 0.01 * f_z;
+                fc.stateVal = z_new;
+                val = z_new;
+            }
+            else if (fc.type == ComponentType::Inport || fc.type == ComponentType::Outport || fc.type == ComponentType::PhysicalInport || fc.type == ComponentType::PhysicalOutport || fc.type == ComponentType::EnablePort || fc.type == ComponentType::TriggerPort || fc.type == ComponentType::BusCreator || fc.type == ComponentType::BusSelector || fc.type == ComponentType::Terminator) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = inVal;
+            }
             else if (fc.type == ComponentType::KeyTrigger) {
                 val = (fc.val != 0.0) ? fc.val : 1.0;
             }

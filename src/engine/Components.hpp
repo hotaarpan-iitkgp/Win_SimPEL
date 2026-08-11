@@ -57,6 +57,22 @@ enum class ComponentType {
     KeyTrigger,       // KEY_TRIGGER
     Goto,
     From,
+
+    // Ports & Subsystem Library
+    Subsystem,
+    Inport,           // INPORT, IN
+    Outport,          // OUTPORT, OUT
+    PhysicalInport,   // PHYSICAL_INPORT, PIN
+    PhysicalOutport,  // PHYSICAL_OUTPORT, POUT
+    EnablePort,       // ENABLE_PORT
+    TriggerPort,      // TRIGGER_PORT
+    BusCreator,       // BUS_CREATOR
+    BusSelector,      // BUS_SELECTOR
+    Terminator,       // TERMINATOR
+
+    // Additional Functions & Tables
+    Polynomial,       // POLYNOMIAL
+    AlgebraicConstraint, // ALGEBRAIC_CONSTRAINT
     
     // Control Sources Detailed Library
     Clock,            // CLOCK
@@ -358,6 +374,20 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "KeyTrigger" || typeStr == "KEY_TRIGGER") return ComponentType::KeyTrigger;
     if (typeStr == "Goto" || typeStr == "GOTO") return ComponentType::Goto;
     if (typeStr == "From" || typeStr == "FROM") return ComponentType::From;
+
+    if (typeStr == "Subsystem" || typeStr == "SUBSYSTEM") return ComponentType::Subsystem;
+    if (typeStr == "Inport" || typeStr == "INPORT" || typeStr == "IN") return ComponentType::Inport;
+    if (typeStr == "Outport" || typeStr == "OUTPORT" || typeStr == "OUT") return ComponentType::Outport;
+    if (typeStr == "PhysicalInport" || typeStr == "PHYSICAL_INPORT" || typeStr == "PIN") return ComponentType::PhysicalInport;
+    if (typeStr == "PhysicalOutport" || typeStr == "PHYSICAL_OUTPORT" || typeStr == "POUT") return ComponentType::PhysicalOutport;
+    if (typeStr == "EnablePort" || typeStr == "ENABLE_PORT") return ComponentType::EnablePort;
+    if (typeStr == "TriggerPort" || typeStr == "TRIGGER_PORT") return ComponentType::TriggerPort;
+    if (typeStr == "BusCreator" || typeStr == "BUS_CREATOR") return ComponentType::BusCreator;
+    if (typeStr == "BusSelector" || typeStr == "BUS_SELECTOR") return ComponentType::BusSelector;
+    if (typeStr == "Terminator" || typeStr == "TERMINATOR") return ComponentType::Terminator;
+
+    if (typeStr == "Polynomial" || typeStr == "POLYNOMIAL") return ComponentType::Polynomial;
+    if (typeStr == "AlgebraicConstraint" || typeStr == "ALGEBRAIC_CONSTRAINT") return ComponentType::AlgebraicConstraint;
     return ComponentType::Unknown;
 }
 
@@ -407,6 +437,18 @@ inline std::string componentTypeToString(ComponentType type) {
         case ComponentType::KeyTrigger: return "KeyTrigger";
         case ComponentType::Goto: return "Goto";
         case ComponentType::From: return "From";
+        case ComponentType::Subsystem: return "Subsystem";
+        case ComponentType::Inport: return "Inport";
+        case ComponentType::Outport: return "Outport";
+        case ComponentType::PhysicalInport: return "PhysicalInport";
+        case ComponentType::PhysicalOutport: return "PhysicalOutport";
+        case ComponentType::EnablePort: return "EnablePort";
+        case ComponentType::TriggerPort: return "TriggerPort";
+        case ComponentType::BusCreator: return "BusCreator";
+        case ComponentType::BusSelector: return "BusSelector";
+        case ComponentType::Terminator: return "Terminator";
+        case ComponentType::Polynomial: return "Polynomial";
+        case ComponentType::AlgebraicConstraint: return "AlgebraicConstraint";
         default: return "Unknown";
     }
 }

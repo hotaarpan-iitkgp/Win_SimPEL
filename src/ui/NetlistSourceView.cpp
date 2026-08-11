@@ -1342,6 +1342,53 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["inputs"] = inputsArr;
 
             ctrlLoopsObj["custom_scripts"].push_back(cObj);
+        } else if (t == "INPORT" || t == "IN") {
+            cObj["original_type"] = "INPORT";
+            cObj["output"] = comp.id + ".Out";
+            std::string pNum = comp.parameters.count("port_number") ? comp.parameters.at("port_number") : "1";
+            cObj["port_number"] = pNum;
+            ctrlLoopsObj["ports"].push_back(cObj);
+        } else if (t == "OUTPORT" || t == "OUT") {
+            cObj["original_type"] = "OUTPORT";
+            std::string inSig = getIncomingSignal(comp.id, "In");
+            cObj["input"] = inSig;
+            std::string pNum = comp.parameters.count("port_number") ? comp.parameters.at("port_number") : "1";
+            cObj["port_number"] = pNum;
+            ctrlLoopsObj["ports"].push_back(cObj);
+        } else if (t == "BUS_CREATOR") {
+            cObj["original_type"] = "BUS_CREATOR";
+            cObj["output"] = comp.id + ".Bus";
+            int n = 2;
+            if (comp.parameters.count("inputs")) {
+                try { n = std::stoi(comp.parameters.at("inputs")); } catch (...) {}
+            }
+            json inputsArr = json::array();
+            for (int i = 1; i <= n; ++i) {
+                inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+            }
+            cObj["inputs"] = inputsArr;
+            ctrlLoopsObj["buses"].push_back(cObj);
+        } else if (t == "BUS_SELECTOR") {
+            cObj["original_type"] = "BUS_SELECTOR";
+            cObj["input"] = getIncomingSignal(comp.id, "Bus");
+            cObj["signals"] = comp.parameters.count("signals") ? comp.parameters.at("signals") : "";
+            ctrlLoopsObj["buses"].push_back(cObj);
+        } else if (t == "TERMINATOR") {
+            cObj["original_type"] = "TERMINATOR";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            ctrlLoopsObj["terminators"].push_back(cObj);
+        } else if (t == "POLYNOMIAL") {
+            cObj["original_type"] = "POLYNOMIAL";
+            cObj["output"] = comp.id + ".Out";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            cObj["coefficients"] = comp.parameters.count("coefficients") ? comp.parameters.at("coefficients") : "[1, 0]";
+            ctrlLoopsObj["functions"].push_back(cObj);
+        } else if (t == "ALGEBRAIC_CONSTRAINT") {
+            cObj["original_type"] = "ALGEBRAIC_CONSTRAINT";
+            cObj["output"] = comp.id + ".Out";
+            cObj["input"] = getIncomingSignal(comp.id, "In");
+            cObj["initial_guess"] = comp.parameters.count("initial_guess") ? comp.parameters.at("initial_guess") : "0.0";
+            ctrlLoopsObj["functions"].push_back(cObj);
         }
     }
 

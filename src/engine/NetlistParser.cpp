@@ -166,6 +166,17 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "PI_Controller" || t == "PI" || t == "PID" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "pi_controllers" || t == "pid_controllers") return ComponentType::ContinuousPID;
     if (t == "Comparator" || t == "COMP" || t == "E_COMP" || t == "comparators") return ComponentType::Comparator;
     if (t == "CustomScript" || t == "CSCRIPT" || t == "custom_scripts") return ComponentType::CustomScript;
+    if (t == "INPORT" || t == "IN" || t == "ports") return ComponentType::Inport;
+    if (t == "OUTPORT" || t == "OUT") return ComponentType::Outport;
+    if (t == "PHYSICAL_INPORT" || t == "PIN") return ComponentType::PhysicalInport;
+    if (t == "PHYSICAL_OUTPORT" || t == "POUT") return ComponentType::PhysicalOutport;
+    if (t == "ENABLE_PORT") return ComponentType::EnablePort;
+    if (t == "TRIGGER_PORT") return ComponentType::TriggerPort;
+    if (t == "BUS_CREATOR" || t == "buses") return ComponentType::BusCreator;
+    if (t == "BUS_SELECTOR") return ComponentType::BusSelector;
+    if (t == "TERMINATOR" || t == "terminators") return ComponentType::Terminator;
+    if (t == "POLYNOMIAL" || t == "functions") return ComponentType::Polynomial;
+    if (t == "ALGEBRAIC_CONSTRAINT") return ComponentType::AlgebraicConstraint;
     if (t == "XFMR" || t == "Transformer" || t == "transformers") return ComponentType::Transformer;
     return ComponentType::Unknown;
 }
