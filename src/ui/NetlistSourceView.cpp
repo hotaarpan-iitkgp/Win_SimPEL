@@ -1531,7 +1531,64 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     simParamsObj["engine"] = "auto";
     simParamsObj["enable_lu_cache"] = true;
 
-    // ─── Component-Aware Wanted Variables Generation ───
+    // ─── Component-Aware Wanted Variables Generation (with Series Current & CScript Output Pruning) ───
+    struct CompNodes { std::string id; std::string t; std::string n1; std::string n2; };
+    std::vector<CompNodes> physComps;
+    std::unordered_map<std::string, std::vector<std::string>> nodeToComps;
+    std::unordered_map<std::string, int> compPriority;
+
+    for (const auto& comp : tempDesign.components) {
+        std::string t = comp.rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+        int prio = 0;
+        if (t == "L" || t == "INDUCTOR") prio = 10;
+        else if (t == "C" || t == "CAPACITOR") prio = 8;
+        else if (t == "D" || t == "DIODE") prio = 6;
+        else if (t == "MOSFET" || t == "S" || t == "SWITCH") prio = 5;
+        else if (t == "R" || t == "RESISTOR") prio = 4;
+        else if (t == "V" || t == "AC_V" || t == "VOLTAGESOURCE") prio = 2;
+
+        compPriority[comp.id] = prio;
+
+        if (comp.nodes.size() >= 2) {
+            std::string n1 = comp.nodes[0];
+            std::string n2 = comp.nodes[1];
+            physComps.push_back({comp.id, t, n1, n2});
+            nodeToComps[n1].push_back(comp.id);
+            nodeToComps[n2].push_back(comp.id);
+        }
+    }
+
+    std::unordered_map<std::string, std::string> parent;
+    for (const auto& pc : physComps) parent[pc.id] = pc.id;
+
+    std::function<std::string(const std::string&)> findRoot = [&](const std::string& i) -> std::string {
+        if (parent[i] == i) return i;
+        return parent[i] = findRoot(parent[i]);
+    };
+
+    auto unionSet = [&](const std::string& a, const std::string& b) {
+        std::string rA = findRoot(a);
+        std::string rB = findRoot(b);
+        if (rA != rB) {
+            if (compPriority[rA] >= compPriority[rB]) parent[rB] = rA;
+            else parent[rA] = rB;
+        }
+    };
+
+    for (const auto& [nodeName, compList] : nodeToComps) {
+        if (compList.size() == 2) {
+            unionSet(compList[0], compList[1]);
+        }
+    }
+
+    std::unordered_set<std::string> chosenSeriesRep;
+    for (const auto& pc : physComps) {
+        std::string rootComp = findRoot(pc.id);
+        chosenSeriesRep.insert(rootComp);
+    }
+
     json wantedVars = json::array();
     std::unordered_set<std::string> addedVars;
 
@@ -1543,11 +1600,21 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             std::string varName = "V_" + comp.id;
             if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
         } else if (t == "L" || t == "INDUCTOR" || t == "D" || t == "DIODE" || t == "MOSFET" || t == "S") {
-            std::string varName = "I_" + comp.id;
-            if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+            if (chosenSeriesRep.count(comp.id)) {
+                std::string varName = "I_" + comp.id;
+                if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+            }
         } else if (t == "PULSE" || t == "PULSE_GEN" || t == "PWM" || t == "CONST" || t == "CONSTANT" || t == "GAIN" || t == "TRI" || t == "TRI_GEN" || t == "TRIANGLE" || comp.type == ComponentType::Triangle_Carrier) {
             std::string varName = comp.id + ".Out";
             if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+        } else if (t == "CSCRIPT") {
+            std::string scriptCode = comp.parameters.count("code") ? comp.parameters.at("code") : "";
+            std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
+            CircuitSimEngine::CScriptEngine::discoverPorts(scriptCode, discIn, discOut);
+            for (const auto& op : discOut) {
+                std::string varName = comp.id + "." + op.name;
+                if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+            }
         } else if (t == "SCOPE" || t == "OSCILLOSCOPE") {
             int numChannels = 2;
             if (comp.parameters.count("channels")) {

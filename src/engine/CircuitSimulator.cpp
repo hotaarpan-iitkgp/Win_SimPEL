@@ -604,18 +604,18 @@ void CircuitSimulator::buildIndexMaps() {
             std::string code = getParamString(ctrlComp, "code", "");
             cscriptEngines[ctrlComp.id].setup(code, ctrlComp.parameters);
 
-            for (int i = 0; i < 20; ++i) {
-                std::string inK = getParamString(ctrlComp, "In" + std::to_string(i + 1), "");
-                if (inK.empty()) inK = getParamString(ctrlComp, "input_" + std::to_string(i), "");
-                if (inK.empty()) inK = ctrlComp.id + ".In" + std::to_string(i + 1);
+            std::vector<CScriptPort> discIn, discOut;
+            CScriptEngine::discoverPorts(code, discIn, discOut);
 
-                std::string outK = getParamString(ctrlComp, "Out" + std::to_string(i + 1), "");
-                if (outK.empty()) outK = getParamString(ctrlComp, "output_" + std::to_string(i), "");
-                if (outK.empty()) outK = ctrlComp.id + ".Out" + std::to_string(i + 1);
-
+            for (size_t i = 0; i < discIn.size(); ++i) {
+                std::string inK = ctrlComp.id + "." + discIn[i].name;
                 fc.inputSigKeys.push_back(inK);
-                fc.outputSigKeys.push_back(outK);
                 fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
+            }
+
+            for (size_t j = 0; j < discOut.size(); ++j) {
+                std::string outK = ctrlComp.id + "." + discOut[j].name;
+                fc.outputSigKeys.push_back(outK);
                 fc.outputSigIndices.push_back(getOrCreateSignalIdx(outK));
             }
 

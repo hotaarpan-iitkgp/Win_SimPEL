@@ -1334,15 +1334,23 @@ void MainWindow::renderPropertyInspector() {
         }
     } else if (t != "SCOPE" && t != "PROBE") {
         // Control / Math component signals
-        availableSignals.push_back(comp->id + ".Out");
         if (t == "CSCRIPT") {
-            availableSignals.push_back(comp->id + ".Out1");
-            availableSignals.push_back(comp->id + ".Out2");
-            availableSignals.push_back(comp->id + ".Out3");
-            availableSignals.push_back(comp->id + ".Out4");
-        } else if (t == "SUM_RECT" || t == "SUM_ROUND" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR") {
-            availableSignals.push_back(comp->id + ".A");
-            availableSignals.push_back(comp->id + ".B");
+            std::string codeStr = comp->parameters.count("code") ? comp->parameters.at("code") : "";
+            std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
+            CircuitSimEngine::CScriptEngine::discoverPorts(codeStr, discIn, discOut);
+            if (!discOut.empty()) {
+                for (const auto& op : discOut) {
+                    availableSignals.push_back(comp->id + "." + op.name);
+                }
+            } else {
+                availableSignals.push_back(comp->id + ".Out1");
+            }
+        } else {
+            availableSignals.push_back(comp->id + ".Out");
+            if (t == "SUM_RECT" || t == "SUM_ROUND" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR") {
+                availableSignals.push_back(comp->id + ".A");
+                availableSignals.push_back(comp->id + ".B");
+            }
         }
     }
 
