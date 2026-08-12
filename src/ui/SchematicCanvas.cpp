@@ -158,7 +158,7 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
         return {{"A", -20, -10, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 10, -1, 0, true}, {"Theta", 20, -10, 1, 0, true}, {"Freq", 20, 10, 1, 0, true}};
     }
     if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "SUB" ||
-        t == "PROD" || t == "PRODUCT_RECT") {
+        t == "PROD" || t == "PRODUCT_RECT" || t == "MIN_MAX" || t == "MIN" || t == "MAX") {
         std::vector<std::string> signs;
         int nInputs = parseMathBlockPins(comp, signs);
 
@@ -181,7 +181,7 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
 
         return terms;
     }
-    if (t == "COMP" || t == "AND" || t == "OR" || t == "MIN_MAX" ||
+    if (t == "COMP" || t == "AND" || t == "OR" ||
         t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "RELATIONAL_OPERATOR") {
         return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
@@ -1272,15 +1272,26 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "Round");
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
-    } else if (t == "MIN_MAX") {
-        float hw = 22*s, hh = 18*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
-        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+    } else if (t == "MIN_MAX" || t == "MIN" || t == "MAX") {
+        std::vector<std::string> dummySigns;
+        int nInputs = parseMathBlockPins(comp, dummySigns);
+
+        float hw = 25.0f * s;
+        float spacing = 18.0f * s;
+        float totalH = std::max(40.0f * s, (nInputs - 1) * spacing + 20.0f * s);
+        float hh = totalH * 0.5f;
+
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4.0f * s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4.0f * s, 0, 2.0f * s);
+
         std::string mmFn = comp.parameters.count("function") ? comp.parameters.at("function") : "min";
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, mmFn.c_str());
-        drawList->AddLine(rotatePt(-hw - 4*s, -10*s, c.x, c.y, rot), rotatePt(-hw, -10*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(-hw - 4*s, 10*s, c.x, c.y, rot), rotatePt(-hw, 10*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddText(rotatePt(-14.0f * s, -6.0f * s, c.x, c.y, rot), color, mmFn.c_str());
+
+        for (int i = 0; i < nInputs; ++i) {
+            float py = -hh + 10.0f * s + i * spacing;
+            drawList->AddLine(rotatePt(-hw - 4.0f * s, py, c.x, c.y, rot), rotatePt(-hw, py, c.x, c.y, rot), color, 2.0f * s);
+        }
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4.0f * s, 0, c.x, c.y, rot), color, 2.0f * s);
     } else if (t == "GOTO_SIG" || t == "GOTO") {
         std::string tag = comp.parameters.count("tag") ? comp.parameters.at("tag") : "A";
         float hh = 14*s;

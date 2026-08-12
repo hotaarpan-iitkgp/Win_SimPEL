@@ -1306,13 +1306,13 @@ void MainWindow::renderPropertyInspector() {
 
         std::vector<std::string> comboChoices;
 
-        if (pKey == "function" || pKey == "func") {
+        if (pKey == "function" || pKey == "func" || pKey == "fcn" || pKey == "expression") {
             if (t == "ROUND") {
                 comboChoices = {"round", "floor", "ceil", "fix"};
-            } else if (t == "MIN_MAX") {
+            } else if (t == "MIN_MAX" || t == "MIN" || t == "MAX") {
                 comboChoices = {"min", "max"};
-            } else if (t == "TRIG_FCN" || t == "TRIG") {
-                comboChoices = {"sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh"};
+            } else if (t == "TRIG_FCN" || t == "TRIG" || t == "FCN" || t == "MATH_FCN" || t == "MATH_FUNC" || t == "MATH") {
+                comboChoices = {"sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "log", "log10", "sqrt", "abs", "square", "pow", "reciprocal"};
             } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
                 comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
             }

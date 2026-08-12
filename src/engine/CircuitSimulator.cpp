@@ -327,7 +327,29 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::Round) {
             fc.polarity = getParamString(ctrlComp, "mode", "nearest");
         } else if (ctrlComp.type == ComponentType::MinMax) {
-            fc.polarity = getParamString(ctrlComp, "function", "min");
+            std::string funcStr = getParamString(ctrlComp, "function", "min");
+            if (funcStr.empty()) funcStr = getParamString(ctrlComp, "func", "min");
+            if (funcStr.empty()) funcStr = getParamString(ctrlComp, "mode", "min");
+            fc.polarity = funcStr;
+
+            std::string nStr = getParamString(ctrlComp, "num_inputs", "");
+            if (nStr.empty()) nStr = getParamString(ctrlComp, "inputs", "");
+            if (nStr.empty()) nStr = getParamString(ctrlComp, "number_of_inputs", "");
+
+            int nPins = 2;
+            if (!nStr.empty()) {
+                try { nPins = std::clamp(std::stoi(nStr), 1, 32); } catch (...) { nPins = 2; }
+            }
+
+            fc.inputSigKeys.clear();
+            fc.inputSigIndices.clear();
+            for (int i = 0; i < nPins; ++i) {
+                std::string inK = getParamString(ctrlComp, "In" + std::to_string(i + 1), "");
+                if (inK.empty()) inK = getParamString(ctrlComp, "input_" + std::to_string(i), "");
+                if (inK.empty() && i == 0) inK = getParamString(ctrlComp, "In", "");
+                fc.inputSigKeys.push_back(inK);
+                fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
+            }
         } else if (ctrlComp.type == ComponentType::LUT_1D) {
             fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
             if (ctrlComp.parameters.count("x_data")) fc.polarity = getParamString(ctrlComp, "x_data", "[0, 1]");
@@ -935,6 +957,14 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 else if (f == "sinh") val = std::sinh(inVal);
                 else if (f == "cosh") val = std::cosh(inVal);
                 else if (f == "tanh") val = std::tanh(inVal);
+                else if (f == "exp") val = std::exp(inVal);
+                else if (f == "log" || f == "ln") val = std::log(std::max(1e-15, inVal));
+                else if (f == "log10") val = std::log10(std::max(1e-15, inVal));
+                else if (f == "sqrt") val = std::sqrt(std::max(0.0, inVal));
+                else if (f == "abs") val = std::abs(inVal);
+                else if (f == "square" || f == "sqr") val = inVal * inVal;
+                else if (f == "pow") val = std::pow(inVal, inVal2);
+                else if (f == "reciprocal" || f == "1/x") val = (std::abs(inVal) < 1e-15) ? 1e15 : (1.0 / inVal);
                 else val = std::sin(inVal);
             }
             else if (fc.type == ComponentType::Round) {
@@ -944,10 +974,30 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 else val = std::round(inVal);
             }
             else if (fc.type == ComponentType::MinMax) {
-                double in0 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double in1 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
-                if (fc.polarity == "max") val = std::max(in0, in1);
-                else val = std::min(in0, in1);
+                size_t nIn = std::max((size_t)1, fc.inputSigIndices.size());
+                double resVal = 0.0;
+                bool first = true;
+                bool isMax = (fc.polarity == "max");
+
+                for (size_t i = 0; i < nIn; ++i) {
+                    double vIn = 0.0;
+                    if (i < fc.inputSigIndices.size() && fc.inputSigIndices[i] >= 0 && fc.inputSigIndices[i] < (int)flatControlSignals.size()) {
+                        vIn = flatControlSignals[fc.inputSigIndices[i]];
+                    } else if (i == 0 && fc.in0Ptr) {
+                        vIn = *fc.in0Ptr;
+                    } else if (i == 1 && fc.in1Ptr) {
+                        vIn = *fc.in1Ptr;
+                    }
+
+                    if (first) {
+                        resVal = vIn;
+                        first = false;
+                    } else {
+                        if (isMax) resVal = std::max(resVal, vIn);
+                        else resVal = std::min(resVal, vIn);
+                    }
+                }
+                val = resVal;
             }
             else if (fc.type == ComponentType::LUT_1D) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
