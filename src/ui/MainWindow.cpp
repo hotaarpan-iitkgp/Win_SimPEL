@@ -1300,6 +1300,68 @@ void MainWindow::renderPropertyInspector() {
             continue;
         }
 
+        // ── Dropdown Combos for String Parameters with Known Discrete Options ──
+        std::string pKey = pair.first;
+        std::transform(pKey.begin(), pKey.end(), pKey.begin(), ::tolower);
+
+        std::vector<std::string> comboChoices;
+
+        if (pKey == "function" || pKey == "func") {
+            if (t == "ROUND") {
+                comboChoices = {"round", "floor", "ceil", "fix"};
+            } else if (t == "MIN_MAX") {
+                comboChoices = {"min", "max"};
+            } else if (t == "TRIG_FCN" || t == "TRIG") {
+                comboChoices = {"sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh"};
+            } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
+                comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
+            }
+        } else if (pKey == "operator" || pKey == "op" || pKey == "relop") {
+            if (t == "RELATIONAL_OPERATOR" || t == "COMP" || t == "COMPARE_TO_CONSTANT") {
+                comboChoices = {"==", "~=", "<", "<=", ">", ">="};
+            } else if (t == "BITWISE_OP") {
+                comboChoices = {"AND", "OR", "XOR", "NOT", "SHIFT_LEFT", "SHIFT_RIGHT"};
+            } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
+                comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
+            }
+        } else if (pKey == "edgetype" || pKey == "edge") {
+            if (t == "EDGE_DETECT") {
+                comboChoices = {"rising", "falling", "either"};
+            }
+        } else if (pKey == "datatype" || pKey == "output_type") {
+            if (t == "DATATYPE_CONV") {
+                comboChoices = {"double", "float", "int32", "int16", "int8", "uint32", "uint16", "uint8", "boolean"};
+            }
+        } else if (pKey == "filter_type" || (pKey == "type" && (t == "FILTER_1ST" || t == "FILTER_2ND"))) {
+            comboChoices = {"lowpass", "highpass", "bandpass", "bandstop"};
+        } else if (pKey == "alignment" || pKey == "mode") {
+            if (t == "PWM" || t == "PWM_3PH" || t == "SVPWM") {
+                comboChoices = {"edge", "center", "symmetric", "asymmetric"};
+            } else if (t == "FOURIER_ANALYSIS" || t == "FOURIER_TRANS") {
+                comboChoices = {"magnitude_phase", "real_imag", "harmonic_series"};
+            }
+        } else if (pKey == "signs" && (t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT")) {
+            comboChoices = {"++", "+-", "-+", "+++", "+-+", "++--", "++++"};
+        } else if (pKey == "operators" && (t == "PROD" || t == "PRODUCT_RECT")) {
+            comboChoices = {"**", "*/", "***", "**/"};
+        }
+
+        if (!comboChoices.empty()) {
+            std::string currentVal = pair.second;
+            std::string comboLabel = pair.first + "##" + comp->id;
+            if (ImGui::BeginCombo(comboLabel.c_str(), currentVal.c_str())) {
+                for (const auto& choice : comboChoices) {
+                    bool isSelected = (currentVal == choice);
+                    if (ImGui::Selectable(choice.c_str(), isSelected)) {
+                        pair.second = choice;
+                    }
+                    if (isSelected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            continue;
+        }
+
         char valBuf[256] = {0};
         strncpy(valBuf, pair.second.c_str(), sizeof(valBuf) - 1);
         std::string inputLabel = pair.first + "##" + comp->id;
