@@ -359,6 +359,9 @@ void CircuitSimulator::buildIndexMaps() {
             fc.val = evaluateParam(ctrlComp, "initial_condition", 0.0);
             if (ctrlComp.parameters.count("initial_value")) fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
             if (ctrlComp.parameters.count("x0")) fc.val = evaluateParam(ctrlComp, "x0", 0.0);
+            fc.gain = evaluateParam(ctrlComp, "K", 1.0);
+            if (ctrlComp.parameters.count("gain")) fc.gain = evaluateParam(ctrlComp, "gain", 1.0);
+            if (ctrlComp.parameters.count("k")) fc.gain = evaluateParam(ctrlComp, "k", 1.0);
         } else if (ctrlComp.type == ComponentType::TransferFunction) {
             fc.polarity = getParamString(ctrlComp, "num", "");
             if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "numerator", "");
@@ -1038,10 +1041,11 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::Integrator) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                double gainK = (fc.gain != 0.0) ? fc.gain : 1.0;
                 if (currentTime == 0.0) {
-                    fc.stateVal = fc.val;
-                } else {
-                    fc.stateVal += inVal * dt;
+                    if (pass == 0) fc.stateVal = fc.val;
+                } else if (pass == 0) {
+                    fc.stateVal += gainK * inVal * dt;
                 }
                 val = fc.stateVal;
             }
@@ -1049,11 +1053,11 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
                 if (currentTime == 0.0) {
-                    fc.stateVal = inVal;
+                    if (pass == 0) fc.stateVal = inVal;
                     val = 0.0;
                 } else {
                     val = (inVal - fc.stateVal) / dt;
-                    fc.stateVal = inVal;
+                    if (pass == 0) fc.stateVal = inVal;
                 }
             }
             else if (fc.type == ComponentType::TransferFunction) {
@@ -1121,8 +1125,10 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     for (size_t k = 0; k < n; ++k) x4[k] = fc.stateVector[k] + dt * k3[k];
                     std::vector<double> k4 = getXDot(x4, inVal);
 
-                    for (size_t k = 0; k < n; ++k) {
-                        fc.stateVector[k] += (dt / 6.0) * (k1[k] + 2.0 * k2[k] + 2.0 * k3[k] + k4[k]);
+                    if (pass == 0) {
+                        for (size_t k = 0; k < n; ++k) {
+                            fc.stateVector[k] += (dt / 6.0) * (k1[k] + 2.0 * k2[k] + 2.0 * k3[k] + k4[k]);
+                        }
                     }
 
                     double bn = numNorm[0];
@@ -1142,12 +1148,15 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double Tf = (fc.minVal > 0.0) ? fc.minVal : 0.01;
 
                 if (currentTime == 0.0) {
-                    fc.stateVal = 0.0;
-                    fc.filterState = 0.0;
+                    if (pass == 0) {
+                        fc.stateVal = 0.0;
+                        fc.filterState = 0.0;
+                    }
+                } else if (pass == 0) {
+                    fc.stateVal += Ki * inVal * dt;
+                    fc.filterState = (Tf / (Tf + dt)) * fc.filterState + (dt / (Tf + dt)) * inVal;
                 }
-                fc.stateVal += Ki * inVal * dt;
                 double dTerm = (Kd / (Tf + dt)) * (inVal - fc.filterState);
-                fc.filterState = (Tf / (Tf + dt)) * fc.filterState + (dt / (Tf + dt)) * inVal;
                 val = Kp * inVal + fc.stateVal + dTerm;
             }
             else if (fc.type == ComponentType::PLL_1PH || fc.type == ComponentType::PLL_3PH) {
@@ -1155,8 +1164,11 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
                 double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
                 double w0 = 2.0 * 3.141592653589793 * fn;
-                if (currentTime == 0.0) fc.stateVal = 0.0;
-                fc.stateVal = std::fmod(fc.stateVal + w0 * dt, 2.0 * 3.141592653589793);
+                if (currentTime == 0.0) {
+                    if (pass == 0) fc.stateVal = 0.0;
+                } else if (pass == 0) {
+                    fc.stateVal = std::fmod(fc.stateVal + w0 * dt, 2.0 * 3.141592653589793);
+                }
                 val = fc.stateVal;
             }
             else if (fc.type == ComponentType::Delay || fc.type == ComponentType::TransportDelay) {
