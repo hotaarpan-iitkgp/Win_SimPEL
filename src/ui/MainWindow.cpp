@@ -1340,10 +1340,6 @@ void MainWindow::renderPropertyInspector() {
             } else if (t == "FOURIER_ANALYSIS" || t == "FOURIER_TRANS") {
                 comboChoices = {"magnitude_phase", "real_imag", "harmonic_series"};
             }
-        } else if (pKey == "signs" && (t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT")) {
-            comboChoices = {"++", "+-", "-+", "+++", "+-+", "++--", "++++"};
-        } else if (pKey == "operators" && (t == "PROD" || t == "PRODUCT_RECT")) {
-            comboChoices = {"**", "*/", "***", "**/"};
         }
 
         if (!comboChoices.empty()) {

@@ -876,14 +876,6 @@ void SchematicCanvas::addComponent(const ComponentInstance& comp) {
         newComp.y = lastCanvasClickWorldPos.y;
     }
     
-    if (newComp.type == ComponentType::SummingJunction || newComp.type == ComponentType::Product ||
-        newComp.rawTypeStr == "SUM_RECT" || newComp.rawTypeStr == "SUM_ROUND" || newComp.rawTypeStr == "PRODUCT_RECT") {
-        
-        showConfigurator = true;
-        pendingConfigComp = newComp;
-        pendingConfigCompIdx = (int)design.components.size();
-    }
-    
     design.components.push_back(newComp);
 }
 
@@ -2065,6 +2057,22 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 }
 
 void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& outHalfW, float& outHalfH) {
+    std::string t = comp.rawTypeStr;
+    std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "SUB" ||
+        t == "PROD" || t == "PRODUCT_RECT") {
+        std::vector<std::string> signs;
+        int nInputs = parseMathBlockPins(comp, signs);
+        float spacing = 18.0f;
+        float totalH = std::max(40.0f, (nInputs - 1) * spacing + 20.0f);
+        outHalfW = 26.0f;
+        outHalfH = totalH * 0.5f + 2.0f;
+        int rot = ((comp.rotation % 360) + 360) % 360;
+        if (rot == 90 || rot == 270) std::swap(outHalfW, outHalfH);
+        return;
+    }
+
     float minX = 0.0f, maxX = 0.0f, minY = 0.0f, maxY = 0.0f;
     bool hasPins = !comp.pins.empty();
 
@@ -2085,9 +2093,6 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
         outHalfW = 25.0f;
         outHalfH = 25.0f;
     }
-
-    const std::string& t = comp.rawTypeStr;
-
     if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
         std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
         getCSCRIPTPorts(comp, inPorts, outPorts);
@@ -3329,9 +3334,6 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                         try { ch = std::stoi(comp.parameters.at("channels")); } catch (...) {}
                     }
                     scopeOpenRequest.numChannels = ch;
-                } else if (comp.rawTypeStr == "SUM_RECT" || comp.rawTypeStr == "SUM_ROUND" || comp.rawTypeStr == "PRODUCT_RECT") {
-                    showConfigurator = true;
-                    pendingConfigCompIdx = (int)i;
                 }
                 break;
             }
