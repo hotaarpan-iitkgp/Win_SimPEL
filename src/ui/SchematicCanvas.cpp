@@ -715,37 +715,8 @@ std::vector<ImVec2> SchematicCanvas::simplifyPath(const std::vector<ImVec2>& poi
 }
 
 void SchematicCanvas::drawCurrentFlowAnimation(ImDrawList* drawList, ImVec2 p1, ImVec2 mid, ImVec2 mid2, ImVec2 p2, bool isControlNet, float timeSec) {
-    ImVec2 pts[4] = {p1, mid, mid2, p2};
-    float totalLen = 0.0f;
-    float segLens[3];
-    for (int i = 0; i < 3; ++i) {
-        float dx = pts[i+1].x - pts[i].x;
-        float dy = pts[i+1].y - pts[i].y;
-        segLens[i] = std::sqrt(dx*dx + dy*dy);
-        totalLen += segLens[i];
-    }
-
-    if (totalLen < 5.0f) return;
-
-    float spacing = 28.0f * zoomLevel;
-    float offset = std::fmod(timeSec * 45.0f * zoomLevel, spacing);
-    ImU32 particleCol = isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 255, 180, 240);
-
-    for (float d = offset; d < totalLen; d += spacing) {
-        float rem = d;
-        ImVec2 particlePos = pts[0];
-        for (int i = 0; i < 3; ++i) {
-            if (rem <= segLens[i]) {
-                if (segLens[i] > 0.0f) {
-                    float t = rem / segLens[i];
-                    particlePos = ImVec2(pts[i].x + t * (pts[i+1].x - pts[i].x), pts[i].y + t * (pts[i+1].y - pts[i].y));
-                }
-                break;
-            }
-            rem -= segLens[i];
-        }
-        drawList->AddCircleFilled(particlePos, 2.5f * zoomLevel, particleCol);
-    }
+    // Flowing wire particle dots disabled for simple, crisp, maximum UI rendering performance
+    (void)drawList; (void)p1; (void)mid; (void)mid2; (void)p2; (void)isControlNet; (void)timeSec;
 }
 
 bool SchematicCanvas::isPinConnected(const std::string& compId, const std::string& pinName) const {
@@ -1903,9 +1874,6 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             drawList->AddLine(c1, c2, wireColor, thickness);
             drawList->AddLine(c2, p2_stub, wireColor, thickness);
             drawList->AddLine(p2_stub, p2, wireColor, thickness);
-
-            // Real-time Current & Signal Flow Particle Animation Overlay
-            drawCurrentFlowAnimation(drawList, p1_stub, c1, c2, p2_stub, isControlNet, (float)ImGui::GetTime());
 
             if (wire.to.isWireJunction) {
                 drawList->AddCircleFilled(p2, 4.0f * zoomLevel, isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255));

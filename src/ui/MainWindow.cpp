@@ -1434,7 +1434,6 @@ void MainWindow::render() {
         renderComponentPalette();
         renderPropertyInspector();
         canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
-        scopeView.render("Real-Time Oscilloscope Waveforms", simulator);
 
         // Handle scope open requests from double-click on SCOPE components
         handleScopeOpenRequest();
