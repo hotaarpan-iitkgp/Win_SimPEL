@@ -422,10 +422,45 @@ void CircuitSimulator::buildIndexMaps() {
             fc.thresholdVal = evaluateParam(ctrlComp, "offset", 0.0);
         } else if (ctrlComp.type == ComponentType::DataTypeConv) {
             fc.polarity = getParamString(ctrlComp, "datatype", "boolean");
-        } else if (ctrlComp.type == ComponentType::SummingJunction) {
-            fc.polarity = getParamString(ctrlComp, "signs", "++");
-        } else if (ctrlComp.type == ComponentType::Product) {
-            fc.polarity = getParamString(ctrlComp, "operators", "**");
+        } else if (ctrlComp.type == ComponentType::SummingJunction || ctrlComp.type == ComponentType::Product) {
+            std::string sStr = getParamString(ctrlComp, "signs", "");
+            if (sStr.empty()) sStr = getParamString(ctrlComp, "inputs", "");
+            if (sStr.empty()) sStr = getParamString(ctrlComp, "operators", "");
+            if (sStr.empty()) sStr = getParamString(ctrlComp, "num_inputs", "");
+
+            int nPins = 2;
+            std::string polarityStr = "";
+            bool isNumeric = !sStr.empty();
+            for (char c : sStr) {
+                if (!std::isdigit((unsigned char)c)) { isNumeric = false; break; }
+            }
+
+            if (isNumeric) {
+                try { nPins = std::clamp(std::stoi(sStr), 1, 32); } catch (...) { nPins = 2; }
+                std::string defaultSign = (ctrlComp.type == ComponentType::Product) ? "*" : "+";
+                for (int i = 0; i < nPins; ++i) polarityStr += defaultSign;
+            } else if (!sStr.empty()) {
+                nPins = (int)sStr.length();
+                polarityStr = sStr;
+            } else {
+                nPins = 2;
+                polarityStr = (ctrlComp.type == ComponentType::Product) ? "**" : "++";
+            }
+
+            fc.polarity = polarityStr;
+            fc.inputSigKeys.clear();
+            fc.inputSigIndices.clear();
+
+            for (int i = 0; i < nPins; ++i) {
+                std::string inK = getParamString(ctrlComp, "In" + std::to_string(i + 1), "");
+                if (inK.empty()) inK = getParamString(ctrlComp, "input_" + std::to_string(i), "");
+                if (inK.empty() && i == 0) inK = getParamString(ctrlComp, "In", "");
+                if (inK.empty() && i == 0) inK = getParamString(ctrlComp, "Num", "");
+                if (inK.empty() && i == 1) inK = getParamString(ctrlComp, "Den", "");
+                
+                fc.inputSigKeys.push_back(inK);
+                fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
+            }
         }
 
         if (ctrlComp.type == ComponentType::PI_Controller) {
@@ -1730,19 +1765,43 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = inVal;
             }
             else if (fc.type == ComponentType::SummingJunction) {
-                double in0 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double in1 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
-                std::string signs = fc.polarity.empty() ? "++" : fc.polarity;
-                double s0 = (signs.size() > 0 && signs[0] == '-') ? -1.0 : 1.0;
-                double s1 = (signs.size() > 1 && signs[1] == '-') ? -1.0 : 1.0;
-                val = s0 * in0 + s1 * in1;
+                double sum = 0.0;
+                size_t nIn = std::max((size_t)1, fc.inputSigIndices.size());
+                for (size_t i = 0; i < nIn; ++i) {
+                    double vIn = 0.0;
+                    if (i < fc.inputSigIndices.size() && fc.inputSigIndices[i] >= 0 && fc.inputSigIndices[i] < (int)flatControlSignals.size()) {
+                        vIn = flatControlSignals[fc.inputSigIndices[i]];
+                    } else if (i == 0 && fc.in0Ptr) {
+                        vIn = *fc.in0Ptr;
+                    } else if (i == 1 && fc.in1Ptr) {
+                        vIn = *fc.in1Ptr;
+                    }
+                    char sChar = (i < fc.polarity.size()) ? fc.polarity[i] : '+';
+                    if (sChar == '-') sum -= vIn;
+                    else sum += vIn;
+                }
+                val = sum;
             }
             else if (fc.type == ComponentType::Product) {
-                double in0 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double in1 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
-                std::string ops = fc.polarity;
-                if (ops == "*/") val = (std::abs(in1) < 1e-15) ? (in0 / 1e-15) : (in0 / in1);
-                else val = in0 * in1;
+                double prod = 1.0;
+                size_t nIn = std::max((size_t)1, fc.inputSigIndices.size());
+                for (size_t i = 0; i < nIn; ++i) {
+                    double vIn = 1.0;
+                    if (i < fc.inputSigIndices.size() && fc.inputSigIndices[i] >= 0 && fc.inputSigIndices[i] < (int)flatControlSignals.size()) {
+                        vIn = flatControlSignals[fc.inputSigIndices[i]];
+                    } else if (i == 0 && fc.in0Ptr) {
+                        vIn = *fc.in0Ptr;
+                    } else if (i == 1 && fc.in1Ptr) {
+                        vIn = *fc.in1Ptr;
+                    }
+                    char sChar = (i < fc.polarity.size()) ? fc.polarity[i] : '*';
+                    if (sChar == '/') {
+                        prod /= (std::abs(vIn) < 1e-15 ? 1e-15 : vIn);
+                    } else {
+                        prod *= vIn;
+                    }
+                }
+                val = prod;
             }
             else if (fc.type == ComponentType::PulseGenerator) {
                 double p = (fc.period > 0.0) ? fc.period : 0.0001;

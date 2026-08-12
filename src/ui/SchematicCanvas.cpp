@@ -80,6 +80,43 @@ static ImVec2 getClosestPointOnSegment(ImVec2 p, ImVec2 a, ImVec2 b, float& outD
     return proj;
 }
 
+static int parseMathBlockPins(const ComponentInstance& comp, std::vector<std::string>& outSigns) {
+    outSigns.clear();
+    std::string t = comp.rawTypeStr;
+    std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+
+    std::string signsStr = comp.parameters.count("signs") ? comp.parameters.at("signs") : "";
+    if (signsStr.empty() && comp.parameters.count("inputs")) {
+        signsStr = comp.parameters.at("inputs");
+    }
+    if (signsStr.empty() && comp.parameters.count("num_inputs")) {
+        signsStr = comp.parameters.at("num_inputs");
+    }
+
+    int nPins = 2;
+    bool isNumeric = !signsStr.empty();
+    for (char c : signsStr) {
+        if (!std::isdigit((unsigned char)c)) { isNumeric = false; break; }
+    }
+
+    if (isNumeric) {
+        try { nPins = std::clamp(std::stoi(signsStr), 1, 32); } catch (...) { nPins = 2; }
+        std::string defaultSign = (t == "PROD" || t == "PRODUCT_RECT") ? "*" : "+";
+        for (int i = 0; i < nPins; ++i) outSigns.push_back(defaultSign);
+    } else if (!signsStr.empty()) {
+        nPins = (int)signsStr.length();
+        for (char c : signsStr) {
+            outSigns.push_back(std::string(1, c));
+        }
+    } else {
+        nPins = 2;
+        std::string defaultSign = (t == "PROD" || t == "PRODUCT_RECT") ? "*" : "+";
+        outSigns.assign(nPins, defaultSign);
+    }
+
+    return std::max(1, nPins);
+}
+
 std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     const std::string& t = comp.rawTypeStr;
     
@@ -120,7 +157,31 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "PLL_3PH") {
         return {{"A", -20, -10, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 10, -1, 0, true}, {"Theta", 20, -10, 1, 0, true}, {"Freq", 20, 10, 1, 0, true}};
     }
-    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "PROD" || t == "PRODUCT_RECT" || t == "COMP" || t == "AND" || t == "OR" || t == "MIN_MAX" ||
+    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "SUB" ||
+        t == "PROD" || t == "PRODUCT_RECT") {
+        std::vector<std::string> signs;
+        int nInputs = parseMathBlockPins(comp, signs);
+
+        float spacing = 18.0f;
+        float totalH = std::max(40.0f, (nInputs - 1) * spacing + 20.0f);
+        float halfH = totalH * 0.5f;
+
+        std::vector<TerminalDef> terms;
+        for (int i = 0; i < nInputs; ++i) {
+            float relY = -halfH + 10.0f + i * spacing;
+            std::string pName = "In" + std::to_string(i + 1);
+            terms.push_back({pName, -25.0f, relY, -1, 0, true});
+        }
+
+        terms.push_back({"Out", 25.0f, 0.0f, 1, 0, true});
+
+        if (t == "SUM_RECT" || t == "PRODUCT_RECT") {
+            terms.push_back({"Ctrl", -15.0f, -halfH, 0, -1, true});
+        }
+
+        return terms;
+    }
+    if (t == "COMP" || t == "AND" || t == "OR" || t == "MIN_MAX" ||
         t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "RELATIONAL_OPERATOR") {
         return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
@@ -1023,30 +1084,37 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-16*s, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(16*s, 0, c.x, c.y, rot), rotatePt(20*s, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddText(rotatePt(-4*s, -7*s, c.x, c.y, rot), color, "K");
-    } else if (t == "SUM_ROUND" || t == "SUM") {
-        drawList->AddCircleFilled(c, 14*s, IM_COL32(38, 50, 70, 200));
-        drawList->AddCircle(c, 14*s, color, 0, 2.0f*s);
-        drawList->AddLine(rotatePt(-20*s, -20*s, c.x, c.y, rot), rotatePt(-10*s, -10*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(-20*s, 20*s, c.x, c.y, rot), rotatePt(-10*s, 10*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(14*s, 0, c.x, c.y, rot), rotatePt(20*s, 0, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddText(rotatePt(-6*s, -10*s, c.x, c.y, rot), color, "+");
-        drawList->AddText(rotatePt(-6*s, 2*s, c.x, c.y, rot), color, "-");
-    } else if (t == "SUM_RECT") {
-        float hw = 25*s, hh = (comp.numInputPins * 15 + 10)*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4*s);
-        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        for (int i = 0; i < comp.numInputPins; ++i) {
-            float py = -hh + (i + 1)*(2*hh / (comp.numInputPins + 1));
-            std::string signStr = (i < (int)comp.pinSigns.size()) ? comp.pinSigns[i] : "+";
-            drawList->AddText(rotatePt(-hw + 6*s, py - 6*s, c.x, c.y, rot), color, signStr.c_str());
+    } else if (t == "SUM_ROUND" || t == "SUM" || t == "SUM_RECT" || t == "PRODUCT_RECT" || t == "PROD") {
+        std::vector<std::string> signs;
+        int nInputs = parseMathBlockPins(comp, signs);
+
+        float hw = 25.0f * s;
+        float spacing = 18.0f * s;
+        float totalH = std::max(40.0f * s, (nInputs - 1) * spacing + 20.0f * s);
+        float hh = totalH * 0.5f;
+
+        if (t == "SUM_ROUND") {
+            float rad = std::max(18.0f * s, hh);
+            drawList->AddCircleFilled(c, rad, IM_COL32(38, 50, 70, 200));
+            drawList->AddCircle(c, rad, color, 0, 2.0f * s);
+            drawList->AddText(rotatePt(-4.0f * s, -6.0f * s, c.x, c.y, rot), color, "Σ");
+            for (int i = 0; i < nInputs; ++i) {
+                float py = -hh + 10.0f * s + i * spacing;
+                std::string signStr = (i < (int)signs.size()) ? signs[i] : "+";
+                drawList->AddText(rotatePt(-rad + 4.0f * s, py - 6.0f * s, c.x, c.y, rot), color, signStr.c_str());
+            }
+        } else {
+            drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4.0f * s);
+            drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4.0f * s, 0, 2.0f * s);
+            std::string mainSymbol = (t == "PROD" || t == "PRODUCT_RECT") ? "Π" : "Σ";
+            drawList->AddText(rotatePt(-4.0f * s, -hh + 4.0f * s, c.x, c.y, rot), color, mainSymbol.c_str());
+
+            for (int i = 0; i < nInputs; ++i) {
+                float py = -hh + 10.0f * s + i * spacing;
+                std::string signStr = (i < (int)signs.size()) ? signs[i] : ((t == "PROD" || t == "PRODUCT_RECT") ? "*" : "+");
+                drawList->AddText(rotatePt(-hw + 6.0f * s, py - 6.0f * s, c.x, c.y, rot), color, signStr.c_str());
+            }
         }
-    } else if (t == "PRODUCT_RECT" || t == "PROD") {
-        drawList->AddCircleFilled(c, 14*s, IM_COL32(38, 50, 70, 200));
-        drawList->AddCircle(c, 14*s, color, 0, 2.0f*s);
-        drawList->AddLine(rotatePt(-20*s, -20*s, c.x, c.y, rot), rotatePt(-10*s, -10*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(-20*s, 20*s, c.x, c.y, rot), rotatePt(-10*s, 10*s, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddLine(rotatePt(14*s, 0, c.x, c.y, rot), rotatePt(20*s, 0, c.x, c.y, rot), color, 2.0f*s);
-        drawList->AddText(rotatePt(-4*s, -7*s, c.x, c.y, rot), color, "X");
     } else if (t == "COMP") {
         ImVec2 t1 = rotatePt(-16*s, -20*s, c.x, c.y, rot);
         ImVec2 t2 = rotatePt(16*s, 0, c.x, c.y, rot);
