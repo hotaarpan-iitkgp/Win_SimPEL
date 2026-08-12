@@ -1231,36 +1231,76 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = comp.rawTypeStr;
-            std::string signs = comp.parameters.count("signs") ? comp.parameters.at("signs") : (t == "SUBTRACT" ? "+-" : "");
-            if (signs.empty()) {
-                if (!comp.pinSigns.empty()) {
-                    for (const auto& s : comp.pinSigns) signs += s;
-                } else {
-                    signs = "++";
-                }
-            }
-            cObj["signs"] = signs;
-            json inputsArr = json::array();
-            if (t == "SUBTRACT") {
-                std::string sigA = getIncomingSignal(comp.id, "A");
-                if (sigA == "0.0") sigA = getIncomingSignal(comp.id, "In1");
-                std::string sigB = getIncomingSignal(comp.id, "B");
-                if (sigB == "0.0") sigB = getIncomingSignal(comp.id, "In2");
-                inputsArr.push_back(sigA);
-                inputsArr.push_back(sigB);
+
+            std::string inputParam = comp.parameters.count("inputs") ? comp.parameters.at("inputs") : "";
+            if (inputParam.empty() && comp.parameters.count("signs")) inputParam = comp.parameters.at("signs");
+            if (inputParam.empty() && comp.parameters.count("num_inputs")) inputParam = comp.parameters.at("num_inputs");
+            if (inputParam.empty()) inputParam = (t == "SUBTRACT" ? "+-" : "++");
+
+            int nPins = 2;
+            std::string signsStr = "";
+            bool isNumeric = !inputParam.empty();
+            for (char c : inputParam) { if (!std::isdigit((unsigned char)c)) { isNumeric = false; break; } }
+
+            if (isNumeric) {
+                try { nPins = std::clamp(std::stoi(inputParam), 1, 32); } catch (...) { nPins = 2; }
+                signsStr = std::string(nPins, '+');
             } else {
-                for (int i = 1; i <= comp.numInputPins; ++i) {
-                    inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+                nPins = (int)inputParam.length();
+                signsStr = inputParam;
+            }
+
+            cObj["signs"] = signsStr;
+            cObj["operators"] = signsStr;
+
+            json inputsArr = json::array();
+            for (int i = 1; i <= nPins; ++i) {
+                std::string sigKey = getIncomingSignal(comp.id, "In" + std::to_string(i));
+                if (sigKey == "0.0" && i == 1) {
+                    std::string sigAlt = getIncomingSignal(comp.id, "A");
+                    if (sigAlt != "0.0") sigKey = sigAlt;
                 }
+                if (sigKey == "0.0" && i == 2) {
+                    std::string sigAlt = getIncomingSignal(comp.id, "B");
+                    if (sigAlt != "0.0") sigKey = sigAlt;
+                }
+                inputsArr.push_back(sigKey);
+                cObj["In" + std::to_string(i)] = sigKey;
+                cObj["input_" + std::to_string(i - 1)] = sigKey;
             }
             cObj["inputs"] = inputsArr;
             ctrlLoopsObj["summing_junctions"].push_back(cObj);
         } else if (t == "PROD" || t == "PRODUCT_RECT" || t == "PRODUCT") {
             cObj["output"] = comp.id + ".Out";
-            cObj["original_type"] = "PROD";
+            cObj["original_type"] = comp.rawTypeStr;
+
+            std::string inputParam = comp.parameters.count("inputs") ? comp.parameters.at("inputs") : "";
+            if (inputParam.empty() && comp.parameters.count("operators")) inputParam = comp.parameters.at("operators");
+            if (inputParam.empty() && comp.parameters.count("num_inputs")) inputParam = comp.parameters.at("num_inputs");
+            if (inputParam.empty()) inputParam = "**";
+
+            int nPins = 2;
+            std::string opsStr = "";
+            bool isNumeric = !inputParam.empty();
+            for (char c : inputParam) { if (!std::isdigit((unsigned char)c)) { isNumeric = false; break; } }
+
+            if (isNumeric) {
+                try { nPins = std::clamp(std::stoi(inputParam), 1, 32); } catch (...) { nPins = 2; }
+                opsStr = std::string(nPins, '*');
+            } else {
+                nPins = (int)inputParam.length();
+                opsStr = inputParam;
+            }
+
+            cObj["operators"] = opsStr;
+            cObj["signs"] = opsStr;
+
             json inputsArr = json::array();
-            for (int i = 1; i <= comp.numInputPins; ++i) {
-                inputsArr.push_back(getIncomingSignal(comp.id, "In" + std::to_string(i)));
+            for (int i = 1; i <= nPins; ++i) {
+                std::string sigKey = getIncomingSignal(comp.id, "In" + std::to_string(i));
+                inputsArr.push_back(sigKey);
+                cObj["In" + std::to_string(i)] = sigKey;
+                cObj["input_" + std::to_string(i - 1)] = sigKey;
             }
             cObj["inputs"] = inputsArr;
             ctrlLoopsObj["product_blocks"].push_back(cObj);

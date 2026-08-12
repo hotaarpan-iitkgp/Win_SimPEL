@@ -175,10 +175,6 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
 
         terms.push_back({"Out", 25.0f, 0.0f, 1, 0, true});
 
-        if (t == "SUM_RECT" || t == "PRODUCT_RECT") {
-            terms.push_back({"Ctrl", -15.0f, -halfH, 0, -1, true});
-        }
-
         return terms;
     }
     if (t == "COMP" || t == "AND" || t == "OR" ||

@@ -266,7 +266,9 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
         int idx = 0;
         for (const auto& inp : item["inputs"]) {
             if (inp.is_string()) {
-                comp.parameters["input_" + std::to_string(idx)] = inp.get<std::string>();
+                std::string sVal = inp.get<std::string>();
+                comp.parameters["input_" + std::to_string(idx)] = sVal;
+                comp.parameters["In" + std::to_string(idx + 1)] = sVal;
                 idx++;
             }
         }
