@@ -644,15 +644,37 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input2"] = "0.0";
             cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "MIN_MAX") {
+        } else if (t == "MIN_MAX" || t == "MIN" || t == "MAX") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "MIN_MAX";
             cObj["function"] = comp.parameters.count("function") ? comp.parameters.at("function") : "min";
-            std::string inA = getIncomingSignal(comp.id, "A");
-            std::string inB = getIncomingSignal(comp.id, "B");
-            cObj["input"] = inA;
-            cObj["input1"] = inA;
-            cObj["input2"] = inB;
+
+            std::string nStr = comp.parameters.count("num_inputs") ? comp.parameters.at("num_inputs") : "";
+            if (nStr.empty() && comp.parameters.count("inputs")) nStr = comp.parameters.at("inputs");
+            if (nStr.empty() && comp.parameters.count("number_of_inputs")) nStr = comp.parameters.at("number_of_inputs");
+
+            int nPins = 2;
+            if (!nStr.empty()) {
+                try { nPins = std::clamp(std::stoi(nStr), 1, 32); } catch (...) { nPins = 2; }
+            }
+
+            cObj["num_inputs"] = std::to_string(nPins);
+            json inputsArr = json::array();
+            for (int i = 1; i <= nPins; ++i) {
+                std::string sigKey = getIncomingSignal(comp.id, "In" + std::to_string(i));
+                if (sigKey == "0.0" && i == 1) {
+                    std::string sigAlt = getIncomingSignal(comp.id, "A");
+                    if (sigAlt != "0.0") sigKey = sigAlt;
+                }
+                if (sigKey == "0.0" && i == 2) {
+                    std::string sigAlt = getIncomingSignal(comp.id, "B");
+                    if (sigAlt != "0.0") sigKey = sigAlt;
+                }
+                inputsArr.push_back(sigKey);
+                cObj["In" + std::to_string(i)] = sigKey;
+                cObj["input_" + std::to_string(i - 1)] = sigKey;
+            }
+            cObj["inputs"] = inputsArr;
             cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "LUT_1D") {
