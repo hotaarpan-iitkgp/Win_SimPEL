@@ -23,17 +23,30 @@ static std::set<std::string> extractProbedSet(const CircuitDesign* design) {
     std::set<std::string> probedSet;
     if (!design) return probedSet;
 
-    for (const auto& comp : design->components) {
-        if (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1") {
-            probedSet.insert("V_" + comp.id);
-            probedSet.insert("I_" + comp.id);
-            probedSet.insert(comp.id);
+    // 1. Add all signals explicitly checked in Property Inspector (stored in plotConfig)
+    for (const auto& plot : design->plotConfig.plots) {
+        for (const auto& var : plot.variables) {
+            if (!var.empty()) {
+                probedSet.insert(var);
+                if (var.rfind("V_", 0) == 0 || var.rfind("I_", 0) == 0) {
+                    probedSet.insert(var.substr(2));
+                }
+            }
         }
+    }
+
+    // 2. Add signals from components with explicit probe parameters
+    for (const auto& comp : design->components) {
         if (comp.parameters.count("plotV") && comp.parameters.at("plotV") == "1") {
             probedSet.insert("V_" + comp.id);
         }
         if (comp.parameters.count("plotI") && comp.parameters.at("plotI") == "1") {
             probedSet.insert("I_" + comp.id);
+        }
+        if (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1") {
+            probedSet.insert("V_" + comp.id);
+            probedSet.insert("I_" + comp.id);
+            probedSet.insert(comp.id);
         }
         if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
             std::stringstream ss(comp.parameters.at("selected_signals"));
@@ -50,26 +63,38 @@ static std::set<std::string> extractProbedSet(const CircuitDesign* design) {
         }
     }
 
+    // 3. Add signals connected specifically to SCOPE or PROBE block terminals
+    std::set<std::string> scopeProbeCompIds;
+    for (const auto& comp : design->components) {
+        std::string t = comp.rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+        if (t == "SCOPE" || t == "PROBE" || t == "UNIFIEDPROBE") {
+            scopeProbeCompIds.insert(comp.id);
+        }
+    }
+
     for (const auto& wire : design->wires) {
-        if (!wire.from.isWireJunction && !wire.from.compId.empty()) probedSet.insert(wire.from.compId);
-        if (!wire.to.isWireJunction && !wire.to.compId.empty()) probedSet.insert(wire.to.compId);
+        if (!wire.from.isWireJunction && scopeProbeCompIds.count(wire.from.compId)) {
+            if (!wire.to.isWireJunction && !wire.to.compId.empty()) {
+                probedSet.insert(wire.to.compId);
+                probedSet.insert("V_" + wire.to.compId);
+                probedSet.insert("I_" + wire.to.compId);
+            }
+        }
+        if (!wire.to.isWireJunction && scopeProbeCompIds.count(wire.to.compId)) {
+            if (!wire.from.isWireJunction && !wire.from.compId.empty()) {
+                probedSet.insert(wire.from.compId);
+                probedSet.insert("V_" + wire.from.compId);
+                probedSet.insert("I_" + wire.from.compId);
+            }
+        }
     }
 
     return probedSet;
 }
 
 static bool isSignalProbed(const std::string& name, const std::set<std::string>& probedSet) {
-    if (probedSet.empty()) {
-        // Strict default: if no explicit probe configured, only auto-select primary output & sensor signals
-        if (name.rfind("VM", 0) == 0 || name.rfind("V_VM", 0) == 0 ||
-            name.rfind("AM", 0) == 0 || name.rfind("I_AM", 0) == 0 ||
-            name.find(".Out") != std::string::npos || name.find("SCOPE") != std::string::npos ||
-            name.find("PROBE") != std::string::npos || name.rfind("V_C1", 0) == 0 ||
-            name.rfind("V_R_load", 0) == 0 || name.rfind("V_out", 0) == 0 || name.rfind("V_Vout", 0) == 0) {
-            return true;
-        }
-        return false;
-    }
+    if (probedSet.empty()) return false;
 
     if (probedSet.count(name) > 0) return true;
 
@@ -82,7 +107,6 @@ static bool isSignalProbed(const std::string& name, const std::set<std::string>&
     for (const auto& p : probedSet) {
         if (p.empty()) continue;
         if (name == p || name == ("V_" + p) || name == ("I_" + p)) return true;
-        if (name.find(p) != std::string::npos || p.find(name) != std::string::npos) return true;
     }
     return false;
 }
@@ -146,26 +170,11 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     std::set<std::string> probedSet = extractProbedSet(design);
 
-    // Synchronize enabledSignals map with data.voltages
-    bool hasAnySelected = false;
+    // Synchronize enabledSignals map with data.voltages strictly based on probedSet
     for (const auto& pair : data.voltages) {
         const std::string& name = pair.first;
         if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
-        if (enabledSignals.count(name) == 0) {
-            enabledSignals[name] = isSignalProbed(name, probedSet);
-        }
-        if (enabledSignals[name]) hasAnySelected = true;
-    }
-
-    // Safety fallback: if no signals were auto-selected, enable the first 2 variables
-    if (!hasAnySelected) {
-        int count = 0;
-        for (const auto& pair : data.voltages) {
-            const std::string& name = pair.first;
-            if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
-            enabledSignals[name] = true;
-            if (++count >= 2) break;
-        }
+        enabledSignals[name] = isSignalProbed(name, probedSet);
     }
 
     SignalCategory voltageCat{"Voltage Waveforms (V)", "Voltage (V)", {}};

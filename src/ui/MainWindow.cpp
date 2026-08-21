@@ -1686,14 +1686,31 @@ void MainWindow::renderPropertyInspector() {
 
     for (const auto& sigName : availableSignals) {
         auto it = std::find(plotVars.begin(), plotVars.end(), sigName);
-        bool isChecked = (it != plotVars.end());
+        bool isChecked = (it != plotVars.end()) ||
+                         (sigName.rfind("V_", 0) == 0 && comp->parameters.count("plotV") && comp->parameters.at("plotV") == "1") ||
+                         (sigName.rfind("I_", 0) == 0 && comp->parameters.count("plotI") && comp->parameters.at("plotI") == "1");
 
         if (ImGui::Checkbox(sigName.c_str(), &isChecked)) {
             if (isChecked) {
-                if (it == plotVars.end()) plotVars.push_back(sigName);
+                if (std::find(plotVars.begin(), plotVars.end(), sigName) == plotVars.end()) {
+                    plotVars.push_back(sigName);
+                }
+                if (sigName.rfind("V_", 0) == 0) comp->parameters["plotV"] = "1";
+                if (sigName.rfind("I_", 0) == 0) comp->parameters["plotI"] = "1";
+                comp->parameters["probe_signal"] = "1";
             } else {
-                if (it != plotVars.end()) plotVars.erase(it);
+                auto eraseIt = std::find(plotVars.begin(), plotVars.end(), sigName);
+                if (eraseIt != plotVars.end()) plotVars.erase(eraseIt);
+                if (sigName.rfind("V_", 0) == 0) comp->parameters["plotV"] = "0";
+                if (sigName.rfind("I_", 0) == 0) comp->parameters["plotI"] = "0";
+
+                bool anyLeft = false;
+                for (const auto& v : plotVars) {
+                    if (v.find(comp->id) != std::string::npos) { anyLeft = true; break; }
+                }
+                if (!anyLeft) comp->parameters["probe_signal"] = "0";
             }
+            scopeView.triggerAutoFit();
         }
     }
     }
