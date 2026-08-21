@@ -127,6 +127,9 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Relay" || t == "RELAY") return ComponentType::Relay;
     if (t == "Comparator" || t == "COMP" || t == "comparators") return ComponentType::Comparator;
     if (t == "LogicOp" || t == "LOGIC_OP") return ComponentType::LogicOp;
+    if (t == "NOT" || t == "NOT_OP" || t == "NOT_Gate" || t == "Not") return ComponentType::NOT_Gate;
+    if (t == "AND" || t == "AND_OP" || t == "AND_Gate" || t == "And") return ComponentType::AND_Gate;
+    if (t == "OR" || t == "OR_OP" || t == "OR_Gate" || t == "Or") return ComponentType::OR_Gate;
     if (t == "BitwiseOp" || t == "BITWISE_OP") return ComponentType::BitwiseOp;
     if (t == "CombLogic" || t == "COMB_LOGIC") return ComponentType::CombLogic;
     if (t == "EdgeDetect" || t == "EDGE_DETECT") return ComponentType::EdgeDetect;
@@ -474,9 +477,9 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                 if (dotPos != std::string::npos) {
                     std::string compId = kTo.substr(0, dotPos);
                     std::string pinName = kTo.substr(dotPos + 1);
-                    if (pinName == "G" || pinName == "Ctrl") {
+                    if (pinName == "G" || pinName == "Ctrl" || pinName == "Gate") {
                         for (auto& c : rawComps) {
-                            if (c.id == compId && c.type == ComponentType::Switch) {
+                            if (c.id == compId && (c.type == ComponentType::Switch || c.type == ComponentType::MOSFET || c.type == ComponentType::BJT || c.type == ComponentType::JFET || c.type == ComponentType::Thyristor || c.type == ComponentType::IGBTDiode)) {
                                 c.parameters["control_signal"] = kFrom;
                             }
                         }
@@ -496,16 +499,23 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                     c.type == ComponentType::Inductor || c.type == ComponentType::VoltageSource || 
                     c.type == ComponentType::ACVoltageSource || c.type == ComponentType::CurrentSource || 
                     c.type == ComponentType::Diode || c.type == ComponentType::Switch || 
-                    c.type == ComponentType::Voltmeter || c.type == ComponentType::Ammeter) {
+                    c.type == ComponentType::MOSFET || c.type == ComponentType::BJT || 
+                    c.type == ComponentType::JFET || c.type == ComponentType::Thyristor || 
+                    c.type == ComponentType::IGBTDiode || c.type == ComponentType::Voltmeter || 
+                    c.type == ComponentType::Ammeter) {
                     
                     std::string pA = c.id + ".A";
                     std::string pB = c.id + ".B";
-                    if (c.type == ComponentType::Switch) { pA = c.id + ".D"; pB = c.id + ".S"; }
+                    if (c.type == ComponentType::Switch || c.type == ComponentType::MOSFET || c.type == ComponentType::IGBTDiode) { 
+                        pA = c.id + ".D"; pB = c.id + ".S"; 
+                    } else if (c.type == ComponentType::BJT || c.type == ComponentType::JFET) {
+                        pA = c.id + ".C"; pB = c.id + ".E";
+                    }
                     
                     c.nodes.push_back(getNodeNameForPin(pA));
                     c.nodes.push_back(getNodeNameForPin(pB));
 
-                    if (c.type == ComponentType::Switch && c.parameters.count("Gate_Signal_Label")) {
+                    if ((c.type == ComponentType::Switch || c.type == ComponentType::MOSFET) && c.parameters.count("Gate_Signal_Label")) {
                         std::string gateTag = c.parameters["Gate_Signal_Label"];
                         if (gotoTagToSignalKey.count(gateTag)) {
                             c.parameters["control_signal"] = gotoTagToSignalKey[gateTag];

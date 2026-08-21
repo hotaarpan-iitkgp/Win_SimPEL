@@ -1334,6 +1334,20 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double inB = fc.in1Ptr ? *fc.in1Ptr : 0.0;
                 val = (inA > inB) ? 1.0 : 0.0;
             }
+            else if (fc.type == ComponentType::NOT_Gate) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                val = (inVal <= 0.5) ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::AND_Gate) {
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                val = (in1 > 0.5 && in2 > 0.5) ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::OR_Gate) {
+                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                val = (in1 > 0.5 || in2 > 0.5) ? 1.0 : 0.0;
+            }
             else if (fc.type == ComponentType::LogicOp) {
                 double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
