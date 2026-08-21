@@ -92,7 +92,6 @@ private:
     void drawComponents(ImDrawList* drawList, ImVec2 canvasPos);
     void drawWires(ImDrawList* drawList, ImVec2 canvasPos);
     void drawBreadcrumbs(ImDrawList* drawList, ImVec2 canvasPos);
-    void drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 center, float s, ImU32 color);
     void drawTerminals(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 center, float s, ImVec2 mousePos, float& minPinDist);
     bool getTerminalPortStub(const ComponentInstance& comp, const std::string& terminalName, ImVec2 canvasPos, float zoomLevel, ImVec2& outPinPos, ImVec2& outStubPos, bool& outIsVertical) const;
     static void getComponentBounds(const ComponentInstance& comp, float& outHalfW, float& outHalfH);
@@ -122,6 +121,8 @@ private:
 
 public:
     SchematicCanvas() = default;
+
+    static void drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 center, float s, ImU32 color, bool isDarkMode = true);
 
     void setDarkMode(bool dark) { isDarkMode = dark; }
     bool isDarkModeActive() const { return isDarkMode; }

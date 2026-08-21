@@ -928,7 +928,7 @@ void SchematicCanvas::drawBreadcrumbs(ImDrawList* drawList, ImVec2 canvasPos) {
     }
 }
 
-void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 c, float s, ImU32 color) {
+void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 c, float s, ImU32 color, bool isDarkMode) {
     const std::string& t = comp.rawTypeStr;
     float rot = (float)comp.rotation;
     ImU32 blockBg = isDarkMode ? IM_COL32(30, 41, 59, 230) : IM_COL32(252, 250, 225, 240);

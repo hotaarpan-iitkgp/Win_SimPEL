@@ -773,9 +773,37 @@ void MainWindow::renderComponentPalette() {
             }
         };
 
-        // Helper lambda to render component button
+        // Helper lambda to render component button with graphic icon preview
         auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::vector<std::pair<std::string, std::string>>& defaultParams = {}) {
             ImGui::PushID(rawTypeStr.c_str());
+
+            ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            float iconW = 28.0f;
+            float iconH = 22.0f;
+
+            ImVec2 iconMin = cursorPos;
+            ImVec2 iconMax = ImVec2(cursorPos.x + iconW, cursorPos.y + iconH);
+            ImVec2 iconCenter = ImVec2(cursorPos.x + iconW * 0.5f, cursorPos.y + iconH * 0.5f);
+
+            bool isDark = canvas.isDarkModeActive();
+            ImU32 bgCol = isDark ? IM_COL32(30, 41, 59, 255) : IM_COL32(240, 243, 246, 255);
+            ImU32 borderCol = isDark ? IM_COL32(56, 189, 248, 180) : IM_COL32(14, 165, 233, 220);
+
+            drawList->AddRectFilled(iconMin, iconMax, bgCol, 3.0f);
+            drawList->AddRect(iconMin, iconMax, borderCol, 3.0f);
+
+            ComponentInstance tempComp;
+            tempComp.rawTypeStr = rawTypeStr;
+            tempComp.label = label;
+            tempComp.rotation = 0;
+            for (const auto& p : defaultParams) tempComp.parameters[p.first] = p.second;
+
+            ImU32 iconColor = isDark ? IM_COL32(240, 240, 240, 240) : IM_COL32(30, 30, 30, 255);
+            SchematicCanvas::drawComponentShape(drawList, tempComp, iconCenter, 0.30f, iconColor, isDark);
+
+            ImGui::SetCursorScreenPos(ImVec2(cursorPos.x + iconW + 6.0f, cursorPos.y));
+
             if (ImGui::Button(buttonText)) {
                 ComponentInstance comp;
                 comp.id = getUniqueId(prefix);
