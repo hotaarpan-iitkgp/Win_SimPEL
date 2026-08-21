@@ -1393,19 +1393,12 @@ void MainWindow::renderDemoPane() {
                         ImGui::TextColored(ImVec4(0.0f, 0.75f, 0.95f, 1.0f), "[%s]", item->badge.c_str());
                         ImGui::SameLine();
 
-                        if (ImGui::Selectable(item->label.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
-                            if (ImGui::IsMouseDoubleClicked(0)) {
-                                loadDemoJsonFile(item->filename);
-                            }
+                        if (ImGui::Selectable(item->label.c_str(), false)) {
+                            loadDemoJsonFile(item->filename);
                         }
 
                         if (ImGui::IsItemHovered()) {
-                            ImGui::SetTooltip("%s\nFilename: %s\n\n(Double-click or click Load button below)", item->desc.c_str(), item->filename.c_str());
-                        }
-
-                        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 70.0f);
-                        if (ImGui::Button("⚡ Load")) {
-                            loadDemoJsonFile(item->filename);
+                            ImGui::SetTooltip("%s\nFilename: %s\n\n(Click to load into workspace)", item->desc.c_str(), item->filename.c_str());
                         }
 
                         ImGui::PopID();
