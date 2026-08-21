@@ -774,25 +774,38 @@ void MainWindow::renderComponentPalette() {
             }
         };
 
-        // Helper lambda to render component button with graphic icon preview
+        // Helper lambda to render component button with clean graphic icon preview
         auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::vector<std::pair<std::string, std::string>>& defaultParams = {}) {
             ImGui::PushID(rawTypeStr.c_str());
 
+            float rowHeight = 28.0f;
+            float iconSize = 22.0f;
             ImVec2 cursorPos = ImGui::GetCursorScreenPos();
             ImDrawList* drawList = ImGui::GetWindowDrawList();
-            float iconW = 28.0f;
-            float iconH = 22.0f;
-
-            ImVec2 iconMin = cursorPos;
-            ImVec2 iconMax = ImVec2(cursorPos.x + iconW, cursorPos.y + iconH);
-            ImVec2 iconCenter = ImVec2(cursorPos.x + iconW * 0.5f, cursorPos.y + iconH * 0.5f);
 
             bool isDark = canvas.isDarkModeActive();
-            ImU32 bgCol = isDark ? IM_COL32(30, 41, 59, 255) : IM_COL32(240, 243, 246, 255);
-            ImU32 borderCol = isDark ? IM_COL32(56, 189, 248, 180) : IM_COL32(14, 165, 233, 220);
+            ImU32 iconBgCol = isDark ? IM_COL32(15, 23, 42, 240) : IM_COL32(241, 245, 249, 255);
+            ImU32 iconBorderCol = isDark ? IM_COL32(56, 189, 248, 180) : IM_COL32(14, 165, 233, 200);
 
-            drawList->AddRectFilled(iconMin, iconMax, bgCol, 3.0f);
-            drawList->AddRect(iconMin, iconMax, borderCol, 3.0f);
+            // Sleek full-width row button with left padding for the icon badge
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(32.0f, 3.0f));
+
+            bool clicked = ImGui::Button(buttonText, ImVec2(-1.0f, rowHeight));
+
+            ImGui::PopStyleVar(3);
+
+            // Draw Icon Badge inside left padding of the row button
+            ImVec2 iconMin = ImVec2(cursorPos.x + 4.0f, cursorPos.y + (rowHeight - iconSize) * 0.5f);
+            ImVec2 iconMax = ImVec2(iconMin.x + iconSize, iconMin.y + iconSize);
+            ImVec2 iconCenter = ImVec2(iconMin.x + iconSize * 0.5f, iconMin.y + iconSize * 0.5f);
+
+            drawList->AddRectFilled(iconMin, iconMax, iconBgCol, 4.0f);
+            drawList->AddRect(iconMin, iconMax, iconBorderCol, 4.0f);
+
+            // Clip all drawing strictly inside the 22x22 icon badge to eliminate any text overflow!
+            drawList->PushClipRect(iconMin, iconMax, true);
 
             ComponentInstance tempComp;
             tempComp.rawTypeStr = rawTypeStr;
@@ -801,11 +814,11 @@ void MainWindow::renderComponentPalette() {
             for (const auto& p : defaultParams) tempComp.parameters[p.first] = p.second;
 
             ImU32 iconColor = isDark ? IM_COL32(240, 240, 240, 240) : IM_COL32(30, 30, 30, 255);
-            SchematicCanvas::drawComponentShape(drawList, tempComp, iconCenter, 0.30f, iconColor, isDark);
+            SchematicCanvas::drawComponentShape(drawList, tempComp, iconCenter, 0.24f, iconColor, isDark);
 
-            ImGui::SetCursorScreenPos(ImVec2(cursorPos.x + iconW + 6.0f, cursorPos.y));
+            drawList->PopClipRect();
 
-            if (ImGui::Button(buttonText)) {
+            if (clicked) {
                 ComponentInstance comp;
                 comp.id = getUniqueId(prefix);
                 comp.label = label;
@@ -817,6 +830,7 @@ void MainWindow::renderComponentPalette() {
                 canvas.addComponent(comp);
             }
             ImGui::PopID();
+            ImGui::Spacing();
         };
 
         // Helper metadata for library component categorization matching Web Tool
