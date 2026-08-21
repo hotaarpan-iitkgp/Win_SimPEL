@@ -1,6 +1,7 @@
 #include "MainWindow.hpp"
 #include "engine/NetlistBuilder.hpp"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -1346,6 +1347,13 @@ bool MainWindow::loadDemoJsonFile(const std::string& filename) {
 
 void MainWindow::renderDemoPane() {
     if (!showDemoPane) return;
+
+    if (ImGui::FindWindowByName("Component Pane")) {
+        ImGuiID compDockId = ImGui::FindWindowByName("Component Pane")->DockId;
+        if (compDockId != 0) {
+            ImGui::SetNextWindowDockID(compDockId, ImGuiCond_FirstUseEver);
+        }
+    }
 
     if (ImGui::Begin("Demo Circuits Pane", &showDemoPane)) {
         ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "📂 Working Example Schematics");

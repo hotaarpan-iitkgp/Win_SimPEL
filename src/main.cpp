@@ -286,7 +286,11 @@ int main(int argc, char** argv) {
             ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.22f, nullptr, &dock_main_id);
             ImGuiID dock_top_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.08f, nullptr, &dock_main_id);
 
-            ImGui::DockBuilderDockWindow("Component Pane", dock_left_id);
+            ImGuiID dock_left_top_id = dock_left_id;
+            ImGuiID dock_left_bottom_id = ImGui::DockBuilderSplitNode(dock_left_top_id, ImGuiDir_Down, 0.45f, nullptr, &dock_left_top_id);
+
+            ImGui::DockBuilderDockWindow("Component Pane", dock_left_top_id);
+            ImGui::DockBuilderDockWindow("Demo Circuits Pane", dock_left_bottom_id);
             ImGui::DockBuilderDockWindow("Simulation Control", dock_top_id);
             ImGui::DockBuilderDockWindow("Property Inspector", dock_right_id);
             ImGui::DockBuilderDockWindow("Schematic Editor Canvas", dock_main_id);
