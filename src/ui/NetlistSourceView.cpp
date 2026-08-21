@@ -1885,7 +1885,16 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
         }
 
         auto isSigProbed = [&](const std::string& name) -> bool {
-            if (probedSet.empty()) return true;
+            if (probedSet.empty()) {
+                if (name.rfind("VM", 0) == 0 || name.rfind("V_VM", 0) == 0 ||
+                    name.rfind("AM", 0) == 0 || name.rfind("I_AM", 0) == 0 ||
+                    name.find(".Out") != std::string::npos || name.find("SCOPE") != std::string::npos ||
+                    name.find("PROBE") != std::string::npos || name.rfind("V_C1", 0) == 0 ||
+                    name.rfind("V_R_load", 0) == 0 || name.rfind("V_out", 0) == 0 || name.rfind("V_Vout", 0) == 0) {
+                    return true;
+                }
+                return false;
+            }
             if (probedSet.count(name) > 0) return true;
             std::string base = name;
             if (base.rfind("V_", 0) == 0 || base.rfind("I_", 0) == 0) {
@@ -1900,6 +1909,27 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             return false;
         };
 
+        // Synchronize enabledSignals map
+        bool hasAnySelected = false;
+        for (const auto& pair : data.voltages) {
+            const std::string& name = pair.first;
+            if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+            if (enabledSignals.count(name) == 0) {
+                enabledSignals[name] = isSigProbed(name);
+            }
+            if (enabledSignals[name]) hasAnySelected = true;
+        }
+
+        if (!hasAnySelected) {
+            int count = 0;
+            for (const auto& pair : data.voltages) {
+                const std::string& name = pair.first;
+                if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+                enabledSignals[name] = true;
+                if (++count >= 2) break;
+            }
+        }
+
         for (const auto& pair : data.voltages) {
             const std::string& name = pair.first;
             const std::vector<double>& vals = pair.second;
@@ -1908,8 +1938,8 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             // Skip internal raw MNA matrix node voltages (node_1, node_2, 0, etc.)
             if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
 
-            // Filter: only plot signals selected in parameter pane / probe signals
-            if (!isSigProbed(name)) continue;
+            // Filter: only plot signals selected by user / probed
+            if (!enabledSignals[name]) continue;
 
             if (name.rfind("I_", 0) == 0) {
                 currentCat.variables.push_back({name, vals});
@@ -1934,6 +1964,46 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
             if (ImGui::Button("Fit Waveforms / Reset Zoom")) doFitThisFrame = true;
             ImGui::SameLine();
 
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            // Interactive Signal Selection Dropdown
+            int selCount = 0;
+            int totCount = 0;
+            for (const auto& pair : data.voltages) {
+                const std::string& name = pair.first;
+                if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+                totCount++;
+                if (enabledSignals[name]) selCount++;
+            }
+
+            char filterBuf[64];
+            snprintf(filterBuf, sizeof(filterBuf), "📊 Signals (%d/%d)##sigFilterNet", selCount, totCount);
+            ImGui::SetNextItemWidth(140.0f);
+            if (ImGui::BeginCombo("##SignalComboNet", filterBuf, ImGuiComboFlags_HeightLarge)) {
+                if (ImGui::SmallButton("Select All")) {
+                    for (const auto& pair : data.voltages) enabledSignals[pair.first] = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Deselect All")) {
+                    for (const auto& pair : data.voltages) enabledSignals[pair.first] = false;
+                }
+                ImGui::Separator();
+
+                for (const auto& pair : data.voltages) {
+                    const std::string& name = pair.first;
+                    if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+                    bool enabled = enabledSignals[name];
+                    if (ImGui::Checkbox(name.c_str(), &enabled)) {
+                        enabledSignals[name] = enabled;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Filter which variables are plotted on screen.\nCheck or uncheck variables to customize waveforms.");
+            }
+            ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
 

@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include <string>
 #include <array>
+#include <map>
 #include "OscilloscopeView.hpp"
 
 namespace CircuitSim {
@@ -23,6 +24,8 @@ private:
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
     float splitRatio = 0.10f;
+
+    std::map<std::string, bool> enabledSignals;
 
     // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;

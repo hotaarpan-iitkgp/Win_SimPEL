@@ -59,7 +59,17 @@ static std::set<std::string> extractProbedSet(const CircuitDesign* design) {
 }
 
 static bool isSignalProbed(const std::string& name, const std::set<std::string>& probedSet) {
-    if (probedSet.empty()) return true; // Fallback: if no explicit probes selected, show all
+    if (probedSet.empty()) {
+        // Strict default: if no explicit probe configured, only auto-select primary output & sensor signals
+        if (name.rfind("VM", 0) == 0 || name.rfind("V_VM", 0) == 0 ||
+            name.rfind("AM", 0) == 0 || name.rfind("I_AM", 0) == 0 ||
+            name.find(".Out") != std::string::npos || name.find("SCOPE") != std::string::npos ||
+            name.find("PROBE") != std::string::npos || name.rfind("V_C1", 0) == 0 ||
+            name.rfind("V_R_load", 0) == 0 || name.rfind("V_out", 0) == 0 || name.rfind("V_Vout", 0) == 0) {
+            return true;
+        }
+        return false;
+    }
 
     if (probedSet.count(name) > 0) return true;
 
@@ -136,6 +146,28 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     std::set<std::string> probedSet = extractProbedSet(design);
 
+    // Synchronize enabledSignals map with data.voltages
+    bool hasAnySelected = false;
+    for (const auto& pair : data.voltages) {
+        const std::string& name = pair.first;
+        if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+        if (enabledSignals.count(name) == 0) {
+            enabledSignals[name] = isSignalProbed(name, probedSet);
+        }
+        if (enabledSignals[name]) hasAnySelected = true;
+    }
+
+    // Safety fallback: if no signals were auto-selected, enable the first 2 variables
+    if (!hasAnySelected) {
+        int count = 0;
+        for (const auto& pair : data.voltages) {
+            const std::string& name = pair.first;
+            if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+            enabledSignals[name] = true;
+            if (++count >= 2) break;
+        }
+    }
+
     SignalCategory voltageCat{"Voltage Waveforms (V)", "Voltage (V)", {}};
     SignalCategory currentCat{"Current Waveforms (I)", "Current (A)", {}};
     SignalCategory controlCat{"Control & Scope Signals", "Signal (V / State)", {}};
@@ -149,8 +181,8 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         // Skip internal raw MNA matrix node voltages (node_1, node_2, 0, etc.)
         if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
 
-        // Filter: only plot signals that are selected/probed in parameter inspector / probe block
-        if (!isSignalProbed(name, probedSet)) continue;
+        // Filter: only plot signals that are enabled by user / probed
+        if (!enabledSignals[name]) continue;
 
         if (name.rfind("I_", 0) == 0 || name.rfind("AM", 0) == 0) {
             currentCat.variables.push_back({name, vals});
@@ -187,6 +219,46 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
     if (ImGui::Button("Fit Waveforms / Reset Zoom")) doFitThisFrame = true;
     ImGui::SameLine();
 
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    // Interactive Signal Selection Dropdown
+    int selCount = 0;
+    int totCount = 0;
+    for (const auto& pair : data.voltages) {
+        const std::string& name = pair.first;
+        if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+        totCount++;
+        if (enabledSignals[name]) selCount++;
+    }
+
+    char filterBuf[64];
+    snprintf(filterBuf, sizeof(filterBuf), "📊 Signals (%d/%d)##sigFilterOsc", selCount, totCount);
+    ImGui::SetNextItemWidth(140.0f);
+    if (ImGui::BeginCombo("##SignalComboOsc", filterBuf, ImGuiComboFlags_HeightLarge)) {
+        if (ImGui::SmallButton("Select All")) {
+            for (const auto& pair : data.voltages) enabledSignals[pair.first] = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Deselect All")) {
+            for (const auto& pair : data.voltages) enabledSignals[pair.first] = false;
+        }
+        ImGui::Separator();
+
+        for (const auto& pair : data.voltages) {
+            const std::string& name = pair.first;
+            if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+            bool enabled = enabledSignals[name];
+            if (ImGui::Checkbox(name.c_str(), &enabled)) {
+                enabledSignals[name] = enabled;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Filter which variables are plotted on screen.\nCheck or uncheck variables to customize waveforms.");
+    }
+    ImGui::SameLine();
     ImGui::TextDisabled("|");
     ImGui::SameLine();
 

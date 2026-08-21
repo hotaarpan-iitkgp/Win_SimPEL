@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <map>
 
 namespace CircuitSim {
 
@@ -54,6 +55,9 @@ private:
     // Telemetry cache optimization to avoid 100k-point vector copies every frame
     uint64_t lastTelemetryVer = 0;
     CircuitSimEngine::TelemetryData cachedTelemetry;
+
+    // Interactive signal filter selection state
+    std::map<std::string, bool> enabledSignals;
 
     // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;
