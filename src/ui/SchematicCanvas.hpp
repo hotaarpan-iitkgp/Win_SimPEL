@@ -148,6 +148,7 @@ public:
     void redo();
 
     void openCScriptModalForComp(const std::string& compId);
+    void autoConnectComponents(const ComponentInstance& targetComp);
 
     const std::set<std::string>& getSelectedComponentIds() const { return selectedComponentIds; }
     const std::set<std::string>& getSelectedWireIds() const { return selectedWireIds; }

@@ -323,6 +323,16 @@ int main(int argc, char** argv) {
         }
 
         SwapBuffers(hdc);
+
+        // High-precision frame pacing cap (60 FPS / ~16.6ms target) to prevent 100% CPU core lockup
+        static auto lastFrameTime = std::chrono::high_resolution_clock::now();
+        auto currentFrameTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float, std::milli> elapsed = currentFrameTime - lastFrameTime;
+        if (elapsed.count() < 16.0f) {
+            DWORD sleepMs = (DWORD)(16.0f - elapsed.count());
+            if (sleepMs > 0 && sleepMs <= 16) ::Sleep(sleepMs);
+        }
+        lastFrameTime = std::chrono::high_resolution_clock::now();
     }
 
     // Cleanup

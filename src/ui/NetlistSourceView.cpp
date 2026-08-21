@@ -11,6 +11,8 @@
 #include "engine/ExpressionEvaluator.hpp"
 #include "../engine/CScriptEngine.hpp"
 #include <unordered_set>
+#include <set>
+#include <sstream>
 #include <cmath>
 
 using json = nlohmann::json;
@@ -1764,8 +1766,11 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
     ImGui::Spacing();
 
-    if (ImGui::Button("Copy Netlist")) {
+    if (ImGui::Button("Copy JSON")) {
         ImGui::SetClipboardText(jsonBuffer);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Copy complete schematic design JSON to clipboard");
     }
     ImGui::SameLine();
     if (ImGui::Button("Download Netlist")) {
@@ -1826,8 +1831,9 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
     ImGui::BeginChild("WaveformRightPanel", ImVec2(0, 0), true);
 
     ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Interactive Waveform Solver Plotter");
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "| Sim Time: %.5f s", simulator.getCurrentTime());
+    double pct = simulator.getProgressPercent();
+    double cpuSec = simulator.getComputeTimeSeconds();
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "| Progress: %.1f%% | Compute Time: %.3f s", pct, cpuSec);
 
     ImGui::Spacing();
 
@@ -1846,6 +1852,54 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
         SignalCat controlCat{"Control & Pulse Signals", "Signal (V / State)", {}};
         SignalCat otherCat{"Other Signals", "Magnitude", {}};
 
+        std::set<std::string> probedSet;
+        for (const auto& comp : design.components) {
+            if (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1") {
+                probedSet.insert("V_" + comp.id);
+                probedSet.insert("I_" + comp.id);
+                probedSet.insert(comp.id);
+            }
+            if (comp.parameters.count("plotV") && comp.parameters.at("plotV") == "1") {
+                probedSet.insert("V_" + comp.id);
+            }
+            if (comp.parameters.count("plotI") && comp.parameters.at("plotI") == "1") {
+                probedSet.insert("I_" + comp.id);
+            }
+            if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+                std::stringstream ss(comp.parameters.at("selected_signals"));
+                std::string item;
+                while (std::getline(ss, item, ',')) {
+                    if (!item.empty()) {
+                        probedSet.insert(item);
+                        if (item.rfind("V_", 0) != 0 && item.rfind("I_", 0) != 0) {
+                            probedSet.insert("V_" + item);
+                            probedSet.insert("I_" + item);
+                        }
+                    }
+                }
+            }
+        }
+        for (const auto& wire : design.wires) {
+            if (!wire.from.isWireJunction && !wire.from.compId.empty()) probedSet.insert(wire.from.compId);
+            if (!wire.to.isWireJunction && !wire.to.compId.empty()) probedSet.insert(wire.to.compId);
+        }
+
+        auto isSigProbed = [&](const std::string& name) -> bool {
+            if (probedSet.empty()) return true;
+            if (probedSet.count(name) > 0) return true;
+            std::string base = name;
+            if (base.rfind("V_", 0) == 0 || base.rfind("I_", 0) == 0) {
+                base = base.substr(2);
+                if (probedSet.count(base) > 0) return true;
+            }
+            for (const auto& p : probedSet) {
+                if (p.empty()) continue;
+                if (name == p || name == ("V_" + p) || name == ("I_" + p)) return true;
+                if (name.find(p) != std::string::npos || p.find(name) != std::string::npos) return true;
+            }
+            return false;
+        };
+
         for (const auto& pair : data.voltages) {
             const std::string& name = pair.first;
             const std::vector<double>& vals = pair.second;
@@ -1853,6 +1907,9 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
             // Skip internal raw MNA matrix node voltages (node_1, node_2, 0, etc.)
             if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+
+            // Filter: only plot signals selected in parameter pane / probe signals
+            if (!isSigProbed(name)) continue;
 
             if (name.rfind("I_", 0) == 0) {
                 currentCat.variables.push_back({name, vals});

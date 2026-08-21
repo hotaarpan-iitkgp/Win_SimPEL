@@ -668,13 +668,23 @@ void CircuitSimulator::buildIndexMaps() {
             CScriptEngine::discoverPorts(code, discIn, discOut);
 
             for (size_t i = 0; i < discIn.size(); ++i) {
-                std::string inK = ctrlComp.id + "." + discIn[i].name;
+                std::string pName = discIn[i].name;
+                std::string inK = getParamString(ctrlComp, pName, "");
+                if (inK.empty()) inK = getParamString(ctrlComp, "In" + std::to_string(i + 1), "");
+                if (inK.empty()) inK = getParamString(ctrlComp, "input_" + std::to_string(i), "");
+                if (inK.empty()) inK = ctrlComp.id + "." + pName;
+
                 fc.inputSigKeys.push_back(inK);
                 fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
             }
 
             for (size_t j = 0; j < discOut.size(); ++j) {
-                std::string outK = ctrlComp.id + "." + discOut[j].name;
+                std::string pName = discOut[j].name;
+                std::string outK = getParamString(ctrlComp, pName, "");
+                if (outK.empty()) outK = getParamString(ctrlComp, "Out" + std::to_string(j + 1), "");
+                if (outK.empty()) outK = getParamString(ctrlComp, "output_" + std::to_string(j), "");
+                if (outK.empty()) outK = ctrlComp.id + "." + pName;
+
                 fc.outputSigKeys.push_back(outK);
                 fc.outputSigIndices.push_back(getOrCreateSignalIdx(outK));
             }
@@ -2253,6 +2263,8 @@ void CircuitSimulator::assembleMNA(double currentTime) {
 }
 
 SimulationOutput CircuitSimulator::runTransient() {
+    auto simClockStart = std::chrono::high_resolution_clock::now();
+    setComputeTimeSeconds(0.0);
     SimulationOutput out;
     
     double tStop = config.stopTime > 0 ? config.stopTime : 0.01;
@@ -2492,6 +2504,10 @@ SimulationOutput CircuitSimulator::runTransient() {
 
         // Periodic live telemetry update (every 500 steps) for real-time plotting
         if ((iterCount % 500) == 0) {
+            auto simClockCur = std::chrono::high_resolution_clock::now();
+            double elSec = std::chrono::duration<double>(simClockCur - simClockStart).count();
+            setComputeTimeSeconds(elSec);
+
             std::lock_guard<std::mutex> lock(telemetryMutex);
             telemetry.timeHistory = out.time;
             telemetry.voltages.clear();
@@ -2501,8 +2517,13 @@ SimulationOutput CircuitSimulator::runTransient() {
             for (const auto& p : out.voltmeters) telemetry.voltages[p.first] = p.second;
             for (const auto& p : out.ammeters) telemetry.voltages[p.first] = p.second;
             for (const auto& p : out.custom_plots) telemetry.voltages[p.first] = p.second;
+            telemetryVersion.fetch_add(1, std::memory_order_relaxed);
         }
     }
+
+    auto simClockEnd = std::chrono::high_resolution_clock::now();
+    double finalElSec = std::chrono::duration<double>(simClockEnd - simClockStart).count();
+    setComputeTimeSeconds(finalElSec);
 
     return out;
 }

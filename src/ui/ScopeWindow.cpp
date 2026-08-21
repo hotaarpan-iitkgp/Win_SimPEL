@@ -406,6 +406,9 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
         }
     } else {
 
+        ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(4.0f, 2.0f));
+        ImPlot::PushStyleVar(ImPlotStyleVar_LabelPadding, ImVec2(2.0f, 2.0f));
+
         // Multiple subplots — one per channel, linked X-axis
         if (ImPlot::BeginSubplots("##ScopeSubplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
             for (int i = 0; i < renderPanes; ++i) {
@@ -464,7 +467,13 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                         ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
                         ImPlot::GetInputMap().Pan = ImGuiMouseButton_Left;
                     }
-                    ImPlot::SetupAxes("Time (s)", "Amplitude");
+
+                    bool isBottomPlot = (i == renderPanes - 1);
+                    if (!isBottomPlot) {
+                        ImPlot::SetupAxes(nullptr, "Amplitude", ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoLabel, 0);
+                    } else {
+                        ImPlot::SetupAxes("Time (s)", "Amplitude", 0, 0);
+                    }
 
                     if (isZoomActive) renderZoomOverlay(i);
                     renderCursorOverlay(i, data);
@@ -511,6 +520,7 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
             }
             ImPlot::EndSubplots();
         }
+        ImPlot::PopStyleVar(2);
     }
 }
 

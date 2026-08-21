@@ -51,6 +51,10 @@ private:
     ScopeCursorState cursorState;
     InterpolationMode globalPlotMode = InterpolationMode::AutoHybrid;
 
+    // Telemetry cache optimization to avoid 100k-point vector copies every frame
+    uint64_t lastTelemetryVer = 0;
+    CircuitSimEngine::TelemetryData cachedTelemetry;
+
     // Per-pane deferred zoom & custom gesture tracking
     static constexpr int MAX_PANES = 4;
     std::array<WaveformPendingZoom, MAX_PANES> pendingZoom = {};
@@ -69,7 +73,7 @@ public:
     float getTraceLineWidth() const { return traceLineWidth; }
 
     void triggerAutoFit() { autoFitNext = true; }
-    void render(const char* title, CircuitSimEngine::CircuitSimulator& simulator);
+    void render(const char* title, CircuitSimEngine::CircuitSimulator& simulator, const CircuitDesign* design = nullptr);
 };
 
 } // namespace CircuitSim

@@ -6,6 +6,7 @@
 #include "NetlistSourceView.hpp"
 #include "engine/CircuitSimulator.hpp"
 #include "imgui.h"
+#include <nlohmann/json.hpp>
 #include <vector>
 #include <memory>
 #include <thread>
@@ -31,6 +32,9 @@ private:
     bool showDetailedLibrary = false;
     char searchPaletteBuf[128] = "";
 
+    bool showDemoPane = true;
+    char searchDemoBuf[128] = "";
+
     bool showSimParamsModal = false;
     char simStopTimeBuf[64] = "0.02";
     char simStepSizeBuf[64] = "1u";
@@ -51,6 +55,9 @@ private:
     void renderMenuBar();
     void renderControlBar();
     void renderComponentPalette();
+    void renderDemoPane();
+    bool loadDemoJsonFile(const std::string& filename);
+    void loadSchematicFromJson(const nlohmann::json& j);
     void renderPropertyInspector();
     void renderSimParamsModal();
     void renderCSCRIPTEditorModal();

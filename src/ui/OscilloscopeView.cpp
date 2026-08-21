@@ -7,6 +7,10 @@
 #include <map>
 #include <cfloat>
 
+#include <set>
+#include <sstream>
+#include "engine/Components.hpp"
+
 namespace CircuitSim {
 
 struct SignalCategory {
@@ -15,7 +19,65 @@ struct SignalCategory {
     std::vector<std::pair<std::string, std::vector<double>>> variables;
 };
 
-void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimulator& simulator) {
+static std::set<std::string> extractProbedSet(const CircuitDesign* design) {
+    std::set<std::string> probedSet;
+    if (!design) return probedSet;
+
+    for (const auto& comp : design->components) {
+        if (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1") {
+            probedSet.insert("V_" + comp.id);
+            probedSet.insert("I_" + comp.id);
+            probedSet.insert(comp.id);
+        }
+        if (comp.parameters.count("plotV") && comp.parameters.at("plotV") == "1") {
+            probedSet.insert("V_" + comp.id);
+        }
+        if (comp.parameters.count("plotI") && comp.parameters.at("plotI") == "1") {
+            probedSet.insert("I_" + comp.id);
+        }
+        if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+            std::stringstream ss(comp.parameters.at("selected_signals"));
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                if (!item.empty()) {
+                    probedSet.insert(item);
+                    if (item.rfind("V_", 0) != 0 && item.rfind("I_", 0) != 0) {
+                        probedSet.insert("V_" + item);
+                        probedSet.insert("I_" + item);
+                    }
+                }
+            }
+        }
+    }
+
+    for (const auto& wire : design->wires) {
+        if (!wire.from.isWireJunction && !wire.from.compId.empty()) probedSet.insert(wire.from.compId);
+        if (!wire.to.isWireJunction && !wire.to.compId.empty()) probedSet.insert(wire.to.compId);
+    }
+
+    return probedSet;
+}
+
+static bool isSignalProbed(const std::string& name, const std::set<std::string>& probedSet) {
+    if (probedSet.empty()) return true; // Fallback: if no explicit probes selected, show all
+
+    if (probedSet.count(name) > 0) return true;
+
+    std::string base = name;
+    if (base.rfind("V_", 0) == 0 || base.rfind("I_", 0) == 0) {
+        base = base.substr(2);
+        if (probedSet.count(base) > 0) return true;
+    }
+
+    for (const auto& p : probedSet) {
+        if (p.empty()) continue;
+        if (name == p || name == ("V_" + p) || name == ("I_" + p)) return true;
+        if (name.find(p) != std::string::npos || p.find(name) != std::string::npos) return true;
+    }
+    return false;
+}
+
+void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimulator& simulator, const CircuitDesign* design) {
     ImGui::Begin(title);
 
     // Handle dock node size for collapse/expand (must be after Begin so window exists)
@@ -59,13 +121,20 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         return;
     }
     
-    CircuitSimEngine::TelemetryData data = simulator.getTelemetryCopy();
+    uint64_t currentVer = simulator.getTelemetryVersion();
+    if (currentVer != lastTelemetryVer || cachedTelemetry.timeHistory.empty()) {
+        cachedTelemetry = simulator.getTelemetryCopy();
+        lastTelemetryVer = currentVer;
+    }
+    const auto& data = cachedTelemetry;
     
     if (data.timeHistory.empty()) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No simulation waveform data available. Press PLAY to run simulation.");
         ImGui::End();
         return;
     }
+
+    std::set<std::string> probedSet = extractProbedSet(design);
 
     SignalCategory voltageCat{"Voltage Waveforms (V)", "Voltage (V)", {}};
     SignalCategory currentCat{"Current Waveforms (I)", "Current (A)", {}};
@@ -79,6 +148,9 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
         // Skip internal raw MNA matrix node voltages (node_1, node_2, 0, etc.)
         if (name.rfind("node_", 0) == 0 || name == "0" || name == "node_0") continue;
+
+        // Filter: only plot signals that are selected/probed in parameter inspector / probe block
+        if (!isSignalProbed(name, probedSet)) continue;
 
         if (name.rfind("I_", 0) == 0 || name.rfind("AM", 0) == 0) {
             currentCat.variables.push_back({name, vals});
@@ -262,6 +334,9 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     bool isZoomActive = (activeZoomMode != ActiveZoomMode::Disabled);
 
+    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(4.0f, 2.0f));
+    ImPlot::PushStyleVar(ImPlotStyleVar_LabelPadding, ImVec2(2.0f, 2.0f));
+
     if (ImPlot::BeginSubplots("Oscilloscope Subplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
         for (int i = 0; i < renderPanes; ++i) {
             const auto& cat = categories[i % categories.size()];
@@ -308,7 +383,12 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                     ImPlot::GetInputMap().Pan          = ImGuiMouseButton_Left;
                 }
 
-                ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str());
+                bool isBottomPlot = (i == renderPanes - 1);
+                if (!isBottomPlot) {
+                    ImPlot::SetupAxes(nullptr, cat.yLabel.c_str(), ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoLabel, 0);
+                } else {
+                    ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str(), 0, 0);
+                }
                 renderCursorOverlay(i, data);
 
                 // --- DEDICATED SEPARATE ZOOM MODULE (Bypasses ImPlot 2D Box engine) ---
@@ -457,6 +537,11 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 }
 
                 int varIdx = 0;
+                thread_local std::vector<double> s_decT;
+                thread_local std::vector<double> s_decY;
+                thread_local std::vector<double> s_hT;
+                thread_local std::vector<double> s_hY;
+
                 for (const auto& varPair : cat.variables) {
                     const std::string& varName = varPair.first;
                     const std::vector<double>& vals = varPair.second;
@@ -471,16 +556,27 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                             mode = detectDefaultInterpolationMode(varName);
                         }
 
+                        const double* pT = data.timeHistory.data();
+                        const double* pY = vals.data();
+                        int drawCount = count;
+
+                        if (count > 2000) {
+                            decimateMinMax(pT, pY, count, 2000, s_decT, s_decY);
+                            pT = s_decT.data();
+                            pY = s_decY.data();
+                            drawCount = (int)s_decT.size();
+                        }
+
                         if (mode == InterpolationMode::AlwaysStairs) {
-                            ImPlot::PlotStairs(varName.c_str(), data.timeHistory.data(), vals.data(), count, spec);
+                            ImPlot::PlotStairs(varName.c_str(), pT, pY, drawCount, spec);
                         } else if (mode == InterpolationMode::AutoHybrid) {
-                            std::vector<double> rawT(data.timeHistory.begin(), data.timeHistory.begin() + count);
-                            std::vector<double> rawY(vals.begin(), vals.begin() + count);
-                            std::vector<double> hT, hY;
-                            buildHybridVertices(rawT, rawY, hT, hY);
-                            ImPlot::PlotLine(varName.c_str(), hT.data(), hY.data(), (int)hT.size(), spec);
+                            s_hT.assign(pT, pT + drawCount);
+                            s_hY.assign(pY, pY + drawCount);
+                            std::vector<double> hOutT, hOutY;
+                            buildHybridVertices(s_hT, s_hY, hOutT, hOutY);
+                            ImPlot::PlotLine(varName.c_str(), hOutT.data(), hOutY.data(), (int)hOutT.size(), spec);
                         } else {
-                            ImPlot::PlotLine(varName.c_str(), data.timeHistory.data(), vals.data(), count, spec);
+                            ImPlot::PlotLine(varName.c_str(), pT, pY, drawCount, spec);
                         }
                     }
                     varIdx++;
@@ -490,6 +586,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         }
         ImPlot::EndSubplots();
     }
+    ImPlot::PopStyleVar(2);
 
     if (cursorState.showCursors) {
         ImGui::Separator();

@@ -289,6 +289,59 @@ static std::string saveFileDialog() {
     return "";
 }
 
+static std::string buildSchematicJsonString(const CircuitDesign& cd) {
+    json j;
+    json compArray = json::array();
+    for (const auto& comp : cd.components) {
+        json cObj;
+        cObj["id"] = comp.id;
+        cObj["type"] = comp.rawTypeStr;
+        cObj["label"] = comp.label;
+        cObj["x"] = comp.x;
+        cObj["y"] = comp.y;
+        cObj["rotation"] = comp.rotation;
+        json pObj = json::object();
+        for (const auto& [k, v] : comp.parameters) pObj[k] = v;
+        cObj["parameters"] = pObj;
+        compArray.push_back(cObj);
+    }
+    j["components"] = compArray;
+    json wireArray = json::array();
+    for (const auto& wire : cd.wires) {
+        json wObj;
+        wObj["id"] = wire.id;
+        json fObj;
+        if (wire.from.isWireJunction) {
+            fObj["type"] = "junction";
+            fObj["compId"] = wire.from.targetWireId;
+            fObj["terminal"] = "";
+            fObj["x"] = wire.from.junctionX;
+            fObj["y"] = wire.from.junctionY;
+        } else {
+            fObj["type"] = "pin";
+            fObj["compId"] = wire.from.compId;
+            fObj["terminal"] = wire.from.terminal;
+        }
+        json tObj;
+        if (wire.to.isWireJunction) {
+            tObj["type"] = "junction";
+            tObj["compId"] = wire.to.targetWireId;
+            tObj["terminal"] = "";
+            tObj["x"] = wire.to.junctionX;
+            tObj["y"] = wire.to.junctionY;
+        } else {
+            tObj["type"] = "pin";
+            tObj["compId"] = wire.to.compId;
+            tObj["terminal"] = wire.to.terminal;
+        }
+        wObj["from"] = fObj;
+        wObj["to"] = tObj;
+        wireArray.push_back(wObj);
+    }
+    j["wires"] = wireArray;
+    return j.dump(2);
+}
+
 void MainWindow::renderMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -459,47 +512,14 @@ void MainWindow::renderMenuBar() {
             if (ImGui::MenuItem("Save Schematic (.json)")) {
                 std::string path = saveFileDialog();
                 if (!path.empty()) {
-                    json j;
-                    json compArray = json::array();
-                    const auto& cd = canvas.getCircuit();
-                    for (const auto& comp : cd.components) {
-                        json cObj;
-                        cObj["id"] = comp.id;
-                        cObj["type"] = comp.rawTypeStr;
-                        cObj["label"] = comp.label;
-                        cObj["x"] = comp.x;
-                        cObj["y"] = comp.y;
-                        cObj["rotation"] = comp.rotation;
-                        json pObj = json::object();
-                        for (const auto& [k, v] : comp.parameters) pObj[k] = v;
-                        cObj["parameters"] = pObj;
-                        compArray.push_back(cObj);
-                    }
-                    j["components"] = compArray;
-                    json wireArray = json::array();
-                    for (const auto& wire : cd.wires) {
-                        json wObj;
-                        wObj["id"] = wire.id;
-                        json fObj; fObj["type"] = "pin"; fObj["compId"] = wire.from.compId; fObj["terminal"] = wire.from.terminal;
-                        json tObj;
-                        if (wire.to.isWireJunction) {
-                            tObj["type"] = "junction";
-                            tObj["compId"] = wire.to.targetWireId;
-                            tObj["terminal"] = "";
-                            tObj["x"] = wire.to.junctionX;
-                            tObj["y"] = wire.to.junctionY;
-                        } else {
-                            tObj["type"] = "pin";
-                            tObj["compId"] = wire.to.compId;
-                            tObj["terminal"] = wire.to.terminal;
-                        }
-                        wObj["from"] = fObj; wObj["to"] = tObj;
-                        wireArray.push_back(wObj);
-                    }
-                    j["wires"] = wireArray;
+                    std::string jsonStr = buildSchematicJsonString(canvas.getCircuit());
                     std::ofstream out(path);
-                    if (out.is_open()) out << j.dump(2);
+                    if (out.is_open()) out << jsonStr;
                 }
+            }
+            if (ImGui::MenuItem("Copy Schematic JSON")) {
+                std::string jsonStr = buildSchematicJsonString(canvas.getCircuit());
+                ImGui::SetClipboardText(jsonStr.c_str());
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit")) { exit(0); }
@@ -521,6 +541,9 @@ void MainWindow::renderMenuBar() {
             if (ImGui::MenuItem("Fit to Screen (F)")) { canvas.fitToScreen(); }
             if (ImGui::MenuItem("Component Pane", nullptr, showComponentPalette)) {
                 showComponentPalette = !showComponentPalette;
+            }
+            if (ImGui::MenuItem("Demo Circuits Pane", nullptr, showDemoPane)) {
+                showDemoPane = !showDemoPane;
             }
             ImGui::Separator();
             if (ImGui::BeginMenu("Appearance")) {
@@ -637,6 +660,15 @@ void MainWindow::renderControlBar() {
         }
         ImGui::SameLine(0, 10);
 
+        if (ImGui::Button("Copy JSON")) {
+            std::string jsonStr = buildSchematicJsonString(canvas.getCircuit());
+            ImGui::SetClipboardText(jsonStr.c_str());
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Copy complete schematic design JSON to clipboard");
+        }
+        ImGui::SameLine(0, 10);
+
         // Adaptive Box Zoom toggle
         bool zoomActive = canvas.isAdaptiveZoomMode();
         if (zoomActive) ImGui::PushStyleColor(ImGuiCol_Text, isDarkMode ? ImVec4(0.3f, 1.0f, 0.5f, 1.0f) : ImVec4(0.05f, 0.55f, 0.15f, 1.0f));
@@ -649,7 +681,13 @@ void MainWindow::renderControlBar() {
         ImGui::TextDisabled("|");
         ImGui::SameLine(0, 20);
 
-        ImGui::Text("Sim Time: %.5f s", simulator.getCurrentTime());
+        double pct = simulator.getProgressPercent();
+        double cpuSec = simulator.getComputeTimeSeconds();
+        if (simRunning.load()) {
+            ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "Progress: %.1f%% | Compute Time: %.3f s", pct, cpuSec);
+        } else {
+            ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.4f, 1.0f), "Progress: %.1f%% | Compute Time: %.3f s", pct, cpuSec);
+        }
         ImGui::SameLine(0, 20);
 
         ImGui::TextDisabled("|");
@@ -1173,6 +1211,213 @@ void MainWindow::renderComponentPalette() {
     ImGui::End();
 }
 
+void MainWindow::loadSchematicFromJson(const json& j) {
+    CircuitDesign cd;
+    if (j.contains("components") && j["components"].is_array()) {
+        for (const auto& cItem : j["components"]) {
+            ComponentInstance comp;
+            comp.id = cItem.value("id", "");
+            comp.rawTypeStr = cItem.value("type", "R");
+            comp.type = stringToComponentType(comp.rawTypeStr);
+            comp.label = cItem.value("label", comp.id);
+            comp.x = cItem.value("x", 0.0f);
+            comp.y = cItem.value("y", 0.0f);
+            comp.rotation = cItem.value("rotation", 0);
+            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
+                for (auto& [k, v] : cItem["parameters"].items()) {
+                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
+                }
+            }
+            setupComponentPins(comp);
+            cd.components.push_back(comp);
+        }
+    }
+    if (j.contains("wires") && j["wires"].is_array()) {
+        for (const auto& wItem : j["wires"]) {
+            WireInstance wire;
+            wire.id = wItem.value("id", "");
+            if (wItem.contains("from") && wItem["from"].is_object()) {
+                wire.from.compId = wItem["from"].value("compId", "");
+                wire.from.terminal = wItem["from"].value("terminal", "");
+            }
+            if (wItem.contains("to") && wItem["to"].is_object()) {
+                const auto& toObj = wItem["to"];
+                std::string toComp = toObj.value("compId", "");
+                std::string wireId = toObj.value("wireId", "");
+                std::string toType = toObj.value("type", "pin");
+
+                std::string targetW = !wireId.empty() ? wireId : toComp;
+
+                if (toType == "wire" || toType == "junction" || (!targetW.empty() && (targetW[0] == 'w' || targetW[0] == 'W') && targetW.find(".") == std::string::npos)) {
+                    wire.to.isWireJunction = true;
+                    wire.to.targetWireId = targetW;
+                    wire.to.junctionX = toObj.value("x", 0.0f);
+                    wire.to.junctionY = toObj.value("y", 0.0f);
+                } else {
+                    wire.to.isWireJunction = false;
+                    wire.to.compId = toComp;
+                    wire.to.terminal = toObj.value("terminal", "");
+                }
+            }
+            cd.wires.push_back(wire);
+        }
+    }
+    if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
+        const auto& ss = j["simulationSettings"];
+        if (ss.contains("stopTime")) {
+            if (ss["stopTime"].is_number()) cd.settings.stopTime = ss["stopTime"].get<double>();
+            else if (ss["stopTime"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stopTime"].get<std::string>());
+        }
+        if (ss.contains("stepSize")) {
+            if (ss["stepSize"].is_number()) cd.settings.stepSize = ss["stepSize"].get<double>();
+            else if (ss["stepSize"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stepSize"].get<std::string>());
+        }
+    }
+    if (j.contains("simulation_parameters") && j["simulation_parameters"].is_object()) {
+        const auto& sp = j["simulation_parameters"];
+        if (sp.contains("stop_time")) {
+            if (sp["stop_time"].is_number()) cd.settings.stopTime = sp["stop_time"].get<double>();
+            else if (sp["stop_time"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["stop_time"].get<std::string>());
+        }
+        if (sp.contains("step_size")) {
+            if (sp["step_size"].is_number()) cd.settings.stepSize = sp["step_size"].get<double>();
+            else if (sp["step_size"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["step_size"].get<std::string>());
+        }
+    }
+
+    NetlistBuilder::buildNodesForCircuit(cd);
+    canvas.setCircuit(cd);
+    simulator.loadCircuit(cd);
+    canvas.fitToScreen();
+    scopeView.triggerAutoFit();
+}
+
+bool MainWindow::loadDemoJsonFile(const std::string& filename) {
+    std::vector<std::string> searchPaths = {
+        "working jsons/" + filename,
+        "../working jsons/" + filename,
+        "../../working jsons/" + filename,
+        "d:/01-Soft Dev Projects/circuitsim-pro/working jsons/" + filename,
+        filename
+    };
+
+    for (const auto& path : searchPaths) {
+        std::ifstream f(path);
+        if (f.is_open()) {
+            try {
+                json j = json::parse(f);
+                loadSchematicFromJson(j);
+                return true;
+            } catch (...) {}
+        }
+    }
+    return false;
+}
+
+void MainWindow::renderDemoPane() {
+    if (!showDemoPane) return;
+
+    if (ImGui::Begin("Demo Circuits Pane", &showDemoPane)) {
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "📂 Working Example Schematics");
+        ImGui::TextDisabled("Click any example to load into the workspace");
+        ImGui::Spacing();
+
+        ImGui::InputTextWithHint("##DemoSearch", "Search example circuits...", searchDemoBuf, sizeof(searchDemoBuf));
+        std::string searchQuery = searchDemoBuf;
+        std::transform(searchQuery.begin(), searchQuery.end(), searchQuery.begin(), ::tolower);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        struct DemoItem {
+            std::string label;
+            std::string filename;
+            std::string category;
+            std::string badge;
+            std::string desc;
+        };
+
+        static const std::vector<DemoItem> demoCatalog = {
+            // DC-DC Converters
+            { "Buck Converter (Basic)", "Buck_converter.json", "DC-DC Converters", "Buck", "Fundamental open-loop Buck DC-DC step-down converter with pulse generator." },
+            { "Buck Converter (Closed Loop Voltage Mode)", "scenario1_buck_converter.json", "DC-DC Converters", "PI Closed Loop", "Regulated Buck converter with discrete PI controller and voltage error feedback." },
+            { "Buck Converter (Dual Loop Control)", "buck closed dual loop.json", "DC-DC Converters", "Dual Loop", "Cascaded voltage and current dual-loop controlled Buck converter." },
+            { "Boost Converter (Closed Loop)", "boost closed loop.json", "DC-DC Converters", "Boost Closed Loop", "Closed-loop step-up DC-DC boost converter." },
+            { "Flyback Converter (Closed Loop)", "Flyback Converter Closed loop.json", "DC-DC Converters", "Flyback", "Isolated flyback converter with coupled inductor transformer." },
+            { "Forward Converter (Ideal Transformer)", "Forward Converter.json", "DC-DC Converters", "Forward", "Single-switch forward converter with ideal transformer." },
+            { "Forward Converter (Closed Loop)", "Forward Converter closed loop.json", "DC-DC Converters", "Forward Closed Loop", "Regulated forward converter with feedback control." },
+            { "Forward Converter (Multiwinding)", "forward_converter_multiwinding_fixed.json", "DC-DC Converters", "Multi-Secondary", "Forward converter with multi-winding transformer." },
+            { "SEPIC Converter (Open Loop)", "SEPIC open loop.json", "DC-DC Converters", "SEPIC", "Single-Ended Primary-Inductor Converter in open loop." },
+            { "SEPIC Converter (CScript & Wireless)", "sepic closed loop script routing test.json", "DC-DC Converters", "CScript + Wireless", "SEPIC converter regulated via CScript C-code block and wireless GOTO/FROM tags." },
+            { "Zeta Converter (PID Closed Loop)", "zeta_converter_pid_closed_loop.json", "DC-DC Converters", "Zeta PID", "Zeta converter with closed-loop PID regulation." },
+            { "Dual Active Bridge (DAB) Converter", "Dual Active Bridge converter.json", "DC-DC Converters", "DAB", "Bidirectional isolated Dual Active Bridge converter." },
+
+            // Inverters & Motor Drives
+            { "Single-Phase Hysteresis Inverter", "1ph_inverter_hysteresis_basic_blocks.json", "Inverters & Drives", "Hysteresis", "Single-phase full-bridge VSI with hysteresis current controller." },
+            { "Single-Phase Hysteresis Current Control", "1ph_inverter_hysteresis_current_control.json", "Inverters & Drives", "Current Control", "Hysteresis band current regulated single-phase inverter." },
+            { "Single-Phase Unipolar Inverter", "1ph_inverter_unipolar.json", "Inverters & Drives", "Unipolar PWM", "Unipolar SPWM switched single-phase full-bridge inverter." },
+            { "3-Phase Inverter (Sin PWM)", "3Phase Inverter Sin PWM.json", "Inverters & Drives", "3Ph SPWM", "3-Phase sinusoidal PWM voltage source inverter." },
+            { "3-Phase Inverter (SPWM Fixed)", "three_phase_inverter_basic_spwm_fixed.json", "Inverters & Drives", "3Ph Fixed", "Balanced 3-phase AC output inverter with LC filter." },
+            { "3-Phase Inverter (Min-Max Injection / SVPWM)", "Three Phase VSI min max injection PWM svpwm type.json", "Inverters & Drives", "SVPWM", "Space vector PWM via min-max zero-sequence harmonic injection." },
+            { "3-Level 3-Phase T-Type VSI", "3-Level 3_phase T-type VSI min max injection PWM svpwm type.json", "Inverters & Drives", "3-Level T-Type", "Multi-level T-Type neutral-point-clamped 3-phase VSI." },
+            { "Cascaded H-Bridge 5-Level Inverter", "Cascaded H-bridge 5-level inverter single phase.json", "Inverters & Drives", "5-Level CHB", "5-Level single-phase cascaded H-bridge inverter." },
+            { "3-Phase VSI (vgFET Switches)", "vgFET 3Phase VSI.json", "Inverters & Drives", "vgFET", "3-Phase VSI powered by voltage-gated FET switches." },
+
+            // Control & Signal Routing Demos
+            { "3-Phase VSI (Wireless GOTO/FROM)", "3P VSI goto from block test.json", "Control & Signal Routing", "Wireless Tags", "3-Phase inverter featuring wireless GOTO_SIG and FROM_SIG signal routing." },
+            { "SEPIC Closed Loop (Script & GOTO)", "sepic closed loop with script block and wireless routing.json", "Control & Signal Routing", "CScript + Tags", "SEPIC converter with CScript block and GOTO/FROM wireless tags." }
+        };
+
+        std::map<std::string, std::vector<const DemoItem*>> categorized;
+        for (const auto& item : demoCatalog) {
+            if (!searchQuery.empty()) {
+                std::string t = item.label + " " + item.filename + " " + item.desc + " " + item.badge;
+                std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+                if (t.find(searchQuery) == std::string::npos) continue;
+            }
+            categorized[item.category].push_back(&item);
+        }
+
+        if (categorized.empty()) {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No example circuits match '%s'", searchDemoBuf);
+        } else {
+            for (const auto& [catName, items] : categorized) {
+                if (ImGui::CollapsingHeader(catName.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                    for (const auto* item : items) {
+                        ImGui::PushID(item->filename.c_str());
+
+                        // Render badge tag
+                        ImGui::TextColored(ImVec4(0.0f, 0.75f, 0.95f, 1.0f), "[%s]", item->badge.c_str());
+                        ImGui::SameLine();
+
+                        if (ImGui::Selectable(item->label.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
+                            if (ImGui::IsMouseDoubleClicked(0)) {
+                                loadDemoJsonFile(item->filename);
+                            }
+                        }
+
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::SetTooltip("%s\nFilename: %s\n\n(Double-click or click Load button below)", item->desc.c_str(), item->filename.c_str());
+                        }
+
+                        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 70.0f);
+                        if (ImGui::Button("⚡ Load")) {
+                            loadDemoJsonFile(item->filename);
+                        }
+
+                        ImGui::PopID();
+                        ImGui::Spacing();
+                    }
+                }
+            }
+        }
+    }
+    ImGui::End();
+}
+
 void MainWindow::renderPropertyInspector() {
     ComponentInstance* comp = canvas.getSelectedComponent();
     if (!comp) return;
@@ -1490,6 +1735,7 @@ void MainWindow::render() {
 
     if (activeWorkspace == WorkspaceMode::SchematicCAD) {
         renderComponentPalette();
+        renderDemoPane();
         renderPropertyInspector();
         canvas.render("Schematic Editor Canvas", ImVec2(800, 600));
 

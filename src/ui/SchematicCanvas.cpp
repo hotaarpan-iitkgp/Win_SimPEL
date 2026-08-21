@@ -370,7 +370,7 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
         } else {
             int n = (int)sigs.size();
             for (int i = 0; i < n; ++i) {
-                float yOff = (n > 1) ? (-15.0f * (n - 1) + 30.0f * i) : 0.0f;
+                float yOff = (n > 1) ? (-10.0f * (n - 1) + 20.0f * i) : 0.0f;
                 terms.push_back({sigs[i], 30.0f, yOff, 1.0f, 0.0f, true});
             }
         }
@@ -559,67 +559,69 @@ static ImVec2 getEndpointWorldPos(const WireEndpoint& ep, const CircuitDesign& d
     return ImVec2(ep.junctionX, ep.junctionY);
 }
 
-static DomainType getWireDomainInternal(const WireInstance& wire, const CircuitDesign& design, std::set<std::string>& visitedWires) {
-    if (visitedWires.count(wire.id)) return DomainType::Power;
-    visitedWires.insert(wire.id);
+static void buildAllWireDomains(const CircuitDesign& design, std::unordered_map<std::string, DomainType>& outDomainMap) {
+    outDomainMap.clear();
+    std::unordered_map<std::string, const ComponentInstance*> compMap;
+    compMap.reserve(design.components.size());
+    for (const auto& comp : design.components) compMap[comp.id] = &comp;
 
-    // 1. Check direct component pin on 'from'
-    if (!wire.from.isWireJunction && !wire.from.compId.empty()) {
-        for (const auto& comp : design.components) {
-            if (comp.id == wire.from.compId) {
-                DomainType dom = getPinDomain(comp, wire.from.terminal);
-                if (dom == DomainType::Control) return DomainType::Control;
+    for (const auto& wire : design.wires) {
+        DomainType dom = DomainType::Power;
+        if (!wire.from.isWireJunction && !wire.from.compId.empty()) {
+            auto it = compMap.find(wire.from.compId);
+            if (it != compMap.end()) {
+                if (getPinDomain(*(it->second), wire.from.terminal) == DomainType::Control) dom = DomainType::Control;
+            }
+        }
+        if (dom != DomainType::Control && !wire.to.isWireJunction && !wire.to.compId.empty()) {
+            auto it = compMap.find(wire.to.compId);
+            if (it != compMap.end()) {
+                if (getPinDomain(*(it->second), wire.to.terminal) == DomainType::Control) dom = DomainType::Control;
+            }
+        }
+        outDomainMap[wire.id] = dom;
+    }
+
+    bool changed = true;
+    int maxIter = (int)design.wires.size();
+    for (int iter = 0; iter < maxIter && changed; ++iter) {
+        changed = false;
+        for (const auto& wire : design.wires) {
+            if (outDomainMap[wire.id] == DomainType::Control) continue;
+
+            if (wire.from.isWireJunction && !wire.from.targetWireId.empty()) {
+                auto it = outDomainMap.find(wire.from.targetWireId);
+                if (it != outDomainMap.end() && it->second == DomainType::Control) {
+                    outDomainMap[wire.id] = DomainType::Control;
+                    changed = true;
+                    continue;
+                }
+            }
+            if (wire.to.isWireJunction && !wire.to.targetWireId.empty()) {
+                auto it = outDomainMap.find(wire.to.targetWireId);
+                if (it != outDomainMap.end() && it->second == DomainType::Control) {
+                    outDomainMap[wire.id] = DomainType::Control;
+                    changed = true;
+                    continue;
+                }
+            }
+            for (const auto& w : design.wires) {
+                if (w.id == wire.id) continue;
+                bool branches = (w.from.isWireJunction && w.from.targetWireId == wire.id) ||
+                                (w.to.isWireJunction && w.to.targetWireId == wire.id);
+                if (branches && outDomainMap[w.id] == DomainType::Control) {
+                    outDomainMap[wire.id] = DomainType::Control;
+                    changed = true;
+                    break;
+                }
             }
         }
     }
-
-    // 2. Check direct component pin on 'to'
-    if (!wire.to.isWireJunction && !wire.to.compId.empty()) {
-        for (const auto& comp : design.components) {
-            if (comp.id == wire.to.compId) {
-                DomainType dom = getPinDomain(comp, wire.to.terminal);
-                if (dom == DomainType::Control) return DomainType::Control;
-            }
-        }
-    }
-
-    // 3. Trace target wire if 'from' is a junction
-    if (wire.from.isWireJunction && !wire.from.targetWireId.empty()) {
-        for (const auto& w : design.wires) {
-            if (w.id == wire.from.targetWireId) {
-                DomainType dom = getWireDomainInternal(w, design, visitedWires);
-                if (dom == DomainType::Control) return DomainType::Control;
-            }
-        }
-    }
-
-    // 4. Trace target wire if 'to' is a junction
-    if (wire.to.isWireJunction && !wire.to.targetWireId.empty()) {
-        for (const auto& w : design.wires) {
-            if (w.id == wire.to.targetWireId) {
-                DomainType dom = getWireDomainInternal(w, design, visitedWires);
-                if (dom == DomainType::Control) return DomainType::Control;
-            }
-        }
-    }
-
-    // 5. Trace any wire that branches off from this wire
-    for (const auto& w : design.wires) {
-        if (w.id == wire.id) continue;
-        bool branchesFromThis = (w.from.isWireJunction && w.from.targetWireId == wire.id) ||
-                               (w.to.isWireJunction && w.to.targetWireId == wire.id);
-        if (branchesFromThis) {
-            DomainType dom = getWireDomainInternal(w, design, visitedWires);
-            if (dom == DomainType::Control) return DomainType::Control;
-        }
-    }
-
-    return DomainType::Power;
 }
 
-static DomainType getWireDomain(const WireInstance& wire, const CircuitDesign& design) {
-    std::set<std::string> visited;
-    return getWireDomainInternal(wire, design, visited);
+static DomainType getWireDomainFast(const WireInstance& wire, const std::unordered_map<std::string, DomainType>& domainMap) {
+    auto it = domainMap.find(wire.id);
+    return (it != domainMap.end()) ? it->second : DomainType::Power;
 }
 
 static bool isControlOutputPin(const ComponentInstance& comp, const std::string& pinName) {
@@ -1419,7 +1421,7 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
 
         int numPins = std::max(1, (int)sigs.size());
         float hw = 30.0f * s;
-        float hh = std::max(20.0f, numPins * 15.0f) * s;
+        float hh = std::max(20.0f, (numPins - 1) * 10.0f + 14.0f) * s;
 
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4.0f * s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(14, 165, 233, 230), 4.0f * s, 0, 2.0f * s);
@@ -1518,22 +1520,29 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         ImU32 cscriptBg = IM_COL32(30, 41, 59, 240);
         ImU32 cscriptBorder = IM_COL32(59, 130, 246, 255);
 
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, cscriptBg, 4.0f * s);
-        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, cscriptBorder, 4.0f * s, 0, 1.5f * s);
+        ImVec2 boxPts[] = {
+            rotatePt(-hw, -hh, c.x, c.y, rot),
+            rotatePt(hw, -hh, c.x, c.y, rot),
+            rotatePt(hw, hh, c.x, c.y, rot),
+            rotatePt(-hw, hh, c.x, c.y, rot)
+        };
+
+        drawList->AddConvexPolyFilled(boxPts, 4, cscriptBg);
+        drawList->AddPolyline(boxPts, 4, cscriptBorder, ImDrawFlags_Closed, 1.5f * s);
 
         std::string labelText = comp.label.empty() ? "C-Script" : comp.label;
         ImVec2 txtSz = ImGui::CalcTextSize(labelText.c_str());
-        drawList->AddText({c.x - (txtSz.x * 0.5f), c.y - 6.0f * s}, IM_COL32(255, 255, 255, 240), labelText.c_str());
+        drawList->AddText(rotatePt(-(txtSz.x * 0.5f), -6.0f * s, c.x, c.y, rot), IM_COL32(255, 255, 255, 240), labelText.c_str());
 
         for (int i = 0; i < numIn; ++i) {
             float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
-            drawList->AddText({c.x - hw + 4.0f * s, c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), inPorts[i].name.c_str());
+            drawList->AddText(rotatePt((-45.0f + 4.0f) * s, (yOff - 6.0f) * s, c.x, c.y, rot), IM_COL32(148, 163, 184, 220), inPorts[i].name.c_str());
         }
 
         for (int j = 0; j < numOut; ++j) {
             float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
             ImVec2 pSz = ImGui::CalcTextSize(outPorts[j].name.c_str());
-            drawList->AddText({c.x + hw - (pSz.x + 4.0f * s), c.y + (yOff - 6.0f) * s}, IM_COL32(148, 163, 184, 220), outPorts[j].name.c_str());
+            drawList->AddText(rotatePt((45.0f - pSz.x - 4.0f) * s, (yOff - 6.0f) * s, c.x, c.y, rot), IM_COL32(148, 163, 184, 220), outPorts[j].name.c_str());
         }
     } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
         std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
@@ -1733,11 +1742,18 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 
     std::map<std::string, std::tuple<ImVec2, ImVec2, ImVec2, ImVec2>> wirePointsMap;
 
+    std::unordered_map<std::string, DomainType> wireDomainMap;
+    buildAllWireDomains(design, wireDomainMap);
+
+    std::unordered_map<std::string, const ComponentInstance*> compMap;
+    compMap.reserve(design.components.size());
+    for (const auto& c : design.components) compMap[c.id] = &c;
+
     for (auto& wire : design.wires) {
         ImVec2 p1(0, 0), p1_stub(0, 0), p2(0, 0), p2_stub(0, 0);
         bool foundFrom = false, foundTo = false;
 
-        DomainType wDom = getWireDomain(wire, design);
+        DomainType wDom = getWireDomainFast(wire, wireDomainMap);
         bool isControlNet = (wDom == DomainType::Control);
 
         bool fromIsVertical = false;
@@ -1746,11 +1762,9 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             p1_stub = p1;
             foundFrom = true;
         } else {
-            for (const auto& comp : design.components) {
-                if (comp.id == wire.from.compId) {
-                    foundFrom = getTerminalPortStub(comp, wire.from.terminal, canvasPos, zoomLevel, p1, p1_stub, fromIsVertical);
-                    break;
-                }
+            auto itC = compMap.find(wire.from.compId);
+            if (itC != compMap.end()) {
+                foundFrom = getTerminalPortStub(*(itC->second), wire.from.terminal, canvasPos, zoomLevel, p1, p1_stub, fromIsVertical);
             }
         }
 
@@ -1975,9 +1989,21 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             }
 
             if (isControlNet && !wire.to.isWireJunction) {
-                float arrLen = 8.0f * zoomLevel;
-                ImVec2 arr1(p2.x - arrLen, p2.y - arrLen * 0.5f);
-                ImVec2 arr2(p2.x - arrLen, p2.y + arrLen * 0.5f);
+                float arrLen = 7.0f * zoomLevel;
+                float arrWidth = 4.0f * zoomLevel;
+
+                ImVec2 dir(p2.x - p2_stub.x, p2.y - p2_stub.y);
+                float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+                if (len > 1e-4f) {
+                    dir.x /= len;
+                    dir.y /= len;
+                } else {
+                    dir = ImVec2(1.0f, 0.0f);
+                }
+
+                ImVec2 basePt(p2.x - dir.x * arrLen, p2.y - dir.y * arrLen);
+                ImVec2 arr1(basePt.x + dir.y * arrWidth, basePt.y - dir.x * arrWidth);
+                ImVec2 arr2(basePt.x - dir.y * arrWidth, basePt.y + dir.x * arrWidth);
                 drawList->AddTriangleFilled(p2, arr1, arr2, wireColor);
             }
         }
@@ -1998,7 +2024,7 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         }
 
         DomainType startDom = startComp ? getPinDomain(*startComp, wireStartPin) : DomainType::Power;
-        DomainType targetWireDom = targetWire ? getWireDomain(*targetWire, design) : DomainType::Power;
+        DomainType targetWireDom = targetWire ? getWireDomainFast(*targetWire, wireDomainMap) : DomainType::Power;
 
         ImVec2 jScreen = worldToScreen(hoveredWireJunctionPos.x, hoveredWireJunctionPos.y, canvasPos);
 
@@ -2982,8 +3008,10 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                 }
 
                 if (startComp && targetWire) {
+                    std::unordered_map<std::string, DomainType> wireDomainMap;
+                    buildAllWireDomains(design, wireDomainMap);
                     DomainType startDom = getPinDomain(*startComp, wireStartPin);
-                    DomainType targetWireDom = getWireDomain(*targetWire, design);
+                    DomainType targetWireDom = getWireDomainFast(*targetWire, wireDomainMap);
 
                     if (startDom != targetWireDom) {
                         // REJECT CROSS-DOMAIN T-JUNCTION CONNECTION!
@@ -3071,6 +3099,15 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                 if (mousePos.x >= center.x - hw*zoomLevel && mousePos.x <= center.x + hw*zoomLevel &&
                     mousePos.y >= center.y - hh*zoomLevel && mousePos.y <= center.y + hh*zoomLevel) {
                     
+                    if (io.KeyCtrl && !selectedComponentIds.empty() && selectedComponentIds.count(comp.id) == 0) {
+                        autoConnectComponents(comp);
+                        selectedComponentIds.clear();
+                        selectedWireIds.clear();
+                        selectedComponentIds.insert(comp.id);
+                        hitComp = true;
+                        break;
+                    }
+
                     if (!io.KeyShift && selectedComponentIds.count(comp.id) == 0) {
                         selectedComponentIds.clear();
                         selectedWireIds.clear();
@@ -3426,6 +3463,184 @@ void SchematicCanvas::openCScriptModalForComp(const std::string& compId) {
             strncpy(cscriptTimestepBuf, tsStr.c_str(), sizeof(cscriptTimestepBuf) - 1);
             break;
         }
+    }
+}
+
+void SchematicCanvas::autoConnectComponents(const ComponentInstance& targetComp) {
+    if (selectedComponentIds.empty()) return;
+
+    std::vector<const ComponentInstance*> selectedComps;
+    for (const auto& c : design.components) {
+        if (selectedComponentIds.count(c.id) > 0 && c.id != targetComp.id) {
+            selectedComps.push_back(&c);
+        }
+    }
+    if (selectedComps.empty()) return;
+
+    pushUndoState();
+    bool connectedAny = false;
+
+    // Helper to check if a pin is connected
+    auto isPinConn = [this](const std::string& compId, const std::string& pinName) -> bool {
+        for (const auto& w : design.wires) {
+            if (!w.from.isWireJunction && w.from.compId == compId && isTerminalMatch("", w.from.terminal, pinName)) return true;
+            if (!w.to.isWireJunction && w.to.compId == compId && isTerminalMatch("", w.to.terminal, pinName)) return true;
+        }
+        return false;
+    };
+
+    auto targetTerms = getTerminals(targetComp);
+    if (targetTerms.empty() && !targetComp.pins.empty()) {
+        for (const auto& pin : targetComp.pins) {
+            TerminalDef td;
+            td.name = pin.name.c_str();
+            td.x = pin.relativeX; td.y = pin.relativeY;
+            td.dx = pin.isOutput ? 1.0f : -1.0f; td.dy = 0;
+            td.isControl = pin.isCtrl || pin.isInput || pin.isOutput;
+            targetTerms.push_back(td);
+        }
+    }
+
+    std::vector<TerminalDef> targetControlInputs;
+    std::vector<TerminalDef> targetElectricalPins;
+
+    for (const auto& t : targetTerms) {
+        DomainType dom = getPinDomain(targetComp, t.name);
+        if (dom == DomainType::Control) {
+            if (t.dx <= 0.0f) targetControlInputs.push_back(t);
+        } else {
+            targetElectricalPins.push_back(t);
+        }
+    }
+
+    std::set<std::string> locallyConnectedTargetPins;
+
+    for (const auto* srcComp : selectedComps) {
+        auto srcTerms = getTerminals(*srcComp);
+        if (srcTerms.empty() && !srcComp->pins.empty()) {
+            for (const auto& pin : srcComp->pins) {
+                TerminalDef td;
+                td.name = pin.name.c_str();
+                td.x = pin.relativeX; td.y = pin.relativeY;
+                td.dx = pin.isOutput ? 1.0f : -1.0f; td.dy = 0;
+                td.isControl = pin.isCtrl || pin.isInput || pin.isOutput;
+                srcTerms.push_back(td);
+            }
+        }
+
+        std::vector<TerminalDef> srcElectricalPins;
+        std::vector<TerminalDef> srcControlOutputs;
+
+        for (const auto& t : srcTerms) {
+            DomainType dom = getPinDomain(*srcComp, t.name);
+            if (dom == DomainType::Control) {
+                if (t.dx >= 0.0f) srcControlOutputs.push_back(t);
+            } else {
+                srcElectricalPins.push_back(t);
+            }
+        }
+
+        if (!srcElectricalPins.empty() && !targetElectricalPins.empty()) {
+            // Electrical Domain
+            std::vector<TerminalDef> srcCandidates;
+            for (const auto& p : srcElectricalPins) {
+                if (!isPinConn(srcComp->id, p.name)) srcCandidates.push_back(p);
+            }
+            if (srcCandidates.empty()) srcCandidates = srcElectricalPins;
+
+            std::vector<TerminalDef> tgtCandidates;
+            for (const auto& p : targetElectricalPins) {
+                if (!isPinConn(targetComp.id, p.name) && locallyConnectedTargetPins.count(p.name) == 0) {
+                    tgtCandidates.push_back(p);
+                }
+            }
+            if (tgtCandidates.empty()) tgtCandidates = targetElectricalPins;
+
+            TerminalDef bestSrc = srcCandidates[0];
+            TerminalDef bestTgt = tgtCandidates[0];
+            float minDist = 1e9f;
+
+            ImVec2 centerSrc(srcComp->x, srcComp->y);
+            ImVec2 centerTgt(targetComp.x, targetComp.y);
+
+            for (const auto& sDef : srcCandidates) {
+                ImVec2 sPos = rotatePt(sDef.x, sDef.y, centerSrc.x, centerSrc.y, (float)srcComp->rotation);
+                for (const auto& tDef : tgtCandidates) {
+                    ImVec2 tPos = rotatePt(tDef.x, tDef.y, centerTgt.x, centerTgt.y, (float)targetComp.rotation);
+                    float d = std::hypot(sPos.x - tPos.x, sPos.y - tPos.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestSrc = sDef;
+                        bestTgt = tDef;
+                    }
+                }
+            }
+
+            int maxWNum = 0;
+            std::unordered_set<std::string> existingWIds;
+            for (const auto& w : design.wires) {
+                existingWIds.insert(w.id);
+                if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
+                    try {
+                        int num = std::stoi(w.id.substr(1));
+                        if (num > maxWNum) maxWNum = num;
+                    } catch (...) {}
+                }
+            }
+            int candW = maxWNum + 1;
+            while (existingWIds.count("w" + std::to_string(candW))) candW++;
+
+            WireInstance w;
+            w.id = "w" + std::to_string(candW);
+            w.from.compId = srcComp->id;
+            w.from.terminal = bestSrc.name;
+            w.to.compId = targetComp.id;
+            w.to.terminal = bestTgt.name;
+
+            design.wires.push_back(w);
+            locallyConnectedTargetPins.insert(bestTgt.name);
+            connectedAny = true;
+        } else if (!srcControlOutputs.empty() && !targetControlInputs.empty()) {
+            // Control Domain
+            TerminalDef srcPin = srcControlOutputs[0];
+            TerminalDef tgtPin = targetControlInputs[0];
+
+            for (const auto& p : targetControlInputs) {
+                if (!isPinConn(targetComp.id, p.name) && locallyConnectedTargetPins.count(p.name) == 0) {
+                    tgtPin = p;
+                    break;
+                }
+            }
+
+            int maxWNum = 0;
+            std::unordered_set<std::string> existingWIds;
+            for (const auto& w : design.wires) {
+                existingWIds.insert(w.id);
+                if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
+                    try {
+                        int num = std::stoi(w.id.substr(1));
+                        if (num > maxWNum) maxWNum = num;
+                    } catch (...) {}
+                }
+            }
+            int candW = maxWNum + 1;
+            while (existingWIds.count("w" + std::to_string(candW))) candW++;
+
+            WireInstance w;
+            w.id = "w" + std::to_string(candW);
+            w.from.compId = srcComp->id;
+            w.from.terminal = srcPin.name;
+            w.to.compId = targetComp.id;
+            w.to.terminal = tgtPin.name;
+
+            design.wires.push_back(w);
+            locallyConnectedTargetPins.insert(tgtPin.name);
+            connectedAny = true;
+        }
+    }
+
+    if (connectedAny) {
+        normalizeControlWires();
     }
 }
 

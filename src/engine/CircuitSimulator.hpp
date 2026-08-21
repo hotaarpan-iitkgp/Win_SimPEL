@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <atomic>
 #include "ExpressionEvaluator.hpp"
 #include "CScriptEngine.hpp"
 
@@ -429,6 +430,33 @@ public:
         telemetry.voltages.clear();
     }
 
+    std::atomic<uint64_t> telemetryVersion{0};
+    std::atomic<double> computeTimeSeconds{0.0};
+
+    uint64_t getTelemetryVersion() const {
+        return telemetryVersion.load(std::memory_order_relaxed);
+    }
+
+    double getStopTime() const {
+        return (config.stopTime > 0.0) ? config.stopTime : 0.01;
+    }
+
+    double getProgressPercent() {
+        double curTime = getCurrentTime();
+        double stopT = getStopTime();
+        if (stopT <= 0.0) return 100.0;
+        double pct = (curTime / stopT) * 100.0;
+        return (pct > 100.0) ? 100.0 : ((pct < 0.0) ? 0.0 : pct);
+    }
+
+    double getComputeTimeSeconds() const {
+        return computeTimeSeconds.load(std::memory_order_relaxed);
+    }
+
+    void setComputeTimeSeconds(double s) {
+        computeTimeSeconds.store(s, std::memory_order_relaxed);
+    }
+
     void setTelemetryOutput(const SimulationOutput& out) {
         std::lock_guard<std::mutex> lock(telemetryMutex);
         telemetry.timeHistory = out.time;
@@ -438,6 +466,7 @@ public:
         for (const auto& pair : out.voltmeters) telemetry.voltages[pair.first] = pair.second;
         for (const auto& pair : out.ammeters) telemetry.voltages[pair.first] = pair.second;
         for (const auto& pair : out.custom_plots) telemetry.voltages[pair.first] = pair.second;
+        telemetryVersion.fetch_add(1, std::memory_order_relaxed);
     }
 
     TelemetryData getTelemetryCopy() {
