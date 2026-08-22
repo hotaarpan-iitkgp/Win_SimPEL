@@ -491,12 +491,25 @@ inline void setupComponentPins(ComponentInstance& comp) {
     if (t.empty()) t = componentTypeToString(comp.type);
     
     if (t == "R" || t == "Resistor" || t == "L" || t == "Inductor" || t == "C" || t == "Capacitor" ||
-        t == "V" || t == "VoltageSource" || t == "ac" || t == "ACVoltageSource" || t == "AC_V" || t == "D" || t == "Diode" ||
-        t == "VM" || t == "Voltmeter" || t == "AM" || t == "Ammeter") {
+        t == "V" || t == "VoltageSource" || t == "DC_V" || t == "DC_V1" || t == "ac" || t == "ACVoltageSource" || t == "AC_V" ||
+        t == "I" || t == "CurrentSource" || t == "DC_I" || t == "AC_I" || t == "ACCurrentSource" ||
+        t == "D" || t == "Diode" ||
+        t == "VAR_R" || t == "VariableResistor" || t == "VAR_L" || t == "VariableInductor" || t == "VAR_C" || t == "VariableCapacitor" ||
+        t == "SAT_L" || t == "SaturableInductor" || t == "SAT_C" || t == "SaturableCapacitor" || t == "PWL_R" || t == "PWLResistor") {
         
         Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
         Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
         comp.pins = {pinA, pinB};
+    } else if (t == "VM" || t == "Voltmeter" || t == "AM" || t == "Ammeter") {
+        Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
+        Pin pinOut; pinOut.name = "Out"; pinOut.relativeX = 20; pinOut.relativeY = 0; pinOut.isOutput = true;
+        comp.pins = {pinA, pinB, pinOut};
+    } else if (t == "CTRL_V" || t == "ControlledVoltageSource" || t == "CTRL_I" || t == "ControlledCurrentSource") {
+        Pin pinIn; pinIn.name = "In"; pinIn.relativeX = -30; pinIn.relativeY = 0; pinIn.isInput = true;
+        Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
+        comp.pins = {pinIn, pinA, pinB};
     } else if (t == "MOSFET" || t == "vg-FET") {
         Pin pinD; pinD.name = "D"; pinD.relativeX = 0; pinD.relativeY = -40;
         Pin pinS; pinS.name = "S"; pinS.relativeX = 0; pinS.relativeY = 40;
@@ -519,15 +532,38 @@ inline void setupComponentPins(ComponentInstance& comp) {
         Pin p2; p2.name = "V_MOSFET2"; p2.relativeX = 40; p2.relativeY = 15; p2.isOutput = true;
         comp.pins = {p1, p2};
     } else if (t == "SCOPE" || t == "Oscilloscope") {
-        Pin p1; p1.name = "In1"; p1.relativeX = -30; p1.relativeY = -10; p1.isInput = true;
-        Pin p2; p2.name = "In2"; p2.relativeX = -30; p2.relativeY = 10; p2.isInput = true;
-        comp.pins = {p1, p2};
-    } else if (t == "V_3PH" || t == "ThreePhaseSource") {
+        int nCh = 2;
+        auto it = comp.parameters.find("channels");
+        if (it != comp.parameters.end()) {
+            try { nCh = std::max(1, std::stoi(it->second)); } catch (...) {}
+        }
+        float spacing = 20.0f;
+        float startY = -((nCh - 1) * spacing) * 0.5f;
+        for (int i = 0; i < nCh; ++i) {
+            Pin p;
+            p.name = "In" + std::to_string(i + 1);
+            p.relativeX = -30.0f;
+            p.relativeY = startY + i * spacing;
+            p.isInput = true;
+            comp.pins.push_back(p);
+        }
+    } else if (t == "V_3PH" || t == "ThreePhaseSource" || t == "I_3PH" || t == "ThreePhaseCurrentSource") {
         Pin pinA; pinA.name = "A"; pinA.relativeX = -30; pinA.relativeY = -25;
         Pin pinB; pinB.name = "B"; pinB.relativeX = -30; pinB.relativeY = 0;
         Pin pinC; pinC.name = "C"; pinC.relativeX = -30; pinC.relativeY = 25;
         Pin pinN; pinN.name = "N"; pinN.relativeX = 30; pinN.relativeY = 0;
         comp.pins = {pinA, pinB, pinC, pinN};
+    } else if (t == "VM_3PH" || t == "Voltmeter3Ph" || t == "AM_3PH" || t == "Ammeter3Ph") {
+        Pin pinA; pinA.name = "A"; pinA.relativeX = -30; pinA.relativeY = -25;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = -30; pinB.relativeY = 0;
+        Pin pinC; pinC.name = "C"; pinC.relativeX = -30; pinC.relativeY = 25;
+        Pin pinVa; pinVa.name = "Va"; pinVa.relativeX = 30; pinVa.relativeY = -25; pinVa.isOutput = true;
+        Pin pinVb; pinVb.name = "Vb"; pinVb.relativeX = 30; pinVb.relativeY = 0; pinVb.isOutput = true;
+        Pin pinVc; pinVc.name = "Vc"; pinVc.relativeX = 30; pinVc.relativeY = 25; pinVc.isOutput = true;
+        Pin pinIa; pinIa.name = "Ia"; pinIa.relativeX = 30; pinIa.relativeY = -25; pinIa.isOutput = true;
+        Pin pinIb; pinIb.name = "Ib"; pinIb.relativeX = 30; pinIb.relativeY = 0; pinIb.isOutput = true;
+        Pin pinIc; pinIc.name = "Ic"; pinIc.relativeX = 30; pinIc.relativeY = 25; pinIc.isOutput = true;
+        comp.pins = {pinA, pinB, pinC, pinVa, pinVb, pinVc, pinIa, pinIb, pinIc};
     } else if (t == "PWM_MASTER" || t == "MasterPWM") {
         Pin in1; in1.name = "In1"; in1.relativeX = -40; in1.relativeY = -20; in1.isInput = true;
         Pin in2; in2.name = "In2"; in2.relativeX = -40; in2.relativeY = 0; in2.isInput = true;

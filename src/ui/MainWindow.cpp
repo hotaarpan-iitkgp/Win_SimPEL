@@ -775,11 +775,15 @@ void MainWindow::renderComponentPalette() {
         };
 
         // Helper lambda to render component button with clean graphic icon preview
-        auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::vector<std::pair<std::string, std::string>>& defaultParams = {}) {
+        auto renderCompButton = [&](const char* buttonText, const std::string& prefix, const std::string& label, ComponentType type, const std::string& rawTypeStr, const std::vector<std::pair<std::string, std::string>>& defaultParams = {}, float forcedWidth = -1.0f) {
             ImGui::PushID(rawTypeStr.c_str());
 
-            float rowHeight = 28.0f;
-            float iconSize = 22.0f;
+            float availW = ImGui::GetContentRegionAvail().x;
+            float itemW = (forcedWidth > 0.0f) ? forcedWidth : availW;
+            bool isTwoCol = (forcedWidth > 0.0f && forcedWidth < availW * 0.8f);
+
+            float rowHeight = 46.0f;
+            float iconSize = isTwoCol ? 34.0f : 36.0f;
             ImVec2 cursorPos = ImGui::GetCursorScreenPos();
             ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -787,24 +791,36 @@ void MainWindow::renderComponentPalette() {
             ImU32 iconBgCol = isDark ? IM_COL32(15, 23, 42, 240) : IM_COL32(241, 245, 249, 255);
             ImU32 iconBorderCol = isDark ? IM_COL32(56, 189, 248, 180) : IM_COL32(14, 165, 233, 200);
 
-            // Sleek full-width row button with left padding for the icon badge
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(32.0f, 3.0f));
+            // Parse buttonText into main label and sub label
+            std::string rawBtn = buttonText;
+            std::string mainText = rawBtn;
+            std::string subText = "";
 
-            bool clicked = ImGui::Button(buttonText, ImVec2(-1.0f, rowHeight));
+            size_t lastParenOpen = rawBtn.find_last_of('(');
+            size_t lastParenClose = rawBtn.find_last_of(')');
+            if (lastParenOpen != std::string::npos && lastParenClose != std::string::npos && lastParenClose > lastParenOpen) {
+                mainText = rawBtn.substr(0, lastParenOpen);
+                subText = rawBtn.substr(lastParenOpen + 1, lastParenClose - lastParenOpen - 1);
+                while (!mainText.empty() && (mainText.back() == ' ' || mainText.back() == '\t')) {
+                    mainText.pop_back();
+                }
+            }
 
-            ImGui::PopStyleVar(3);
+            // Push button styles
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+            bool clicked = ImGui::Button("##card", ImVec2(itemW, rowHeight));
+            ImGui::PopStyleVar(1);
 
             // Draw Icon Badge inside left padding of the row button
-            ImVec2 iconMin = ImVec2(cursorPos.x + 4.0f, cursorPos.y + (rowHeight - iconSize) * 0.5f);
+            float iconMarginY = (rowHeight - iconSize) * 0.5f;
+            ImVec2 iconMin = ImVec2(cursorPos.x + 4.0f, cursorPos.y + iconMarginY);
             ImVec2 iconMax = ImVec2(iconMin.x + iconSize, iconMin.y + iconSize);
             ImVec2 iconCenter = ImVec2(iconMin.x + iconSize * 0.5f, iconMin.y + iconSize * 0.5f);
 
-            drawList->AddRectFilled(iconMin, iconMax, iconBgCol, 4.0f);
-            drawList->AddRect(iconMin, iconMax, iconBorderCol, 4.0f);
+            drawList->AddRectFilled(iconMin, iconMax, iconBgCol, 6.0f);
+            drawList->AddRect(iconMin, iconMax, iconBorderCol, 6.0f, 0, 1.2f);
 
-            // Clip all drawing strictly inside the 22x22 icon badge to eliminate any text overflow!
+            // Clip all drawing strictly inside the icon badge
             drawList->PushClipRect(iconMin, iconMax, true);
 
             ComponentInstance tempComp;
@@ -814,9 +830,45 @@ void MainWindow::renderComponentPalette() {
             for (const auto& p : defaultParams) tempComp.parameters[p.first] = p.second;
 
             ImU32 iconColor = isDark ? IM_COL32(240, 240, 240, 240) : IM_COL32(30, 30, 30, 255);
-            SchematicCanvas::drawComponentShape(drawList, tempComp, iconCenter, 0.24f, iconColor, isDark);
+            float shapeScale = isTwoCol ? 0.35f : 0.38f;
+            SchematicCanvas::drawComponentShape(drawList, tempComp, iconCenter, shapeScale, iconColor, isDark);
 
             drawList->PopClipRect();
+
+            // Render Text Area next to the icon badge
+            float textStartX = cursorPos.x + 4.0f + iconSize + 6.0f;
+            float maxTextWidth = (cursorPos.x + itemW - 4.0f) - textStartX;
+
+            ImU32 textColorMain = isDark ? IM_COL32(240, 245, 250, 255) : IM_COL32(15, 23, 42, 255);
+            ImU32 textColorSub  = isDark ? IM_COL32(56, 189, 248, 220)  : IM_COL32(14, 165, 233, 220);
+
+            auto fitText = [](const std::string& str, float maxW) -> std::string {
+                if (maxW <= 10.0f) return "";
+                if (ImGui::CalcTextSize(str.c_str()).x <= maxW) return str;
+                std::string res = str;
+                while (res.length() > 1) {
+                    res.pop_back();
+                    std::string cand = res + "..";
+                    if (ImGui::CalcTextSize(cand.c_str()).x <= maxW) return cand;
+                }
+                return res;
+            };
+
+            std::string dispMain = fitText(mainText, maxTextWidth);
+            std::string dispSub = fitText(subText, maxTextWidth);
+
+            if (!subText.empty() && maxTextWidth > 30.0f) {
+                // 2-line rendering (Main Label on top, Code / Sub-label on bottom)
+                ImVec2 mainPos = ImVec2(textStartX, cursorPos.y + (rowHeight * 0.5f - 16.0f));
+                ImVec2 subPos  = ImVec2(textStartX, cursorPos.y + (rowHeight * 0.5f + 1.0f));
+
+                drawList->AddText(mainPos, textColorMain, dispMain.c_str());
+                drawList->AddText(subPos, textColorSub, dispSub.c_str());
+            } else {
+                // Single line vertically centered text
+                ImVec2 textPos = ImVec2(textStartX, cursorPos.y + (rowHeight - ImGui::GetTextLineHeight()) * 0.5f);
+                drawList->AddText(textPos, textColorMain, dispMain.c_str());
+            }
 
             if (clicked) {
                 ComponentInstance comp;
@@ -830,7 +882,6 @@ void MainWindow::renderComponentPalette() {
                 canvas.addComponent(comp);
             }
             ImGui::PopID();
-            ImGui::Spacing();
         };
 
         // Helper metadata for library component categorization matching Web Tool
@@ -922,31 +973,26 @@ void MainWindow::renderComponentPalette() {
             { "Comparator (COMP)", "COMP", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
 
             // Logical & Bitwise sub-library
-            { "AND Gate", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {}, true },
-            { "OR Gate", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {}, true },
-            { "NOT Gate", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {}, true },
-            { "Edge Detector (EDGE_DETECT)", "Edge", "EDGE_DETECT", ComponentType::EdgeDetect, "EDGE_DETECT", "control", "Logical & Bitwise", {{"edge", "rising"}, {"pulse_width", "1e-3"}}, true },
-            { "Logical Operator (LOGIC_OP)", "Logic", "LOGIC_OP", ComponentType::LogicOp, "LOGIC_OP", "control", "Logical & Bitwise", {{"operator", "AND"}}, false },
-            { "Bitwise Operator (BITWISE_OP)", "Bitwise", "BITWISE_OP", ComponentType::BitwiseOp, "BITWISE_OP", "control", "Logical & Bitwise", {{"operator", "AND"}}, false },
-            { "Combinational Logic (COMB_LOGIC)", "Truth", "COMB_LOGIC", ComponentType::CombLogic, "COMB_LOGIC", "control", "Logical & Bitwise", {{"truth_table", "00:0,01:1,10:1,11:0"}}, false },
-            { "Monostable (MONOSTABLE)", "Mono", "MONOSTABLE", ComponentType::Monostable, "MONOSTABLE", "control", "Logical & Bitwise", {{"duration", "0.1"}, {"edge", "rising"}}, false },
-            { "Monoflop (MONOFLOP)", "Monoflop", "MONOFLOP", ComponentType::Monoflop, "MONOFLOP", "control", "Logical & Bitwise", {{"duration", "0.1"}, {"trigger_edge", "rising"}, {"retriggerable", "false"}}, false },
-            { "Relational Operator (RELATIONAL_OPERATOR)", "RelOp", "RELATIONAL_OPERATOR", ComponentType::RelationalOp, "RELATIONAL_OPERATOR", "control", "Logical & Bitwise", {{"operator", "=="}}, false },
-            { "Compare to Constant (COMPARE_TO_CONSTANT)", "CmpConst", "COMPARE_TO_CONSTANT", ComponentType::CompareToConstant, "COMPARE_TO_CONSTANT", "control", "Logical & Bitwise", {{"operator", "=="}, {"constant", "0.0"}}, false },
-            { "D Flip-Flop (D_FLIP_FLOP)", "D-FF", "D_FLIP_FLOP", ComponentType::DFlipFlop, "D_FLIP_FLOP", "control", "Logical & Bitwise", {{"initial_state", "0.0"}, {"trigger_edge", "rising"}}, false },
-            { "JK Flip-Flop (JK_FLIP_FLOP)", "JK-FF", "JK_FLIP_FLOP", ComponentType::JKFlipFlop, "JK_FLIP_FLOP", "control", "Logical & Bitwise", {{"initial_state", "0.0"}, {"trigger_edge", "rising"}}, false },
-            { "Shift Register (SHIFT_REG)", "Shift", "SHIFT_REG", ComponentType::ShiftReg, "SHIFT_REG", "control", "Logical & Bitwise", {{"length", "4"}}, false },
+            { "AND Gate (AND)", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {{"inputs", "2"}}, true },
+            { "OR Gate (OR)", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {{"inputs", "2"}}, true },
+            { "NOT Gate (NOT)", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {}, true },
+            { "NAND Gate (NAND)", "NAND", "NAND", ComponentType::AND_Gate, "NAND", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
+            { "NOR Gate (NOR)", "NOR", "NOR", ComponentType::OR_Gate, "NOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
+            { "XOR Gate (XOR)", "XOR", "XOR", ComponentType::LogicOp, "XOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
+            { "XNOR Gate (XNOR)", "XNOR", "XNOR", ComponentType::LogicOp, "XNOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
+            { "Compare To Constant (COMP_CONST)", "Compare", "COMP_CONST", ComponentType::CompareToConstant, "COMP_CONST", "control", "Logical & Bitwise", {{"operator", "=="}, {"const", "0"}}, false },
 
             // Modulators sub-library
-            { "PWM Generator", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "20000"}}, true },
-            { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"num_carriers", "3"}, {"fc", "10k"}, {"dead_time", "1u"}}, true },
-            { "PWM (3-Phase) (PWM_3PH)", "PWM 3Ph", "PWM_3PH", ComponentType::PWM_3PH, "PWM_3PH", "control", "Modulators", {{"frequency", "10k"}}, false },
-            { "Space Vector PWM (SVPWM)", "SVPWM", "SVPWM", ComponentType::SVPWM, "SVPWM", "control", "Modulators", {{"frequency", "10k"}}, false },
+            { "PWM Generator (PWM)", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
+            { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
+            { "Edge Detector (EDGE_DETECT)", "Edge", "EDGE_DETECT", ComponentType::EdgeDetect, "EDGE_DETECT", "control", "Modulators", {{"edge_type", "rising"}}, true },
 
             // Signal Transforms sub-library
-            { "Clarke Transform (CLARKE)", "abc-αβ", "CLARKE", ComponentType::Clarke, "CLARKE", "control", "Signal Transforms", {}, false },
-            { "Park Transform (PARK)", "αβ-dq", "PARK", ComponentType::Park, "PARK", "control", "Signal Transforms", {}, false },
+            { "ABC to dq Transform (PARK_TRANSFORM)", "αβ-dq", "PARK_TRANSFORM", ComponentType::Park, "PARK_TRANSFORM", "control", "Signal Transforms", {}, false },
+            { "dq to ABC Transform (INV_PARK_TRANSFORM)", "dq-αβ", "INV_PARK_TRANSFORM", ComponentType::InvPark, "INV_PARK_TRANSFORM", "control", "Signal Transforms", {}, false },
+            { "Clarke Transform (CLARKE_TRANSFORM)", "abc-αβ", "CLARKE_TRANSFORM", ComponentType::Clarke, "CLARKE_TRANSFORM", "control", "Signal Transforms", {}, false },
             { "Inverse Clarke Transform (INV_CLARKE)", "αβ-abc", "INV_CLARKE", ComponentType::InvClarke, "INV_CLARKE", "control", "Signal Transforms", {}, false },
+            { "Park Transform (PARK)", "abc-dq", "PARK", ComponentType::Park, "PARK", "control", "Signal Transforms", {}, false },
             { "Inverse Park Transform (INV_PARK)", "dq-αβ", "INV_PARK", ComponentType::InvPark, "INV_PARK", "control", "Signal Transforms", {}, false },
 
             // Filters & Measurements sub-library
@@ -966,7 +1012,7 @@ void MainWindow::renderComponentPalette() {
 
             // Math sub-library
             { "Offset (OFFSET)", "OFFSET", "OFFSET", ComponentType::Offset, "OFFSET", "control", "Math", {{"offset", "0.0"}}, false },
-            { "Summing Block (SUM)", "SUM", "SUM", ComponentType::SummingJunction, "SUM", "control", "Math", {{"signs", "++"}}, false },
+            { "Summing Block (SUM)", "SUM", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {{"signs", "++"}}, false },
             { "Sum (round) (SUM_ROUND)", "SUM", "SUM_ROUND", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {{"inputs", "2"}, {"signs", "++"}}, true },
             { "Sum (rectangular) (SUM_RECT)", "SUM", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {{"inputs", "2"}, {"signs", "++"}}, true },
             { "Subtract (SUBTRACT)", "SUB", "SUBTRACT", ComponentType::SummingJunction, "SUBTRACT", "control", "Math", {{"signs", "+-"}}, false },
@@ -1054,12 +1100,31 @@ void MainWindow::renderComponentPalette() {
             { "Generalized Electrical Block (GEN_EBLOCK)", "Gen E-Block", "GEN_EBLOCK", ComponentType::GenEBlock, "GEN_EBLOCK", "electrical", "Custom Machine/Load Models", {{"terminals", "3"}}, true },
         };
 
+        // Helper lambda to render a list of components in a responsive 2-column or 1-column grid
+        auto renderComponentGrid = [&](const std::vector<const ComponentMeta*>& compList) {
+            if (compList.empty()) return;
+            float availW = ImGui::GetContentRegionAvail().x;
+            int numCols = (availW >= 260.0f) ? 2 : 1;
+            float gap = 6.0f;
+            float itemW = (numCols == 2) ? std::floor((availW - gap) * 0.5f) : availW;
+
+            int colIdx = 0;
+            for (size_t i = 0; i < compList.size(); ++i) {
+                if (numCols == 2 && colIdx == 1) {
+                    ImGui::SameLine(0, gap);
+                }
+                renderCompButton(compList[i]->buttonText, compList[i]->prefix, compList[i]->label, compList[i]->type, compList[i]->rawTypeStr, compList[i]->defaultParams, itemW);
+                colIdx = (colIdx + 1) % numCols;
+            }
+            ImGui::Spacing();
+        };
+
         // Filter search results if search query is non-empty
         if (!searchQuery.empty()) {
             ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "🔍 Search Results");
             ImGui::Separator();
             ImGui::Spacing();
-            int matchCount = 0;
+            std::vector<const ComponentMeta*> searchResults;
             for (const auto& item : allComponents) {
                 std::string textLower = item.buttonText;
                 std::string rawLower = item.rawTypeStr;
@@ -1071,55 +1136,50 @@ void MainWindow::renderComponentPalette() {
                 if (textLower.find(searchQuery) != std::string::npos ||
                     rawLower.find(searchQuery) != std::string::npos ||
                     subcatLower.find(searchQuery) != std::string::npos) {
-                    
-                    matchCount++;
-                    renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
-                    ImGui::SameLine();
-                    ImGui::TextDisabled("[%s]", item.subcategory);
+                    searchResults.push_back(&item);
                 }
             }
-            if (matchCount == 0) {
+            if (searchResults.empty()) {
                 ImGui::TextDisabled("No matching components found.");
+            } else {
+                renderComponentGrid(searchResults);
             }
         }
         else if (!showDetailedLibrary) {
             // BASIC LIBRARY VIEW (Only simple original basic blocks)
             if (ImGui::CollapsingHeader("[PWR] Power Stage")) {
                 ImGui::PushID("basic_power");
-                ImGui::Indent(8.0f);
+                ImGui::Indent(4.0f);
+                std::vector<const ComponentMeta*> basicPower;
                 for (const auto& item : allComponents) {
-                    if (item.isBasic && std::string(item.category) == "electrical") {
-                        renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
-                    }
+                    if (item.isBasic && std::string(item.category) == "electrical") basicPower.push_back(&item);
                 }
-                ImGui::Unindent(8.0f);
-                ImGui::Spacing();
+                renderComponentGrid(basicPower);
+                ImGui::Unindent(4.0f);
                 ImGui::PopID();
             }
 
             if (ImGui::CollapsingHeader("[CTRL] Control Loops")) {
                 ImGui::PushID("basic_control");
-                ImGui::Indent(8.0f);
+                ImGui::Indent(4.0f);
+                std::vector<const ComponentMeta*> basicControl;
                 for (const auto& item : allComponents) {
-                    if (item.isBasic && std::string(item.category) == "control") {
-                        renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
-                    }
+                    if (item.isBasic && std::string(item.category) == "control") basicControl.push_back(&item);
                 }
-                ImGui::Unindent(8.0f);
-                ImGui::Spacing();
+                renderComponentGrid(basicControl);
+                ImGui::Unindent(4.0f);
                 ImGui::PopID();
             }
 
             if (ImGui::CollapsingHeader("[SCOPE] Scope & Probes")) {
                 ImGui::PushID("basic_general");
-                ImGui::Indent(8.0f);
+                ImGui::Indent(4.0f);
+                std::vector<const ComponentMeta*> basicGeneral;
                 for (const auto& item : allComponents) {
-                    if (item.isBasic && std::string(item.category) == "general") {
-                        renderCompButton(item.buttonText, item.prefix, item.label, item.type, item.rawTypeStr, item.defaultParams);
-                    }
+                    if (item.isBasic && std::string(item.category) == "general") basicGeneral.push_back(&item);
                 }
-                ImGui::Unindent(8.0f);
-                ImGui::Spacing();
+                renderComponentGrid(basicGeneral);
+                ImGui::Unindent(4.0f);
                 ImGui::PopID();
             }
         }
@@ -1132,9 +1192,7 @@ void MainWindow::renderComponentPalette() {
                     if (compList.empty()) {
                         ImGui::TextDisabled("(No blocks available yet)");
                     } else {
-                        for (const auto* item : compList) {
-                            renderCompButton(item->buttonText, item->prefix, item->label, item->type, item->rawTypeStr, item->defaultParams);
-                        }
+                        renderComponentGrid(compList);
                     }
                     ImGui::Unindent(4.0f);
                     ImGui::TreePop();
@@ -1277,13 +1335,35 @@ void MainWindow::loadSchematicFromJson(const json& j) {
             cd.components.push_back(comp);
         }
     }
-    if (j.contains("wires") && j["wires"].is_array()) {
+        std::unordered_map<std::string, std::string> compTypeMap;
+        for (const auto& c : cd.components) {
+            compTypeMap[c.id] = c.rawTypeStr;
+        }
+
+        auto resolveTerminalName = [&](const std::string& compId, const std::string& term) -> std::string {
+            auto it = compTypeMap.find(compId);
+            if (it != compTypeMap.end()) {
+                std::string t = it->second;
+                if (t == "SCOPE" || t == "Oscilloscope") {
+                    std::string lowerTerm = term;
+                    std::transform(lowerTerm.begin(), lowerTerm.end(), lowerTerm.begin(), ::tolower);
+                    if (lowerTerm.rfind("ch", 0) == 0 && lowerTerm.length() > 2) {
+                        return "In" + lowerTerm.substr(2);
+                    }
+                    if (lowerTerm.rfind("in", 0) == 0 && lowerTerm.length() > 2) {
+                        return "In" + lowerTerm.substr(2);
+                    }
+                }
+            }
+            return term;
+        };
+
         for (const auto& wItem : j["wires"]) {
             WireInstance wire;
             wire.id = wItem.value("id", "");
             if (wItem.contains("from") && wItem["from"].is_object()) {
                 wire.from.compId = wItem["from"].value("compId", "");
-                wire.from.terminal = wItem["from"].value("terminal", "");
+                wire.from.terminal = resolveTerminalName(wire.from.compId, wItem["from"].value("terminal", ""));
             }
             if (wItem.contains("to") && wItem["to"].is_object()) {
                 const auto& toObj = wItem["to"];
@@ -1301,12 +1381,11 @@ void MainWindow::loadSchematicFromJson(const json& j) {
                 } else {
                     wire.to.isWireJunction = false;
                     wire.to.compId = toComp;
-                    wire.to.terminal = toObj.value("terminal", "");
+                    wire.to.terminal = resolveTerminalName(toComp, toObj.value("terminal", ""));
                 }
             }
             cd.wires.push_back(wire);
         }
-    }
     if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
         const auto& ss = j["simulationSettings"];
         if (ss.contains("stopTime")) {

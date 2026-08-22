@@ -66,6 +66,11 @@ static bool isTerminalMatch(const std::string& compTypeStr, const std::string& t
     bool isS2B_B = (b == "S2B" || b == "S4" || b == "S2_2");
     if (isS2B_A && isS2B_B) return true;
 
+    // Control / Signal Input pins (CTRL, IN, IN1, GATE, G)
+    bool isCtrlA = (a == "CTRL" || a == "IN" || a == "IN1" || a == "GATE" || a == "G");
+    bool isCtrlB = (b == "CTRL" || b == "IN" || b == "IN1" || b == "GATE" || b == "G");
+    if (isCtrlA && isCtrlB) return true;
+
     return false;
 }
 
@@ -137,7 +142,13 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
         if (t == "GND" || t == "GROUND") {
             groundRoot = dsu.find(comp.id + ":Gnd");
             if (groundRoot.empty() || groundRoot == comp.id + ":Gnd") {
+                groundRoot = dsu.find(comp.id + ":GND");
+            }
+            if (groundRoot.empty() || groundRoot == comp.id + ":GND") {
                 groundRoot = dsu.find(comp.id + ":p");
+            }
+            if (groundRoot.empty() || groundRoot == comp.id + ":p") {
+                groundRoot = dsu.find(comp.id + ":A");
             }
             break;
         }

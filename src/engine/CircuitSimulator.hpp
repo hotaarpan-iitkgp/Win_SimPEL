@@ -293,6 +293,7 @@ struct FastCompiledComponent {
     int in0SignalIdx = -1;
     int in1SignalIdx = -1;
     int outSignalIdx = -1;
+    int compSelfSignalIdx = -1;
     int ctrlSigSignalIdx = -1;
     int targetSignalIdx = -1;
     int vPlotSignalIdx = -1;

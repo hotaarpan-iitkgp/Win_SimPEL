@@ -120,7 +120,10 @@ static int parseMathBlockPins(const ComponentInstance& comp, std::vector<std::st
 std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     const std::string& t = comp.rawTypeStr;
     
-    if (t == "R" || t == "L" || t == "C" || t == "V" || t == "I" || t == "D" || t == "AC_V") {
+    if (t == "R" || t == "L" || t == "C" || t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource" ||
+        t == "I" || t == "DC_I" || t == "DC_I1" || t == "CurrentSource" ||
+        t == "D" || t == "Diode" || t == "AC_V" || t == "AC_I" ||
+        t == "VAR_R" || t == "VAR_L" || t == "VAR_C" || t == "SAT_L" || t == "SAT_C" || t == "PWL_R") {
         return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}};
     }
     if (t == "VM" || t == "AM") {
@@ -931,7 +934,7 @@ void SchematicCanvas::drawBreadcrumbs(ImDrawList* drawList, ImVec2 canvasPos) {
 void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 c, float s, ImU32 color, bool isDarkMode) {
     const std::string& t = comp.rawTypeStr;
     float rot = (float)comp.rotation;
-    ImU32 blockBg = isDarkMode ? IM_COL32(30, 41, 59, 230) : IM_COL32(252, 250, 225, 240);
+    ImU32 blockBg = isDarkMode ? IM_COL32(30, 41, 59, 230) : IM_COL32(255, 255, 255, 250);
     
     if (t == "R") {
         ImVec2 rawPts[] = {
@@ -1026,14 +1029,14 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         
         drawList->AddLine(rotatePt(12*s, -6*s, c.x, c.y, rot), rotatePt(12*s, -15*s, c.x, c.y, rot), color, 1.5f*s);
         drawList->AddLine(rotatePt(12*s, -15*s, c.x, c.y, rot), rotatePt(0, -15*s, c.x, c.y, rot), color, 1.5f*s);
-    } else if (t == "V") {
+    } else if (t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource") {
         drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -16*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 16*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddCircle(c, 16*s, color, 0, 2.0f*s);
         drawList->AddLine(rotatePt(-3*s, -7*s, c.x, c.y, rot), rotatePt(3*s, -7*s, c.x, c.y, rot), color, 1.5f*s);
         drawList->AddLine(rotatePt(0, -10*s, c.x, c.y, rot), rotatePt(0, -4*s, c.x, c.y, rot), color, 1.5f*s);
         drawList->AddLine(rotatePt(-3*s, 7*s, c.x, c.y, rot), rotatePt(3*s, 7*s, c.x, c.y, rot), color, 1.5f*s);
-    } else if (t == "I") {
+    } else if (t == "I" || t == "DC_I" || t == "DC_I1" || t == "CurrentSource") {
         drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -16*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 16*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddCircle(c, 16*s, color, 0, 2.0f*s);
@@ -1069,7 +1072,7 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         ImVec2 t1 = rotatePt(-16*s, -18*s, c.x, c.y, rot);
         ImVec2 t2 = rotatePt(16*s, 0, c.x, c.y, rot);
         ImVec2 t3 = rotatePt(-16*s, 18*s, c.x, c.y, rot);
-        drawList->AddTriangleFilled(t1, t2, t3, IM_COL32(38, 50, 70, 200));
+        drawList->AddTriangleFilled(t1, t2, t3, blockBg);
         drawList->AddTriangle(t1, t2, t3, color, 2.0f*s);
         drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-16*s, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(16*s, 0, c.x, c.y, rot), rotatePt(20*s, 0, c.x, c.y, rot), color, 2.0f*s);
@@ -1085,7 +1088,7 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
 
         if (t == "SUM_ROUND") {
             float rad = std::max(18.0f * s, hh);
-            drawList->AddCircleFilled(c, rad, IM_COL32(38, 50, 70, 200));
+            drawList->AddCircleFilled(c, rad, blockBg);
             drawList->AddCircle(c, rad, color, 0, 2.0f * s);
             drawList->AddText(rotatePt(-4.0f * s, -6.0f * s, c.x, c.y, rot), color, "Σ");
             for (int i = 0; i < nInputs; ++i) {
@@ -1094,7 +1097,7 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
                 drawList->AddText(rotatePt(-rad + 4.0f * s, py - 6.0f * s, c.x, c.y, rot), color, signStr.c_str());
             }
         } else {
-            drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4.0f * s);
+            drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4.0f * s);
             drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4.0f * s, 0, 2.0f * s);
             std::string mainSymbol = (t == "PROD" || t == "PRODUCT_RECT") ? "Π" : "Σ";
             drawList->AddText(rotatePt(-4.0f * s, -hh + 4.0f * s, c.x, c.y, rot), color, mainSymbol.c_str());
@@ -1109,18 +1112,18 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         ImVec2 t1 = rotatePt(-16*s, -20*s, c.x, c.y, rot);
         ImVec2 t2 = rotatePt(16*s, 0, c.x, c.y, rot);
         ImVec2 t3 = rotatePt(-16*s, 20*s, c.x, c.y, rot);
-        drawList->AddTriangleFilled(t1, t2, t3, IM_COL32(38, 50, 70, 200));
+        drawList->AddTriangleFilled(t1, t2, t3, blockBg);
         drawList->AddTriangle(t1, t2, t3, color, 2.0f*s);
         drawList->AddText(rotatePt(-10*s, -14*s, c.x, c.y, rot), color, "+");
         drawList->AddText(rotatePt(-10*s, 4*s, c.x, c.y, rot), color, "-");
     } else if (t == "PID") {
         float hw = 20*s, hh = 16*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, "PID");
     } else if (t == "PWM") {
         float hw = 20*s, hh = 16*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(38, 50, 70, 200), 4*s);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         ImVec2 wave[] = {rotatePt(-10*s, 6*s, c.x, c.y, rot), rotatePt(-10*s, -6*s, c.x, c.y, rot), rotatePt(0, -6*s, c.x, c.y, rot), rotatePt(0, 6*s, c.x, c.y, rot), rotatePt(10*s, 6*s, c.x, c.y, rot)};
         drawList->AddPolyline(wave, 5, color, 0, 1.8f*s);
@@ -1152,20 +1155,29 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "EDGE");
+        ImVec2 edgeW[] = {
+            rotatePt(-12*s, 6*s, c.x, c.y, rot),
+            rotatePt(-2*s, 6*s, c.x, c.y, rot),
+            rotatePt(-2*s, -6*s, c.x, c.y, rot),
+            rotatePt(10*s, -6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(edgeW, 4, color, 0, 1.8f*s);
+        ImVec2 arr[] = {rotatePt(-5*s, 1*s, c.x, c.y, rot), rotatePt(-2*s, -6*s, c.x, c.y, rot), rotatePt(1*s, 1*s, c.x, c.y, rot)};
+        drawList->AddPolyline(arr, 3, color, 0, 1.8f*s);
     } else if (t == "MATH_FCN" || t == "FCN" || t == "MathFunction") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string fnLabel = comp.parameters.count("function") ? comp.parameters.at("function") : "FCN";
-        if (fnLabel.length() > 5) fnLabel = fnLabel.substr(0, 5);
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, fnLabel.c_str());
+        drawList->AddLine(rotatePt(-12*s, 8*s, c.x, c.y, rot), rotatePt(12*s, 8*s, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddLine(rotatePt(-10*s, 10*s, c.x, c.y, rot), rotatePt(-10*s, -8*s, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddBezierCubic(rotatePt(-10*s, 7*s, c.x, c.y, rot), rotatePt(-2*s, 6*s, c.x, c.y, rot), rotatePt(4*s, -2*s, c.x, c.y, rot), rotatePt(10*s, -8*s, c.x, c.y, rot), color, 1.8f*s, 10);
     } else if (t == "KEY_TRIGGER" || t == "KeyTrigger") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string keyLabel = comp.parameters.count("key") ? comp.parameters.at("key") : "KEY";
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), IM_COL32(236, 72, 153, 255), keyLabel.c_str());
+        drawList->AddRect(rotatePt(-10*s, -6*s, c.x, c.y, rot), rotatePt(10*s, 6*s, c.x, c.y, rot), color, 2.0f*s, 0, 1.5f*s);
+        drawList->AddLine(rotatePt(-4*s, 0, c.x, c.y, rot), rotatePt(6*s, -10*s, c.x, c.y, rot), IM_COL32(236, 72, 153, 255), 2.0f*s);
+        drawList->AddCircleFilled(rotatePt(6*s, -10*s, c.x, c.y, rot), 2.5f*s, IM_COL32(236, 72, 153, 255));
     } else if (t == "PULSE" || t == "PULSE_GEN") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -1226,48 +1238,89 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, "Rand");
+        ImVec2 rndW[] = {
+            rotatePt(-12*s, 4*s, c.x, c.y, rot),
+            rotatePt(-6*s, -6*s, c.x, c.y, rot),
+            rotatePt(-1*s, 2*s, c.x, c.y, rot),
+            rotatePt(4*s, -8*s, c.x, c.y, rot),
+            rotatePt(10*s, 6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(rndW, 5, color, 0, 1.8f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "WHITE_NOISE") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "Noise");
+        ImVec2 nsW[] = {
+            rotatePt(-12*s, 0, c.x, c.y, rot),
+            rotatePt(-9*s, -7*s, c.x, c.y, rot),
+            rotatePt(-6*s, 6*s, c.x, c.y, rot),
+            rotatePt(-3*s, -8*s, c.x, c.y, rot),
+            rotatePt(0, 7*s, c.x, c.y, rot),
+            rotatePt(3*s, -6*s, c.x, c.y, rot),
+            rotatePt(6*s, 8*s, c.x, c.y, rot),
+            rotatePt(9*s, -7*s, c.x, c.y, rot),
+            rotatePt(12*s, 0, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(nsW, 9, color, 0, 1.5f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "INIT_COND") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-8*s, -6*s, c.x, c.y, rot), color, "x0");
+        drawList->AddRect(rotatePt(-10*s, -7*s, c.x, c.y, rot), rotatePt(2*s, 7*s, c.x, c.y, rot), color, 2.0f*s, 0, 1.5f*s);
+        drawList->AddText(rotatePt(-7*s, -6*s, c.x, c.y, rot), color, "x0");
+        ImVec2 arr[] = {rotatePt(6*s, -4*s, c.x, c.y, rot), rotatePt(11*s, 0, c.x, c.y, rot), rotatePt(6*s, 4*s, c.x, c.y, rot)};
+        drawList->AddPolyline(arr, 3, color, 0, 1.5f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "TRIG_FCN") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string trigFn = comp.parameters.count("function") ? comp.parameters.at("function") : "sin";
-        drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, trigFn.c_str());
+        drawList->AddCircle(rotatePt(-6*s, 0, c.x, c.y, rot), 6*s, color, 0, 1.5f*s);
+        ImVec2 sineW[10];
+        for (int i = 0; i < 10; ++i) {
+            float px = 0.0f + i * 1.2f;
+            float py = -5.0f * std::sin(2.0f * 3.14159265f * (i / 9.0f));
+            sineW[i] = rotatePt(px * s, py * s, c.x, c.y, rot);
+        }
+        drawList->AddPolyline(sineW, 10, color, 0, 1.8f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "ABS") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-10*s, -6*s, c.x, c.y, rot), color, "|u|");
+        drawList->AddLine(rotatePt(-12*s, 6*s, c.x, c.y, rot), rotatePt(12*s, 6*s, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddLine(rotatePt(0, 8*s, c.x, c.y, rot), rotatePt(0, -8*s, c.x, c.y, rot), color, 1.2f*s);
+        ImVec2 vLine[] = {rotatePt(-10*s, -6*s, c.x, c.y, rot), rotatePt(0, 5*s, c.x, c.y, rot), rotatePt(10*s, -6*s, c.x, c.y, rot)};
+        drawList->AddPolyline(vLine, 3, color, 0, 2.0f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "SIGN") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-10*s, -6*s, c.x, c.y, rot), color, "sgn");
+        drawList->AddLine(rotatePt(-12*s, 0, c.x, c.y, rot), rotatePt(12*s, 0, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddLine(rotatePt(0, 8*s, c.x, c.y, rot), rotatePt(0, -8*s, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddLine(rotatePt(-10*s, 5*s, c.x, c.y, rot), rotatePt(0, 5*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, -5*s, c.x, c.y, rot), rotatePt(10*s, -5*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddCircleFilled(rotatePt(0, 0, c.x, c.y, rot), 2.0f*s, color);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "ROUND") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "Round");
+        drawList->AddLine(rotatePt(-12*s, 6*s, c.x, c.y, rot), rotatePt(12*s, 6*s, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddLine(rotatePt(0, 8*s, c.x, c.y, rot), rotatePt(0, -8*s, c.x, c.y, rot), color, 1.2f*s);
+        ImVec2 st[] = {
+            rotatePt(-10*s, 6*s, c.x, c.y, rot), rotatePt(-5*s, 6*s, c.x, c.y, rot),
+            rotatePt(-5*s, 0, c.x, c.y, rot), rotatePt(5*s, 0, c.x, c.y, rot),
+            rotatePt(5*s, -6*s, c.x, c.y, rot), rotatePt(10*s, -6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(st, 6, color, 0, 1.8f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "MIN_MAX" || t == "MIN" || t == "MAX") {
@@ -1282,8 +1335,10 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4.0f * s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4.0f * s, 0, 2.0f * s);
 
-        std::string mmFn = comp.parameters.count("function") ? comp.parameters.at("function") : "min";
-        drawList->AddText(rotatePt(-14.0f * s, -6.0f * s, c.x, c.y, rot), color, mmFn.c_str());
+        ImVec2 mmLine1[] = {rotatePt(-12*s, -4*s, c.x, c.y, rot), rotatePt(-2*s, -10*s, c.x, c.y, rot), rotatePt(10*s, 4*s, c.x, c.y, rot)};
+        ImVec2 mmLine2[] = {rotatePt(-12*s, 6*s, c.x, c.y, rot), rotatePt(-2*s, -2*s, c.x, c.y, rot), rotatePt(10*s, -4*s, c.x, c.y, rot)};
+        drawList->AddPolyline(mmLine1, 3, color, 0, 1.8f*s);
+        drawList->AddPolyline(mmLine2, 3, IM_COL32(56, 189, 248, 255), 0, 1.8f*s);
 
         for (int i = 0; i < nInputs; ++i) {
             float py = -hh + 10.0f * s + i * spacing;
@@ -1318,59 +1373,94 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 24*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string lutLbl = (t == "LUT_2D") ? "LUT2D" : ((t == "LUT_3D") ? "LUT3D" : "LUT1D");
-        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, lutLbl.c_str());
+        ImVec2 lutPts[] = {
+            rotatePt(-14*s, 6*s, c.x, c.y, rot),
+            rotatePt(-6*s, -2*s, c.x, c.y, rot),
+            rotatePt(2*s, 4*s, c.x, c.y, rot),
+            rotatePt(12*s, -6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(lutPts, 4, color, 0, 1.8f*s);
+        for (int i = 0; i < 4; ++i) drawList->AddCircleFilled(lutPts[i], 2.0f*s, IM_COL32(56, 189, 248, 255));
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "DLL" || t == "FMU" || t == "FOURIER_SERIES") {
         float hw = 24*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string lbl = (t == "DLL") ? "DLL" : ((t == "FMU") ? "FMU" : "Fourier");
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, lbl.c_str());
+        drawList->AddRectFilled(rotatePt(-12*s, -10*s, c.x, c.y, rot), rotatePt(12*s, 10*s, c.x, c.y, rot), blockBg, 2*s);
+        drawList->AddRect(rotatePt(-12*s, -10*s, c.x, c.y, rot), rotatePt(12*s, 10*s, c.x, c.y, rot), color, 2*s, 0, 1.8f*s);
+        for (int p = -2; p <= 2; ++p) {
+            float py = p * 4.0f;
+            drawList->AddLine(rotatePt(-16*s, py*s, c.x, c.y, rot), rotatePt(-12*s, py*s, c.x, c.y, rot), IM_COL32(234, 179, 8, 255), 1.5f*s);
+            drawList->AddLine(rotatePt(12*s, py*s, c.x, c.y, rot), rotatePt(16*s, py*s, c.x, c.y, rot), IM_COL32(234, 179, 8, 255), 1.5f*s);
+        }
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "INTEGRATOR") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-10*s, -6*s, c.x, c.y, rot), color, "1/s");
+        drawList->AddText(rotatePt(-12*s, -8*s, c.x, c.y, rot), color, "∫");
+        ImVec2 areaCurve[8];
+        for (int i = 0; i < 8; ++i) {
+            float px = -2.0f + i * 1.5f;
+            float py = 6.0f - 8.0f * std::sin(3.14159265f * (i / 7.0f));
+            areaCurve[i] = rotatePt(px * s, py * s, c.x, c.y, rot);
+        }
+        drawList->AddPolyline(areaCurve, 8, color, 0, 1.8f*s);
+        drawList->AddLine(rotatePt(-2*s, 6*s, c.x, c.y, rot), rotatePt(8.5f*s, 6*s, c.x, c.y, rot), color, 1.2f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "DERIVATIVE") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-4*s, -6*s, c.x, c.y, rot), color, "s");
+        ImVec2 dCurve[8];
+        for (int i = 0; i < 8; ++i) {
+            float px = -10.0f + i * 2.5f;
+            float py = 6.0f - 10.0f * std::sin(0.8f * (i / 7.0f));
+            dCurve[i] = rotatePt(px * s, py * s, c.x, c.y, rot);
+        }
+        drawList->AddPolyline(dCurve, 8, color, 0, 1.5f*s);
+        drawList->AddLine(rotatePt(-6*s, 8*s, c.x, c.y, rot), rotatePt(6*s, -6*s, c.x, c.y, rot), IM_COL32(234, 179, 8, 255), 2.0f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "TRANSFER_FCN") {
         float hw = 24*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-12*s, -6*s, c.x, c.y, rot), color, "G(s)");
+        ImVec2 bode1[] = {rotatePt(-14*s, -5*s, c.x, c.y, rot), rotatePt(-2*s, -5*s, c.x, c.y, rot), rotatePt(12*s, 6*s, c.x, c.y, rot)};
+        drawList->AddPolyline(bode1, 3, color, 0, 1.8f*s);
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "STATE_SPACE") {
         float hw = 26*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, "x'=Ax+Bu");
+        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, "[A B]");
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "CONT_PID") {
         float hw = 24*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, "PID(s)");
+        drawList->AddLine(rotatePt(-14*s, -8*s, c.x, c.y, rot), rotatePt(-14*s, 8*s, c.x, c.y, rot), color, 1.5f*s);
+        drawList->AddLine(rotatePt(-14*s, -8*s, c.x, c.y, rot), rotatePt(2*s, -8*s, c.x, c.y, rot), color, 1.5f*s);
+        drawList->AddLine(rotatePt(-14*s, 0, c.x, c.y, rot), rotatePt(2*s, 0, c.x, c.y, rot), color, 1.5f*s);
+        drawList->AddLine(rotatePt(-14*s, 8*s, c.x, c.y, rot), rotatePt(2*s, 8*s, c.x, c.y, rot), color, 1.5f*s);
+        drawList->AddText(rotatePt(4*s, -14*s, c.x, c.y, rot), color, "P");
+        drawList->AddText(rotatePt(4*s, -6*s, c.x, c.y, rot), color, "I");
+        drawList->AddText(rotatePt(4*s, 2*s, c.x, c.y, rot), color, "D");
         drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "PLL_1PH" || t == "PLL_3PH") {
         float hw = 24*s, hh = 18*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string pllLbl = (t == "PLL_3PH") ? "PLL 3" : "PLL 1";
-        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, pllLbl.c_str());
+        drawList->AddCircle(rotatePt(-8*s, 0, c.x, c.y, rot), 5*s, color, 0, 1.5f*s);
+        drawList->AddText(rotatePt(-11*s, -6*s, c.x, c.y, rot), color, "Φ");
+        drawList->AddRect(rotatePt(2*s, -6*s, c.x, c.y, rot), rotatePt(14*s, 6*s, c.x, c.y, rot), color, 2.0f*s, 0, 1.5f*s);
+        drawList->AddText(rotatePt(4*s, -5*s, c.x, c.y, rot), color, "~");
         if (t == "PLL_3PH") {
             drawList->AddLine(rotatePt(-hw - 4*s, -10*s, c.x, c.y, rot), rotatePt(-hw, -10*s, c.x, c.y, rot), color, 2.0f*s);
             drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
@@ -1449,10 +1539,12 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddTriangle(t1, t2, t3, color, 2.0f*s);
         drawList->AddCircle(rotatePt(10*s, 0, c.x, c.y, rot), 3.0f*s, color, 0, 2.0f*s);
     } else if (t == "SUBSYSTEM") {
-        float hw = 50*s, hh = 40*s;
+        float hw = 45*s, hh = 35*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 6*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 6*s, 0, 2.0f*s);
-        drawList->AddText({c.x - 28*s, c.y - 6*s}, color, "Subsystem");
+        drawList->AddRect({c.x - 30*s, c.y - 20*s}, {c.x - 10*s, c.y + 5*s}, color, 2*s, 0, 1.5f*s);
+        drawList->AddRect({c.x + 10*s, c.y - 10*s}, {c.x + 30*s, c.y + 15*s}, color, 2*s, 0, 1.5f*s);
+        drawList->AddLine({c.x - 10*s, c.y - 7*s}, {c.x + 10*s, c.y - 7*s}, color, 1.5f*s);
     } else if (t == "INPORT" || t == "IN") {
         float hw = 22*s, hh = 15*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -1469,12 +1561,14 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddText({c.x - 14*s, c.y - 6*s}, color, lbl.c_str());
     } else if (t == "PHYSICAL_INPORT" || t == "PIN") {
         float hw = 22*s, hh = 15*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(40, 50, 70, 240), 4*s);
+        ImU32 pinBg = isDarkMode ? IM_COL32(40, 50, 70, 240) : IM_COL32(254, 243, 199, 240);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, pinBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(234, 179, 8, 255), 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 14*s, c.y - 6*s}, IM_COL32(234, 179, 8, 255), "pIn");
     } else if (t == "PHYSICAL_OUTPORT" || t == "POUT") {
         float hw = 22*s, hh = 15*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(40, 50, 70, 240), 4*s);
+        ImU32 poutBg = isDarkMode ? IM_COL32(40, 50, 70, 240) : IM_COL32(254, 243, 199, 240);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, poutBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(234, 179, 8, 255), 4*s, 0, 2.0f*s);
         drawList->AddText({c.x - 16*s, c.y - 6*s}, IM_COL32(234, 179, 8, 255), "pOut");
     } else if (t == "ENABLE_PORT") {
@@ -1489,8 +1583,10 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddText({c.x - 18*s, c.y - 6*s}, color, "Trig");
     } else if (t == "BUS_CREATOR" || t == "BUS_SELECTOR") {
         float hw = 8*s, hh = 25*s;
-        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(30, 30, 30, 255), 2*s);
-        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, IM_COL32(200, 200, 200, 255), 2*s, 0, 1.5f*s);
+        ImU32 busBg = isDarkMode ? IM_COL32(30, 30, 30, 255) : IM_COL32(203, 213, 225, 255);
+        ImU32 busBorder = isDarkMode ? IM_COL32(200, 200, 200, 255) : IM_COL32(71, 85, 105, 255);
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, busBg, 2*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, busBorder, 2*s, 0, 1.5f*s);
     } else if (t == "TERMINATOR") {
         float hw = 15*s, hh = 15*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 2*s);
@@ -1500,12 +1596,14 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 35*s, hh = 22*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText({c.x - 25*s, c.y - 6*s}, color, "Poly P(u)");
+        drawList->AddBezierCubic(rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(-8*s, -18*s, c.x, c.y, rot), rotatePt(6*s, 18*s, c.x, c.y, rot), rotatePt(20*s, -12*s, c.x, c.y, rot), color, 2.0f*s, 12);
     } else if (t == "ALGEBRAIC_CONSTRAINT") {
         float hw = 35*s, hh = 22*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText({c.x - 22*s, c.y - 6*s}, color, "f(z) = 0");
+        drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(20*s, 0, c.x, c.y, rot), color, 1.2f*s);
+        drawList->AddBezierCubic(rotatePt(-18*s, 12*s, c.x, c.y, rot), rotatePt(-6*s, 6*s, c.x, c.y, rot), rotatePt(6*s, -6*s, c.x, c.y, rot), rotatePt(18*s, -12*s, c.x, c.y, rot), color, 2.0f*s, 10);
+        drawList->AddCircleFilled(rotatePt(0, 0, c.x, c.y, rot), 3.0f*s, IM_COL32(239, 68, 68, 255));
     } else if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
         std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
         getCSCRIPTPorts(comp, inPorts, outPorts);
@@ -1517,8 +1615,10 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 45.0f * s;
         float hh = std::max(25.0f, nMax * 12.0f + 10.0f) * s;
 
-        ImU32 cscriptBg = IM_COL32(30, 41, 59, 240);
-        ImU32 cscriptBorder = IM_COL32(59, 130, 246, 255);
+        ImU32 cscriptBg = isDarkMode ? IM_COL32(30, 41, 59, 240) : IM_COL32(240, 245, 255, 250);
+        ImU32 cscriptBorder = isDarkMode ? IM_COL32(59, 130, 246, 255) : IM_COL32(37, 99, 235, 255);
+        ImU32 cscriptText = isDarkMode ? IM_COL32(255, 255, 255, 240) : IM_COL32(15, 23, 42, 240);
+        ImU32 cscriptPortText = isDarkMode ? IM_COL32(148, 163, 184, 220) : IM_COL32(71, 85, 105, 230);
 
         ImVec2 boxPts[] = {
             rotatePt(-hw, -hh, c.x, c.y, rot),
@@ -1532,17 +1632,17 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
 
         std::string labelText = comp.label.empty() ? "C-Script" : comp.label;
         ImVec2 txtSz = ImGui::CalcTextSize(labelText.c_str());
-        drawList->AddText(rotatePt(-(txtSz.x * 0.5f), -6.0f * s, c.x, c.y, rot), IM_COL32(255, 255, 255, 240), labelText.c_str());
+        drawList->AddText(rotatePt(-(txtSz.x * 0.5f), -6.0f * s, c.x, c.y, rot), cscriptText, labelText.c_str());
 
         for (int i = 0; i < numIn; ++i) {
             float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
-            drawList->AddText(rotatePt((-45.0f + 4.0f) * s, (yOff - 6.0f) * s, c.x, c.y, rot), IM_COL32(148, 163, 184, 220), inPorts[i].name.c_str());
+            drawList->AddText(rotatePt((-45.0f + 4.0f) * s, (yOff - 6.0f) * s, c.x, c.y, rot), cscriptPortText, inPorts[i].name.c_str());
         }
 
         for (int j = 0; j < numOut; ++j) {
             float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
             ImVec2 pSz = ImGui::CalcTextSize(outPorts[j].name.c_str());
-            drawList->AddText(rotatePt((45.0f - pSz.x - 4.0f) * s, (yOff - 6.0f) * s, c.x, c.y, rot), IM_COL32(148, 163, 184, 220), outPorts[j].name.c_str());
+            drawList->AddText(rotatePt((45.0f - pSz.x - 4.0f) * s, (yOff - 6.0f) * s, c.x, c.y, rot), cscriptPortText, outPorts[j].name.c_str());
         }
     } else if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
         std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
@@ -1788,8 +1888,9 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 26*s, hh = 30*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string xfLbl = (t == "XFMR_3PH_2W") ? "3Ph XFMR" : "3W XFMR";
-        drawList->AddText(rotatePt(-22*s, -6*s, c.x, c.y, rot), color, xfLbl.c_str());
+        drawList->AddCircle(rotatePt(-8*s, -10*s, c.x, c.y, rot), 8*s, color, 0, 1.8f*s);
+        drawList->AddCircle(rotatePt(8*s, -10*s, c.x, c.y, rot), 8*s, color, 0, 1.8f*s);
+        drawList->AddCircle(rotatePt(0, 10*s, c.x, c.y, rot), 8*s, IM_COL32(56, 189, 248, 255), 0, 1.8f*s);
     } else if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
         drawList->AddCircleFilled(c, 24*s, blockBg);
         drawList->AddCircle(c, 24*s, color, 0, 2.5f*s);
@@ -1807,7 +1908,9 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 30*s, hh = 25*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-22*s, -6*s, c.x, c.y, rot), color, "Gen-Block");
+        drawList->AddCircle(c, 10*s, color, 0, 1.8f*s);
+        drawList->AddLine(rotatePt(-14*s, 0, c.x, c.y, rot), rotatePt(-10*s, 0, c.x, c.y, rot), color, 1.8f*s);
+        drawList->AddLine(rotatePt(10*s, 0, c.x, c.y, rot), rotatePt(14*s, 0, c.x, c.y, rot), color, 1.8f*s);
     } else if (t == "E_PORT" || t == "E_LABEL") {
         float hw = 20*s, hh = 14*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -1818,7 +1921,10 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 24*s, hh = 20*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-18*s, -6*s, c.x, c.y, rot), color, "Switch");
+        drawList->AddCircleFilled(rotatePt(-12*s, -8*s, c.x, c.y, rot), 2.5f*s, color);
+        drawList->AddCircleFilled(rotatePt(-12*s, 8*s, c.x, c.y, rot), 2.5f*s, color);
+        drawList->AddCircleFilled(rotatePt(12*s, 0, c.x, c.y, rot), 2.5f*s, color);
+        drawList->AddLine(rotatePt(12*s, 0, c.x, c.y, rot), rotatePt(-10*s, -6*s, c.x, c.y, rot), IM_COL32(234, 179, 8, 255), 2.0f*s);
     } else if (t == "SATURATION") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -1845,24 +1951,42 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "du/dt");
+        ImVec2 rlPts[] = {
+            rotatePt(-14*s, 8*s, c.x, c.y, rot),
+            rotatePt(-4*s, 8*s, c.x, c.y, rot),
+            rotatePt(6*s, -8*s, c.x, c.y, rot),
+            rotatePt(14*s, -8*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(rlPts, 4, color, 0, 2.0f*s);
     } else if (t == "RELAY" || t == "HIT_CROSSING") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, "Relay");
+        ImVec2 rLoop[] = {
+            rotatePt(-10*s, 6*s, c.x, c.y, rot),
+            rotatePt(2*s, 6*s, c.x, c.y, rot),
+            rotatePt(2*s, -6*s, c.x, c.y, rot),
+            rotatePt(10*s, -6*s, c.x, c.y, rot),
+            rotatePt(-2*s, -6*s, c.x, c.y, rot),
+            rotatePt(-2*s, 6*s, c.x, c.y, rot)
+        };
+        drawList->AddPolyline(rLoop, 6, color, 0, 1.8f*s);
     } else if (t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "MONOSTABLE" || t == "MONOFLOP" || t == "RELATIONAL_OPERATOR" || t == "COMPARE_TO_CONSTANT") {
         float hw = 24*s, hh = 18*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string logLbl = (t == "RELATIONAL_OPERATOR") ? "==" : ((t == "MONOSTABLE" || t == "MONOFLOP") ? "Mono" : "Logic");
-        drawList->AddText(rotatePt(-14*s, -6*s, c.x, c.y, rot), color, logLbl.c_str());
+        drawList->AddLine(rotatePt(-12*s, -6*s, c.x, c.y, rot), rotatePt(0, -6*s, c.x, c.y, rot), color, 1.8f*s);
+        drawList->AddLine(rotatePt(0, -6*s, c.x, c.y, rot), rotatePt(0, 6*s, c.x, c.y, rot), color, 1.8f*s);
+        drawList->AddLine(rotatePt(0, 6*s, c.x, c.y, rot), rotatePt(12*s, 6*s, c.x, c.y, rot), color, 1.8f*s);
     } else if (t == "D_FLIP_FLOP" || t == "JK_FLIP_FLOP" || t == "SHIFT_REG") {
         float hw = 22*s, hh = 20*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string ffLbl = (t == "JK_FLIP_FLOP") ? "JK-FF" : ((t == "SHIFT_REG") ? "Shift" : "D-FF");
-        drawList->AddText(rotatePt(-16*s, -6*s, c.x, c.y, rot), color, ffLbl.c_str());
+        ImVec2 clkTri[] = {rotatePt(-hw, 6*s, c.x, c.y, rot), rotatePt(-hw + 6*s, 10*s, c.x, c.y, rot), rotatePt(-hw, 14*s, c.x, c.y, rot)};
+        drawList->AddPolyline(clkTri, 3, color, 0, 1.5f*s);
+        std::string ffName = (t == "JK_FLIP_FLOP") ? "JK" : ((t == "SHIFT_REG") ? "SR" : "D");
+        drawList->AddText(rotatePt(-14*s, -12*s, c.x, c.y, rot), color, ffName.c_str());
+        drawList->AddText(rotatePt(8*s, -14*s, c.x, c.y, rot), color, "Q");
     } else if (t == "PWM_3PH" || t == "SVPWM") {
         float hw = 26*s, hh = 20*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -2439,8 +2563,8 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
         int numPins = std::max(1, count);
         outHalfW = std::max(outHalfW, 32.0f);
         outHalfH = std::max(outHalfH, std::max(22.0f, numPins * 15.0f + 2.0f));
-    } else if (t == "R" || t == "C" || t == "L" || t == "D" || t == "V" || t == "I" ||
-               t == "AC_V" || t == "S" || t == "MOSFET" || t == "VM" || t == "AM") {
+    } else if (t == "R" || t == "C" || t == "L" || t == "D" || t == "V" || t == "DC_V" || t == "I" || t == "DC_I" ||
+               t == "AC_V" || t == "AC_I" || t == "CTRL_V" || t == "CTRL_I" || t == "S" || t == "MOSFET" || t == "VM" || t == "AM") {
         outHalfW = std::max(outHalfW, 14.0f);
         outHalfH = std::max(outHalfH, 14.0f);
     } else {
@@ -2483,7 +2607,7 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
                 IM_COL32(255, 180, 0, 180), 6*s, 0, 1.5f*s);
         }
         
-        drawComponentShape(drawList, comp, center, s, componentColor);
+        drawComponentShape(drawList, comp, center, s, componentColor, isDarkMode);
         ImU32 labelColor = isDarkMode ? IM_COL32(180, 190, 210, 255) : IM_COL32(15, 23, 42, 255);
         std::string dispId = !comp.id.empty() ? comp.id : comp.label;
         drawList->AddText({center.x - (hw - 4.0f)*s, center.y - (hh + 16.0f)*s}, labelColor, dispId.c_str());

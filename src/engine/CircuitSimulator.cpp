@@ -107,6 +107,7 @@ void CircuitSimulator::buildIndexMaps() {
 
         if (comp.type == ComponentType::VoltageSource || 
             comp.type == ComponentType::ACVoltageSource || 
+            comp.type == ComponentType::ControlledVoltageSource ||
             comp.type == ComponentType::Ammeter) {
             if (vSourceToIdx.find(comp.id) == vSourceToIdx.end()) {
                 vSourceToIdx[comp.id] = (int)vSourceToIdx.size();
@@ -230,6 +231,13 @@ void CircuitSimulator::buildIndexMaps() {
             // Also support "value" as amplitude alias (Windows tool schematic)
             if (!comp.parameters.count("amplitude") && comp.parameters.count("value")) fc.val = evaluateParam(comp, "value", 100.0);
         }
+        if (comp.type == ComponentType::ControlledVoltageSource || comp.type == ComponentType::ControlledCurrentSource) {
+            fc.gain = evaluateParam(comp, "gain", 1.0);
+            if (!comp.parameters.count("gain") && comp.parameters.count("K")) fc.gain = evaluateParam(comp, "K", 1.0);
+            if (!comp.parameters.count("gain") && comp.parameters.count("k")) fc.gain = evaluateParam(comp, "k", 1.0);
+            if (!comp.parameters.count("gain") && comp.parameters.count("value")) fc.gain = evaluateParam(comp, "value", 1.0);
+            if (comp.parameters.count("control_signal")) fc.ctrlSigKey = getParamString(comp, "control_signal", "");
+        }
 
         fc.vPlotKey = "V_" + comp.id;
         fc.iPlotKey = "I_" + comp.id;
@@ -239,7 +247,7 @@ void CircuitSimulator::buildIndexMaps() {
         fc.iPlotSignalIdx = getOrCreateSignalIdx(fc.iPlotKey);
         fc.ctrlSigSignalIdx = getOrCreateSignalIdx(fc.ctrlSigKey);
         fc.outSignalIdx = getOrCreateSignalIdx(comp.id + ".Out");
-        getOrCreateSignalIdx(comp.id);
+        fc.compSelfSignalIdx = getOrCreateSignalIdx(comp.id);
 
         fastPhysComps.push_back(fc);
     }
@@ -738,6 +746,7 @@ void CircuitSimulator::buildIndexMaps() {
         }
         else if (fc.type == ComponentType::VoltageSource || 
                  fc.type == ComponentType::ACVoltageSource || 
+                 fc.type == ComponentType::ControlledVoltageSource ||
                  fc.type == ComponentType::Ammeter) {
             int vIdx = fc.vIdx;
             if (n1 >= 0) {
@@ -880,7 +889,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
         double v1 = (n1 >= 0 && n1 < totalDim) ? X[n1] : 0.0;
         double v2 = (n2 >= 0 && n2 < totalDim) ? X[n2] : 0.0;
         double vDiff = v1 - v2;
-        if (std::abs(vDiff) < 1e-12 && (fc.type == ComponentType::VoltageSource || fc.type == ComponentType::ACVoltageSource)) {
+        if (std::abs(vDiff) < 1e-12 && (fc.type == ComponentType::VoltageSource || fc.type == ComponentType::ACVoltageSource || fc.type == ComponentType::ControlledVoltageSource)) {
             vDiff = fc.val;
         }
 
@@ -895,8 +904,16 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             iComp = vDiff / Rtotal;
         } else if (fc.type == ComponentType::Inductor) {
             if (fc.lIdx >= 0 && fc.lIdx < totalDim) iComp = X[fc.lIdx];
-        } else if (fc.type == ComponentType::VoltageSource || fc.type == ComponentType::ACVoltageSource || fc.type == ComponentType::Ammeter) {
+        } else if (fc.type == ComponentType::VoltageSource || fc.type == ComponentType::ACVoltageSource || fc.type == ComponentType::ControlledVoltageSource || fc.type == ComponentType::Ammeter) {
             if (fc.vIdx >= 0 && fc.vIdx < totalDim) iComp = X[fc.vIdx];
+        } else if (fc.type == ComponentType::CurrentSource) {
+            iComp = fc.val;
+        } else if (fc.type == ComponentType::ACCurrentSource) {
+            double phaseRad = fc.delay * 3.141592653589793 / 180.0;
+            iComp = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + phaseRad);
+        } else if (fc.type == ComponentType::ControlledCurrentSource) {
+            double ctrlVal = fc.in0Ptr ? *fc.in0Ptr : (fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0);
+            iComp = (fc.gain != 0.0 ? fc.gain : 1.0) * ctrlVal;
         } else if (fc.type == ComponentType::Diode) {
             double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
             double R = (state > 0.5) ? fc.Ron : fc.Roff;
@@ -911,6 +928,9 @@ void CircuitSimulator::evaluateControls(double currentTime) {
         }
         if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) {
             flatControlSignals[fc.outSignalIdx] = (fc.type == ComponentType::Ammeter) ? iComp : vDiff;
+        }
+        if (fc.compSelfSignalIdx >= 0 && fc.compSelfSignalIdx < (int)flatControlSignals.size()) {
+            flatControlSignals[fc.compSelfSignalIdx] = (fc.type == ComponentType::Ammeter) ? iComp : vDiff;
         }
     }
 
@@ -2214,6 +2234,27 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             double val = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + phaseRad);
             int vIdx = fc.vIdx;
             B[vIdx] = val;
+        }
+        else if (fc.type == ComponentType::ControlledVoltageSource) {
+            double ctrlVal = (fc.ctrlSigPtr && *fc.ctrlSigPtr != 0.0) ? *fc.ctrlSigPtr : (fc.in0Ptr ? *fc.in0Ptr : (fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0));
+            int vIdx = fc.vIdx;
+            B[vIdx] = fc.gain * ctrlVal;
+        }
+        else if (fc.type == ComponentType::CurrentSource) {
+            if (n1 >= 0) B[n1] -= fc.val;
+            if (n2 >= 0) B[n2] += fc.val;
+        }
+        else if (fc.type == ComponentType::ACCurrentSource) {
+            double phaseRad = fc.delay * 3.141592653589793 / 180.0;
+            double iVal = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + phaseRad);
+            if (n1 >= 0) B[n1] -= iVal;
+            if (n2 >= 0) B[n2] += iVal;
+        }
+        else if (fc.type == ComponentType::ControlledCurrentSource) {
+            double ctrlVal = (fc.ctrlSigPtr && *fc.ctrlSigPtr != 0.0) ? *fc.ctrlSigPtr : (fc.in0Ptr ? *fc.in0Ptr : (fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0));
+            double iVal = fc.gain * ctrlVal;
+            if (n1 >= 0) B[n1] -= iVal;
+            if (n2 >= 0) B[n2] += iVal;
         }
         else if (fc.type == ComponentType::Ammeter) {
             int vIdx = fc.vIdx;
