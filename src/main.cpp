@@ -215,74 +215,14 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
     return cd;
 }
 
-static bool runHeadlessCLI(int argc, char** argv) {
-    bool hasCliArg = false;
-    std::string inputFile;
-    std::string htmlFile;
-    std::string svgFile;
-    std::vector<std::pair<std::string, std::string>> paramOverrides;
-    double tstopOverride = -1.0;
-    double stepOverride = -1.0;
-
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "-h" || arg == "--help") {
-            hasCliArg = true;
-            break;
-        }
-        if ((arg == "-i" || arg == "--input") && i + 1 < argc) {
-            inputFile = argv[++i];
-            hasCliArg = true;
-        } else if ((arg == "-o" || arg == "--output" || arg == "--html") && i + 1 < argc) {
-            htmlFile = argv[++i];
-            hasCliArg = true;
-        } else if ((arg == "-s" || arg == "--export-svg") && i + 1 < argc) {
-            svgFile = argv[++i];
-            hasCliArg = true;
-        } else if ((arg == "-p" || arg == "--param") && i + 1 < argc) {
-            std::string paramSpec = argv[++i];
-            size_t eqPos = paramSpec.find('=');
-            if (eqPos != std::string::npos) {
-                std::string key = paramSpec.substr(0, eqPos);
-                std::string val = paramSpec.substr(eqPos + 1);
-                paramOverrides.push_back({key, val});
-            }
-            hasCliArg = true;
-        } else if ((arg == "-t" || arg == "--tstop") && i + 1 < argc) {
-            try { tstopOverride = std::stod(argv[++i]); } catch (...) {}
-            hasCliArg = true;
-        } else if ((arg == "-dt" || arg == "--step") && i + 1 < argc) {
-            try { stepOverride = std::stod(argv[++i]); } catch (...) {}
-            hasCliArg = true;
-        }
-    }
-
-    if (!hasCliArg) return false;
-
-    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
-        FILE* fp;
-        freopen_s(&fp, "CONOUT$", "w", stdout);
-        freopen_s(&fp, "CONOUT$", "w", stderr);
-    }
-
-    std::cout << "\n========================================================\n";
-    std::cout << " CircuitSim Pro CLI Engine (Headless Mode)\n";
-    std::cout << "========================================================\n";
-
-    if (inputFile.empty()) {
-        std::cout << "Usage: circuitsim_pro_win.exe -i <input_schematic.json> [options]\n\n";
-        std::cout << "Options:\n";
-        std::cout << "  -i, --input <file>          Input schematic JSON file path (Required)\n";
-        std::cout << "  -o, --html, --output <file> Output Light Mode HTML report path (Default: <input>_report.html)\n";
-        std::cout << "  -p, --param CompId.Param=Val  Override component parameter (e.g. -p L1.L=200u -p R1.R=20)\n";
-        std::cout << "  -s, --export-svg <file>     Export standalone schematic SVG\n";
-        std::cout << "  -t, --tstop <seconds>       Override transient simulation stop time\n";
-        std::cout << "  -dt, --step <seconds>       Override maximum simulation step size\n";
-        std::cout << "  -h, --help                  Show CLI usage guide\n";
-        std::cout << "========================================================\n\n";
-        std::exit(0);
-    }
-
+static bool processSingleJsonFile(
+    const std::string& inputFile,
+    std::string htmlFile,
+    std::string svgFile,
+    const std::vector<std::pair<std::string, std::string>>& paramOverrides,
+    double tstopOverride,
+    double stepOverride)
+{
     if (htmlFile.empty()) {
         size_t dotPos = inputFile.find_last_of('.');
         if (dotPos != std::string::npos) {
@@ -294,8 +234,8 @@ static bool runHeadlessCLI(int argc, char** argv) {
 
     std::ifstream inFile(inputFile);
     if (!inFile.is_open()) {
-        std::cerr << "ERROR: Failed to open input file: " << inputFile << std::endl;
-        std::exit(1);
+        std::cerr << "[CLI ERROR] Failed to open input file: " << inputFile << std::endl;
+        return false;
     }
     std::string jsonContent((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
     inFile.close();
@@ -305,8 +245,8 @@ static bool runHeadlessCLI(int argc, char** argv) {
         nlohmann::json j = nlohmann::json::parse(jsonContent);
         design = loadSchematicFromJson(j);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: Failed to parse input schematic JSON: " << e.what() << std::endl;
-        std::exit(1);
+        std::cerr << "[CLI ERROR] Failed to parse input schematic JSON (" << inputFile << "): " << e.what() << std::endl;
+        return false;
     }
 
     for (const auto& overridePair : paramOverrides) {
@@ -351,7 +291,7 @@ static bool runHeadlessCLI(int argc, char** argv) {
     simulator.setup(physComps, ctrlComps, simCfg);
     simulator.reset();
 
-    std::cout << "[CLI] Running Transient Simulation (tstop = " << simCfg.stopTime << "s)..." << std::endl;
+    std::cout << "[CLI] Running Transient Simulation for '" << inputFile << "' (tstop = " << simCfg.stopTime << "s)..." << std::endl;
     CircuitSimEngine::SimulationOutput output = simulator.runTransient();
     simulator.setTelemetryOutput(output);
 
@@ -448,10 +388,119 @@ static bool runHeadlessCLI(int argc, char** argv) {
         } catch (...) {
             std::cout << "[CLI SUCCESS] HTML Report exported successfully to '" << htmlFile << "'!\n";
         }
+        return true;
+    } else {
+        std::cerr << "[CLI ERROR] Failed to export HTML report for '" << inputFile << "'.\n";
+        return false;
+    }
+}
+
+static bool runHeadlessCLI(int argc, char** argv) {
+    bool hasCliArg = false;
+    std::string inputFile;
+    std::string inputDir;
+    std::string htmlFile;
+    std::string svgFile;
+    std::vector<std::pair<std::string, std::string>> paramOverrides;
+    double tstopOverride = -1.0;
+    double stepOverride = -1.0;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            hasCliArg = true;
+            break;
+        }
+        if ((arg == "-i" || arg == "--input") && i + 1 < argc) {
+            inputFile = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-dir" || arg == "--dir" || arg == "--input-dir") && i + 1 < argc) {
+            inputDir = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-o" || arg == "--output" || arg == "--html") && i + 1 < argc) {
+            htmlFile = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-s" || arg == "--export-svg") && i + 1 < argc) {
+            svgFile = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-p" || arg == "--param") && i + 1 < argc) {
+            std::string paramSpec = argv[++i];
+            size_t eqPos = paramSpec.find('=');
+            if (eqPos != std::string::npos) {
+                std::string key = paramSpec.substr(0, eqPos);
+                std::string val = paramSpec.substr(eqPos + 1);
+                paramOverrides.push_back({key, val});
+            }
+            hasCliArg = true;
+        } else if ((arg == "-t" || arg == "--tstop") && i + 1 < argc) {
+            try { tstopOverride = std::stod(argv[++i]); } catch (...) {}
+            hasCliArg = true;
+        } else if ((arg == "-dt" || arg == "--step") && i + 1 < argc) {
+            try { stepOverride = std::stod(argv[++i]); } catch (...) {}
+            hasCliArg = true;
+        }
+    }
+
+    if (!hasCliArg) return false;
+
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        FILE* fp;
+        freopen_s(&fp, "CONOUT$", "w", stdout);
+        freopen_s(&fp, "CONOUT$", "w", stderr);
+    }
+
+    std::cout << "\n========================================================\n";
+    std::cout << " CircuitSim Pro CLI Engine (Headless Mode)\n";
+    std::cout << "========================================================\n";
+
+    if (inputFile.empty() && inputDir.empty()) {
+        std::cout << "Usage: circuitsim_pro_win.exe -i <input.json> [options]\n";
+        std::cout << "   or: circuitsim_pro_win.exe -dir <folder> [options]\n\n";
+        std::cout << "Options:\n";
+        std::cout << "  -i, --input <file>          Input schematic JSON file path\n";
+        std::cout << "  -dir, --input-dir <folder>  Batch process all .json files in directory\n";
+        std::cout << "  -o, --html, --output <file> Output Light Mode HTML report path (Default: <input>_report.html)\n";
+        std::cout << "  -p, --param CompId.Param=Val  Override component parameter (e.g. -p L1.L=200u -p R1.R=20)\n";
+        std::cout << "  -s, --export-svg <file>     Export standalone schematic SVG\n";
+        std::cout << "  -t, --tstop <seconds>       Override transient simulation stop time\n";
+        std::cout << "  -dt, --step <seconds>       Override maximum simulation step size\n";
+        std::cout << "  -h, --help                  Show CLI usage guide\n";
         std::cout << "========================================================\n\n";
         std::exit(0);
+    }
+
+    if (!inputDir.empty()) {
+        std::cout << "[CLI] Batch Exporting directory '" << inputDir << "'...\n";
+        int totalProcessed = 0;
+        int totalSuccess = 0;
+
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(inputDir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::string filePath = entry.path().string();
+                    std::string outHtml = entry.path().parent_path().string() + "/" + entry.path().stem().string() + "_report.html";
+                    std::cout << "\n--------------------------------------------------------\n";
+                    std::cout << "[CLI Batch " << (totalProcessed + 1) << "] Processing: " << entry.path().filename().string() << std::endl;
+                    totalProcessed++;
+                    if (processSingleJsonFile(filePath, outHtml, "", paramOverrides, tstopOverride, stepOverride)) {
+                        totalSuccess++;
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[CLI ERROR] Directory iteration error: " << e.what() << std::endl;
+        }
+
+        std::cout << "\n========================================================\n";
+        std::cout << "[CLI BATCH COMPLETE] Successfully processed " << totalSuccess << " of " << totalProcessed << " JSON files.\n";
+        std::cout << "========================================================\n\n";
+        std::exit(0);
+    }
+
+    bool success = processSingleJsonFile(inputFile, htmlFile, svgFile, paramOverrides, tstopOverride, stepOverride);
+    if (success) {
+        std::exit(0);
     } else {
-        std::cerr << "[CLI ERROR] Failed to export HTML report.\n";
         std::exit(1);
     }
 
