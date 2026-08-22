@@ -6,12 +6,457 @@
 #include "imgui_impl_opengl3.h"
 #include "implot.h"
 #include "ui/MainWindow.hpp"
+#include "ui/SVGExporter.hpp"
+#include "ui/NetlistSourceView.hpp"
+#include "engine/NetlistBuilder.hpp"
+#include "engine/NetlistParser.hpp"
+#include "engine/CircuitSimulator.hpp"
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
+#include <unordered_map>
+#include <unordered_set>
 #include <exception>
 #include <csignal>
 #include <chrono>
 #include <ctime>
+
+static std::string buildSchematicJsonString(const CircuitSim::CircuitDesign& cd) {
+    nlohmann::json j;
+    nlohmann::json compArray = nlohmann::json::array();
+    for (const auto& comp : cd.components) {
+        nlohmann::json cObj;
+        cObj["id"] = comp.id;
+        cObj["type"] = comp.rawTypeStr;
+        cObj["label"] = comp.label;
+        cObj["x"] = comp.x;
+        cObj["y"] = comp.y;
+        cObj["rotation"] = comp.rotation;
+        nlohmann::json pObj = nlohmann::json::object();
+        for (const auto& [k, v] : comp.parameters) pObj[k] = v;
+        cObj["parameters"] = pObj;
+        compArray.push_back(cObj);
+    }
+    j["components"] = compArray;
+    nlohmann::json wireArray = nlohmann::json::array();
+    for (const auto& wire : cd.wires) {
+        nlohmann::json wObj;
+        wObj["id"] = wire.id;
+        nlohmann::json fObj;
+        if (wire.from.isWireJunction) {
+            fObj["type"] = "junction";
+            fObj["compId"] = wire.from.targetWireId;
+            fObj["terminal"] = "";
+            fObj["x"] = wire.from.junctionX;
+            fObj["y"] = wire.from.junctionY;
+        } else {
+            fObj["type"] = "pin";
+            fObj["compId"] = wire.from.compId;
+            fObj["terminal"] = wire.from.terminal;
+        }
+        nlohmann::json tObj;
+        if (wire.to.isWireJunction) {
+            tObj["type"] = "junction";
+            tObj["compId"] = wire.to.targetWireId;
+            tObj["terminal"] = "";
+            tObj["x"] = wire.to.junctionX;
+            tObj["y"] = wire.to.junctionY;
+        } else {
+            tObj["type"] = "pin";
+            tObj["compId"] = wire.to.compId;
+            tObj["terminal"] = wire.to.terminal;
+        }
+        wObj["from"] = fObj;
+        wObj["to"] = tObj;
+        wireArray.push_back(wObj);
+    }
+    j["wires"] = wireArray;
+    return j.dump(2);
+}
+
+static void parseWireEndpointJSON(
+    const nlohmann::json& epObj,
+    CircuitSim::WireEndpoint& ep,
+    const std::function<std::string(const std::string&, const std::string&)>& resolveTerm = nullptr
+) {
+    if (!epObj.is_object()) return;
+
+    std::string compId = epObj.value("compId", epObj.value("componentId", ""));
+    std::string wireId = epObj.value("wireId", epObj.value("targetWireId", ""));
+    std::string epType = epObj.value("type", "");
+    std::string terminal = epObj.value("terminal", epObj.value("terminalName", ""));
+
+    std::string targetW = !wireId.empty() ? wireId : compId;
+
+    bool isJunction = (epType == "wire" || epType == "junction" || epObj.value("isWireJunction", false));
+    if (!isJunction && !targetW.empty()) {
+        if ((targetW[0] == 'w' || targetW[0] == 'W') && targetW.find('.') == std::string::npos) {
+            isJunction = true;
+        }
+    }
+
+    if (isJunction) {
+        ep.isWireJunction = true;
+        ep.targetWireId = targetW;
+        ep.junctionX = epObj.value("x", epObj.value("junctionX", 0.0f));
+        ep.junctionY = epObj.value("y", epObj.value("junctionY", 0.0f));
+        ep.compId = "";
+        ep.terminal = "";
+    } else {
+        ep.isWireJunction = false;
+        ep.compId = compId;
+        ep.terminal = resolveTerm ? resolveTerm(compId, terminal) : terminal;
+        ep.targetWireId = "";
+        ep.junctionX = 0.0f;
+        ep.junctionY = 0.0f;
+    }
+}
+
+static void sanitizeCircuitWires(CircuitSim::CircuitDesign& cd) {
+    std::vector<CircuitSim::WireInstance> cleanWires;
+    std::unordered_map<std::string, const CircuitSim::ComponentInstance*> compMap;
+    for (const auto& c : cd.components) compMap[c.id] = &c;
+
+    for (const auto& w : cd.wires) {
+        bool fromValid = w.from.isWireJunction ? !w.from.targetWireId.empty() : !w.from.compId.empty();
+        bool toValid   = w.to.isWireJunction   ? !w.to.targetWireId.empty()   : !w.to.compId.empty();
+
+        if (!fromValid || !toValid) continue;
+
+        if (!w.from.isWireJunction && !compMap.count(w.from.compId)) continue;
+        if (!w.to.isWireJunction && !compMap.count(w.to.compId)) continue;
+
+        if (!w.from.isWireJunction && !w.to.isWireJunction && w.from.compId == w.to.compId && w.from.terminal == w.to.terminal) {
+            continue;
+        }
+
+        cleanWires.push_back(w);
+    }
+    cd.wires = cleanWires;
+
+    std::vector<CircuitSim::WireInstance> dedupedWires;
+    std::unordered_set<std::string> seenEndpoints;
+
+    for (const auto& w : cd.wires) {
+        std::string ep1 = w.from.isWireJunction ? ("j:" + w.from.targetWireId) : ("p:" + w.from.compId + "." + w.from.terminal);
+        std::string ep2 = w.to.isWireJunction   ? ("j:" + w.to.targetWireId)   : ("p:" + w.to.compId + "." + w.to.terminal);
+
+        std::string forwardKey = ep1 + "<->" + ep2;
+        std::string reverseKey = ep2 + "<->" + ep1;
+
+        if (seenEndpoints.count(forwardKey) || seenEndpoints.count(reverseKey)) {
+            continue;
+        }
+        seenEndpoints.insert(forwardKey);
+        seenEndpoints.insert(reverseKey);
+        dedupedWires.push_back(w);
+    }
+    cd.wires = dedupedWires;
+}
+
+static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) {
+    CircuitSim::CircuitDesign cd;
+    if (j.contains("components") && j["components"].is_array()) {
+        for (const auto& cItem : j["components"]) {
+            CircuitSim::ComponentInstance comp;
+            comp.id = cItem.value("id", "");
+            comp.rawTypeStr = cItem.value("type", "R");
+            comp.type = CircuitSim::stringToComponentType(comp.rawTypeStr);
+            comp.label = cItem.value("label", comp.id);
+            comp.x = cItem.value("x", 0.0f);
+            comp.y = cItem.value("y", 0.0f);
+            comp.rotation = cItem.value("rotation", 0);
+            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
+                for (auto& [k, v] : cItem["parameters"].items()) {
+                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
+                }
+            }
+            CircuitSim::setupComponentPins(comp);
+            cd.components.push_back(comp);
+        }
+    }
+
+    std::unordered_map<std::string, std::string> compTypeMap;
+    for (const auto& c : cd.components) {
+        compTypeMap[c.id] = c.rawTypeStr;
+    }
+
+    auto resolveTerminalName = [&](const std::string& compId, const std::string& term) -> std::string {
+        auto it = compTypeMap.find(compId);
+        if (it != compTypeMap.end()) {
+            std::string t = it->second;
+            if (t == "SCOPE" || t == "Oscilloscope") {
+                std::string lowerTerm = term;
+                std::transform(lowerTerm.begin(), lowerTerm.end(), lowerTerm.begin(), ::tolower);
+                if (lowerTerm.rfind("ch", 0) == 0 && lowerTerm.length() > 2) {
+                    return "In" + lowerTerm.substr(2);
+                }
+                if (lowerTerm.rfind("in", 0) == 0 && lowerTerm.length() > 2) {
+                    return "In" + lowerTerm.substr(2);
+                }
+            }
+        }
+        return term;
+    };
+
+    if (j.contains("wires") && j["wires"].is_array()) {
+        for (const auto& wItem : j["wires"]) {
+            CircuitSim::WireInstance wire;
+            wire.id = wItem.value("id", "");
+            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
+            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
+            cd.wires.push_back(wire);
+        }
+        sanitizeCircuitWires(cd);
+    }
+    return cd;
+}
+
+static bool runHeadlessCLI(int argc, char** argv) {
+    bool hasCliArg = false;
+    std::string inputFile;
+    std::string htmlFile;
+    std::string svgFile;
+    std::vector<std::pair<std::string, std::string>> paramOverrides;
+    double tstopOverride = -1.0;
+    double stepOverride = -1.0;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            hasCliArg = true;
+            break;
+        }
+        if ((arg == "-i" || arg == "--input") && i + 1 < argc) {
+            inputFile = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-o" || arg == "--output" || arg == "--html") && i + 1 < argc) {
+            htmlFile = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-s" || arg == "--export-svg") && i + 1 < argc) {
+            svgFile = argv[++i];
+            hasCliArg = true;
+        } else if ((arg == "-p" || arg == "--param") && i + 1 < argc) {
+            std::string paramSpec = argv[++i];
+            size_t eqPos = paramSpec.find('=');
+            if (eqPos != std::string::npos) {
+                std::string key = paramSpec.substr(0, eqPos);
+                std::string val = paramSpec.substr(eqPos + 1);
+                paramOverrides.push_back({key, val});
+            }
+            hasCliArg = true;
+        } else if ((arg == "-t" || arg == "--tstop") && i + 1 < argc) {
+            try { tstopOverride = std::stod(argv[++i]); } catch (...) {}
+            hasCliArg = true;
+        } else if ((arg == "-dt" || arg == "--step") && i + 1 < argc) {
+            try { stepOverride = std::stod(argv[++i]); } catch (...) {}
+            hasCliArg = true;
+        }
+    }
+
+    if (!hasCliArg) return false;
+
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        FILE* fp;
+        freopen_s(&fp, "CONOUT$", "w", stdout);
+        freopen_s(&fp, "CONOUT$", "w", stderr);
+    }
+
+    std::cout << "\n========================================================\n";
+    std::cout << " CircuitSim Pro CLI Engine (Headless Mode)\n";
+    std::cout << "========================================================\n";
+
+    if (inputFile.empty()) {
+        std::cout << "Usage: circuitsim_pro_win.exe -i <input_schematic.json> [options]\n\n";
+        std::cout << "Options:\n";
+        std::cout << "  -i, --input <file>          Input schematic JSON file path (Required)\n";
+        std::cout << "  -o, --html, --output <file> Output Light Mode HTML report path (Default: <input>_report.html)\n";
+        std::cout << "  -p, --param CompId.Param=Val  Override component parameter (e.g. -p L1.L=200u -p R1.R=20)\n";
+        std::cout << "  -s, --export-svg <file>     Export standalone schematic SVG\n";
+        std::cout << "  -t, --tstop <seconds>       Override transient simulation stop time\n";
+        std::cout << "  -dt, --step <seconds>       Override maximum simulation step size\n";
+        std::cout << "  -h, --help                  Show CLI usage guide\n";
+        std::cout << "========================================================\n\n";
+        std::exit(0);
+    }
+
+    if (htmlFile.empty()) {
+        size_t dotPos = inputFile.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            htmlFile = inputFile.substr(0, dotPos) + "_report.html";
+        } else {
+            htmlFile = inputFile + "_report.html";
+        }
+    }
+
+    std::ifstream inFile(inputFile);
+    if (!inFile.is_open()) {
+        std::cerr << "ERROR: Failed to open input file: " << inputFile << std::endl;
+        std::exit(1);
+    }
+    std::string jsonContent((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+    inFile.close();
+
+    CircuitSim::CircuitDesign design;
+    try {
+        nlohmann::json j = nlohmann::json::parse(jsonContent);
+        design = loadSchematicFromJson(j);
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: Failed to parse input schematic JSON: " << e.what() << std::endl;
+        std::exit(1);
+    }
+
+    for (const auto& overridePair : paramOverrides) {
+        std::string compId = overridePair.first;
+        std::string paramKey = overridePair.second;
+        size_t dotPos = compId.find('.');
+        if (dotPos != std::string::npos) {
+            paramKey = compId.substr(dotPos + 1);
+            compId = compId.substr(0, dotPos);
+        }
+
+        bool foundComp = false;
+        for (auto& comp : design.components) {
+            if (comp.id == compId) {
+                comp.parameters[paramKey] = overridePair.second;
+                if (paramKey == "R" || paramKey == "C" || paramKey == "L" || paramKey == "value") {
+                    comp.parameters[paramKey] = overridePair.second;
+                    comp.parameters["value"] = overridePair.second;
+                }
+                std::cout << "[CLI] Overrode " << compId << "." << paramKey << " = " << overridePair.second << std::endl;
+                foundComp = true;
+                break;
+            }
+        }
+        if (!foundComp) {
+            std::cout << "[CLI Warning] Component ID '" << compId << "' not found for parameter override." << std::endl;
+        }
+    }
+
+    CircuitSim::NetlistBuilder::buildNodesForCircuit(design);
+    std::string jsonNetlist = CircuitSim::NetlistSourceView::generateNetlistJson(design);
+
+    std::vector<CircuitSimEngine::ComponentModel> physComps;
+    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
+    CircuitSimEngine::SimulationConfig simCfg;
+    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
+
+    if (tstopOverride > 0.0) simCfg.stopTime = tstopOverride;
+    if (stepOverride > 0.0) simCfg.stepSize = stepOverride;
+
+    CircuitSimEngine::CircuitSimulator simulator;
+    simulator.setup(physComps, ctrlComps, simCfg);
+    simulator.reset();
+
+    std::cout << "[CLI] Running Transient Simulation (tstop = " << simCfg.stopTime << "s)..." << std::endl;
+    CircuitSimEngine::SimulationOutput output = simulator.runTransient();
+    simulator.setTelemetryOutput(output);
+
+    auto telemetry = simulator.getTelemetryCopy();
+
+    std::vector<CircuitSim::SVGExporter::ScopeReportData> scopesData;
+
+    for (const auto& comp : design.components) {
+        if (comp.type == CircuitSim::ComponentType::Oscilloscope || comp.rawTypeStr == "SCOPE") {
+            int numChannels = 2;
+            if (comp.parameters.count("channels")) {
+                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch(...) {}
+            }
+
+            std::vector<std::string> sigKeys = CircuitSim::SVGExporter::traceScopeInputSignals(design, comp.id, numChannels);
+
+            std::vector<std::string> validKeys;
+            std::vector<std::string> validLabels;
+            for (const auto& k : sigKeys) {
+                if (!k.empty() && (telemetry.voltages.count(k) || !telemetry.timeHistory.empty())) {
+                    validKeys.push_back(k);
+                    validLabels.push_back(k);
+                }
+            }
+
+            if (!validKeys.empty()) {
+                CircuitSim::SVGExporter::ScopeReportData srd;
+                srd.scopeId = comp.id;
+                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
+                srd.signalKeys = validKeys;
+                srd.signalLabels = validLabels;
+                srd.numPanes = (int)validKeys.size();
+                scopesData.push_back(srd);
+            }
+        }
+    }
+
+    if (scopesData.empty()) {
+        std::vector<std::string> probeKeys;
+        for (const auto& comp : design.components) {
+            if (comp.rawTypeStr == "PROBE") {
+                if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+                    probeKeys.push_back(comp.parameters.at("selected_signals"));
+                } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
+                    std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
+                    if (pType == "Current" || pType == "I") probeKeys.push_back("I_" + comp.parameters.at("target"));
+                    else probeKeys.push_back("V_" + comp.parameters.at("target"));
+                }
+            }
+        }
+
+        std::vector<std::string> validKeys;
+        std::vector<std::string> validLabels;
+        for (const auto& k : probeKeys) {
+            if (!k.empty() && telemetry.voltages.count(k)) {
+                validKeys.push_back(k);
+                validLabels.push_back(k);
+            }
+        }
+
+        if (!validKeys.empty()) {
+            CircuitSim::SVGExporter::ScopeReportData srd;
+            srd.scopeId = "Probes";
+            srd.scopeTitle = "Probe Waveforms";
+            srd.signalKeys = validKeys;
+            srd.signalLabels = validLabels;
+            srd.numPanes = (int)validKeys.size();
+            scopesData.push_back(srd);
+        }
+    }
+
+    std::string schematicJson = buildSchematicJsonString(design);
+
+    std::cout << "[CLI] Exporting Light Mode HTML Report to '" << htmlFile << "'..." << std::endl;
+    bool success = CircuitSim::SVGExporter::exportFullReportToHTML(
+        design,
+        telemetry,
+        scopesData,
+        schematicJson,
+        jsonNetlist,
+        htmlFile,
+        false /* Light Mode Only */
+    );
+
+    if (svgFile.size() > 0) {
+        std::cout << "[CLI] Exporting Schematic SVG to '" << svgFile << "'..." << std::endl;
+        CircuitSim::SVGExporter::exportSchematicToSVG(design, svgFile, false);
+    }
+
+    if (success) {
+        try {
+            std::string absPath = std::filesystem::absolute(htmlFile).string();
+            std::cout << "[CLI SUCCESS] HTML Report exported successfully to:\n  " << absPath << "\n";
+        } catch (...) {
+            std::cout << "[CLI SUCCESS] HTML Report exported successfully to '" << htmlFile << "'!\n";
+        }
+        std::cout << "========================================================\n\n";
+        std::exit(0);
+    } else {
+        std::cerr << "[CLI ERROR] Failed to export HTML report.\n";
+        std::exit(1);
+    }
+
+    return true;
+}
 
 static void logCrash(const std::string& errorMsg) {
     std::string fullMsg = "\n========================================================\n";
@@ -145,6 +590,10 @@ int main(int argc, char** argv) {
     std::signal(SIGABRT, customSignalHandler);
     std::signal(SIGFPE, customSignalHandler);
     std::signal(SIGILL, customSignalHandler);
+
+    if (runHeadlessCLI(argc, argv)) {
+        return 0;
+    }
 
     HICON hIconBig = createCircuitSimIcon(32);
     HICON hIconSmall = createCircuitSimIcon(16);

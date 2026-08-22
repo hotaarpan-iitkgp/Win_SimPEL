@@ -54,6 +54,9 @@ public:
         bool isDarkMode = false
     );
 
+    // Scope signal tracing helper
+    static std::vector<std::string> traceScopeInputSignals(const CircuitDesign& design, const std::string& scopeId, int numChannels);
+
     // Helper: Windows Save File Dialog for SVG & HTML
     static std::string saveSVGFileDialog(const std::string& title = "Export to SVG", const std::string& defaultName = "export.svg");
     static std::string saveHTMLFileDialog(const std::string& title = "Export Report to HTML", const std::string& defaultName = "report.html");

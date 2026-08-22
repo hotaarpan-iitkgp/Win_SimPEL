@@ -291,6 +291,162 @@ static std::string saveFileDialog() {
     return "";
 }
 
+static void parseWireEndpointJSON(
+    const json& epObj,
+    WireEndpoint& ep,
+    const std::function<std::string(const std::string&, const std::string&)>& resolveTerm = nullptr
+) {
+    if (!epObj.is_object()) return;
+
+    std::string compId = epObj.value("compId", epObj.value("componentId", ""));
+    std::string wireId = epObj.value("wireId", epObj.value("targetWireId", ""));
+    std::string epType = epObj.value("type", "");
+    std::string terminal = epObj.value("terminal", epObj.value("terminalName", ""));
+
+    std::string targetW = !wireId.empty() ? wireId : compId;
+
+    bool isJunction = (epType == "wire" || epType == "junction" || epObj.value("isWireJunction", false));
+    if (!isJunction && !targetW.empty()) {
+        if ((targetW[0] == 'w' || targetW[0] == 'W') && targetW.find('.') == std::string::npos) {
+            isJunction = true;
+        }
+    }
+
+    if (isJunction) {
+        ep.isWireJunction = true;
+        ep.targetWireId = targetW;
+        ep.junctionX = epObj.value("x", epObj.value("junctionX", 0.0f));
+        ep.junctionY = epObj.value("y", epObj.value("junctionY", 0.0f));
+        ep.compId = "";
+        ep.terminal = "";
+    } else {
+        ep.isWireJunction = false;
+        ep.compId = compId;
+        ep.terminal = resolveTerm ? resolveTerm(compId, terminal) : terminal;
+        ep.targetWireId = "";
+        ep.junctionX = 0.0f;
+        ep.junctionY = 0.0f;
+    }
+}
+
+static json serializeWireEndpointJSON(const WireEndpoint& ep) {
+    json obj;
+    bool isJunc = ep.isWireJunction || (!ep.targetWireId.empty() && ep.compId.empty()) ||
+                  (!ep.compId.empty() && (ep.compId[0] == 'w' || ep.compId[0] == 'W') && ep.compId.find('.') == std::string::npos);
+
+    if (isJunc) {
+        std::string targetId = !ep.targetWireId.empty() ? ep.targetWireId : ep.compId;
+        obj["type"] = "junction";
+        obj["compId"] = targetId;
+        obj["terminal"] = "";
+        obj["x"] = ep.junctionX;
+        obj["y"] = ep.junctionY;
+    } else {
+        obj["type"] = "pin";
+        obj["compId"] = ep.compId;
+        obj["terminal"] = ep.terminal;
+    }
+    return obj;
+}
+
+static void sanitizeCircuitWires(CircuitDesign& cd) {
+    // 1. Remove invalid, dangling, or incomplete wire entries
+    std::vector<WireInstance> cleanWires;
+    std::unordered_map<std::string, const ComponentInstance*> compMap;
+    for (const auto& c : cd.components) compMap[c.id] = &c;
+
+    for (const auto& w : cd.wires) {
+        bool fromValid = w.from.isWireJunction ? !w.from.targetWireId.empty() : !w.from.compId.empty();
+        bool toValid   = w.to.isWireJunction   ? !w.to.targetWireId.empty()   : !w.to.compId.empty();
+
+        if (!fromValid || !toValid) continue;
+
+        if (!w.from.isWireJunction && !compMap.count(w.from.compId)) continue;
+        if (!w.to.isWireJunction && !compMap.count(w.to.compId)) continue;
+
+        if (!w.from.isWireJunction && !w.to.isWireJunction && w.from.compId == w.to.compId && w.from.terminal == w.to.terminal) {
+            continue;
+        }
+
+        cleanWires.push_back(w);
+    }
+    cd.wires = cleanWires;
+
+    // 2. Remove duplicate or reverse-parallel wire segments connecting the exact same endpoints
+    std::vector<WireInstance> dedupedWires;
+    std::unordered_set<std::string> seenEndpoints;
+
+    for (const auto& w : cd.wires) {
+        std::string ep1 = w.from.isWireJunction ? ("j:" + w.from.targetWireId) : ("p:" + w.from.compId + "." + w.from.terminal);
+        std::string ep2 = w.to.isWireJunction   ? ("j:" + w.to.targetWireId)   : ("p:" + w.to.compId + "." + w.to.terminal);
+
+        std::string forwardKey = ep1 + "<->" + ep2;
+        std::string reverseKey = ep2 + "<->" + ep1;
+
+        if (seenEndpoints.count(forwardKey) || seenEndpoints.count(reverseKey)) {
+            continue;
+        }
+        seenEndpoints.insert(forwardKey);
+        seenEndpoints.insert(reverseKey);
+        dedupedWires.push_back(w);
+    }
+    cd.wires = dedupedWires;
+
+    // 3. Fix uninitialized junction coordinates (0, 0)
+    std::unordered_map<std::string, const WireInstance*> wireLookup;
+    for (const auto& w : cd.wires) wireLookup[w.id] = &w;
+
+    auto resolvePinPos = [&](const std::string& compId, const std::string& termName, float& outX, float& outY) -> bool {
+        auto it = compMap.find(compId);
+        if (it == compMap.end()) return false;
+        const auto* comp = it->second;
+        for (const auto& pin : comp->pins) {
+            if (pin.name == termName) {
+                outX = comp->x + pin.relativeX;
+                outY = comp->y + pin.relativeY;
+                return true;
+            }
+        }
+        outX = comp->x; outY = comp->y;
+        return true;
+    };
+
+    for (auto& w : cd.wires) {
+        if (w.from.isWireJunction && w.from.junctionX == 0.0f && w.from.junctionY == 0.0f) {
+            auto it = wireLookup.find(w.from.targetWireId);
+            if (it != wireLookup.end()) {
+                float fx = 0, fy = 0, tx = 0, ty = 0;
+                bool fOk = resolvePinPos(it->second->from.compId, it->second->from.terminal, fx, fy);
+                bool tOk = resolvePinPos(it->second->to.compId, it->second->to.terminal, tx, ty);
+                if (fOk && tOk) {
+                    w.from.junctionX = (fx + tx) * 0.5f;
+                    w.from.junctionY = (fy + ty) * 0.5f;
+                } else if (fOk) {
+                    w.from.junctionX = fx; w.from.junctionY = fy;
+                } else if (tOk) {
+                    w.from.junctionX = tx; w.from.junctionY = ty;
+                }
+            }
+        }
+        if (w.to.isWireJunction && w.to.junctionX == 0.0f && w.to.junctionY == 0.0f) {
+            auto it = wireLookup.find(w.to.targetWireId);
+            if (it != wireLookup.end()) {
+                float fx = 0, fy = 0, tx = 0, ty = 0;
+                bool fOk = resolvePinPos(it->second->from.compId, it->second->from.terminal, fx, fy);
+                bool tOk = resolvePinPos(it->second->to.compId, it->second->to.terminal, tx, ty);
+                if (fOk && tOk) {
+                    w.to.junctionX = (fx + tx) * 0.5f;
+                    w.to.junctionY = (fy + ty) * 0.5f;
+                } else if (fOk) {
+                    w.to.junctionX = fx; w.to.junctionY = fy;
+                } else if (tOk) {
+                    w.to.junctionX = tx; w.to.junctionY = ty;
+                }
+            }
+        }
+    }
+}
+
 static std::string buildSchematicJsonString(const CircuitDesign& cd) {
     json j;
     json compArray = json::array();
@@ -312,32 +468,8 @@ static std::string buildSchematicJsonString(const CircuitDesign& cd) {
     for (const auto& wire : cd.wires) {
         json wObj;
         wObj["id"] = wire.id;
-        json fObj;
-        if (wire.from.isWireJunction) {
-            fObj["type"] = "junction";
-            fObj["compId"] = wire.from.targetWireId;
-            fObj["terminal"] = "";
-            fObj["x"] = wire.from.junctionX;
-            fObj["y"] = wire.from.junctionY;
-        } else {
-            fObj["type"] = "pin";
-            fObj["compId"] = wire.from.compId;
-            fObj["terminal"] = wire.from.terminal;
-        }
-        json tObj;
-        if (wire.to.isWireJunction) {
-            tObj["type"] = "junction";
-            tObj["compId"] = wire.to.targetWireId;
-            tObj["terminal"] = "";
-            tObj["x"] = wire.to.junctionX;
-            tObj["y"] = wire.to.junctionY;
-        } else {
-            tObj["type"] = "pin";
-            tObj["compId"] = wire.to.compId;
-            tObj["terminal"] = wire.to.terminal;
-        }
-        wObj["from"] = fObj;
-        wObj["to"] = tObj;
+        wObj["from"] = serializeWireEndpointJSON(wire.from);
+        wObj["to"] = serializeWireEndpointJSON(wire.to);
         wireArray.push_back(wObj);
     }
     j["wires"] = wireArray;
@@ -381,108 +513,12 @@ void MainWindow::renderMenuBar() {
                             for (const auto& wItem : j["wires"]) {
                                 WireInstance wire;
                                 wire.id = wItem.value("id", "");
-                                if (wItem.contains("from") && wItem["from"].is_object()) {
-                                    wire.from.compId = wItem["from"].value("compId", "");
-                                    wire.from.terminal = wItem["from"].value("terminal", "");
-                                }
-                                if (wItem.contains("to") && wItem["to"].is_object()) {
-                                    const auto& toObj = wItem["to"];
-                                    std::string toComp = toObj.value("compId", "");
-                                    std::string wireId = toObj.value("wireId", "");
-                                    std::string toType = toObj.value("type", "pin");
-
-                                    std::string targetW = !wireId.empty() ? wireId : toComp;
-
-                                    if (toType == "wire" || toType == "junction" || (!targetW.empty() && (targetW[0] == 'w' || targetW[0] == 'W') && targetW.find(".") == std::string::npos)) {
-                                        wire.to.isWireJunction = true;
-                                        wire.to.targetWireId = targetW;
-                                        wire.to.junctionX = toObj.value("x", 0.0f);
-                                        wire.to.junctionY = toObj.value("y", 0.0f);
-                                    } else {
-                                        wire.to.isWireJunction = false;
-                                        wire.to.compId = toComp;
-                                        wire.to.terminal = toObj.value("terminal", "");
-                                    }
-                                }
+                                if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from);
+                                if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to);
                                 cd.wires.push_back(wire);
                             }
 
-                            // Sanitize wire IDs and fix duplicate wire targets
-                            std::unordered_set<std::string> seenWIds;
-                            int maxWNum = 0;
-                            for (const auto& w : cd.wires) {
-                                if (w.id.size() > 1 && (w.id[0] == 'w' || w.id[0] == 'W')) {
-                                    try {
-                                        int num = std::stoi(w.id.substr(1));
-                                        if (num > maxWNum) maxWNum = num;
-                                    } catch (...) {}
-                                }
-                            }
-                            for (auto& w : cd.wires) {
-                                if (w.id.empty() || seenWIds.count(w.id)) {
-                                    maxWNum++;
-                                    std::string newId = "w" + std::to_string(maxWNum);
-                                    std::string oldId = w.id;
-                                    w.id = newId;
-                                    for (auto& tw : cd.wires) {
-                                        if (tw.to.isWireJunction && tw.to.targetWireId == oldId) {
-                                            tw.to.targetWireId = newId;
-                                        }
-                                    }
-                                }
-                                seenWIds.insert(w.id);
-                            }
-
-                            // Automatically split junctioned wires into independent 2-point wire segments
-                            std::vector<WireInstance> splitSegments;
-                            for (size_t wi = 0; wi < cd.wires.size(); ++wi) {
-                                for (size_t wj = 0; wj < cd.wires.size(); ++wj) {
-                                    if (wi == wj) continue;
-                                    if (cd.wires[wj].to.isWireJunction && cd.wires[wj].to.targetWireId == cd.wires[wi].id) {
-                                        float jx = cd.wires[wj].to.junctionX;
-                                        float jy = cd.wires[wj].to.junctionY;
-                                        
-                                        float dToEnd = 1000.0f;
-                                        if (cd.wires[wi].to.isWireJunction) {
-                                            dToEnd = std::sqrt((cd.wires[wi].to.junctionX - jx)*(cd.wires[wi].to.junctionX - jx) + (cd.wires[wi].to.junctionY - jy)*(cd.wires[wi].to.junctionY - jy));
-                                        }
-                                        if (dToEnd > 15.0f) {
-                                            WireInstance seg2;
-                                            maxWNum++;
-                                            seg2.id = "w" + std::to_string(maxWNum);
-                                            seg2.from.isWireJunction = true;
-                                            seg2.from.targetWireId = cd.wires[wj].id;
-                                            seg2.from.junctionX = jx;
-                                            seg2.from.junctionY = jy;
-                                            seg2.to = cd.wires[wi].to;
-
-                                            cd.wires[wi].to.isWireJunction = true;
-                                            cd.wires[wi].to.targetWireId = cd.wires[wj].id;
-                                            cd.wires[wi].to.junctionX = jx;
-                                            cd.wires[wi].to.junctionY = jy;
-
-                                            splitSegments.push_back(seg2);
-                                        }
-                                    }
-                                }
-                            }
-                            for (auto& s : splitSegments) {
-                                cd.wires.push_back(s);
-                            }
-
-                            // Re-bind any stale wire junction target IDs to existing wires
-                            std::unordered_set<std::string> validWireIds;
-                            for (const auto& w : cd.wires) validWireIds.insert(w.id);
-                            for (auto& w : cd.wires) {
-                                if (w.to.isWireJunction && validWireIds.find(w.to.targetWireId) == validWireIds.end()) {
-                                    for (const auto& candW : cd.wires) {
-                                        if (candW.id != w.id) {
-                                            w.to.targetWireId = candW.id;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+                            sanitizeCircuitWires(cd);
                         }
                         if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
                             const auto& ss = j["simulationSettings"];
@@ -1471,31 +1507,11 @@ void MainWindow::loadSchematicFromJson(const json& j) {
         for (const auto& wItem : j["wires"]) {
             WireInstance wire;
             wire.id = wItem.value("id", "");
-            if (wItem.contains("from") && wItem["from"].is_object()) {
-                wire.from.compId = wItem["from"].value("compId", "");
-                wire.from.terminal = resolveTerminalName(wire.from.compId, wItem["from"].value("terminal", ""));
-            }
-            if (wItem.contains("to") && wItem["to"].is_object()) {
-                const auto& toObj = wItem["to"];
-                std::string toComp = toObj.value("compId", "");
-                std::string wireId = toObj.value("wireId", "");
-                std::string toType = toObj.value("type", "pin");
-
-                std::string targetW = !wireId.empty() ? wireId : toComp;
-
-                if (toType == "wire" || toType == "junction" || (!targetW.empty() && (targetW[0] == 'w' || targetW[0] == 'W') && targetW.find(".") == std::string::npos)) {
-                    wire.to.isWireJunction = true;
-                    wire.to.targetWireId = targetW;
-                    wire.to.junctionX = toObj.value("x", 0.0f);
-                    wire.to.junctionY = toObj.value("y", 0.0f);
-                } else {
-                    wire.to.isWireJunction = false;
-                    wire.to.compId = toComp;
-                    wire.to.terminal = resolveTerminalName(toComp, toObj.value("terminal", ""));
-                }
-            }
+            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
+            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
             cd.wires.push_back(wire);
         }
+        sanitizeCircuitWires(cd);
     if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
         const auto& ss = j["simulationSettings"];
         if (ss.contains("stopTime")) {
@@ -2060,176 +2076,7 @@ void MainWindow::handleScopeOpenRequest() {
 }
 
 std::vector<std::string> MainWindow::traceScopeInputSignals(const std::string& scopeId, int numChannels) {
-    std::vector<std::string> signalKeys(numChannels, "");
-    const CircuitDesign& design = canvas.getCircuit();
-
-    // Build a wire lookup map for junction traversal
-    std::unordered_map<std::string, const WireInstance*> wireMap;
-    for (const auto& w : design.wires) {
-        wireMap[w.id] = &w;
-    }
-
-    // Recursive helper: given a wire endpoint, follow junctions until we find a component pin.
-    // Returns {compId, terminal} or empty strings if not found.
-    struct PinResult { std::string compId; std::string terminal; };
-    
-    std::function<PinResult(const WireEndpoint&, std::unordered_set<std::string>&)> resolveEndpoint;
-    resolveEndpoint = [&](const WireEndpoint& ep, std::unordered_set<std::string>& visited) -> PinResult {
-        // Direct component connection
-        if (!ep.compId.empty()) {
-            return {ep.compId, ep.terminal};
-        }
-        // Wire junction — follow targetWireId
-        if (ep.isWireJunction && !ep.targetWireId.empty()) {
-            if (visited.count(ep.targetWireId)) return {"", ""}; // Prevent cycles
-            visited.insert(ep.targetWireId);
-            auto it = wireMap.find(ep.targetWireId);
-            if (it != wireMap.end()) {
-                const WireInstance* targetWire = it->second;
-                // Try both ends of the target wire
-                PinResult r = resolveEndpoint(targetWire->from, visited);
-                if (!r.compId.empty()) return r;
-                r = resolveEndpoint(targetWire->to, visited);
-                if (!r.compId.empty()) return r;
-            }
-        }
-        return {"", ""};
-    };
-
-    // For each wire in the design, find all component pins connected to a net (through junctions).
-    // We need to find a source (output pin) on the same net as the SCOPE's input pin.
-    auto findSourceOnNet = [&](const std::string& startWireId, const std::string& excludeCompId) -> PinResult {
-        // BFS/DFS through wire junctions to find all component pins on this net
-        std::unordered_set<std::string> visitedWires;
-        std::vector<std::string> wireQueue;
-        wireQueue.push_back(startWireId);
-        visitedWires.insert(startWireId);
-
-        std::vector<PinResult> foundPins;
-
-        while (!wireQueue.empty()) {
-            std::string wId = wireQueue.back();
-            wireQueue.pop_back();
-
-            auto it = wireMap.find(wId);
-            if (it == wireMap.end()) continue;
-            const WireInstance* w = it->second;
-
-            // Check both endpoints
-            for (const WireEndpoint* ep : {&w->from, &w->to}) {
-                if (!ep->compId.empty()) {
-                    // Found a component pin
-                    if (ep->compId != excludeCompId) {
-                        foundPins.push_back({ep->compId, ep->terminal});
-                    }
-                } else if (ep->isWireJunction && !ep->targetWireId.empty()) {
-                    // Junction to another wire — add to queue
-                    if (!visitedWires.count(ep->targetWireId)) {
-                        visitedWires.insert(ep->targetWireId);
-                        wireQueue.push_back(ep->targetWireId);
-                    }
-                }
-            }
-
-            // Also find other wires that junction TO this wire
-            for (const auto& pair : wireMap) {
-                if (visitedWires.count(pair.first)) continue;
-                const WireInstance* other = pair.second;
-                if ((other->from.isWireJunction && other->from.targetWireId == wId) ||
-                    (other->to.isWireJunction && other->to.targetWireId == wId)) {
-                    visitedWires.insert(pair.first);
-                    wireQueue.push_back(pair.first);
-                }
-            }
-        }
-
-        // From found pins, prefer output pins (Out, Out1, etc.) as signal sources
-        for (const auto& pin : foundPins) {
-            if (pin.terminal.find("Out") != std::string::npos || 
-                pin.terminal == "A" || pin.terminal == "B") {
-                return pin;
-            }
-        }
-        // Return first found pin if no output pin found
-        if (!foundPins.empty()) return foundPins[0];
-        return {"", ""};
-    };
-
-    for (int ch = 0; ch < numChannels; ++ch) {
-        std::string targetPin = "In" + std::to_string(ch + 1);
-
-        // Find wire that connects TO this SCOPE's input pin (directly or via junction)
-        for (const auto& wire : design.wires) {
-            bool scopeOnTo = (wire.to.compId == scopeId && wire.to.terminal == targetPin);
-            bool scopeOnFrom = (wire.from.compId == scopeId && wire.from.terminal == targetPin);
-
-            if (!scopeOnTo && !scopeOnFrom) continue;
-
-            // Get the other endpoint (source side)
-            const WireEndpoint& sourceEp = scopeOnTo ? wire.from : wire.to;
-
-            PinResult source;
-            if (!sourceEp.compId.empty()) {
-                // Direct connection to a component
-                source = {sourceEp.compId, sourceEp.terminal};
-            } else if (sourceEp.isWireJunction) {
-                // Junction — need to traverse the wire network to find the source component
-                source = findSourceOnNet(wire.id, scopeId);
-            }
-
-            if (!source.compId.empty()) {
-                // Determine the signal key based on source component type
-                std::string sigKey;
-                for (const auto& comp : design.components) {
-                    if (comp.id == source.compId) {
-                        if (comp.rawTypeStr == "PROBE") {
-                            if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
-                                sigKey = comp.parameters.at("selected_signals");
-                            } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
-                                std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
-                                if (pType == "Current" || pType == "I") sigKey = "I_" + comp.parameters.at("target");
-                                else sigKey = "V_" + comp.parameters.at("target");
-                            } else {
-                                sigKey = comp.id + ".Out";
-                            }
-                        } else if (comp.type == ComponentType::Voltmeter) {
-                            sigKey = comp.id;
-                        } else if (comp.type == ComponentType::Ammeter) {
-                            sigKey = comp.id;
-                        } else if (comp.type == ComponentType::Resistor || 
-                                   comp.type == ComponentType::Capacitor ||
-                                   comp.type == ComponentType::Inductor ||
-                                   comp.type == ComponentType::VoltageSource ||
-                                   comp.type == ComponentType::ACVoltageSource ||
-                                   comp.type == ComponentType::Diode ||
-                                   comp.type == ComponentType::Switch ||
-                                   comp.type == ComponentType::MOSFET) {
-                            if (source.terminal.find("I") != std::string::npos || source.terminal == "AM") {
-                                sigKey = "I_" + comp.id;
-                            } else {
-                                sigKey = "V_" + comp.id;
-                            }
-                        } else {
-                            // Control blocks: output signal is "compId.Out" or "compId.OutN"
-                            if (source.terminal.find("Out") != std::string::npos) {
-                                sigKey = comp.id + "." + source.terminal;
-                            } else {
-                                sigKey = comp.id + ".Out";
-                            }
-                        }
-                        break;
-                    }
-                }
-
-                if (!sigKey.empty()) {
-                    signalKeys[ch] = sigKey;
-                }
-                break; // Found the wire for this channel
-            }
-        }
-    }
-
-    return signalKeys;
+    return SVGExporter::traceScopeInputSignals(canvas.getCircuit(), scopeId, numChannels);
 }
 
 } // namespace CircuitSim

@@ -9,7 +9,164 @@
 #include <cmath>
 #include <cfloat>
 
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
+
 namespace CircuitSim {
+
+std::vector<std::string> SVGExporter::traceScopeInputSignals(const CircuitDesign& design, const std::string& scopeId, int numChannels) {
+    std::vector<std::string> signalKeys(numChannels, "");
+
+    // Build a wire lookup map for junction traversal
+    std::unordered_map<std::string, const WireInstance*> wireMap;
+    for (const auto& w : design.wires) {
+        wireMap[w.id] = &w;
+    }
+
+    // Recursive helper: given a wire endpoint, follow junctions until we find a component pin.
+    struct PinResult { std::string compId; std::string terminal; };
+    
+    std::function<PinResult(const WireEndpoint&, std::unordered_set<std::string>&)> resolveEndpoint;
+    resolveEndpoint = [&](const WireEndpoint& ep, std::unordered_set<std::string>& visited) -> PinResult {
+        if (!ep.compId.empty()) {
+            return {ep.compId, ep.terminal};
+        }
+        if (ep.isWireJunction && !ep.targetWireId.empty()) {
+            if (visited.count(ep.targetWireId)) return {"", ""};
+            visited.insert(ep.targetWireId);
+            auto it = wireMap.find(ep.targetWireId);
+            if (it != wireMap.end()) {
+                const WireInstance* targetWire = it->second;
+                PinResult r = resolveEndpoint(targetWire->from, visited);
+                if (!r.compId.empty()) return r;
+                r = resolveEndpoint(targetWire->to, visited);
+                if (!r.compId.empty()) return r;
+            }
+        }
+        return {"", ""};
+    };
+
+    auto findSourceOnNet = [&](const std::string& startWireId, const std::string& excludeCompId) -> PinResult {
+        std::unordered_set<std::string> visitedWires;
+        std::vector<std::string> wireQueue;
+        wireQueue.push_back(startWireId);
+        visitedWires.insert(startWireId);
+
+        std::vector<PinResult> foundPins;
+
+        while (!wireQueue.empty()) {
+            std::string wId = wireQueue.back();
+            wireQueue.pop_back();
+
+            auto it = wireMap.find(wId);
+            if (it == wireMap.end()) continue;
+            const WireInstance* w = it->second;
+
+            for (const WireEndpoint* ep : {&w->from, &w->to}) {
+                if (!ep->compId.empty()) {
+                    if (ep->compId != excludeCompId) {
+                        foundPins.push_back({ep->compId, ep->terminal});
+                    }
+                } else if (ep->isWireJunction && !ep->targetWireId.empty()) {
+                    if (!visitedWires.count(ep->targetWireId)) {
+                        visitedWires.insert(ep->targetWireId);
+                        wireQueue.push_back(ep->targetWireId);
+                    }
+                }
+            }
+
+            for (const auto& pair : wireMap) {
+                if (visitedWires.count(pair.first)) continue;
+                const WireInstance* other = pair.second;
+                if ((other->from.isWireJunction && other->from.targetWireId == wId) ||
+                    (other->to.isWireJunction && other->to.targetWireId == wId)) {
+                    visitedWires.insert(pair.first);
+                    wireQueue.push_back(pair.first);
+                }
+            }
+        }
+
+        for (const auto& pin : foundPins) {
+            if (pin.terminal.find("Out") != std::string::npos || 
+                pin.terminal == "A" || pin.terminal == "B") {
+                return pin;
+            }
+        }
+        if (!foundPins.empty()) return foundPins[0];
+        return {"", ""};
+    };
+
+    for (int ch = 0; ch < numChannels; ++ch) {
+        std::string targetPin = "In" + std::to_string(ch + 1);
+
+        for (const auto& wire : design.wires) {
+            bool scopeOnTo = (wire.to.compId == scopeId && wire.to.terminal == targetPin);
+            bool scopeOnFrom = (wire.from.compId == scopeId && wire.from.terminal == targetPin);
+
+            if (!scopeOnTo && !scopeOnFrom) continue;
+
+            const WireEndpoint& sourceEp = scopeOnTo ? wire.from : wire.to;
+
+            PinResult source;
+            if (!sourceEp.compId.empty()) {
+                source = {sourceEp.compId, sourceEp.terminal};
+            } else if (sourceEp.isWireJunction) {
+                source = findSourceOnNet(wire.id, scopeId);
+            }
+
+            if (!source.compId.empty()) {
+                std::string sigKey;
+                for (const auto& comp : design.components) {
+                    if (comp.id == source.compId) {
+                        if (comp.rawTypeStr == "PROBE") {
+                            if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+                                sigKey = comp.parameters.at("selected_signals");
+                            } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
+                                std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
+                                if (pType == "Current" || pType == "I") sigKey = "I_" + comp.parameters.at("target");
+                                else sigKey = "V_" + comp.parameters.at("target");
+                            } else {
+                                sigKey = comp.id + ".Out";
+                            }
+                        } else if (comp.type == ComponentType::Voltmeter) {
+                            sigKey = comp.id;
+                        } else if (comp.type == ComponentType::Ammeter) {
+                            sigKey = comp.id;
+                        } else if (comp.type == ComponentType::Resistor || 
+                                   comp.type == ComponentType::Capacitor ||
+                                   comp.type == ComponentType::Inductor ||
+                                   comp.type == ComponentType::VoltageSource ||
+                                   comp.type == ComponentType::ACVoltageSource ||
+                                   comp.type == ComponentType::Diode ||
+                                   comp.type == ComponentType::Switch ||
+                                   comp.type == ComponentType::MOSFET) {
+                            if (source.terminal.find("I") != std::string::npos || source.terminal == "AM") {
+                                sigKey = "I_" + comp.id;
+                            } else {
+                                sigKey = "V_" + comp.id;
+                            }
+                        } else {
+                            if (source.terminal.find("Out") != std::string::npos) {
+                                sigKey = comp.id + "." + source.terminal;
+                            } else {
+                                sigKey = comp.id + ".Out";
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (!sigKey.empty()) {
+                    signalKeys[ch] = sigKey;
+                }
+                break;
+            }
+        }
+    }
+
+    return signalKeys;
+}
 
 static ImVec2 svgRotatePt(float px, float py, float cx, float cy, float angleDeg) {
     if (angleDeg == 0.0f) return ImVec2(cx + px, cy + py);
