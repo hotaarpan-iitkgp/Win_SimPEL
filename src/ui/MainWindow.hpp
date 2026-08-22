@@ -64,6 +64,9 @@ private:
     void renderCSCRIPTEditorModal();
     void openCSCRIPTEditor(const std::string& compId);
 
+    void batchSimulateFolder(const std::string& folderPath);
+    void batchExportHtmlFolder(const std::string& folderPath);
+
     // Scope window helpers
     void handleScopeOpenRequest();
     std::vector<std::string> traceScopeInputSignals(const std::string& scopeId, int numChannels);

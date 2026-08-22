@@ -10,6 +10,8 @@
 #include <functional>
 #include <windows.h>
 #include <commdlg.h>
+#include <shlobj.h>
+#include <filesystem>
 #include "engine/NetlistParser.hpp"
 #include "engine/CScriptEngine.hpp"
 #include "engine/ExpressionEvaluator.hpp"
@@ -287,6 +289,22 @@ static std::string saveFileDialog() {
         std::string res(szFile);
         if (res.find(".json") == std::string::npos) res += ".json";
         return res;
+    }
+    return "";
+}
+
+static std::string openFolderDialog() {
+    char szDir[MAX_PATH] = { 0 };
+    BROWSEINFOA bi = { 0 };
+    bi.lpszTitle = "Select Folder Containing Schematic (.json) Files";
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    LPITEMIDLIST pidl = SHBrowseForFolderA(&bi);
+    if (pidl != 0) {
+        if (SHGetPathFromIDListA(pidl, szDir)) {
+            CoTaskMemFree(pidl);
+            return std::string(szDir);
+        }
+        CoTaskMemFree(pidl);
     }
     return "";
 }
@@ -664,6 +682,20 @@ void MainWindow::renderMenuBar() {
                     );
                 }
             }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Batch Simulate Folder (.json)...")) {
+                std::string folder = openFolderDialog();
+                if (!folder.empty()) {
+                    batchSimulateFolder(folder);
+                }
+            }
+            if (ImGui::MenuItem("Batch Export HTML Reports for Folder...")) {
+                std::string folder = openFolderDialog();
+                if (!folder.empty()) {
+                    batchExportHtmlFolder(folder);
+                }
+            }
+            ImGui::Separator();
             if (ImGui::MenuItem("Copy Schematic JSON")) {
                 std::string jsonStr = buildSchematicJsonString(canvas.getCircuit());
                 ImGui::SetClipboardText(jsonStr.c_str());
@@ -1540,6 +1572,184 @@ void MainWindow::loadSchematicFromJson(const json& j) {
     simulator.loadCircuit(cd);
     canvas.fitToScreen();
     scopeView.triggerAutoFit();
+}
+
+void MainWindow::batchSimulateFolder(const std::string& folderPath) {
+    if (folderPath.empty()) return;
+    int processed = 0, succeeded = 0;
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(folderPath)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                processed++;
+                std::ifstream f(entry.path().string());
+                if (!f.is_open()) continue;
+                try {
+                    json j = json::parse(f);
+                    CircuitDesign cd;
+                    if (j.contains("components") && j["components"].is_array()) {
+                        for (const auto& cItem : j["components"]) {
+                            ComponentInstance comp;
+                            comp.id = cItem.value("id", "");
+                            comp.rawTypeStr = cItem.value("type", "R");
+                            comp.type = stringToComponentType(comp.rawTypeStr);
+                            comp.label = cItem.value("label", comp.id);
+                            comp.x = cItem.value("x", 0.0f);
+                            comp.y = cItem.value("y", 0.0f);
+                            comp.rotation = cItem.value("rotation", 0);
+                            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
+                                for (auto& [k, v] : cItem["parameters"].items()) {
+                                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
+                                }
+                            }
+                            setupComponentPins(comp);
+                            cd.components.push_back(comp);
+                        }
+                    }
+                    if (j.contains("wires") && j["wires"].is_array()) {
+                        for (const auto& wItem : j["wires"]) {
+                            WireInstance wire;
+                            wire.id = wItem.value("id", "");
+                            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from);
+                            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to);
+                            cd.wires.push_back(wire);
+                        }
+                        sanitizeCircuitWires(cd);
+                    }
+                    NetlistBuilder::buildNodesForCircuit(cd);
+                    std::string jsonNetlist = NetlistSourceView::generateNetlistJson(cd);
+                    std::vector<CircuitSimEngine::ComponentModel> physComps;
+                    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
+                    CircuitSimEngine::SimulationConfig simCfg;
+                    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
+
+                    CircuitSimEngine::CircuitSimulator batchSim;
+                    batchSim.setup(physComps, ctrlComps, simCfg);
+                    batchSim.reset();
+                    batchSim.runTransient();
+                    succeeded++;
+                } catch (...) {}
+            }
+        }
+    } catch (...) {}
+
+    std::string msg = "Batch Simulation Complete!\n\nSuccessfully simulated " + std::to_string(succeeded) + " of " + std::to_string(processed) + " schematic files in:\n" + folderPath;
+    MessageBoxA(NULL, msg.c_str(), "Batch Simulation Complete", MB_OK | MB_ICONINFORMATION);
+}
+
+void MainWindow::batchExportHtmlFolder(const std::string& folderPath) {
+    if (folderPath.empty()) return;
+    int processed = 0, succeeded = 0;
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(folderPath)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                processed++;
+                std::ifstream f(entry.path().string());
+                if (!f.is_open()) continue;
+                try {
+                    json j = json::parse(f);
+                    CircuitDesign cd;
+                    if (j.contains("components") && j["components"].is_array()) {
+                        for (const auto& cItem : j["components"]) {
+                            ComponentInstance comp;
+                            comp.id = cItem.value("id", "");
+                            comp.rawTypeStr = cItem.value("type", "R");
+                            comp.type = stringToComponentType(comp.rawTypeStr);
+                            comp.label = cItem.value("label", comp.id);
+                            comp.x = cItem.value("x", 0.0f);
+                            comp.y = cItem.value("y", 0.0f);
+                            comp.rotation = cItem.value("rotation", 0);
+                            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
+                                for (auto& [k, v] : cItem["parameters"].items()) {
+                                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
+                                }
+                            }
+                            setupComponentPins(comp);
+                            cd.components.push_back(comp);
+                        }
+                    }
+                    std::unordered_map<std::string, std::string> compTypeMap;
+                    for (const auto& c : cd.components) compTypeMap[c.id] = c.rawTypeStr;
+
+                    auto resolveTerminalName = [&](const std::string& compId, const std::string& term) -> std::string {
+                        auto it = compTypeMap.find(compId);
+                        if (it != compTypeMap.end()) {
+                            std::string t = it->second;
+                            if (t == "SCOPE" || t == "Oscilloscope") {
+                                std::string lowerTerm = term;
+                                std::transform(lowerTerm.begin(), lowerTerm.end(), lowerTerm.begin(), ::tolower);
+                                if (lowerTerm.rfind("ch", 0) == 0 && lowerTerm.length() > 2) return "In" + lowerTerm.substr(2);
+                                if (lowerTerm.rfind("in", 0) == 0 && lowerTerm.length() > 2) return "In" + lowerTerm.substr(2);
+                            }
+                        }
+                        return term;
+                    };
+
+                    if (j.contains("wires") && j["wires"].is_array()) {
+                        for (const auto& wItem : j["wires"]) {
+                            WireInstance wire;
+                            wire.id = wItem.value("id", "");
+                            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
+                            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
+                            cd.wires.push_back(wire);
+                        }
+                        sanitizeCircuitWires(cd);
+                    }
+                    NetlistBuilder::buildNodesForCircuit(cd);
+                    std::string jsonNetlist = NetlistSourceView::generateNetlistJson(cd);
+                    std::vector<CircuitSimEngine::ComponentModel> physComps;
+                    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
+                    CircuitSimEngine::SimulationConfig simCfg;
+                    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
+
+                    CircuitSimEngine::CircuitSimulator batchSim;
+                    batchSim.setup(physComps, ctrlComps, simCfg);
+                    batchSim.reset();
+                    CircuitSimEngine::SimulationOutput output = batchSim.runTransient();
+                    batchSim.setTelemetryOutput(output);
+                    auto telemetry = batchSim.getTelemetryCopy();
+
+                    std::vector<SVGExporter::ScopeReportData> scopesData;
+                    for (const auto& comp : cd.components) {
+                        if (comp.type == ComponentType::Oscilloscope || comp.rawTypeStr == "SCOPE") {
+                            int numChannels = 2;
+                            if (comp.parameters.count("channels")) {
+                                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch(...) {}
+                            }
+                            std::vector<std::string> sigKeys = SVGExporter::traceScopeInputSignals(cd, comp.id, numChannels);
+                            std::vector<std::string> validKeys, validLabels;
+                            for (const auto& k : sigKeys) {
+                                if (!k.empty() && (telemetry.voltages.count(k) || !telemetry.timeHistory.empty())) {
+                                    validKeys.push_back(k); validLabels.push_back(k);
+                                }
+                            }
+                            if (!validKeys.empty()) {
+                                SVGExporter::ScopeReportData srd;
+                                srd.scopeId = comp.id;
+                                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
+                                srd.signalKeys = validKeys;
+                                srd.signalLabels = validLabels;
+                                srd.numPanes = (int)validKeys.size();
+                                scopesData.push_back(srd);
+                            }
+                        }
+                    }
+
+                    std::string outHtmlPath = entry.path().parent_path().string() + "/" + entry.path().stem().string() + "_report.html";
+                    std::string schematicJson = buildSchematicJsonString(cd);
+                    if (SVGExporter::exportFullReportToHTML(cd, telemetry, scopesData, schematicJson, jsonNetlist, outHtmlPath, false)) {
+                        succeeded++;
+                    }
+                } catch (...) {}
+            }
+        }
+    } catch (...) {}
+
+    std::string msg = "Batch HTML Export Complete!\n\nSuccessfully exported " + std::to_string(succeeded) + " of " + std::to_string(processed) + " HTML reports to:\n" + folderPath;
+    MessageBoxA(NULL, msg.c_str(), "Batch HTML Export Complete", MB_OK | MB_ICONINFORMATION);
 }
 
 bool MainWindow::loadDemoJsonFile(const std::string& filename) {
