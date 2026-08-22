@@ -1,4 +1,5 @@
 #include "OscilloscopeView.hpp"
+#include "SVGExporter.hpp"
 #include "engine/SignalAnalysis.hpp"
 #include "imgui_internal.h"
 #include "implot.h"
@@ -111,7 +112,7 @@ static bool isSignalProbed(const std::string& name, const std::set<std::string>&
     return false;
 }
 
-void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimulator& simulator, const CircuitDesign* design) {
+void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimulator& simulator, const CircuitDesign* design, const std::string& projectBaseName) {
     ImGui::Begin(title);
 
     // Handle dock node size for collapse/expand (must be after Begin so window exists)
@@ -226,6 +227,33 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
     bool doFitThisFrame = autoFitNext;
     if (autoFitNext) autoFitNext = false;
     if (ImGui::Button("Fit Waveforms / Reset Zoom")) doFitThisFrame = true;
+    ImGui::SameLine();
+
+    if (ImGui::Button("Export SVG##oscSvgBtn")) {
+        std::string defaultName = projectBaseName + "_oscilloscope_waveform.svg";
+        std::string path = SVGExporter::saveSVGFileDialog("Export Oscilloscope Waveforms as SVG", defaultName);
+        if (!path.empty()) {
+            std::vector<std::string> sigKeys;
+            std::vector<std::string> sigLabels;
+            for (const auto& cat : categories) {
+                for (const auto& var : cat.variables) {
+                    sigKeys.push_back(var.first);
+                    sigLabels.push_back(var.first);
+                }
+            }
+            double tMin = -1.0, tMax = -1.0;
+            if (viewTimeMax > viewTimeMin && !data.timeHistory.empty()) {
+                if (viewTimeMin > data.timeHistory.front() + 1e-9 || viewTimeMax < data.timeHistory.back() - 1e-9) {
+                    tMin = viewTimeMin;
+                    tMax = viewTimeMax;
+                }
+            }
+            SVGExporter::exportScopeToSVG(data, sigKeys, sigLabels, "Oscilloscope Waveforms", path, (int)categories.size(), isDarkMode, tMin, tMax);
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Export all active waveform plots and subplots together as a single SVG vector graphic file");
+    }
     ImGui::SameLine();
 
     ImGui::TextDisabled("|");
@@ -470,6 +498,10 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 } else {
                     ImPlot::SetupAxes("Time (s)", cat.yLabel.c_str(), 0, 0);
                 }
+
+                ImPlotRect limits = ImPlot::GetPlotLimits();
+                viewTimeMin = limits.X.Min;
+                viewTimeMax = limits.X.Max;
                 renderCursorOverlay(i, data);
 
                 // --- DEDICATED SEPARATE ZOOM MODULE (Bypasses ImPlot 2D Box engine) ---

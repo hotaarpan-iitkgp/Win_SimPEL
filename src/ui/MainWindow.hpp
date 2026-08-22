@@ -27,6 +27,7 @@ private:
     std::vector<ScopeWindow> openScopeWindows;
 
     WorkspaceMode activeWorkspace = WorkspaceMode::SchematicCAD;
+    std::string currentLoadedJsonName = "";
     bool isDarkMode = true;
     bool showComponentPalette = true;
     bool showDetailedLibrary = false;
@@ -73,6 +74,7 @@ public:
 
     void startSimulation();
     void loadPresetTemplate(const std::string& name);
+    std::string getProjectBaseName() const;
     void render();
 };
 

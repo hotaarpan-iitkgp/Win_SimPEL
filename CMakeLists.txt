@@ -29,6 +29,7 @@ set(SOURCES
     src/ui/ScopeWindow.cpp
     src/ui/TracePlotter.cpp
     src/ui/NetlistSourceView.cpp
+    src/ui/SVGExporter.cpp
     src/ui/MainWindow.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp

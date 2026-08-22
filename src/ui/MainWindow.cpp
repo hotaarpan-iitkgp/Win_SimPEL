@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SVGExporter.hpp"
 #include "engine/NetlistBuilder.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -346,10 +347,11 @@ static std::string buildSchematicJsonString(const CircuitDesign& cd) {
 void MainWindow::renderMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Workspace")) { canvas.setCircuit(CircuitDesign()); simulator.loadCircuit(CircuitDesign()); }
+            if (ImGui::MenuItem("New Workspace")) { currentLoadedJsonName = ""; canvas.setCircuit(CircuitDesign()); simulator.loadCircuit(CircuitDesign()); }
             if (ImGui::MenuItem("Open Schematic (.json)")) {
                 std::string path = openFileDialog();
                 if (!path.empty()) {
+                    currentLoadedJsonName = path;
                     std::ifstream f(path);
                     if (f.is_open()) {
                         json j = json::parse(f);
@@ -513,9 +515,17 @@ void MainWindow::renderMenuBar() {
             if (ImGui::MenuItem("Save Schematic (.json)")) {
                 std::string path = saveFileDialog();
                 if (!path.empty()) {
+                    currentLoadedJsonName = path;
                     std::string jsonStr = buildSchematicJsonString(canvas.getCircuit());
                     std::ofstream out(path);
                     if (out.is_open()) out << jsonStr;
+                }
+            }
+            if (ImGui::MenuItem("Export Schematic as SVG (.svg)")) {
+                std::string defaultName = getProjectBaseName() + "_schematic.svg";
+                std::string path = SVGExporter::saveSVGFileDialog("Export Schematic as SVG", defaultName);
+                if (!path.empty()) {
+                    SVGExporter::exportSchematicToSVG(canvas.getCircuit(), path, canvas.isDarkModeActive());
                 }
             }
             if (ImGui::MenuItem("Copy Schematic JSON")) {
@@ -1430,12 +1440,32 @@ bool MainWindow::loadDemoJsonFile(const std::string& filename) {
         if (f.is_open()) {
             try {
                 json j = json::parse(f);
+                currentLoadedJsonName = filename;
                 loadSchematicFromJson(j);
                 return true;
             } catch (...) {}
         }
     }
     return false;
+}
+
+std::string MainWindow::getProjectBaseName() const {
+    if (currentLoadedJsonName.empty()) return "circuit";
+    std::string name = currentLoadedJsonName;
+    size_t lastSlash = name.find_last_of("/\\");
+    if (lastSlash != std::string::npos) {
+        name = name.substr(lastSlash + 1);
+    }
+    if (name.size() > 5 && (name.substr(name.size() - 5) == ".json" || name.substr(name.size() - 5) == ".JSON")) {
+        name = name.substr(0, name.size() - 5);
+    }
+    std::string clean;
+    clean.reserve(name.size());
+    for (char c : name) {
+        if (std::isalnum((unsigned char)c) || c == '_' || c == '-') clean += c;
+        else if (c == ' ') clean += '_';
+    }
+    return clean.empty() ? "circuit" : clean;
 }
 
 void MainWindow::renderDemoPane() {
@@ -1887,7 +1917,7 @@ void MainWindow::render() {
     // Render all open scope popup windows (they are independent of workspace mode)
     for (auto& sw : openScopeWindows) {
         sw.setDarkMode(isDarkMode);
-        sw.render(simulator);
+        sw.render(simulator, getProjectBaseName());
     }
     // Remove closed scope windows
     openScopeWindows.erase(

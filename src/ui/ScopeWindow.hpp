@@ -87,7 +87,11 @@ private:
     std::vector<std::string> channelSignalKeys;
     std::vector<std::string> channelLabels;
 
-    void renderToolbar(const CircuitSimEngine::TelemetryData& data);
+    // Current displayed plot time view bounds (for view-bound SVG export)
+    double viewTimeMin = -1.0;
+    double viewTimeMax = -1.0;
+
+    void renderToolbar(const CircuitSimEngine::TelemetryData& data, const std::string& projectBaseName = "circuit");
     void renderPlots(const CircuitSimEngine::TelemetryData& data);
     void renderZoomOverlay(int paneIdx);
     void renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data);
@@ -106,7 +110,7 @@ public:
     bool isWindowOpen() const { return isOpen; }
     const std::string& getScopeId() const { return scopeId; }
 
-    void render(CircuitSimEngine::CircuitSimulator& simulator);
+    void render(CircuitSimEngine::CircuitSimulator& simulator, const std::string& projectBaseName = "circuit");
 };
 
 } // namespace CircuitSim

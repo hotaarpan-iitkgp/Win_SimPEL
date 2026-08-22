@@ -1,4 +1,5 @@
 #include "ScopeWindow.hpp"
+#include "SVGExporter.hpp"
 #include "engine/SignalAnalysis.hpp"
 #include "imgui_internal.h"
 #include "implot.h"
@@ -45,7 +46,7 @@ ScopeWindow::ScopeWindow(const std::string& scopeCompId, int channels,
     useSubplots = (numChannels > 1);
 }
 
-void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
+void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator, const std::string& projectBaseName) {
     if (!isOpen) return;
 
     // Handle minimize/maximize sizing
@@ -155,7 +156,7 @@ void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
         return;
     }
 
-    renderToolbar(data);
+    renderToolbar(data, projectBaseName);
     ImGui::Separator();
     renderPlots(data);
     if (cursorState.showCursors) {
@@ -169,11 +170,9 @@ void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator) {
     ImGui::End();
 }
 
-void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data) {
+void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data, const std::string& projectBaseName) {
     bool doFit = false;
     if (ImGui::Button("Fit / Reset Zoom")) { doFit = true; autoFitNext = true; }
-    ImGui::SameLine();
-    ImGui::TextDisabled("|");
     ImGui::SameLine();
 
     // Zoom mode buttons
@@ -216,58 +215,42 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data) {
     ImGui::TextDisabled("|");
     ImGui::SameLine();
 
-    // Subplot pane controls
-    if (ImGui::Button("+Pane##sp")) {
-        numPanes = std::min(numPanes + 1, MAX_PANES);
-    }
-    ImGui::SameLine();
-    if (numPanes > 1) {
-        if (ImGui::Button("-Pane##sp")) {
-            numPanes = std::max(numPanes - 1, 1);
-        }
-        ImGui::SameLine();
-    }
-
-    ImGui::TextDisabled("|");
-    ImGui::SameLine();
-
-    // Dual Cursors controls
+    // Cursor toggle button
     if (cursorState.showCursors) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.00f, 0.70f, 0.50f, 1.0f));
-        if (ImGui::Button("Cursors (||)##cur")) cursorState.showCursors = false;
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.65f, 0.50f, 1.0f));
+        if (ImGui::Button("Cursors On##sz")) cursorState.showCursors = false;
         ImGui::PopStyleColor();
-
-        ImGui::SameLine();
-        if (cursorState.snapToSample) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
-            if (ImGui::Button("Snap ON##cur")) cursorState.snapToSample = false;
-            ImGui::PopStyleColor();
-        } else {
-            if (ImGui::Button("Snap OFF##cur")) cursorState.snapToSample = true;
-        }
-
-        ImGui::SameLine();
-        if (cursorState.lockBoundary) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.45f, 0.00f, 1.0f));
-            if (ImGui::Button("Lock (t1<=t2)##cur")) cursorState.lockBoundary = false;
-            ImGui::PopStyleColor();
-        } else {
-            if (ImGui::Button("Free Order##cur")) cursorState.lockBoundary = true;
-        }
-
-        ImGui::SameLine();
-        if (cursorState.showHarmonicsWindow) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.20f, 0.80f, 1.0f));
-            if (ImGui::Button("Spectrum (FFT)##cur")) cursorState.showHarmonicsWindow = false;
-            ImGui::PopStyleColor();
-        } else {
-            if (ImGui::Button("Spectrum (FFT)##cur")) cursorState.showHarmonicsWindow = true;
-        }
     } else {
-        if (ImGui::Button("Cursors (||)##cur")) cursorState.showCursors = true;
+        if (ImGui::Button("Cursors##sz")) cursorState.showCursors = true;
+    }
+    ImGui::SameLine();
+
+    // Subplot vs Overlaid Toggle (if numChannels > 1)
+    if (numChannels > 1) {
+        const char* layoutLabel = useSubplots ? "Layout: Split" : "Layout: Overlay";
+        if (ImGui::Button(layoutLabel)) {
+            useSubplots = !useSubplots;
+            numPanes = useSubplots ? numChannels : 1;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Toggle between separate channel subplots or overlaid single plot");
+        }
+        ImGui::SameLine();
     }
 
+    // FFT / Harmonics Analysis button
+    if (cursorState.showHarmonicsWindow) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.35f, 0.10f, 1.0f));
+        if (ImGui::Button("FFT / THD##sz")) cursorState.showHarmonicsWindow = false;
+        ImGui::PopStyleColor();
+    } else {
+        if (ImGui::Button("FFT / THD##sz")) cursorState.showHarmonicsWindow = true;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Open FFT Harmonic Analysis & THD calculation panel");
+    }
     ImGui::SameLine();
+
     ImGui::TextDisabled("|");
     ImGui::SameLine();
 
@@ -280,6 +263,31 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data) {
     }
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Interpolation Mode:\n- Hybrid: Step at switching events (e.g. V_ds, V_L), Linear elsewhere\n- Linear: Continuous linear interpolation\n- Stairs: Step plot (e.g. Gate Pulses)");
+    }
+
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    // Export SVG button
+    if (ImGui::Button("Export SVG##scopeSvgBtn")) {
+        std::string scopeIdLower = scopeId;
+        std::transform(scopeIdLower.begin(), scopeIdLower.end(), scopeIdLower.begin(), ::tolower);
+        std::string defaultName = projectBaseName + "_" + scopeIdLower + "_waveform.svg";
+        std::string path = SVGExporter::saveSVGFileDialog("Export Scope Waveforms as SVG", defaultName);
+        if (!path.empty()) {
+            double tMin = -1.0, tMax = -1.0;
+            if (viewTimeMax > viewTimeMin && !data.timeHistory.empty()) {
+                if (viewTimeMin > data.timeHistory.front() + 1e-9 || viewTimeMax < data.timeHistory.back() - 1e-9) {
+                    tMin = viewTimeMin;
+                    tMax = viewTimeMax;
+                }
+            }
+            SVGExporter::exportScopeToSVG(data, channelSignalKeys, channelLabels, windowTitle, path, numPanes, isDarkMode, tMin, tMax);
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Export all plots and subplots together as a single SVG vector graphic file");
     }
 
     ImGui::SameLine();
@@ -359,6 +367,10 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                 ImPlot::GetInputMap().Pan = ImGuiMouseButton_Left;
             }
             ImPlot::SetupAxes("Time (s)", "Amplitude");
+
+            ImPlotRect limits = ImPlot::GetPlotLimits();
+            viewTimeMin = limits.X.Min;
+            viewTimeMax = limits.X.Max;
 
             if (isZoomActive) renderZoomOverlay(0);
             renderCursorOverlay(0, data);
@@ -474,6 +486,10 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                     } else {
                         ImPlot::SetupAxes("Time (s)", "Amplitude", 0, 0);
                     }
+
+                    ImPlotRect limits = ImPlot::GetPlotLimits();
+                    viewTimeMin = limits.X.Min;
+                    viewTimeMax = limits.X.Max;
 
                     if (isZoomActive) renderZoomOverlay(i);
                     renderCursorOverlay(i, data);

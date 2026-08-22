@@ -10,6 +10,8 @@
 
 namespace CircuitSim {
 
+std::vector<TerminalDef> getTerminals(const ComponentInstance& comp);
+
 struct SubsystemLevel {
     std::string name;
     CircuitDesign design;

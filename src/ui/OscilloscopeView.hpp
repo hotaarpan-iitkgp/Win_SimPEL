@@ -67,6 +67,10 @@ private:
     void renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data);
     void renderDataPanel(const CircuitSimEngine::TelemetryData& data);
     void renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& data);
+    // Current displayed plot time view bounds (for view-bound SVG export)
+    double viewTimeMin = -1.0;
+    double viewTimeMax = -1.0;
+
     double interpolateSignal(const std::vector<double>& timeHist, const std::vector<double>& signalData, double targetT, bool snap) const;
 
 public:
@@ -77,7 +81,7 @@ public:
     float getTraceLineWidth() const { return traceLineWidth; }
 
     void triggerAutoFit() { autoFitNext = true; }
-    void render(const char* title, CircuitSimEngine::CircuitSimulator& simulator, const CircuitDesign* design = nullptr);
+    void render(const char* title, CircuitSimEngine::CircuitSimulator& simulator, const CircuitDesign* design = nullptr, const std::string& projectBaseName = "circuit");
 };
 
 } // namespace CircuitSim
