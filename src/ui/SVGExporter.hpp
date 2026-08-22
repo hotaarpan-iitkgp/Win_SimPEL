@@ -43,6 +43,15 @@ public:
         int numPanes = 1;
     };
 
+    struct CircuitReportItem {
+        std::string jsonName;
+        CircuitDesign design;
+        CircuitSimEngine::TelemetryData telemetry;
+        std::vector<ScopeReportData> scopesData;
+        std::string schematicJson;
+        std::string netlistJson;
+    };
+
     // Export complete Light Mode HTML report combining Schematic SVG, Scope SVGs (per Scope block), Schematic JSON, and Netlist JSON
     static bool exportFullReportToHTML(
         const CircuitDesign& design,
@@ -52,6 +61,12 @@ public:
         const std::string& netlistJson,
         const std::string& filename,
         bool isDarkMode = false
+    );
+
+    // Export merged Light Mode HTML report combining all circuit reports into one master document
+    static bool exportMergedReportToHTML(
+        const std::vector<CircuitReportItem>& reports,
+        const std::string& filename
     );
 
     // Scope signal tracing helper

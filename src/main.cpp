@@ -221,7 +221,8 @@ static bool processSingleJsonFile(
     std::string svgFile,
     const std::vector<std::pair<std::string, std::string>>& paramOverrides,
     double tstopOverride,
-    double stepOverride)
+    double stepOverride,
+    CircuitSim::SVGExporter::CircuitReportItem* outReportItem = nullptr)
 {
     if (htmlFile.empty()) {
         size_t dotPos = inputFile.find_last_of('.');
@@ -388,6 +389,18 @@ static bool processSingleJsonFile(
         } catch (...) {
             std::cout << "[CLI SUCCESS] HTML Report exported successfully to '" << htmlFile << "'!\n";
         }
+        if (outReportItem) {
+            std::string jName = "Circuit.json";
+            try {
+                jName = std::filesystem::path(inputFile).filename().string();
+            } catch(...) {}
+            outReportItem->jsonName = jName;
+            outReportItem->design = design;
+            outReportItem->telemetry = telemetry;
+            outReportItem->scopesData = scopesData;
+            outReportItem->schematicJson = schematicJson;
+            outReportItem->netlistJson = jsonNetlist;
+        }
         return true;
     } else {
         std::cerr << "[CLI ERROR] Failed to export HTML report for '" << inputFile << "'.\n";
@@ -473,6 +486,7 @@ static bool runHeadlessCLI(int argc, char** argv) {
         std::cout << "[CLI] Batch Exporting directory '" << inputDir << "'...\n";
         int totalProcessed = 0;
         int totalSuccess = 0;
+        std::vector<CircuitSim::SVGExporter::CircuitReportItem> allReports;
 
         try {
             for (const auto& entry : std::filesystem::directory_iterator(inputDir)) {
@@ -482,13 +496,26 @@ static bool runHeadlessCLI(int argc, char** argv) {
                     std::cout << "\n--------------------------------------------------------\n";
                     std::cout << "[CLI Batch " << (totalProcessed + 1) << "] Processing: " << entry.path().filename().string() << std::endl;
                     totalProcessed++;
-                    if (processSingleJsonFile(filePath, outHtml, "", paramOverrides, tstopOverride, stepOverride)) {
+                    CircuitSim::SVGExporter::CircuitReportItem reportItem;
+                    if (processSingleJsonFile(filePath, outHtml, "", paramOverrides, tstopOverride, stepOverride, &reportItem)) {
                         totalSuccess++;
+                        allReports.push_back(reportItem);
                     }
                 }
             }
         } catch (const std::exception& e) {
             std::cerr << "[CLI ERROR] Directory iteration error: " << e.what() << std::endl;
+        }
+
+        // Generate Master Merged HTML Report
+        if (!allReports.empty()) {
+            std::string mergedHtmlPath = inputDir + "/_all_simulation_reports_merged.html";
+            std::cout << "\n--------------------------------------------------------\n";
+            std::cout << "[CLI] Generating Master Merged HTML Report (" << allReports.size() << " schematics)..." << std::endl;
+            if (CircuitSim::SVGExporter::exportMergedReportToHTML(allReports, mergedHtmlPath)) {
+                std::string absMerged = std::filesystem::absolute(mergedHtmlPath).string();
+                std::cout << "[CLI SUCCESS] Master Merged HTML Report exported successfully to:\n  " << absMerged << "\n";
+            }
         }
 
         std::cout << "\n========================================================\n";

@@ -1641,6 +1641,8 @@ void MainWindow::batchSimulateFolder(const std::string& folderPath) {
 void MainWindow::batchExportHtmlFolder(const std::string& folderPath) {
     if (folderPath.empty()) return;
     int processed = 0, succeeded = 0;
+    std::vector<SVGExporter::CircuitReportItem> allReports;
+
     try {
         for (const auto& entry : std::filesystem::directory_iterator(folderPath)) {
             if (entry.is_regular_file() && entry.path().extension() == ".json") {
@@ -1742,13 +1744,26 @@ void MainWindow::batchExportHtmlFolder(const std::string& folderPath) {
                     std::string schematicJson = buildSchematicJsonString(cd);
                     if (SVGExporter::exportFullReportToHTML(cd, telemetry, scopesData, schematicJson, jsonNetlist, outHtmlPath, false)) {
                         succeeded++;
+                        SVGExporter::CircuitReportItem rItem;
+                        rItem.jsonName = entry.path().filename().string();
+                        rItem.design = cd;
+                        rItem.telemetry = telemetry;
+                        rItem.scopesData = scopesData;
+                        rItem.schematicJson = schematicJson;
+                        rItem.netlistJson = jsonNetlist;
+                        allReports.push_back(rItem);
                     }
                 } catch (...) {}
             }
         }
     } catch (...) {}
 
-    std::string msg = "Batch HTML Export Complete!\n\nSuccessfully exported " + std::to_string(succeeded) + " of " + std::to_string(processed) + " HTML reports to:\n" + folderPath;
+    if (!allReports.empty()) {
+        std::string mergedHtmlPath = folderPath + "/_all_simulation_reports_merged.html";
+        SVGExporter::exportMergedReportToHTML(allReports, mergedHtmlPath);
+    }
+
+    std::string msg = "Batch HTML Export Complete!\n\nSuccessfully exported " + std::to_string(succeeded) + " of " + std::to_string(processed) + " HTML reports + 1 Master Merged HTML report to:\n" + folderPath;
     MessageBoxA(NULL, msg.c_str(), "Batch HTML Export Complete", MB_OK | MB_ICONINFORMATION);
 }
 

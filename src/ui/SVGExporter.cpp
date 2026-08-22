@@ -283,35 +283,49 @@ static bool getTerminalPortStubSVG(const ComponentInstance& comp, const std::str
 bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::string& outSVG, bool /*isDarkMode*/) {
     std::ostringstream out;
 
-    // 1. Calculate World Bounding Box
+    // 1. Calculate World Bounding Box tightly around components and wires
     float minX = 1e9f, maxX = -1e9f, minY = 1e9f, maxY = -1e9f;
     for (const auto& c : design.components) {
-        minX = std::min(minX, c.x - 60.0f);
-        maxX = std::max(maxX, c.x + 60.0f);
-        minY = std::min(minY, c.y - 60.0f);
-        maxY = std::max(maxY, c.y + 60.0f);
+        minX = std::min(minX, c.x - 30.0f);
+        maxX = std::max(maxX, c.x + 30.0f);
+        minY = std::min(minY, c.y - 30.0f);
+        maxY = std::max(maxY, c.y + 30.0f);
+        for (const auto& pin : c.pins) {
+            float px = c.x + pin.relativeX;
+            float py = c.y + pin.relativeY;
+            minX = std::min(minX, px - 5.0f);
+            maxX = std::max(maxX, px + 5.0f);
+            minY = std::min(minY, py - 5.0f);
+            maxY = std::max(maxY, py + 5.0f);
+        }
     }
     for (const auto& w : design.wires) {
         for (const auto& pt : w.manualPath) {
-            minX = std::min(minX, pt.x - 20.0f);
-            maxX = std::max(maxX, pt.x + 20.0f);
-            minY = std::min(minY, pt.y - 20.0f);
-            maxY = std::max(maxY, pt.y + 20.0f);
+            minX = std::min(minX, pt.x - 5.0f);
+            maxX = std::max(maxX, pt.x + 5.0f);
+            minY = std::min(minY, pt.y - 5.0f);
+            maxY = std::max(maxY, pt.y + 5.0f);
         }
         if (w.to.isWireJunction) {
-            minX = std::min(minX, w.to.junctionX - 20.0f);
-            maxX = std::max(maxX, w.to.junctionX + 20.0f);
-            minY = std::min(minY, w.to.junctionY - 20.0f);
-            maxY = std::max(maxY, w.to.junctionY + 20.0f);
+            minX = std::min(minX, w.to.junctionX - 5.0f);
+            maxX = std::max(maxX, w.to.junctionX + 5.0f);
+            minY = std::min(minY, w.to.junctionY - 5.0f);
+            maxY = std::max(maxY, w.to.junctionY + 5.0f);
+        }
+        if (w.from.isWireJunction) {
+            minX = std::min(minX, w.from.junctionX - 5.0f);
+            maxX = std::max(maxX, w.from.junctionX + 5.0f);
+            minY = std::min(minY, w.from.junctionY - 5.0f);
+            maxY = std::max(maxY, w.from.junctionY + 5.0f);
         }
     }
 
     if (design.components.empty()) {
-        minX = -300.0f; maxX = 300.0f;
-        minY = -200.0f; maxY = 200.0f;
+        minX = -200.0f; maxX = 200.0f;
+        minY = -120.0f; maxY = 120.0f;
     }
 
-    float margin = 50.0f;
+    float margin = 20.0f;
     minX -= margin; maxX += margin;
     minY -= margin; maxY += margin;
 
@@ -333,7 +347,7 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     out << "<svg xmlns=\"http://www.w3.org/2000/svg\" ";
     out << "viewBox=\"" << minX << " " << minY << " " << viewW << " " << viewH << "\" ";
-    out << "width=\"" << std::max(800.0f, viewW) << "\" height=\"" << std::max(600.0f, viewH) << "\">\n";
+    out << "width=\"" << viewW << "\" height=\"" << viewH << "\" style=\"max-width: 100%; height: auto; display: block; margin: 0 auto;\">\n";
     out << "<style>\n";
     out << "  .grid { stroke: " << gridCol << "; stroke-width: 0.5; stroke-dasharray: 2,4; }\n";
     out << "  .wire { stroke: " << wireCol << "; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }\n";
@@ -1136,7 +1150,7 @@ bool SVGExporter::exportFullReportToHTML(
     }
 
     out << "  <div class=\"card\">\n";
-    out << "    <details open>\n";
+    out << "    <details>\n";
     out << "      <summary>" << sectionIdx++ << ". Schematic JSON Structure</summary>\n";
     out << "      <button class=\"copy-btn\" onclick=\"copyToClipboard('schematic-json-text')\">Copy JSON</button>\n";
     out << "      <pre id=\"schematic-json-text\">" << xmlEscape(schematicJson) << "</pre>\n";
@@ -1144,12 +1158,267 @@ bool SVGExporter::exportFullReportToHTML(
     out << "  </div>\n\n";
 
     out << "  <div class=\"card\">\n";
-    out << "    <details open>\n";
+    out << "    <details>\n";
     out << "      <summary>" << sectionIdx++ << ". Netlist JSON Specification</summary>\n";
     out << "      <button class=\"copy-btn\" onclick=\"copyToClipboard('netlist-json-text')\">Copy Netlist</button>\n";
     out << "      <pre id=\"netlist-json-text\">" << xmlEscape(netlistJson) << "</pre>\n";
     out << "    </details>\n";
     out << "  </div>\n\n";
+
+    out << "  <script>\n";
+    out << "    function copyToClipboard(elementId) {\n";
+    out << "      const text = document.getElementById(elementId).innerText;\n";
+    out << "      navigator.clipboard.writeText(text).then(() => {\n";
+    out << "        alert('Copied to clipboard!');\n";
+    out << "      });\n";
+    out << "    }\n";
+    out << "  </script>\n";
+    out << "</body>\n</html>\n";
+
+    out.close();
+    return true;
+}
+
+bool SVGExporter::exportMergedReportToHTML(
+    const std::vector<CircuitReportItem>& reports,
+    const std::string& filename
+) {
+    if (reports.empty()) return false;
+
+    std::ofstream out(filename);
+    if (!out.is_open()) return false;
+
+    out << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+    out << "<meta charset=\"UTF-8\">\n";
+    out << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+    out << "<title>Master Circuit Simulation & Verification Report (Merged)</title>\n";
+    out << "<style>\n";
+    out << "  :root {\n";
+    out << "    --bg-color: #f8fafc;\n";
+    out << "    --card-bg: #ffffff;\n";
+    out << "    --card-border: #e2e8f0;\n";
+    out << "    --text-main: #0f172a;\n";
+    out << "    --text-sub: #64748b;\n";
+    out << "    --accent: #0284c7;\n";
+    out << "    --code-bg: #f1f5f9;\n";
+    out << "    --code-text: #0f172a;\n";
+    out << "  }\n";
+    out << "  html { scroll-behavior: smooth; }\n";
+    out << "  body {\n";
+    out << "    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;\n";
+    out << "    background-color: var(--bg-color);\n";
+    out << "    color: var(--text-main);\n";
+    out << "    margin: 0;\n";
+    out << "    padding: 24px;\n";
+    out << "    line-height: 1.5;\n";
+    out << "  }\n";
+    out << "  .header {\n";
+    out << "    margin-bottom: 24px;\n";
+    out << "    border-bottom: 2px solid var(--card-border);\n";
+    out << "    padding-bottom: 16px;\n";
+    out << "  }\n";
+    out << "  .header h1 {\n";
+    out << "    margin: 0 0 8px 0;\n";
+    out << "    color: var(--accent);\n";
+    out << "    font-size: 28px;\n";
+    out << "  }\n";
+    out << "  .meta-bar {\n";
+    out << "    display: flex;\n";
+    out << "    flex-wrap: wrap;\n";
+    out << "    gap: 12px;\n";
+    out << "    font-size: 14px;\n";
+    out << "    color: var(--text-sub);\n";
+    out << "  }\n";
+    out << "  .meta-item {\n";
+    out << "    background: #e0f2fe;\n";
+    out << "    color: #0369a1;\n";
+    out << "    padding: 4px 10px;\n";
+    out << "    border-radius: 6px;\n";
+    out << "    border: 1px solid #0284c733;\n";
+    out << "    font-weight: 500;\n";
+    out << "  }\n";
+    out << "  .meta-item.meta-badge {\n";
+    out << "    background: #0284c7;\n";
+    out << "    color: #ffffff;\n";
+    out << "    border-color: #0284c7;\n";
+    out << "    font-weight: 600;\n";
+    out << "  }\n";
+    out << "  .toc-card {\n";
+    out << "    background-color: var(--card-bg);\n";
+    out << "    border: 1px solid var(--card-border);\n";
+    out << "    border-radius: 12px;\n";
+    out << "    padding: 20px;\n";
+    out << "    margin-bottom: 32px;\n";
+    out << "    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);\n";
+    out << "  }\n";
+    out << "  .toc-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; color: var(--accent); }\n";
+    out << "  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }\n";
+    out << "  .toc-link { display: block; padding: 6px 10px; background: #f1f5f9; border-radius: 6px; color: #0284c7; text-decoration: none; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background 0.15s, color 0.15s; }\n";
+    out << "  .toc-link:hover { background: #0284c7; color: #fff; }\n";
+    out << "  .circuit-section {\n";
+    out << "    margin-bottom: 48px;\n";
+    out << "    padding-top: 16px;\n";
+    out << "    border-top: 3px solid #cbd5e1;\n";
+    out << "  }\n";
+    out << "  .circuit-heading {\n";
+    out << "    font-size: 22px;\n";
+    out << "    font-weight: 700;\n";
+    out << "    color: #0f172a;\n";
+    out << "    margin-bottom: 16px;\n";
+    out << "    display: flex;\n";
+    out << "    justify-content: space-between;\n";
+    out << "    align-items: center;\n";
+    out << "  }\n";
+    out << "  .back-top { font-size: 13px; font-weight: normal; color: #0284c7; text-decoration: none; }\n";
+    out << "  .back-top:hover { text-decoration: underline; }\n";
+    out << "  .card {\n";
+    out << "    background-color: var(--card-bg);\n";
+    out << "    border: 1px solid var(--card-border);\n";
+    out << "    border-radius: 12px;\n";
+    out << "    padding: 20px;\n";
+    out << "    margin-bottom: 20px;\n";
+    out << "    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);\n";
+    out << "  }\n";
+    out << "  .card-title {\n";
+    out << "    font-size: 18px;\n";
+    out << "    font-weight: 600;\n";
+    out << "    margin-top: 0;\n";
+    out << "    margin-bottom: 12px;\n";
+    out << "    color: var(--text-main);\n";
+    out << "    display: flex;\n";
+    out << "    justify-content: space-between;\n";
+    out << "    align-items: center;\n";
+    out << "  }\n";
+    out << "  .svg-wrapper {\n";
+    out << "    background: #ffffff;\n";
+    out << "    border: 1px solid var(--card-border);\n";
+    out << "    border-radius: 8px;\n";
+    out << "    padding: 8px;\n";
+    out << "    overflow: hidden;\n";
+    out << "    text-align: center;\n";
+    out << "    max-width: 100%;\n";
+    out << "  }\n";
+    out << "  .svg-wrapper svg {\n";
+    out << "    max-width: 100%;\n";
+    out << "    height: auto;\n";
+    out << "    display: block;\n";
+    out << "    margin: 0 auto;\n";
+    out << "  }\n";
+    out << "  details summary {\n";
+    out << "    cursor: pointer;\n";
+    out << "    font-weight: 600;\n";
+    out << "    font-size: 16px;\n";
+    out << "    color: var(--accent);\n";
+    out << "    padding: 6px 0;\n";
+    out << "    user-select: none;\n";
+    out << "  }\n";
+    out << "  details[open] summary {\n";
+    out << "    border-bottom: 1px solid var(--card-border);\n";
+    out << "    margin-bottom: 10px;\n";
+    out << "  }\n";
+    out << "  pre {\n";
+    out << "    background-color: var(--code-bg);\n";
+    out << "    border: 1px solid #cbd5e1;\n";
+    out << "    border-radius: 8px;\n";
+    out << "    padding: 14px;\n";
+    out << "    overflow-x: auto;\n";
+    out << "    font-family: 'Fira Code', Consolas, Monaco, monospace;\n";
+    out << "    font-size: 12px;\n";
+    out << "    color: var(--code-text);\n";
+    out << "    max-height: 350px;\n";
+    out << "  }\n";
+    out << "  .copy-btn {\n";
+    out << "    background: #0284c7;\n";
+    out << "    color: #fff;\n";
+    out << "    border: none;\n";
+    out << "    padding: 4px 10px;\n";
+    out << "    border-radius: 6px;\n";
+    out << "    font-size: 12px;\n";
+    out << "    cursor: pointer;\n";
+    out << "    transition: background 0.2s;\n";
+    out << "    float: right;\n";
+    out << "  }\n";
+    out << "  .copy-btn:hover { background: #0369a1; }\n";
+    out << "</style>\n</head>\n<body>\n";
+
+    out << "  <div class=\"header\" id=\"top\">\n";
+    out << "    <h1>Master Circuit Simulation & Verification Report</h1>\n";
+    out << "    <div class=\"meta-bar\">\n";
+    out << "      <div class=\"meta-item meta-badge\">Total Schematics: " << reports.size() << "</div>\n";
+    out << "      <div class=\"meta-item\">Merged Document Report</div>\n";
+    out << "      <div class=\"meta-item\">Generated by SimPEL / CircuitSim Pro</div>\n";
+    out << "      <div class=\"meta-item\">Format: Light Mode Document HTML</div>\n";
+    out << "    </div>\n";
+    out << "  </div>\n\n";
+
+    // Table of Contents
+    out << "  <div class=\"toc-card\">\n";
+    out << "    <div class=\"toc-title\">📋 Table of Contents (" << reports.size() << " Schematics)</div>\n";
+    out << "    <div class=\"toc-grid\">\n";
+    for (size_t i = 0; i < reports.size(); ++i) {
+        std::string jName = reports[i].jsonName.empty() ? ("Circuit_" + std::to_string(i + 1)) : reports[i].jsonName;
+        out << "      <a class=\"toc-link\" href=\"#report_" << (i + 1) << "\">" << (i + 1) << ". " << xmlEscape(jName) << "</a>\n";
+    }
+    out << "    </div>\n";
+    out << "  </div>\n\n";
+
+    for (size_t i = 0; i < reports.size(); ++i) {
+        const auto& item = reports[i];
+        std::string jName = item.jsonName.empty() ? ("Circuit_" + std::to_string(i + 1)) : item.jsonName;
+        std::string schematicSvg;
+        exportSchematicToSVGString(item.design, schematicSvg, false);
+
+        out << "  <div class=\"circuit-section\" id=\"report_" << (i + 1) << "\">\n";
+        out << "    <div class=\"circuit-heading\">\n";
+        out << "      <span>#" << (i + 1) << ": " << xmlEscape(jName) << "</span>\n";
+        out << "      <a class=\"back-top\" href=\"#top\">↑ Back to Top</a>\n";
+        out << "    </div>\n";
+
+        // Schematic Card
+        out << "    <div class=\"card\">\n";
+        out << "      <div class=\"card-title\">1. Circuit Schematic</div>\n";
+        out << "      <div class=\"svg-wrapper\">\n";
+        out << schematicSvg << "\n";
+        out << "      </div>\n";
+        out << "    </div>\n\n";
+
+        // Scopes
+        int secIdx = 2;
+        for (const auto& srd : item.scopesData) {
+            std::string scopeSvg;
+            exportScopeToSVGString(item.telemetry, srd.signalKeys, srd.signalLabels, srd.scopeTitle, scopeSvg, srd.numPanes, false);
+            if (!scopeSvg.empty()) {
+                out << "    <div class=\"card\">\n";
+                out << "      <div class=\"card-title\">" << secIdx++ << ". Oscilloscope Waveforms: " << xmlEscape(srd.scopeTitle) << "</div>\n";
+                out << "      <div class=\"svg-wrapper\">\n";
+                out << scopeSvg << "\n";
+                out << "      </div>\n";
+                out << "    </div>\n\n";
+            }
+        }
+
+        // Schematic JSON
+        std::string sJsonId = "schematic_json_" + std::to_string(i + 1);
+        out << "    <div class=\"card\">\n";
+        out << "      <details>\n";
+        out << "        <summary>" << secIdx++ << ". Schematic JSON Structure (" << xmlEscape(jName) << ")</summary>\n";
+        out << "        <button class=\"copy-btn\" onclick=\"copyToClipboard('" << sJsonId << "')\">Copy JSON</button>\n";
+        out << "        <pre id=\"" << sJsonId << "\">" << xmlEscape(item.schematicJson) << "</pre>\n";
+        out << "      </details>\n";
+        out << "    </div>\n\n";
+
+        // Netlist JSON
+        std::string nJsonId = "netlist_json_" + std::to_string(i + 1);
+        out << "    <div class=\"card\">\n";
+        out << "      <details>\n";
+        out << "        <summary>" << secIdx++ << ". Netlist JSON Specification</summary>\n";
+        out << "        <button class=\"copy-btn\" onclick=\"copyToClipboard('" << nJsonId << "')\">Copy Netlist</button>\n";
+        out << "        <pre id=\"" << nJsonId << "\">" << xmlEscape(item.netlistJson) << "</pre>\n";
+        out << "      </details>\n";
+        out << "    </div>\n";
+
+        out << "  </div>\n\n";
+    }
 
     out << "  <script>\n";
     out << "    function copyToClipboard(elementId) {\n";
