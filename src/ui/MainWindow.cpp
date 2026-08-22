@@ -528,6 +528,106 @@ void MainWindow::renderMenuBar() {
                     SVGExporter::exportSchematicToSVG(canvas.getCircuit(), path, canvas.isDarkModeActive());
                 }
             }
+            if (ImGui::MenuItem("Export Report as HTML (.html)")) {
+                std::string defaultName = getProjectBaseName() + "_report.html";
+                std::string path = SVGExporter::saveHTMLFileDialog("Export Report to HTML", defaultName);
+                if (!path.empty()) {
+                    NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
+                    std::string jsonNetlist = NetlistSourceView::generateNetlistJson(canvas.getCircuit());
+
+                    std::vector<CircuitSimEngine::ComponentModel> physComps;
+                    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
+                    CircuitSimEngine::SimulationConfig simCfg;
+                    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
+
+                    simulator.setup(physComps, ctrlComps, simCfg);
+                    simulator.reset();
+                    CircuitSimEngine::SimulationOutput output = simulator.runTransient();
+                    simulator.setTelemetryOutput(output);
+
+                    auto telemetry = simulator.getTelemetryCopy();
+
+                    std::vector<SVGExporter::ScopeReportData> scopesData;
+
+                    // 1. Gather signals per SCOPE component in schematic
+                    for (const auto& comp : canvas.getCircuit().components) {
+                        if (comp.type == ComponentType::Oscilloscope || comp.rawTypeStr == "SCOPE") {
+                            int numChannels = 2;
+                            if (comp.parameters.count("channels")) {
+                                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch(...) {}
+                            }
+
+                            std::vector<std::string> sigKeys = traceScopeInputSignals(comp.id, numChannels);
+
+                            std::vector<std::string> validKeys;
+                            std::vector<std::string> validLabels;
+                            for (const auto& k : sigKeys) {
+                                if (!k.empty() && (telemetry.voltages.count(k) || !telemetry.timeHistory.empty())) {
+                                    validKeys.push_back(k);
+                                    validLabels.push_back(k);
+                                }
+                            }
+
+                            if (!validKeys.empty()) {
+                                SVGExporter::ScopeReportData srd;
+                                srd.scopeId = comp.id;
+                                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
+                                srd.signalKeys = validKeys;
+                                srd.signalLabels = validLabels;
+                                srd.numPanes = (int)validKeys.size();
+                                scopesData.push_back(srd);
+                            }
+                        }
+                    }
+
+                    // 2. Fallback to PROBE components if no SCOPE components were found
+                    if (scopesData.empty()) {
+                        std::vector<std::string> probeKeys;
+                        for (const auto& comp : canvas.getCircuit().components) {
+                            if (comp.rawTypeStr == "PROBE") {
+                                if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+                                    probeKeys.push_back(comp.parameters.at("selected_signals"));
+                                } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
+                                    std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
+                                    if (pType == "Current" || pType == "I") probeKeys.push_back("I_" + comp.parameters.at("target"));
+                                    else probeKeys.push_back("V_" + comp.parameters.at("target"));
+                                }
+                            }
+                        }
+
+                        std::vector<std::string> validKeys;
+                        std::vector<std::string> validLabels;
+                        for (const auto& k : probeKeys) {
+                            if (!k.empty() && telemetry.voltages.count(k)) {
+                                validKeys.push_back(k);
+                                validLabels.push_back(k);
+                            }
+                        }
+
+                        if (!validKeys.empty()) {
+                            SVGExporter::ScopeReportData srd;
+                            srd.scopeId = "Probes";
+                            srd.scopeTitle = "Probe Waveforms";
+                            srd.signalKeys = validKeys;
+                            srd.signalLabels = validLabels;
+                            srd.numPanes = (int)validKeys.size();
+                            scopesData.push_back(srd);
+                        }
+                    }
+
+                    std::string schematicJson = buildSchematicJsonString(canvas.getCircuit());
+
+                    SVGExporter::exportFullReportToHTML(
+                        canvas.getCircuit(),
+                        telemetry,
+                        scopesData,
+                        schematicJson,
+                        jsonNetlist,
+                        path,
+                        false /* Light Mode Only */
+                    );
+                }
+            }
             if (ImGui::MenuItem("Copy Schematic JSON")) {
                 std::string jsonStr = buildSchematicJsonString(canvas.getCircuit());
                 ImGui::SetClipboardText(jsonStr.c_str());
@@ -2082,7 +2182,17 @@ std::vector<std::string> MainWindow::traceScopeInputSignals(const std::string& s
                 std::string sigKey;
                 for (const auto& comp : design.components) {
                     if (comp.id == source.compId) {
-                        if (comp.type == ComponentType::Voltmeter) {
+                        if (comp.rawTypeStr == "PROBE") {
+                            if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+                                sigKey = comp.parameters.at("selected_signals");
+                            } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
+                                std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
+                                if (pType == "Current" || pType == "I") sigKey = "I_" + comp.parameters.at("target");
+                                else sigKey = "V_" + comp.parameters.at("target");
+                            } else {
+                                sigKey = comp.id + ".Out";
+                            }
+                        } else if (comp.type == ComponentType::Voltmeter) {
                             sigKey = comp.id;
                         } else if (comp.type == ComponentType::Ammeter) {
                             sigKey = comp.id;

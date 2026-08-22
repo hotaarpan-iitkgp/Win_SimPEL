@@ -57,6 +57,26 @@ std::string SVGExporter::saveSVGFileDialog(const std::string& title, const std::
     return "";
 }
 
+std::string SVGExporter::saveHTMLFileDialog(const std::string& title, const std::string& defaultName) {
+    char szFile[260] = {0};
+    strncpy_s(szFile, defaultName.c_str(), sizeof(szFile) - 1);
+    OPENFILENAMEA ofn = {0};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.lpstrFilter = "HTML Report (*.html)\0*.html\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    ofn.lpstrTitle = title.c_str();
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+    if (GetSaveFileNameA(&ofn)) {
+        std::string res(szFile);
+        if (res.find(".html") == std::string::npos && res.find(".HTML") == std::string::npos) {
+            res += ".html";
+        }
+        return res;
+    }
+    return "";
+}
+
 static bool getTerminalPortStubSVG(const ComponentInstance& comp, const std::string& terminalName, ImVec2& outPinPos, ImVec2& outStubPos, bool& outIsVertical) {
     auto terminals = getTerminals(comp);
     if (terminals.empty() && !comp.pins.empty()) {
@@ -83,17 +103,27 @@ static bool getTerminalPortStubSVG(const ComponentInstance& comp, const std::str
             return true;
         }
     }
+    if (!terminals.empty()) {
+        const auto& t = terminals[0];
+        outPinPos = svgRotatePt(t.x, t.y, compCenter.x, compCenter.y, (float)comp.rotation);
+        ImVec2 dir = svgRotatePt(t.dx * 20.0f, t.dy * 20.0f, 0, 0, (float)comp.rotation);
+        outStubPos = ImVec2(outPinPos.x + dir.x, outPinPos.y + dir.y);
+        ImVec2 rotatedDir = svgRotatePt(t.dx, t.dy, 0, 0, (float)comp.rotation);
+        outIsVertical = (std::abs(rotatedDir.y) > std::abs(rotatedDir.x));
+        return true;
+    }
+    outPinPos = compCenter;
+    outStubPos = compCenter;
     outIsVertical = false;
-    return false;
+    return true;
 }
 
 // ============================================================================
 // PART 1: SCHEMATIC CANVAS LIGHT-MODE SVG EXPORT (100% MATCHING WORKSPACE)
 // ============================================================================
 
-bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::string& filename, bool /*isDarkMode*/) {
-    std::ofstream out(filename);
-    if (!out.is_open()) return false;
+bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::string& outSVG, bool /*isDarkMode*/) {
+    std::ostringstream out;
 
     // 1. Calculate World Bounding Box
     float minX = 1e9f, maxX = -1e9f, minY = 1e9f, maxY = -1e9f;
@@ -134,7 +164,7 @@ bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::s
     std::string bgCol = "#ffffff";
     std::string gridCol = "#f1f5f9";
     std::string wireCol = "#0284c7";      // Dark blue power wire
-    std::string ctrlWireCol = "#d97706";  // Amber dashed control wire
+    std::string ctrlWireCol = "#0284c7";  // Control wire color matching signal wires
     std::string bodyStroke = "#0f172a";   // Dark slate/black component stroke
     std::string bodyFill = "#ffffff";     // Clean white component background
     std::string compLabelCol = "#0f172a"; // Component ID text
@@ -149,7 +179,7 @@ bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::s
     out << "<style>\n";
     out << "  .grid { stroke: " << gridCol << "; stroke-width: 0.5; stroke-dasharray: 2,4; }\n";
     out << "  .wire { stroke: " << wireCol << "; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }\n";
-    out << "  .control-wire { stroke: " << ctrlWireCol << "; stroke-width: 1.8; fill: none; stroke-dasharray: 4,4; stroke-linecap: round; }\n";
+    out << "  .control-wire { stroke: " << ctrlWireCol << "; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }\n";
     out << "  .comp-body { stroke: " << bodyStroke << "; stroke-width: 2.0; fill: " << bodyFill << "; stroke-linecap: round; stroke-linejoin: round; }\n";
     out << "  .comp-label { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: bold; fill: " << compLabelCol << "; text-anchor: middle; }\n";
     out << "  .param-label { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 500; fill: " << paramLabelCol << "; text-anchor: middle; }\n";
@@ -214,7 +244,7 @@ bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::s
         bool foundFrom = false, foundTo = false;
         bool fromIsVertical = false;
 
-        if (w.from.isWireJunction) {
+        if (w.from.isWireJunction || (!w.from.compId.empty() && compMap.find(w.from.compId) == compMap.end())) {
             p1 = ImVec2(w.from.junctionX, w.from.junctionY);
             p1_stub = p1;
             foundFrom = true;
@@ -225,7 +255,7 @@ bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::s
             }
         }
 
-        if (w.to.isWireJunction) {
+        if (w.to.isWireJunction || (!w.to.compId.empty() && compMap.find(w.to.compId) == compMap.end())) {
             p2 = ImVec2(w.to.junctionX, w.to.junctionY);
             p2_stub = p2;
             foundTo = true;
@@ -499,7 +529,16 @@ bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::s
     out << "</g>\n";
 
     out << "</svg>\n";
-    out.close();
+    outSVG = out.str();
+    return true;
+}
+
+bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::string& filename, bool isDarkMode) {
+    std::string svgStr;
+    if (!exportSchematicToSVGString(design, svgStr, isDarkMode)) return false;
+    std::ofstream out(filename);
+    if (!out.is_open()) return false;
+    out << svgStr;
     return true;
 }
 
@@ -507,18 +546,17 @@ bool SVGExporter::exportSchematicToSVG(const CircuitDesign& design, const std::s
 // PART 2: IEEE / ACADEMIC PUBLICATION GRADE WAVEFORM EXPORT
 // ============================================================================
 
-bool SVGExporter::exportScopeToSVG(
+bool SVGExporter::exportScopeToSVGString(
     const CircuitSimEngine::TelemetryData& telemetry,
     const std::vector<std::string>& signalKeys,
     const std::vector<std::string>& labels,
     const std::string& scopeTitle,
-    const std::string& filename,
+    std::string& outSVG,
     int numPanes,
     bool /*isDarkMode*/,
     double timeMin, double timeMax)
 {
-    std::ofstream out(filename);
-    if (!out.is_open()) return false;
+    std::ostringstream out;
 
     const auto& timeData = telemetry.timeHistory;
     if (timeData.empty()) return false;
@@ -737,9 +775,217 @@ bool SVGExporter::exportScopeToSVG(
     }
 
     // Main X-Axis Label at the bottom
-    out << "<text class=\"axis-title\" x=\"" << (plotX + plotW * 0.5f) << "\" y=\"" << (totalHeight - 12.0f) << "\">Time (seconds)</text>\n";
-
     out << "</svg>\n";
+    outSVG = out.str();
+    return true;
+}
+
+bool SVGExporter::exportScopeToSVG(
+    const CircuitSimEngine::TelemetryData& telemetry,
+    const std::vector<std::string>& signalKeys,
+    const std::vector<std::string>& labels,
+    const std::string& scopeTitle,
+    const std::string& filename,
+    int numPanes,
+    bool isDarkMode,
+    double timeMin, double timeMax)
+{
+    std::string svgStr;
+    if (!exportScopeToSVGString(telemetry, signalKeys, labels, scopeTitle, svgStr, numPanes, isDarkMode, timeMin, timeMax)) return false;
+    std::ofstream out(filename);
+    if (!out.is_open()) return false;
+    out << svgStr;
+    return true;
+}
+
+bool SVGExporter::exportFullReportToHTML(
+    const CircuitDesign& design,
+    const CircuitSimEngine::TelemetryData& telemetry,
+    const std::vector<ScopeReportData>& scopesData,
+    const std::string& schematicJson,
+    const std::string& netlistJson,
+    const std::string& filename,
+    bool /*isDarkMode*/)
+{
+    std::string schematicSvg;
+    exportSchematicToSVGString(design, schematicSvg, false /* Light Mode Only */);
+
+    std::ofstream out(filename);
+    if (!out.is_open()) return false;
+
+    out << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+    out << "<meta charset=\"UTF-8\">\n";
+    out << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+    out << "<title>Circuit Simulation & Verification Report</title>\n";
+    out << "<style>\n";
+    out << "  :root {\n";
+    out << "    --bg-color: #f8fafc;\n";
+    out << "    --card-bg: #ffffff;\n";
+    out << "    --card-border: #e2e8f0;\n";
+    out << "    --text-main: #0f172a;\n";
+    out << "    --text-sub: #64748b;\n";
+    out << "    --accent: #0284c7;\n";
+    out << "    --code-bg: #f1f5f9;\n";
+    out << "    --code-text: #0f172a;\n";
+    out << "  }\n";
+    out << "  body {\n";
+    out << "    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;\n";
+    out << "    background-color: var(--bg-color);\n";
+    out << "    color: var(--text-main);\n";
+    out << "    margin: 0;\n";
+    out << "    padding: 24px;\n";
+    out << "    line-height: 1.5;\n";
+    out << "  }\n";
+    out << "  .header {\n";
+    out << "    margin-bottom: 24px;\n";
+    out << "    border-bottom: 2px solid var(--card-border);\n";
+    out << "    padding-bottom: 16px;\n";
+    out << "  }\n";
+    out << "  .header h1 {\n";
+    out << "    margin: 0 0 8px 0;\n";
+    out << "    color: var(--accent);\n";
+    out << "    font-size: 28px;\n";
+    out << "  }\n";
+    out << "  .meta-bar {\n";
+    out << "    display: flex;\n";
+    out << "    gap: 16px;\n";
+    out << "    font-size: 14px;\n";
+    out << "    color: var(--text-sub);\n";
+    out << "  }\n";
+    out << "  .meta-item {\n";
+    out << "    background: #e0f2fe;\n";
+    out << "    color: #0369a1;\n";
+    out << "    padding: 4px 10px;\n";
+    out << "    border-radius: 6px;\n";
+    out << "    border: 1px solid #0284c733;\n";
+    out << "    font-weight: 500;\n";
+    out << "  }\n";
+    out << "  .card {\n";
+    out << "    background-color: var(--card-bg);\n";
+    out << "    border: 1px solid var(--card-border);\n";
+    out << "    border-radius: 12px;\n";
+    out << "    padding: 20px;\n";
+    out << "    margin-bottom: 24px;\n";
+    out << "    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);\n";
+    out << "  }\n";
+    out << "  .card-title {\n";
+    out << "    font-size: 20px;\n";
+    out << "    font-weight: 600;\n";
+    out << "    margin-top: 0;\n";
+    out << "    margin-bottom: 16px;\n";
+    out << "    color: var(--text-main);\n";
+    out << "    display: flex;\n";
+    out << "    justify-content: space-between;\n";
+    out << "    align-items: center;\n";
+    out << "  }\n";
+    out << "  .svg-wrapper {\n";
+    out << "    background: #ffffff;\n";
+    out << "    border: 1px solid var(--card-border);\n";
+    out << "    border-radius: 8px;\n";
+    out << "    padding: 12px;\n";
+    out << "    overflow: hidden;\n";
+    out << "    text-align: center;\n";
+    out << "    max-width: 100%;\n";
+    out << "  }\n";
+    out << "  .svg-wrapper svg {\n";
+    out << "    max-width: 100%;\n";
+    out << "    height: auto;\n";
+    out << "  }\n";
+    out << "  details summary {\n";
+    out << "    cursor: pointer;\n";
+    out << "    font-weight: 600;\n";
+    out << "    font-size: 18px;\n";
+    out << "    color: var(--accent);\n";
+    out << "    padding: 8px 0;\n";
+    out << "    user-select: none;\n";
+    out << "  }\n";
+    out << "  details[open] summary {\n";
+    out << "    border-bottom: 1px solid var(--card-border);\n";
+    out << "    margin-bottom: 12px;\n";
+    out << "  }\n";
+    out << "  pre {\n";
+    out << "    background-color: var(--code-bg);\n";
+    out << "    border: 1px solid #cbd5e1;\n";
+    out << "    border-radius: 8px;\n";
+    out << "    padding: 16px;\n";
+    out << "    overflow-x: auto;\n";
+    out << "    font-family: 'Fira Code', Consolas, Monaco, monospace;\n";
+    out << "    font-size: 13px;\n";
+    out << "    color: var(--code-text);\n";
+    out << "    max-height: 400px;\n";
+    out << "  }\n";
+    out << "  .copy-btn {\n";
+    out << "    background: #0284c7;\n";
+    out << "    color: #fff;\n";
+    out << "    border: none;\n";
+    out << "    padding: 6px 12px;\n";
+    out << "    border-radius: 6px;\n";
+    out << "    font-size: 12px;\n";
+    out << "    cursor: pointer;\n";
+    out << "    transition: background 0.2s;\n";
+    out << "    float: right;\n";
+    out << "  }\n";
+    out << "  .copy-btn:hover { background: #0369a1; }\n";
+    out << "</style>\n</head>\n<body>\n";
+
+    out << "  <div class=\"header\">\n";
+    out << "    <h1>Circuit Simulation & Verification Report</h1>\n";
+    out << "    <div class=\"meta-bar\">\n";
+    out << "      <div class=\"meta-item\">Generated by SimPEL / CircuitSim Pro</div>\n";
+    out << "      <div class=\"meta-item\">Format: Light Mode Document HTML</div>\n";
+    out << "    </div>\n";
+    out << "  </div>\n\n";
+
+    out << "  <div class=\"card\">\n";
+    out << "    <div class=\"card-title\">1. Circuit Schematic</div>\n";
+    out << "    <div class=\"svg-wrapper\" id=\"schematicContainer\">\n";
+    out << schematicSvg << "\n";
+    out << "    </div>\n";
+    out << "  </div>\n\n";
+
+    int sectionIdx = 2;
+
+    for (const auto& srd : scopesData) {
+        std::string scopeSvg;
+        exportScopeToSVGString(telemetry, srd.signalKeys, srd.signalLabels, srd.scopeTitle, scopeSvg, srd.numPanes, false /* Light Mode Scope */);
+
+        if (!scopeSvg.empty()) {
+            out << "  <div class=\"card\">\n";
+            out << "    <div class=\"card-title\">" << sectionIdx << ". Oscilloscope Waveforms: " << xmlEscape(srd.scopeTitle) << "</div>\n";
+            out << "    <div class=\"svg-wrapper\">\n";
+            out << scopeSvg << "\n";
+            out << "    </div>\n";
+            out << "  </div>\n\n";
+            sectionIdx++;
+        }
+    }
+
+    out << "  <div class=\"card\">\n";
+    out << "    <details open>\n";
+    out << "      <summary>" << sectionIdx++ << ". Schematic JSON Structure</summary>\n";
+    out << "      <button class=\"copy-btn\" onclick=\"copyToClipboard('schematic-json-text')\">Copy JSON</button>\n";
+    out << "      <pre id=\"schematic-json-text\">" << xmlEscape(schematicJson) << "</pre>\n";
+    out << "    </details>\n";
+    out << "  </div>\n\n";
+
+    out << "  <div class=\"card\">\n";
+    out << "    <details open>\n";
+    out << "      <summary>" << sectionIdx++ << ". Netlist JSON Specification</summary>\n";
+    out << "      <button class=\"copy-btn\" onclick=\"copyToClipboard('netlist-json-text')\">Copy Netlist</button>\n";
+    out << "      <pre id=\"netlist-json-text\">" << xmlEscape(netlistJson) << "</pre>\n";
+    out << "    </details>\n";
+    out << "  </div>\n\n";
+
+    out << "  <script>\n";
+    out << "    function copyToClipboard(elementId) {\n";
+    out << "      const text = document.getElementById(elementId).innerText;\n";
+    out << "      navigator.clipboard.writeText(text).then(() => {\n";
+    out << "        alert('Copied to clipboard!');\n";
+    out << "      });\n";
+    out << "    }\n";
+    out << "  </script>\n";
+    out << "</body>\n</html>\n";
+
     out.close();
     return true;
 }
