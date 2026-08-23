@@ -476,12 +476,15 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::EdgeDetect) {
             fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
             fc.pulseDuration = evaluateParam(ctrlComp, "pulse_width", 1e-3);
-        } else if (ctrlComp.type == ComponentType::Monostable) {
-            fc.pulseDuration = evaluateParam(ctrlComp, "duration", 0.1);
-            fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
-        } else if (ctrlComp.type == ComponentType::Monoflop) {
-            fc.pulseDuration = evaluateParam(ctrlComp, "duration", 0.1);
+        } else if (ctrlComp.type == ComponentType::Monostable || ctrlComp.type == ComponentType::Monoflop) {
+            fc.pulseDuration = evaluateParam(ctrlComp, "duration", 0.01);
+            if (!ctrlComp.parameters.count("duration") && ctrlComp.parameters.count("pulse_duration")) fc.pulseDuration = evaluateParam(ctrlComp, "pulse_duration", 0.01);
+            if (!ctrlComp.parameters.count("duration") && !ctrlComp.parameters.count("pulse_duration") && ctrlComp.parameters.count("pulse_width")) fc.pulseDuration = evaluateParam(ctrlComp, "pulse_width", 0.01);
+            if (!ctrlComp.parameters.count("duration") && !ctrlComp.parameters.count("pulse_duration") && !ctrlComp.parameters.count("pulse_width") && ctrlComp.parameters.count("width")) fc.pulseDuration = evaluateParam(ctrlComp, "width", 0.01);
+
             fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
+            if (fc.edgeMode.empty() || !ctrlComp.parameters.count("trigger_edge")) fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
+
             fc.retriggerable = (getParamString(ctrlComp, "retriggerable", "false") == "true");
         } else if (ctrlComp.type == ComponentType::RelationalOp) {
             fc.polarity = getParamString(ctrlComp, "operator", "==");
