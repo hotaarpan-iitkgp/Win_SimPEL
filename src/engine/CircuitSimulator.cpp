@@ -375,6 +375,17 @@ void CircuitSimulator::buildIndexMaps() {
 
             fc.delayDuration = evaluateParam(ctrlComp, "dead_time", 0.0);
             if (!ctrlComp.parameters.count("dead_time") && ctrlComp.parameters.count("deadtime")) fc.delayDuration = evaluateParam(ctrlComp, "deadtime", 0.0);
+        } else if (ctrlComp.type == ComponentType::SVPWM || ctrlComp.type == ComponentType::PWM_3PH) {
+            fc.freq = evaluateParam(ctrlComp, "carrier_freq", 10000.0);
+            if (!ctrlComp.parameters.count("carrier_freq") && ctrlComp.parameters.count("frequency")) fc.freq = evaluateParam(ctrlComp, "frequency", 10000.0);
+            if (!ctrlComp.parameters.count("carrier_freq") && !ctrlComp.parameters.count("frequency") && ctrlComp.parameters.count("fc")) fc.freq = evaluateParam(ctrlComp, "fc", 10000.0);
+
+            fc.delayDuration = evaluateParam(ctrlComp, "dead_time", 1e-6);
+            if (!ctrlComp.parameters.count("dead_time") && ctrlComp.parameters.count("deadtime")) fc.delayDuration = evaluateParam(ctrlComp, "deadtime", 1e-6);
+            if (!ctrlComp.parameters.count("dead_time") && !ctrlComp.parameters.count("deadtime") && ctrlComp.parameters.count("dt")) fc.delayDuration = evaluateParam(ctrlComp, "dt", 1e-6);
+
+            fc.minVal = evaluateParam(ctrlComp, "min", -1.0);
+            fc.maxVal = evaluateParam(ctrlComp, "max", 1.0);
         } else if (ctrlComp.type == ComponentType::PWM_MASTER) {
             int numCarriers = (int)evaluateParam(ctrlComp, "num_carriers", 3.0);
             if (!ctrlComp.parameters.count("num_carriers") && ctrlComp.parameters.count("N")) {
@@ -781,24 +792,41 @@ void CircuitSimulator::buildIndexMaps() {
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vbeta"));
         } else if (ctrlComp.type == ComponentType::PWM_3PH || ctrlComp.type == ComponentType::SVPWM) {
             fc.outKey = ctrlComp.id + ".G1";
-            std::string inA = getParamString(ctrlComp, "Va", ""); if (inA.empty()) inA = getParamString(ctrlComp, "Valpha", ""); if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", ""); if (inA.empty()) inA = getParamString(ctrlComp, "input_a", "");
-            std::string inB = getParamString(ctrlComp, "Vb", ""); if (inB.empty()) inB = getParamString(ctrlComp, "Vbeta", ""); if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", ""); if (inB.empty()) inB = getParamString(ctrlComp, "input_b", "");
-            std::string inC = getParamString(ctrlComp, "Vc", ""); if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", ""); if (inC.empty()) inC = getParamString(ctrlComp, "input_c", "");
+            std::string inA = getParamString(ctrlComp, "Valpha", ""); 
+            if (inA.empty()) inA = getParamString(ctrlComp, "Alpha", ""); 
+            if (inA.empty()) inA = getParamString(ctrlComp, "input_alpha", ""); 
+            if (inA.empty()) inA = getParamString(ctrlComp, "Va", ""); 
+            if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); 
+            if (inA.empty()) inA = getParamString(ctrlComp, "In1", ""); 
+            if (inA.empty()) inA = getParamString(ctrlComp, "input_a", "");
+
+            std::string inB = getParamString(ctrlComp, "Vbeta", ""); 
+            if (inB.empty()) inB = getParamString(ctrlComp, "Beta", ""); 
+            if (inB.empty()) inB = getParamString(ctrlComp, "input_beta", ""); 
+            if (inB.empty()) inB = getParamString(ctrlComp, "Vb", ""); 
+            if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); 
+            if (inB.empty()) inB = getParamString(ctrlComp, "In2", ""); 
+            if (inB.empty()) inB = getParamString(ctrlComp, "input_b", "");
+
+            std::string inC = getParamString(ctrlComp, "Vc", ""); 
+            if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); 
+            if (inC.empty()) inC = getParamString(ctrlComp, "In3", ""); 
+            if (inC.empty()) inC = getParamString(ctrlComp, "input_c", "");
+
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
-            fc.outputSigKeys.push_back(ctrlComp.id + ".G1");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".G2");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".G3");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".OutA");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".OutB");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".OutC");
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".G1"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".G2"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".G3"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutA"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutB"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutC"));
+
+            std::vector<std::string> gateKeys = {
+                "G1", "G2", "G3", "G4", "G5", "G6",
+                "gA1", "gA2", "gB1", "gB2", "gC1", "gC2",
+                "OutA", "OutB", "OutC", "Out1", "Out2", "Out3"
+            };
+            for (const auto& gk : gateKeys) {
+                std::string k = ctrlComp.id + "." + gk;
+                fc.outputSigKeys.push_back(k);
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
+            }
         } else if (ctrlComp.type == ComponentType::FourierTrans || ctrlComp.type == ComponentType::FourierAnalysis) {
             fc.outKey = ctrlComp.id + ".Mag";
             fc.outputSigKeys.push_back(ctrlComp.id + ".Mag");
@@ -1875,33 +1903,100 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = outA;
             }
             else if (fc.type == ComponentType::SVPWM) {
-                double freq = (fc.freq > 0.0) ? fc.freq : 10000.0;
-                double period = 1.0 / freq;
-                double phaseIn = std::fmod(currentTime, period) / period;
-                if (phaseIn < 0.0) phaseIn += 1.0;
-                double v_car = (phaseIn < 0.5) ? (4.0 * phaseIn - 1.0) : (3.0 - 4.0 * phaseIn); // -1 to +1 triangle wave
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double deadTime = fc.delayDuration;
+                double minVal = (fc.minVal != 0.0) ? fc.minVal : -1.0;
+                double maxVal = (fc.maxVal != 0.0) ? fc.maxVal : 1.0;
+                double Tc = 1.0 / fcHz;
 
-                double va = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
-                double vb = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
-                double vc = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+                double in1 = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : 0.0;
+                double in2 = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : 0.0;
+                double in3 = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
 
-                // Zero-sequence min-max offset injection (SVPWM equivalence)
-                double v_max = std::max(va, std::max(vb, vc));
-                double v_min = std::min(va, std::min(vb, vc));
+                double vA = 0.0, vB = 0.0, vC = 0.0;
+                if (fc.inputSigIndices.size() >= 2 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[1] >= 0) {
+                    double valpha = in1;
+                    double vbeta = in2;
+                    vA = valpha;
+                    vB = -0.5 * valpha + (std::sqrt(3.0) / 2.0) * vbeta;
+                    vC = -0.5 * valpha - (std::sqrt(3.0) / 2.0) * vbeta;
+                } else {
+                    vA = in1;
+                    vB = in2;
+                    vC = in3;
+                }
+
+                double v_max = std::max(vA, std::max(vB, vC));
+                double v_min = std::min(vA, std::min(vB, vC));
                 double v_offset = -0.5 * (v_max + v_min);
 
-                double v_refA = va + v_offset;
-                double v_refB = vb + v_offset;
-                double v_refC = vc + v_offset;
+                double v_refA = vA + v_offset;
+                double v_refB = vB + v_offset;
+                double v_refC = vC + v_offset;
 
-                double outA = (v_refA > v_car) ? 1.0 : 0.0;
-                double outB = (v_refB > v_car) ? 1.0 : 0.0;
-                double outC = (v_refC > v_car) ? 1.0 : 0.0;
+                double tLocal = std::fmod(currentTime, Tc);
+                if (tLocal < 0.0) tLocal += Tc;
+                double triVal = (tLocal < Tc / 2.0) 
+                                ? minVal + (maxVal - minVal) * (tLocal / (Tc / 2.0))
+                                : maxVal - (maxVal - minVal) * ((tLocal - Tc / 2.0) / (Tc / 2.0));
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = outA;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
-                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
-                val = outA;
+                double raw_gA1 = (v_refA > triVal) ? 1.0 : 0.0;
+                double raw_gA2 = (v_refA <= triVal) ? 1.0 : 0.0;
+                double raw_gB1 = (v_refB > triVal) ? 1.0 : 0.0;
+                double raw_gB2 = (v_refB <= triVal) ? 1.0 : 0.0;
+                double raw_gC1 = (v_refC > triVal) ? 1.0 : 0.0;
+                double raw_gC2 = (v_refC <= triVal) ? 1.0 : 0.0;
+
+                if (pass == 0 && currentTime > fc.lastTime) {
+                    if (fc.pwmMasterLastTransDirect.size() < 6) {
+                        fc.pwmMasterLastTransDirect.assign(6, -1.0);
+                        fc.pwmMasterLastTargetDirect.assign(6, 0);
+                    }
+                    if (fc.pwmMasterLastTargetDirect[0] > 0 && raw_gA1 <= 0.5) fc.pwmMasterLastTransDirect[0] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[1] > 0 && raw_gA2 <= 0.5) fc.pwmMasterLastTransDirect[1] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[2] > 0 && raw_gB1 <= 0.5) fc.pwmMasterLastTransDirect[2] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[3] > 0 && raw_gB2 <= 0.5) fc.pwmMasterLastTransDirect[3] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[4] > 0 && raw_gC1 <= 0.5) fc.pwmMasterLastTransDirect[4] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[5] > 0 && raw_gC2 <= 0.5) fc.pwmMasterLastTransDirect[5] = currentTime;
+
+                    fc.pwmMasterLastTargetDirect[0] = (raw_gA1 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[1] = (raw_gA2 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[2] = (raw_gB1 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[3] = (raw_gB2 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[4] = (raw_gC1 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[5] = (raw_gC2 > 0.5) ? 1 : 0;
+                    fc.lastTime = currentTime;
+                }
+
+                double gA1 = raw_gA1;
+                if (gA1 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[1] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[1]) < deadTime) gA1 = 0.0;
+                double gA2 = raw_gA2;
+                if (gA2 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[0] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[0]) < deadTime) gA2 = 0.0;
+
+                double gB1 = raw_gB1;
+                if (gB1 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[3] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[3]) < deadTime) gB1 = 0.0;
+                double gB2 = raw_gB2;
+                if (gB2 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[2] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[2]) < deadTime) gB2 = 0.0;
+
+                double gC1 = raw_gC1;
+                if (gC1 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[5] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[5]) < deadTime) gC1 = 0.0;
+                double gC2 = raw_gC2;
+                if (gC2 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[4] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[4]) < deadTime) gC2 = 0.0;
+
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"G1", gA1}, {"G2", gA2}, {"G3", gB1}, {"G4", gB2}, {"G5", gC1}, {"G6", gC2},
+                    {"OutA", gA1}, {"OutB", gB1}, {"OutC", gC1},
+                    {"gA1", gA1}, {"gA2", gA2}, {"gB1", gB1}, {"gB2", gB2}, {"gC1", gC1}, {"gC2", gC2},
+                    {"Out1", gA1}, {"Out2", gB1}, {"Out3", gC1}
+                };
+
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
+                val = gA1;
             }
             else if (fc.type == ComponentType::PerAvg) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
