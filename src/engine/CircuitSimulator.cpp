@@ -661,11 +661,16 @@ void CircuitSimulator::buildIndexMaps() {
             fc.ctrlSigKey = srcKey;
             fc.outKey = ctrlComp.id + ".Out";
 
-            // Register output signal indices so PROBE outputs to .Out, PROBE ID, and custom_plots
+            // Register output signal indices so PROBE outputs to .Out, PROBE ID, custom_plots, and terminal pin names
             fc.outputSigKeys.push_back(ctrlComp.id + ".Out");
             fc.outputSigKeys.push_back(ctrlComp.id);
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Out"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id));
+            if (!selSigs.empty()) fc.outputSigKeys.push_back(ctrlComp.id + "." + selSigs);
+            if (!srcKey.empty()) fc.outputSigKeys.push_back(ctrlComp.id + "." + srcKey);
+
+            fc.outputSigIndices.clear();
+            for (const auto& k : fc.outputSigKeys) {
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
+            }
             if (!srcKey.empty()) {
                 fc.ctrlSigSignalIdx = getOrCreateSignalIdx(srcKey);
                 fc.targetSignalIdx = getOrCreateSignalIdx(srcKey);
@@ -2690,10 +2695,14 @@ SimulationOutput CircuitSimulator::runTransient() {
                 if (fc.vmVecPtr) fc.vmVecPtr->push_back(vDiff);
                 if (fc.sigVecPtr) fc.sigVecPtr->push_back(vDiff);
                 if (fc.sigOutVecPtr) fc.sigOutVecPtr->push_back(vDiff);
+                if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) flatControlSignals[fc.outSignalIdx] = vDiff;
+                if (fc.compSelfSignalIdx >= 0 && fc.compSelfSignalIdx < (int)flatControlSignals.size()) flatControlSignals[fc.compSelfSignalIdx] = vDiff;
             } else if (fc.type == ComponentType::Ammeter) {
                 if (fc.vmVecPtr) fc.vmVecPtr->push_back(iComp);
                 if (fc.sigVecPtr) fc.sigVecPtr->push_back(iComp);
                 if (fc.sigOutVecPtr) fc.sigOutVecPtr->push_back(iComp);
+                if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) flatControlSignals[fc.outSignalIdx] = iComp;
+                if (fc.compSelfSignalIdx >= 0 && fc.compSelfSignalIdx < (int)flatControlSignals.size()) flatControlSignals[fc.compSelfSignalIdx] = iComp;
             }
         }
 
