@@ -461,6 +461,11 @@ void CircuitSimulator::buildIndexMaps() {
             fc.vAlphaKey = getParamString(ctrlComp, "table_z", "[[0, 1], [1, 2]]");
             if (!ctrlComp.parameters.count("table_z") && ctrlComp.parameters.count("z")) fc.vAlphaKey = getParamString(ctrlComp, "z", "[[0, 1], [1, 2]]");
             if (!ctrlComp.parameters.count("table_z") && !ctrlComp.parameters.count("z") && ctrlComp.parameters.count("table_data")) fc.vAlphaKey = getParamString(ctrlComp, "table_data", "[[0, 1], [1, 2]]");
+        } else if (ctrlComp.type == ComponentType::MathFunction) {
+            fc.polarity = getParamString(ctrlComp, "function", "exp");
+            if (!ctrlComp.parameters.count("function") && ctrlComp.parameters.count("func")) fc.polarity = getParamString(ctrlComp, "func", "exp");
+            if (!ctrlComp.parameters.count("function") && !ctrlComp.parameters.count("func") && ctrlComp.parameters.count("fcn")) fc.polarity = getParamString(ctrlComp, "fcn", "exp");
+            if (!ctrlComp.parameters.count("function") && !ctrlComp.parameters.count("func") && !ctrlComp.parameters.count("fcn") && ctrlComp.parameters.count("operator")) fc.polarity = getParamString(ctrlComp, "operator", "exp");
         } else if (ctrlComp.type == ComponentType::Relay) {
             fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
             fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
@@ -1971,18 +1976,22 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = yVal + du;
             }
             else if (fc.type == ComponentType::MathFunction) {
-                double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double u1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double u2 = fc.in1Ptr ? *fc.in1Ptr : 2.0;
                 std::string fcn = fc.polarity;
                 std::transform(fcn.begin(), fcn.end(), fcn.begin(), ::tolower);
-                if (fcn == "exp") val = std::exp(u);
-                else if (fcn == "log" || fcn == "ln") val = std::log(u);
-                else if (fcn == "10^u" || fcn == "pow10") val = std::pow(10.0, u);
-                else if (fcn == "log10") val = std::log10(u);
-                else if (fcn == "square") val = u * u;
-                else if (fcn == "sqrt") val = (u >= 0.0) ? std::sqrt(u) : 0.0;
-                else if (fcn == "reciprocal" || fcn == "1/u") val = (u != 0.0) ? (1.0 / u) : 0.0;
-                else if (fcn == "abs") val = std::abs(u);
-                else val = std::exp(u);
+                if (fcn == "exp" || fcn == "exponential") val = std::exp(u1);
+                else if (fcn == "log" || fcn == "ln" || fcn == "logarithm") val = std::log(std::abs(u1) + 1e-15);
+                else if (fcn == "10^u" || fcn == "pow10") val = std::pow(10.0, u1);
+                else if (fcn == "log10") val = std::log10(std::abs(u1) + 1e-15);
+                else if (fcn == "square") val = u1 * u1;
+                else if (fcn == "sqrt" || fcn == "square root") val = (u1 >= 0.0) ? std::sqrt(u1) : 0.0;
+                else if (fcn == "reciprocal" || fcn == "1/u") val = (u1 != 0.0) ? (1.0 / u1) : 0.0;
+                else if (fcn == "abs") val = std::abs(u1);
+                else if (fcn == "power" || fcn == "pow") val = std::pow(u1, u2);
+                else if (fcn == "mod") { double m = (u2 == 0.0 ? 1.0 : u2); val = std::fmod(std::fmod(u1, m) + m, m); }
+                else if (fcn == "rem") { double m = (u2 == 0.0 ? 1.0 : u2); val = std::fmod(u1, m); }
+                else val = std::exp(u1);
             }
             else if (fc.type == ComponentType::Round) {
                 double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
@@ -2294,24 +2303,6 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     if (pass == 0) fc.minVal = 0.0;
                 }
                 val = isActive ? 1.0 : 0.0;
-            }
-            else if (fc.type == ComponentType::MathFunction) {
-                double v1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double v2 = fc.in1Ptr ? *fc.in1Ptr : 2.0;
-                std::string f = fc.polarity; // store function name in polarity string
-                if (f.empty()) f = "square";
-
-                if (f == "square") val = v1 * v1;
-                else if (f == "sqrt" || f == "square root") val = std::sqrt(std::abs(v1));
-                else if (f == "exp" || f == "exponential") val = std::exp(v1);
-                else if (f == "log" || f == "ln" || f == "logarithm") val = std::log(std::abs(v1) + 1e-15);
-                else if (f == "log10") val = std::log10(std::abs(v1) + 1e-15);
-                else if (f == "reciprocal") val = 1.0 / (v1 == 0.0 ? 1e-15 : v1);
-                else if (f == "abs") val = std::abs(v1);
-                else if (f == "power" || f == "pow") val = std::pow(v1, v2);
-                else if (f == "mod") { double m = (v2 == 0.0 ? 1.0 : v2); val = std::fmod(std::fmod(v1, m) + m, m); }
-                else if (f == "rem") { double m = (v2 == 0.0 ? 1.0 : v2); val = std::fmod(v1, m); }
-                else val = v1 * v1;
             }
             else if (fc.type == ComponentType::Polynomial) {
                 double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
