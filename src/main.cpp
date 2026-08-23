@@ -222,7 +222,8 @@ static bool processSingleJsonFile(
     const std::vector<std::pair<std::string, std::string>>& paramOverrides,
     double tstopOverride,
     double stepOverride,
-    CircuitSim::SVGExporter::CircuitReportItem* outReportItem = nullptr)
+    CircuitSim::SVGExporter::CircuitReportItem* outReportItem = nullptr,
+    const CircuitSim::SVGExporter::ReportExportOptions& exportOptions = CircuitSim::SVGExporter::ReportExportOptions())
 {
     if (htmlFile.empty()) {
         size_t dotPos = inputFile.find_last_of('.');
@@ -366,16 +367,21 @@ static bool processSingleJsonFile(
 
     std::string schematicJson = buildSchematicJsonString(design);
 
-    std::cout << "[CLI] Exporting Light Mode HTML Report to '" << htmlFile << "'..." << std::endl;
-    bool success = CircuitSim::SVGExporter::exportFullReportToHTML(
-        design,
-        telemetry,
-        scopesData,
-        schematicJson,
-        jsonNetlist,
-        htmlFile,
-        false /* Light Mode Only */
-    );
+    std::string formatStr = (exportOptions.format == CircuitSim::SVGExporter::ReportExportFormat::PDF) ? "PDF" : ((exportOptions.format == CircuitSim::SVGExporter::ReportExportFormat::BOTH_HTML_PDF) ? "HTML & PDF" : "HTML");
+    std::cout << "[CLI] Exporting " << formatStr << " Report to '" << htmlFile << "'..." << std::endl;
+    bool success = true;
+    if (exportOptions.exportIndividual) {
+        success = CircuitSim::SVGExporter::exportFullReportToHTML(
+            design,
+            telemetry,
+            scopesData,
+            schematicJson,
+            jsonNetlist,
+            htmlFile,
+            false /* Light Mode Only */,
+            exportOptions
+        );
+    }
 
     if (svgFile.size() > 0) {
         std::cout << "[CLI] Exporting Schematic SVG to '" << svgFile << "'..." << std::endl;
@@ -385,9 +391,9 @@ static bool processSingleJsonFile(
     if (success) {
         try {
             std::string absPath = std::filesystem::absolute(htmlFile).string();
-            std::cout << "[CLI SUCCESS] HTML Report exported successfully to:\n  " << absPath << "\n";
+            std::cout << "[CLI SUCCESS] Report exported successfully to:\n  " << absPath << "\n";
         } catch (...) {
-            std::cout << "[CLI SUCCESS] HTML Report exported successfully to '" << htmlFile << "'!\n";
+            std::cout << "[CLI SUCCESS] Report exported successfully to '" << htmlFile << "'!\n";
         }
         if (outReportItem) {
             std::string jName = "Circuit.json";
@@ -403,7 +409,7 @@ static bool processSingleJsonFile(
         }
         return true;
     } else {
-        std::cerr << "[CLI ERROR] Failed to export HTML report for '" << inputFile << "'.\n";
+        std::cerr << "[CLI ERROR] Failed to export report for '" << inputFile << "'.\n";
         return false;
     }
 }
@@ -417,6 +423,7 @@ static bool runHeadlessCLI(int argc, char** argv) {
     std::vector<std::pair<std::string, std::string>> paramOverrides;
     double tstopOverride = -1.0;
     double stepOverride = -1.0;
+    CircuitSim::SVGExporter::ReportExportOptions cliExportOptions;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -432,6 +439,30 @@ static bool runHeadlessCLI(int argc, char** argv) {
             hasCliArg = true;
         } else if ((arg == "-o" || arg == "--output" || arg == "--html") && i + 1 < argc) {
             htmlFile = argv[++i];
+            hasCliArg = true;
+        } else if (arg == "--pdf") {
+            cliExportOptions.format = CircuitSim::SVGExporter::ReportExportFormat::PDF;
+            hasCliArg = true;
+        } else if (arg == "--both") {
+            cliExportOptions.format = CircuitSim::SVGExporter::ReportExportFormat::BOTH_HTML_PDF;
+            hasCliArg = true;
+        } else if (arg == "--no-json") {
+            cliExportOptions.includeSchematicJson = false;
+            cliExportOptions.includeNetlistJson = false;
+            hasCliArg = true;
+        } else if (arg == "--expanded-json") {
+            cliExportOptions.jsonDefaultExpanded = true;
+            hasCliArg = true;
+        } else if (arg == "--static-json") {
+            cliExportOptions.jsonCollapsible = false;
+            hasCliArg = true;
+        } else if (arg == "--merged-only") {
+            cliExportOptions.exportIndividual = false;
+            cliExportOptions.exportMerged = true;
+            hasCliArg = true;
+        } else if (arg == "--individual-only") {
+            cliExportOptions.exportMerged = false;
+            cliExportOptions.exportIndividual = true;
             hasCliArg = true;
         } else if ((arg == "-s" || arg == "--export-svg") && i + 1 < argc) {
             svgFile = argv[++i];
@@ -472,7 +503,14 @@ static bool runHeadlessCLI(int argc, char** argv) {
         std::cout << "Options:\n";
         std::cout << "  -i, --input <file>          Input schematic JSON file path\n";
         std::cout << "  -dir, --input-dir <folder>  Batch process all .json files in directory\n";
-        std::cout << "  -o, --html, --output <file> Output Light Mode HTML report path (Default: <input>_report.html)\n";
+        std::cout << "  -o, --html, --output <file> Output report path (Default: <input>_report.html)\n";
+        std::cout << "  --pdf                       Export PDF report using headless print\n";
+        std::cout << "  --both                      Export both HTML and PDF reports\n";
+        std::cout << "  --no-json                   Exclude JSON structures from report\n";
+        std::cout << "  --expanded-json             Start collapsible JSON sections expanded\n";
+        std::cout << "  --static-json               Make JSON sections static (uncollapsible)\n";
+        std::cout << "  --merged-only               Batch: only export merged master report\n";
+        std::cout << "  --individual-only           Batch: only export individual reports\n";
         std::cout << "  -p, --param CompId.Param=Val  Override component parameter (e.g. -p L1.L=200u -p R1.R=20)\n";
         std::cout << "  -s, --export-svg <file>     Export standalone schematic SVG\n";
         std::cout << "  -t, --tstop <seconds>       Override transient simulation stop time\n";
@@ -497,7 +535,7 @@ static bool runHeadlessCLI(int argc, char** argv) {
                     std::cout << "[CLI Batch " << (totalProcessed + 1) << "] Processing: " << entry.path().filename().string() << std::endl;
                     totalProcessed++;
                     CircuitSim::SVGExporter::CircuitReportItem reportItem;
-                    if (processSingleJsonFile(filePath, outHtml, "", paramOverrides, tstopOverride, stepOverride, &reportItem)) {
+                    if (processSingleJsonFile(filePath, outHtml, "", paramOverrides, tstopOverride, stepOverride, &reportItem, cliExportOptions)) {
                         totalSuccess++;
                         allReports.push_back(reportItem);
                     }
@@ -507,14 +545,14 @@ static bool runHeadlessCLI(int argc, char** argv) {
             std::cerr << "[CLI ERROR] Directory iteration error: " << e.what() << std::endl;
         }
 
-        // Generate Master Merged HTML Report
-        if (!allReports.empty()) {
+        // Generate Master Merged Report
+        if (cliExportOptions.exportMerged && !allReports.empty()) {
             std::string mergedHtmlPath = inputDir + "/_all_simulation_reports_merged.html";
             std::cout << "\n--------------------------------------------------------\n";
-            std::cout << "[CLI] Generating Master Merged HTML Report (" << allReports.size() << " schematics)..." << std::endl;
-            if (CircuitSim::SVGExporter::exportMergedReportToHTML(allReports, mergedHtmlPath)) {
+            std::cout << "[CLI] Generating Master Merged Report (" << allReports.size() << " schematics)..." << std::endl;
+            if (CircuitSim::SVGExporter::exportMergedReportToHTML(allReports, mergedHtmlPath, cliExportOptions)) {
                 std::string absMerged = std::filesystem::absolute(mergedHtmlPath).string();
-                std::cout << "[CLI SUCCESS] Master Merged HTML Report exported successfully to:\n  " << absMerged << "\n";
+                std::cout << "[CLI SUCCESS] Master Merged Report exported successfully to:\n  " << absMerged << "\n";
             }
         }
 
@@ -524,7 +562,7 @@ static bool runHeadlessCLI(int argc, char** argv) {
         std::exit(0);
     }
 
-    bool success = processSingleJsonFile(inputFile, htmlFile, svgFile, paramOverrides, tstopOverride, stepOverride);
+    bool success = processSingleJsonFile(inputFile, htmlFile, svgFile, paramOverrides, tstopOverride, stepOverride, nullptr, cliExportOptions);
     if (success) {
         std::exit(0);
     } else {

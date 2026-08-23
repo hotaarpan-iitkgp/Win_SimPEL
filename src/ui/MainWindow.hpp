@@ -4,6 +4,7 @@
 #include "OscilloscopeView.hpp"
 #include "ScopeWindow.hpp"
 #include "NetlistSourceView.hpp"
+#include "SVGExporter.hpp"
 #include "engine/CircuitSimulator.hpp"
 #include "imgui.h"
 #include <nlohmann/json.hpp>
@@ -46,6 +47,13 @@ private:
     char cscriptCodeBuf[8192] = "";
     char cscriptTimestepBuf[64] = "0";
 
+    // Report Export Modal State
+    bool showExportOptionsModal = false;
+    bool isBatchExportMode = false;
+    std::string exportTargetFolder = "";
+    std::string exportSingleFilePath = "";
+    SVGExporter::ReportExportOptions currentExportOptions;
+
     // Background simulation thread
     std::thread simThread;
     std::atomic<bool> simRunning{false};
@@ -62,10 +70,13 @@ private:
     void renderPropertyInspector();
     void renderSimParamsModal();
     void renderCSCRIPTEditorModal();
+    void renderExportOptionsModal();
     void openCSCRIPTEditor(const std::string& compId);
 
     void batchSimulateFolder(const std::string& folderPath);
     void batchExportHtmlFolder(const std::string& folderPath);
+    void executeBatchExportWithOptions(const std::string& folderPath, const SVGExporter::ReportExportOptions& options);
+    void executeSingleExportWithOptions(const SVGExporter::ReportExportOptions& options);
 
     // Scope window helpers
     void handleScopeOpenRequest();

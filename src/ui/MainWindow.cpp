@@ -582,105 +582,9 @@ void MainWindow::renderMenuBar() {
                     SVGExporter::exportSchematicToSVG(canvas.getCircuit(), path, canvas.isDarkModeActive());
                 }
             }
-            if (ImGui::MenuItem("Export Report as HTML (.html)")) {
-                std::string defaultName = getProjectBaseName() + "_report.html";
-                std::string path = SVGExporter::saveHTMLFileDialog("Export Report to HTML", defaultName);
-                if (!path.empty()) {
-                    NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
-                    std::string jsonNetlist = NetlistSourceView::generateNetlistJson(canvas.getCircuit());
-
-                    std::vector<CircuitSimEngine::ComponentModel> physComps;
-                    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
-                    CircuitSimEngine::SimulationConfig simCfg;
-                    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
-
-                    simulator.setup(physComps, ctrlComps, simCfg);
-                    simulator.reset();
-                    CircuitSimEngine::SimulationOutput output = simulator.runTransient();
-                    simulator.setTelemetryOutput(output);
-
-                    auto telemetry = simulator.getTelemetryCopy();
-
-                    std::vector<SVGExporter::ScopeReportData> scopesData;
-
-                    // 1. Gather signals per SCOPE component in schematic
-                    for (const auto& comp : canvas.getCircuit().components) {
-                        if (comp.type == ComponentType::Oscilloscope || comp.rawTypeStr == "SCOPE") {
-                            int numChannels = 2;
-                            if (comp.parameters.count("channels")) {
-                                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch(...) {}
-                            }
-
-                            std::vector<std::string> sigKeys = traceScopeInputSignals(comp.id, numChannels);
-
-                            std::vector<std::string> validKeys;
-                            std::vector<std::string> validLabels;
-                            for (const auto& k : sigKeys) {
-                                if (!k.empty() && (telemetry.voltages.count(k) || !telemetry.timeHistory.empty())) {
-                                    validKeys.push_back(k);
-                                    validLabels.push_back(k);
-                                }
-                            }
-
-                            if (!validKeys.empty()) {
-                                SVGExporter::ScopeReportData srd;
-                                srd.scopeId = comp.id;
-                                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
-                                srd.signalKeys = validKeys;
-                                srd.signalLabels = validLabels;
-                                srd.numPanes = (int)validKeys.size();
-                                scopesData.push_back(srd);
-                            }
-                        }
-                    }
-
-                    // 2. Fallback to PROBE components if no SCOPE components were found
-                    if (scopesData.empty()) {
-                        std::vector<std::string> probeKeys;
-                        for (const auto& comp : canvas.getCircuit().components) {
-                            if (comp.rawTypeStr == "PROBE") {
-                                if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
-                                    probeKeys.push_back(comp.parameters.at("selected_signals"));
-                                } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
-                                    std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
-                                    if (pType == "Current" || pType == "I") probeKeys.push_back("I_" + comp.parameters.at("target"));
-                                    else probeKeys.push_back("V_" + comp.parameters.at("target"));
-                                }
-                            }
-                        }
-
-                        std::vector<std::string> validKeys;
-                        std::vector<std::string> validLabels;
-                        for (const auto& k : probeKeys) {
-                            if (!k.empty() && telemetry.voltages.count(k)) {
-                                validKeys.push_back(k);
-                                validLabels.push_back(k);
-                            }
-                        }
-
-                        if (!validKeys.empty()) {
-                            SVGExporter::ScopeReportData srd;
-                            srd.scopeId = "Probes";
-                            srd.scopeTitle = "Probe Waveforms";
-                            srd.signalKeys = validKeys;
-                            srd.signalLabels = validLabels;
-                            srd.numPanes = (int)validKeys.size();
-                            scopesData.push_back(srd);
-                        }
-                    }
-
-                    std::string schematicJson = buildSchematicJsonString(canvas.getCircuit());
-
-                    SVGExporter::exportFullReportToHTML(
-                        canvas.getCircuit(),
-                        telemetry,
-                        scopesData,
-                        schematicJson,
-                        jsonNetlist,
-                        path,
-                        false /* Light Mode Only */
-                    );
-                }
+            if (ImGui::MenuItem("Export Report (HTML / PDF)...")) {
+                isBatchExportMode = false;
+                showExportOptionsModal = true;
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Batch Simulate Folder (.json)...")) {
@@ -689,10 +593,12 @@ void MainWindow::renderMenuBar() {
                     batchSimulateFolder(folder);
                 }
             }
-            if (ImGui::MenuItem("Batch Export HTML Reports for Folder...")) {
+            if (ImGui::MenuItem("Batch Export Reports for Folder (HTML / PDF)...")) {
                 std::string folder = openFolderDialog();
                 if (!folder.empty()) {
-                    batchExportHtmlFolder(folder);
+                    exportTargetFolder = folder;
+                    isBatchExportMode = true;
+                    showExportOptionsModal = true;
                 }
             }
             ImGui::Separator();
@@ -1634,11 +1540,22 @@ void MainWindow::batchSimulateFolder(const std::string& folderPath) {
         }
     } catch (...) {}
 
-    std::string msg = "Batch Simulation Complete!\n\nSuccessfully simulated " + std::to_string(succeeded) + " of " + std::to_string(processed) + " schematic files in:\n" + folderPath;
-    MessageBoxA(NULL, msg.c_str(), "Batch Simulation Complete", MB_OK | MB_ICONINFORMATION);
+    std::string msg = "Batch Simulation Complete!\n\nSuccessfully simulated " + std::to_string(succeeded) + " of " + std::to_string(processed) + " schematic files in:\n" + folderPath + "\n\nWould you like to configure and export reports now?";
+    int res = MessageBoxA(NULL, msg.c_str(), "Batch Simulation Complete", MB_YESNO | MB_ICONINFORMATION);
+    if (res == IDYES) {
+        exportTargetFolder = folderPath;
+        isBatchExportMode = true;
+        showExportOptionsModal = true;
+    }
 }
 
 void MainWindow::batchExportHtmlFolder(const std::string& folderPath) {
+    exportTargetFolder = folderPath;
+    isBatchExportMode = true;
+    showExportOptionsModal = true;
+}
+
+void MainWindow::executeBatchExportWithOptions(const std::string& folderPath, const SVGExporter::ReportExportOptions& options) {
     if (folderPath.empty()) return;
     int processed = 0, succeeded = 0;
     std::vector<SVGExporter::CircuitReportItem> allReports;
@@ -1742,7 +1659,11 @@ void MainWindow::batchExportHtmlFolder(const std::string& folderPath) {
 
                     std::string outHtmlPath = entry.path().parent_path().string() + "/" + entry.path().stem().string() + "_report.html";
                     std::string schematicJson = buildSchematicJsonString(cd);
-                    if (SVGExporter::exportFullReportToHTML(cd, telemetry, scopesData, schematicJson, jsonNetlist, outHtmlPath, false)) {
+                    bool exportOk = true;
+                    if (options.exportIndividual) {
+                        exportOk = SVGExporter::exportFullReportToHTML(cd, telemetry, scopesData, schematicJson, jsonNetlist, outHtmlPath, false, options);
+                    }
+                    if (exportOk) {
                         succeeded++;
                         SVGExporter::CircuitReportItem rItem;
                         rItem.jsonName = entry.path().filename().string();
@@ -1758,13 +1679,215 @@ void MainWindow::batchExportHtmlFolder(const std::string& folderPath) {
         }
     } catch (...) {}
 
-    if (!allReports.empty()) {
+    if (options.exportMerged && !allReports.empty()) {
         std::string mergedHtmlPath = folderPath + "/_all_simulation_reports_merged.html";
-        SVGExporter::exportMergedReportToHTML(allReports, mergedHtmlPath);
+        SVGExporter::exportMergedReportToHTML(allReports, mergedHtmlPath, options);
     }
 
-    std::string msg = "Batch HTML Export Complete!\n\nSuccessfully exported " + std::to_string(succeeded) + " of " + std::to_string(processed) + " HTML reports + 1 Master Merged HTML report to:\n" + folderPath;
-    MessageBoxA(NULL, msg.c_str(), "Batch HTML Export Complete", MB_OK | MB_ICONINFORMATION);
+    std::string formatName = (options.format == SVGExporter::ReportExportFormat::HTML) ? "HTML" : ((options.format == SVGExporter::ReportExportFormat::PDF) ? "PDF" : "HTML + PDF");
+    std::string msg = "Batch " + formatName + " Export Complete!\n\nSuccessfully exported reports for " + std::to_string(succeeded) + " of " + std::to_string(processed) + " circuits to:\n" + folderPath;
+    MessageBoxA(NULL, msg.c_str(), "Batch Export Complete", MB_OK | MB_ICONINFORMATION);
+}
+
+void MainWindow::executeSingleExportWithOptions(const SVGExporter::ReportExportOptions& options) {
+    std::string defaultName = getProjectBaseName() + "_report.html";
+    std::string path = SVGExporter::saveHTMLFileDialog("Export Report", defaultName);
+    if (path.empty()) return;
+
+    NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
+    std::string jsonNetlist = NetlistSourceView::generateNetlistJson(canvas.getCircuit());
+
+    std::vector<CircuitSimEngine::ComponentModel> physComps;
+    std::vector<CircuitSimEngine::ComponentModel> ctrlComps;
+    CircuitSimEngine::SimulationConfig simCfg;
+    CircuitSimEngine::NetlistParser::parseJsonString(jsonNetlist, physComps, ctrlComps, simCfg);
+
+    simulator.setup(physComps, ctrlComps, simCfg);
+    simulator.reset();
+    CircuitSimEngine::SimulationOutput output = simulator.runTransient();
+    simulator.setTelemetryOutput(output);
+
+    auto telemetry = simulator.getTelemetryCopy();
+
+    std::vector<SVGExporter::ScopeReportData> scopesData;
+
+    for (const auto& comp : canvas.getCircuit().components) {
+        if (comp.type == ComponentType::Oscilloscope || comp.rawTypeStr == "SCOPE") {
+            int numChannels = 2;
+            if (comp.parameters.count("channels")) {
+                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch(...) {}
+            }
+
+            std::vector<std::string> sigKeys = traceScopeInputSignals(comp.id, numChannels);
+
+            std::vector<std::string> validKeys;
+            std::vector<std::string> validLabels;
+            for (const auto& k : sigKeys) {
+                if (!k.empty() && (telemetry.voltages.count(k) || !telemetry.timeHistory.empty())) {
+                    validKeys.push_back(k);
+                    validLabels.push_back(k);
+                }
+            }
+
+            if (!validKeys.empty()) {
+                SVGExporter::ScopeReportData srd;
+                srd.scopeId = comp.id;
+                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
+                srd.signalKeys = validKeys;
+                srd.signalLabels = validLabels;
+                srd.numPanes = (int)validKeys.size();
+                scopesData.push_back(srd);
+            }
+        }
+    }
+
+    if (scopesData.empty()) {
+        std::vector<std::string> probeKeys;
+        for (const auto& comp : canvas.getCircuit().components) {
+            if (comp.rawTypeStr == "PROBE") {
+                if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
+                    probeKeys.push_back(comp.parameters.at("selected_signals"));
+                } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
+                    std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
+                    if (pType == "Current" || pType == "I") probeKeys.push_back("I_" + comp.parameters.at("target"));
+                    else probeKeys.push_back("V_" + comp.parameters.at("target"));
+                }
+            }
+        }
+
+        std::vector<std::string> validKeys;
+        std::vector<std::string> validLabels;
+        for (const auto& k : probeKeys) {
+            if (!k.empty() && telemetry.voltages.count(k)) {
+                validKeys.push_back(k);
+                validLabels.push_back(k);
+            }
+        }
+
+        if (!validKeys.empty()) {
+            SVGExporter::ScopeReportData srd;
+            srd.scopeId = "Probes";
+            srd.scopeTitle = "Probe Waveforms";
+            srd.signalKeys = validKeys;
+            srd.signalLabels = validLabels;
+            srd.numPanes = (int)validKeys.size();
+            scopesData.push_back(srd);
+        }
+    }
+
+    std::string schematicJson = buildSchematicJsonString(canvas.getCircuit());
+
+    SVGExporter::exportFullReportToHTML(
+        canvas.getCircuit(),
+        telemetry,
+        scopesData,
+        schematicJson,
+        jsonNetlist,
+        path,
+        false,
+        options
+    );
+
+    std::string formatName = (options.format == SVGExporter::ReportExportFormat::HTML) ? "HTML" : ((options.format == SVGExporter::ReportExportFormat::PDF) ? "PDF" : "HTML + PDF");
+    std::string msg = "Report exported successfully (" + formatName + ") to:\n" + path;
+    MessageBoxA(NULL, msg.c_str(), "Report Export Complete", MB_OK | MB_ICONINFORMATION);
+}
+
+void MainWindow::renderExportOptionsModal() {
+    if (showExportOptionsModal) {
+        ImGui::OpenPopup("Report Export Configuration");
+    }
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(520, 0), ImGuiCond_Appearing);
+
+    if (ImGui::BeginPopupModal("Report Export Configuration", &showExportOptionsModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextColored(ImVec4(0.01f, 0.52f, 0.78f, 1.0f), isBatchExportMode ? "Batch Report Export Settings" : "Circuit Report Export Settings");
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (isBatchExportMode) {
+            ImGui::Text("Target Folder:");
+            char folderBuf[512];
+            std::strncpy(folderBuf, exportTargetFolder.c_str(), sizeof(folderBuf));
+            folderBuf[sizeof(folderBuf) - 1] = '\0';
+            ImGui::SetNextItemWidth(380);
+            if (ImGui::InputText("##Folder", folderBuf, sizeof(folderBuf))) {
+                exportTargetFolder = folderBuf;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Browse...")) {
+                std::string f = openFolderDialog();
+                if (!f.empty()) exportTargetFolder = f;
+            }
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+        }
+
+        // 1. Export Format Combo
+        ImGui::Text("Export Format:");
+        const char* formatItems[] = { "HTML Document (.html)", "PDF Document (.pdf)", "Both (HTML + PDF Documents)" };
+        int currentFormatIdx = (int)currentExportOptions.format;
+        ImGui::SetNextItemWidth(320);
+        if (ImGui::Combo("##ExportFormat", &currentFormatIdx, formatItems, IM_ARRAYSIZE(formatItems))) {
+            currentExportOptions.format = (SVGExporter::ReportExportFormat)currentFormatIdx;
+        }
+        ImGui::Spacing();
+
+        // 2. Batch Export Modes (only in batch mode)
+        if (isBatchExportMode) {
+            ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "Batch Generation Scope:");
+            ImGui::Checkbox("Export Individual Circuit Reports (<name>_report)", &currentExportOptions.exportIndividual);
+            ImGui::Checkbox("Export Master Merged Report (_all_simulation_reports_merged)", &currentExportOptions.exportMerged);
+            ImGui::Spacing();
+        }
+
+        // 3. Content Inclusion
+        ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "Report Content Inclusion:");
+        ImGui::Checkbox("Include Schematic SVG Diagram", &currentExportOptions.includeSchematicSvg);
+        ImGui::Checkbox("Include Oscilloscope Waveforms", &currentExportOptions.includeWaveforms);
+        ImGui::Checkbox("Include Schematic JSON Structure", &currentExportOptions.includeSchematicJson);
+        ImGui::Checkbox("Include Netlist JSON Specification", &currentExportOptions.includeNetlistJson);
+        ImGui::Spacing();
+
+        // 4. JSON Layout
+        if (currentExportOptions.includeSchematicJson || currentExportOptions.includeNetlistJson) {
+            ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "JSON Section Layout:");
+            ImGui::Checkbox("Make JSON Sections Collapsible (<details>)", &currentExportOptions.jsonCollapsible);
+            if (currentExportOptions.jsonCollapsible) {
+                ImGui::Indent(20.0f);
+                ImGui::Checkbox("Expand JSON Sections by default", &currentExportOptions.jsonDefaultExpanded);
+                ImGui::Unindent(20.0f);
+            }
+            ImGui::Spacing();
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Action Buttons
+        if (ImGui::Button("Export Reports", ImVec2(140, 32))) {
+            showExportOptionsModal = false;
+            ImGui::CloseCurrentPopup();
+
+            if (isBatchExportMode) {
+                if (!exportTargetFolder.empty()) {
+                    executeBatchExportWithOptions(exportTargetFolder, currentExportOptions);
+                }
+            } else {
+                executeSingleExportWithOptions(currentExportOptions);
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(100, 32))) {
+            showExportOptionsModal = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 bool MainWindow::loadDemoJsonFile(const std::string& filename) {
@@ -2267,6 +2390,7 @@ void MainWindow::render() {
         openScopeWindows.end());
 
     renderSimParamsModal();
+    renderExportOptionsModal();
 }
 
 void MainWindow::handleScopeOpenRequest() {
