@@ -441,6 +441,11 @@ void CircuitSimulator::buildIndexMaps() {
             fc.gain = evaluateParam(ctrlComp, "damping", 0.707);
             if (!ctrlComp.parameters.count("damping") && ctrlComp.parameters.count("zeta")) fc.gain = evaluateParam(ctrlComp, "zeta", 0.707);
             if (!ctrlComp.parameters.count("damping") && !ctrlComp.parameters.count("zeta") && ctrlComp.parameters.count("Q")) fc.gain = evaluateParam(ctrlComp, "Q", 0.707);
+        } else if (ctrlComp.type == ComponentType::PerAvg || ctrlComp.type == ComponentType::MovAvg) {
+            fc.delayDuration = evaluateParam(ctrlComp, "period", 0.02);
+            if (!ctrlComp.parameters.count("period") && ctrlComp.parameters.count("T")) fc.delayDuration = evaluateParam(ctrlComp, "T", 0.02);
+            if (!ctrlComp.parameters.count("period") && !ctrlComp.parameters.count("T") && ctrlComp.parameters.count("duration")) fc.delayDuration = evaluateParam(ctrlComp, "duration", 0.02);
+            if (!ctrlComp.parameters.count("period") && !ctrlComp.parameters.count("T") && !ctrlComp.parameters.count("duration") && ctrlComp.parameters.count("time")) fc.delayDuration = evaluateParam(ctrlComp, "time", 0.02);
         } else if (ctrlComp.type == ComponentType::Relay) {
             fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
             fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
@@ -1739,14 +1744,27 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::PerAvg) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double period = (fc.delayDuration > 0.0) ? fc.delayDuration : 0.02;
-                if (currentTime > fc.lastTime) {
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+                int maxSamples = (int)std::round(period / dt);
+                if (maxSamples < 1) maxSamples = 1;
+
+                if (currentTime <= 0.0) {
+                    fc.shiftBuffer.clear();
                     fc.shiftBuffer.push_back(inVal);
-                    if ((int)fc.shiftBuffer.size() > 1000) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
-                    fc.lastTime = currentTime;
+                    fc.lastTime = 0.0;
+                    val = inVal;
+                } else {
+                    if (pass == 0 && currentTime > fc.lastTime) {
+                        fc.shiftBuffer.push_back(inVal);
+                        while ((int)fc.shiftBuffer.size() > maxSamples) {
+                            fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                        }
+                        fc.lastTime = currentTime;
+                    }
+                    double sum = 0.0;
+                    for (double v : fc.shiftBuffer) sum += v;
+                    val = fc.shiftBuffer.empty() ? inVal : (sum / fc.shiftBuffer.size());
                 }
-                double sum = 0.0;
-                for (double v : fc.shiftBuffer) sum += v;
-                val = fc.shiftBuffer.empty() ? inVal : (sum / fc.shiftBuffer.size());
             }
             else if (fc.type == ComponentType::PeriodicImpAvg) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
