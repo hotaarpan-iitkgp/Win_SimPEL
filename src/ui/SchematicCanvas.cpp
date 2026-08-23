@@ -141,7 +141,7 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" || t == "RANDOM_NUM" || t == "WHITE_NOISE") {
         return {{"Out", 20, 0, 1, 0, true}};
     }
-    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "NOT" || t == "INIT_COND" ||
+    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "MATH_FCN" || t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT" || t == "NOT" || t == "INIT_COND" ||
         t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES" ||
         t == "INTEGRATOR" || t == "DERIVATIVE" || t == "TRANSFER_FCN" || t == "STATE_SPACE" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "PLL_1PH" ||
         t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" ||
@@ -533,7 +533,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "SUB" ||
         t == "PROD" || t == "PRODUCT" || t == "PRODUCT_RECT" || t == "COMP" || t == "COMPARATOR" ||
         t == "GOTO_SIG" || t == "GOTO" || t == "FROM_SIG" || t == "FROM" ||
-        t == "AND" || t == "OR" || t == "NOT" || t == "FCN" ||
+        t == "AND" || t == "OR" || t == "NOT" || t == "FCN" || t == "MATH_FCN" || t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT" || t == "PWM_MASTER" ||
         t == "CSCRIPT" || t == "SCOPE" || t == "PROBE" || t == "MUX" || t == "DEMUX" || t == "KEY_TRIGGER") {
         return DomainType::Control;
     }
