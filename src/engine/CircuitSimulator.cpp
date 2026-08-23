@@ -486,8 +486,15 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::RelationalOp) {
             fc.polarity = getParamString(ctrlComp, "operator", "==");
         } else if (ctrlComp.type == ComponentType::CompareToConstant) {
-            fc.polarity = getParamString(ctrlComp, "operator", "==");
-            fc.thresholdVal = evaluateParam(ctrlComp, "constant", 0.0);
+            fc.polarity = getParamString(ctrlComp, "operator", ">");
+            if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "op", ">");
+            if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "relop", ">");
+
+            fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.25);
+            if (!ctrlComp.parameters.count("threshold") && ctrlComp.parameters.count("constant")) fc.thresholdVal = evaluateParam(ctrlComp, "constant", 0.25);
+            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && ctrlComp.parameters.count("const")) fc.thresholdVal = evaluateParam(ctrlComp, "const", 0.25);
+            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && !ctrlComp.parameters.count("const") && ctrlComp.parameters.count("value")) fc.thresholdVal = evaluateParam(ctrlComp, "value", 0.25);
+            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && !ctrlComp.parameters.count("const") && !ctrlComp.parameters.count("value") && ctrlComp.parameters.count("val")) fc.thresholdVal = evaluateParam(ctrlComp, "val", 0.25);
         } else if (ctrlComp.type == ComponentType::DFlipFlop) {
             fc.q_state = evaluateParam(ctrlComp, "initial_state", 0.0) > 0.5 ? 1.0 : 0.0;
             fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
