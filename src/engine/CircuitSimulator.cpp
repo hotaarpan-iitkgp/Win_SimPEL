@@ -446,6 +446,21 @@ void CircuitSimulator::buildIndexMaps() {
             if (!ctrlComp.parameters.count("period") && ctrlComp.parameters.count("T")) fc.delayDuration = evaluateParam(ctrlComp, "T", 0.02);
             if (!ctrlComp.parameters.count("period") && !ctrlComp.parameters.count("T") && ctrlComp.parameters.count("duration")) fc.delayDuration = evaluateParam(ctrlComp, "duration", 0.02);
             if (!ctrlComp.parameters.count("period") && !ctrlComp.parameters.count("T") && !ctrlComp.parameters.count("duration") && ctrlComp.parameters.count("time")) fc.delayDuration = evaluateParam(ctrlComp, "time", 0.02);
+        } else if (ctrlComp.type == ComponentType::LUT_1D) {
+            fc.polarity = getParamString(ctrlComp, "table_x", "[0, 1]");
+            if (!ctrlComp.parameters.count("table_x") && ctrlComp.parameters.count("x")) fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
+            fc.vPlotKey = getParamString(ctrlComp, "table_y", "[0, 1]");
+            if (!ctrlComp.parameters.count("table_y") && ctrlComp.parameters.count("y")) fc.vPlotKey = getParamString(ctrlComp, "y", "[0, 1]");
+        } else if (ctrlComp.type == ComponentType::LUT_2D) {
+            fc.polarity = getParamString(ctrlComp, "table_x", "[0, 1]");
+            if (!ctrlComp.parameters.count("table_x") && ctrlComp.parameters.count("x")) fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
+
+            fc.vPlotKey = getParamString(ctrlComp, "table_y", "[0, 1]");
+            if (!ctrlComp.parameters.count("table_y") && ctrlComp.parameters.count("y")) fc.vPlotKey = getParamString(ctrlComp, "y", "[0, 1]");
+
+            fc.vAlphaKey = getParamString(ctrlComp, "table_z", "[[0, 1], [1, 2]]");
+            if (!ctrlComp.parameters.count("table_z") && ctrlComp.parameters.count("z")) fc.vAlphaKey = getParamString(ctrlComp, "z", "[[0, 1], [1, 2]]");
+            if (!ctrlComp.parameters.count("table_z") && !ctrlComp.parameters.count("z") && ctrlComp.parameters.count("table_data")) fc.vAlphaKey = getParamString(ctrlComp, "table_data", "[[0, 1], [1, 2]]");
         } else if (ctrlComp.type == ComponentType::Relay) {
             fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
             fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
