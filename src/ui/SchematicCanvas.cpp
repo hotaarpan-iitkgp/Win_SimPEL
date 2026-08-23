@@ -180,11 +180,11 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
 
         return terms;
     }
-    if (t == "COMP" || t == "AND" || t == "OR" ||
+    if (t == "COMP" || t == "AND" || t == "OR" || t == "NAND" || t == "NOR" || t == "XOR" || t == "XNOR" ||
         t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "RELATIONAL_OPERATOR") {
         return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
-    if (t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" || t == "COMPARE_TO_CONSTANT") {
+    if (t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" || t == "COMP_CONST" || t == "COMPARE_TO_CONSTANT") {
         return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "D_FLIP_FLOP") {
@@ -533,7 +533,7 @@ static DomainType getPinDomain(const ComponentInstance& comp, const std::string&
         t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "SUB" ||
         t == "PROD" || t == "PRODUCT" || t == "PRODUCT_RECT" || t == "COMP" || t == "COMPARATOR" ||
         t == "GOTO_SIG" || t == "GOTO" || t == "FROM_SIG" || t == "FROM" ||
-        t == "AND" || t == "OR" || t == "NOT" || t == "FCN" || t == "MATH_FCN" || t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT" || t == "PWM_MASTER" ||
+        t == "AND" || t == "OR" || t == "NOT" || t == "NAND" || t == "NOR" || t == "XOR" || t == "XNOR" || t == "COMP_CONST" || t == "FCN" || t == "MATH_FCN" || t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT" || t == "PWM_MASTER" ||
         t == "CSCRIPT" || t == "SCOPE" || t == "PROBE" || t == "MUX" || t == "DEMUX" || t == "KEY_TRIGGER") {
         return DomainType::Control;
     }
