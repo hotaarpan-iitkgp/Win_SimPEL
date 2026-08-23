@@ -432,6 +432,15 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::RateLimiter) {
             fc.rateUp = evaluateParam(ctrlComp, "up", 10.0);
             fc.rateDown = evaluateParam(ctrlComp, "down", -10.0);
+        } else if (ctrlComp.type == ComponentType::Filter1st || ctrlComp.type == ComponentType::Filter2nd) {
+            fc.freq = evaluateParam(ctrlComp, "cutoff_freq", 100.0);
+            if (!ctrlComp.parameters.count("cutoff_freq") && ctrlComp.parameters.count("fc")) fc.freq = evaluateParam(ctrlComp, "fc", 100.0);
+            if (!ctrlComp.parameters.count("cutoff_freq") && !ctrlComp.parameters.count("fc") && ctrlComp.parameters.count("freq")) fc.freq = evaluateParam(ctrlComp, "freq", 100.0);
+            if (!ctrlComp.parameters.count("cutoff_freq") && !ctrlComp.parameters.count("fc") && !ctrlComp.parameters.count("freq") && ctrlComp.parameters.count("frequency")) fc.freq = evaluateParam(ctrlComp, "frequency", 100.0);
+
+            fc.gain = evaluateParam(ctrlComp, "damping", 0.707);
+            if (!ctrlComp.parameters.count("damping") && ctrlComp.parameters.count("zeta")) fc.gain = evaluateParam(ctrlComp, "zeta", 0.707);
+            if (!ctrlComp.parameters.count("damping") && !ctrlComp.parameters.count("zeta") && ctrlComp.parameters.count("Q")) fc.gain = evaluateParam(ctrlComp, "Q", 0.707);
         } else if (ctrlComp.type == ComponentType::Relay) {
             fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
             fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
@@ -1811,25 +1820,54 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double fcHz = (fc.freq > 0.0) ? fc.freq : 100.0;
                 double tau = 1.0 / (2.0 * 3.141592653589793 * fcHz);
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
-                if (currentTime == 0.0) fc.filterState = inVal;
-                else fc.filterState = (tau / (tau + dt)) * fc.filterState + (dt / (tau + dt)) * inVal;
-                val = fc.filterState;
+                if (currentTime <= 0.0) {
+                    val = inVal;
+                    fc.stateVal = inVal;
+                    fc.nextStateVal = inVal;
+                    fc.lastTime = 0.0;
+                } else {
+                    if (currentTime > fc.lastTime) {
+                        fc.stateVal = fc.nextStateVal;
+                        fc.lastTime = currentTime;
+                    }
+                    double prev = fc.stateVal;
+                    double outVal = (tau / (tau + dt)) * prev + (dt / (tau + dt)) * inVal;
+                    if (pass == 0) {
+                        fc.nextStateVal = outVal;
+                    }
+                    val = outVal;
+                }
             }
             else if (fc.type == ComponentType::Filter2nd) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double fcHz = (fc.freq > 0.0) ? fc.freq : 100.0;
-                double Q = (fc.gain > 0.0) ? fc.gain : 0.707;
+                double zeta = (fc.gain > 0.0) ? fc.gain : 0.707;
                 double w0 = 2.0 * 3.141592653589793 * fcHz;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
-                if (currentTime == 0.0) {
-                    fc.stateVal = inVal; // y
-                    fc.filterState = 0.0; // dy/dt
+                if (currentTime <= 0.0) {
+                    val = inVal;
+                    fc.stateVal = inVal;       // y(t_{n-1})
+                    fc.nextStateVal = inVal;   // y(t_n)
+                    fc.filterState = 0.0;      // dy/dt(t_{n-1})
+                    fc.highStartTime = 0.0;    // dy/dt(t_n)
+                    fc.lastTime = 0.0;
                 } else {
-                    double d2y = w0 * w0 * (inVal - fc.stateVal) - (w0 / Q) * fc.filterState;
-                    fc.filterState += d2y * dt;
-                    fc.stateVal += fc.filterState * dt;
+                    if (currentTime > fc.lastTime) {
+                        fc.stateVal = fc.nextStateVal;
+                        fc.filterState = fc.highStartTime;
+                        fc.lastTime = currentTime;
+                    }
+                    double y = fc.stateVal;
+                    double dy = fc.filterState;
+                    double d2y = w0 * w0 * (inVal - y) - 2.0 * zeta * w0 * dy;
+                    double dy_next = dy + d2y * dt;
+                    double y_next = y + dy_next * dt;
+                    if (pass == 0) {
+                        fc.nextStateVal = y_next;
+                        fc.highStartTime = dy_next;
+                    }
+                    val = y_next;
                 }
-                val = fc.stateVal;
             }
             else if (fc.type == ComponentType::StateSpace) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
