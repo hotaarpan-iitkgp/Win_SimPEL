@@ -361,6 +361,20 @@ void CircuitSimulator::buildIndexMaps() {
                 fc.inputSigKeys.push_back(inK);
                 fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
             }
+        } else if (ctrlComp.type == ComponentType::PWM_Generator) {
+            fc.freq = evaluateParam(ctrlComp, "carrier_freq", 10000.0);
+            if (!ctrlComp.parameters.count("carrier_freq") && ctrlComp.parameters.count("frequency")) fc.freq = evaluateParam(ctrlComp, "frequency", 10000.0);
+            if (!ctrlComp.parameters.count("carrier_freq") && !ctrlComp.parameters.count("frequency") && ctrlComp.parameters.count("fc")) fc.freq = evaluateParam(ctrlComp, "fc", 10000.0);
+            if (!ctrlComp.parameters.count("carrier_freq") && !ctrlComp.parameters.count("frequency") && !ctrlComp.parameters.count("fc") && ctrlComp.parameters.count("freq")) fc.freq = evaluateParam(ctrlComp, "freq", 10000.0);
+
+            fc.minVal = evaluateParam(ctrlComp, "min_val", 0.0);
+            if (!ctrlComp.parameters.count("min_val") && ctrlComp.parameters.count("min")) fc.minVal = evaluateParam(ctrlComp, "min", 0.0);
+
+            fc.maxVal = evaluateParam(ctrlComp, "max_val", 1.0);
+            if (!ctrlComp.parameters.count("max_val") && ctrlComp.parameters.count("max")) fc.maxVal = evaluateParam(ctrlComp, "max", 1.0);
+
+            fc.delayDuration = evaluateParam(ctrlComp, "dead_time", 0.0);
+            if (!ctrlComp.parameters.count("dead_time") && ctrlComp.parameters.count("deadtime")) fc.delayDuration = evaluateParam(ctrlComp, "deadtime", 0.0);
         } else if (ctrlComp.type == ComponentType::PWM_MASTER) {
             int numCarriers = (int)evaluateParam(ctrlComp, "num_carriers", 3.0);
             if (!ctrlComp.parameters.count("num_carriers") && ctrlComp.parameters.count("N")) {
@@ -2189,6 +2203,49 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 }
                 val = (N > 0 && fc.pwmMasterOutDirectIndices[0] >= 0 && fc.pwmMasterOutDirectIndices[0] < (int)flatControlSignals.size()) 
                       ? flatControlSignals[fc.pwmMasterOutDirectIndices[0]] : 0.0;
+            }
+            else if (fc.type == ComponentType::PWM_Generator) {
+                double vMod = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double minVal = fc.minVal;
+                double maxVal = fc.maxVal;
+                if (maxVal <= minVal) maxVal = minVal + 1.0;
+                double deadTime = fc.delayDuration;
+                double Tc = 1.0 / fcHz;
+
+                double tLocal = std::fmod(currentTime, Tc);
+                if (tLocal < 0.0) tLocal += Tc;
+
+                double triVal = (tLocal < Tc / 2.0) 
+                                ? minVal + (maxVal - minVal) * (tLocal / (Tc / 2.0))
+                                : maxVal - (maxVal - minVal) * ((tLocal - Tc / 2.0) / (Tc / 2.0));
+
+                int targetDirect = (vMod >= triVal) ? 1 : 0;
+
+                if (deadTime > 0.0) {
+                    int targetCompl = (targetDirect == 0) ? 1 : 0;
+                    if (pass == 0 && currentTime > fc.lastTime) {
+                        if (fc.pwmMasterLastTargetDirect.empty()) {
+                            fc.pwmMasterLastTargetDirect.assign(1, 0);
+                            fc.pwmMasterLastTargetCompl.assign(1, 0);
+                            fc.pwmMasterLastTransDirect.assign(1, 0.0);
+                            fc.pwmMasterLastTransCompl.assign(1, 0.0);
+                        }
+                        if (targetDirect == 1 && fc.pwmMasterLastTargetDirect[0] == 0) {
+                            fc.pwmMasterLastTransDirect[0] = currentTime;
+                        }
+                        if (targetCompl == 1 && fc.pwmMasterLastTargetCompl[0] == 0) {
+                            fc.pwmMasterLastTransCompl[0] = currentTime;
+                        }
+                        fc.pwmMasterLastTargetDirect[0] = targetDirect;
+                        fc.pwmMasterLastTargetCompl[0] = targetCompl;
+                        fc.lastTime = currentTime;
+                    }
+                    double transT = (!fc.pwmMasterLastTransDirect.empty()) ? fc.pwmMasterLastTransDirect[0] : 0.0;
+                    val = (targetDirect == 1 && (currentTime - transT >= deadTime - 1e-12)) ? 1.0 : 0.0;
+                } else {
+                    val = (targetDirect == 1) ? 1.0 : 0.0;
+                }
             }
             else if (fc.type == ComponentType::LUT_2D) {
                 double u1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
