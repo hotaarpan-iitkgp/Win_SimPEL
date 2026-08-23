@@ -409,7 +409,9 @@ void CircuitSimulator::buildIndexMaps() {
             fc.polarity = getParamString(ctrlComp, "indexing", "1-based");
             fc.val = evaluateParam(ctrlComp, "inputs", 3.0);
         } else if (ctrlComp.type == ComponentType::HitCrossing) {
-            fc.thresholdVal = evaluateParam(ctrlComp, "offset", 0.0);
+            fc.thresholdVal = evaluateParam(ctrlComp, "hit_threshold", 0.0);
+            if (!ctrlComp.parameters.count("hit_threshold") && ctrlComp.parameters.count("offset")) fc.thresholdVal = evaluateParam(ctrlComp, "offset", 0.0);
+            if (!ctrlComp.parameters.count("hit_threshold") && !ctrlComp.parameters.count("offset") && ctrlComp.parameters.count("threshold")) fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.0);
             fc.polarity = getParamString(ctrlComp, "direction", "either");
         } else if (ctrlComp.type == ComponentType::Saturation) {
             fc.minVal = evaluateParam(ctrlComp, "min", -10.0);
@@ -1344,15 +1346,30 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double offset = fc.thresholdVal;
                 double hit = 0.0;
-                double prev = fc.prevVal;
-                if (fc.polarity == "rising" && prev < offset && inVal >= offset) hit = 1.0;
-                else if (fc.polarity == "falling" && prev > offset && inVal <= offset) hit = 1.0;
-                else if ((prev < offset && inVal >= offset) || (prev > offset && inVal <= offset)) hit = 1.0;
-                if (currentTime > fc.lastTime) {
-                    fc.prevVal = inVal;
-                    fc.lastTime = currentTime;
+
+                if (currentTime <= 0.0) {
+                    val = 0.0;
+                    fc.stateVal = inVal;
+                    fc.nextStateVal = inVal;
+                    fc.lastTime = 0.0;
+                } else {
+                    if (currentTime > fc.lastTime) {
+                        fc.stateVal = fc.nextStateVal;
+                        fc.lastTime = currentTime;
+                    }
+                    double prev = fc.stateVal;
+                    if (fc.polarity == "rising") {
+                        if (prev < offset && inVal >= offset) hit = 1.0;
+                    } else if (fc.polarity == "falling") {
+                        if (prev > offset && inVal <= offset) hit = 1.0;
+                    } else {
+                        if ((prev < offset && inVal >= offset) || (prev > offset && inVal <= offset)) hit = 1.0;
+                    }
+                    if (pass == 0) {
+                        fc.nextStateVal = inVal;
+                    }
+                    val = hit;
                 }
-                val = hit;
             }
             else if (fc.type == ComponentType::Saturation) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
