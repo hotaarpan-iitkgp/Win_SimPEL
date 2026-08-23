@@ -168,7 +168,8 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Gain" || t == "GAIN" || t == "gains") return ComponentType::Gain;
     if (t == "SummingJunction" || t == "SUM" || t == "SUM_RECT" || t == "SUM_ROUND" || t == "SUBTRACT" || t == "SUB" || t == "summing_junctions") return ComponentType::SummingJunction;
     if (t == "Product" || t == "PRODUCT" || t == "PROD" || t == "PRODUCT_RECT" || t == "product_blocks") return ComponentType::Product;
-    if (t == "PWM_Generator" || t == "PWM" || t == "PWM_MASTER" || t == "pwm_generators") return ComponentType::PWM_Generator;
+    if (t == "PWM_MASTER" || t == "Master_PWM" || t == "PwmMaster" || t == "PWM_Master" || t == "pwm_masters") return ComponentType::PWM_MASTER;
+    if (t == "PWM_Generator" || t == "PWM" || t == "pwm_generators") return ComponentType::PWM_Generator;
     if (t == "Triangle_Carrier" || t == "TRIANGLE" || t == "TRI" || t == "TRI_GEN" || t == "triangle_carriers") return ComponentType::Triangle_Carrier;
     if (t == "PI_Controller" || t == "PI" || t == "PID" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "pi_controllers" || t == "pid_controllers") return ComponentType::ContinuousPID;
     if (t == "Comparator" || t == "COMP" || t == "E_COMP" || t == "comparators") return ComponentType::Comparator;

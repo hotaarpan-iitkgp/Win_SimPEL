@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <sstream>
 #include <random>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 namespace CircuitSimEngine {
 
@@ -357,6 +360,102 @@ void CircuitSimulator::buildIndexMaps() {
                 if (inK.empty() && i == 0) inK = getParamString(ctrlComp, "In", "");
                 fc.inputSigKeys.push_back(inK);
                 fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
+            }
+        } else if (ctrlComp.type == ComponentType::PWM_MASTER) {
+            int numCarriers = (int)evaluateParam(ctrlComp, "num_carriers", 3.0);
+            if (!ctrlComp.parameters.count("num_carriers") && ctrlComp.parameters.count("N")) {
+                numCarriers = (int)evaluateParam(ctrlComp, "N", 3.0);
+            }
+            if (numCarriers < 1) numCarriers = 1;
+
+            fc.freq = evaluateParam(ctrlComp, "fc", 10000.0);
+            if (!ctrlComp.parameters.count("fc") && ctrlComp.parameters.count("carrier_freq")) fc.freq = evaluateParam(ctrlComp, "carrier_freq", 10000.0);
+            if (!ctrlComp.parameters.count("fc") && !ctrlComp.parameters.count("carrier_freq") && ctrlComp.parameters.count("frequency")) fc.freq = evaluateParam(ctrlComp, "frequency", 10000.0);
+            if (!ctrlComp.parameters.count("fc") && !ctrlComp.parameters.count("carrier_freq") && !ctrlComp.parameters.count("frequency") && ctrlComp.parameters.count("freq")) fc.freq = evaluateParam(ctrlComp, "freq", 10000.0);
+
+            fc.delayDuration = evaluateParam(ctrlComp, "dead_time", 1e-6);
+            if (!ctrlComp.parameters.count("dead_time") && ctrlComp.parameters.count("deadtime")) fc.delayDuration = evaluateParam(ctrlComp, "deadtime", 1e-6);
+            if (!ctrlComp.parameters.count("dead_time") && !ctrlComp.parameters.count("deadtime") && ctrlComp.parameters.count("dead_Time")) fc.delayDuration = evaluateParam(ctrlComp, "dead_Time", 1e-6);
+
+            bool isCommonMod = (getParamString(ctrlComp, "common_modulation", "false") == "true");
+
+            fc.numInputs = numCarriers;
+            fc.pwmMasterInIndices.assign(numCarriers, -1);
+            fc.pwmMasterExtPhaseIndices.assign(numCarriers, -1);
+            fc.pwmMasterOutDirectIndices.assign(numCarriers, -1);
+            fc.pwmMasterOutComplIndices.assign(numCarriers, -1);
+            fc.pwmMasterPhaseDeg.assign(numCarriers, 0.0);
+            fc.pwmMasterLevelOffset.assign(numCarriers, 0.0);
+            fc.pwmMasterPhaseExt.assign(numCarriers, false);
+            fc.pwmMasterLastTargetDirect.assign(numCarriers, 0);
+            fc.pwmMasterLastTargetCompl.assign(numCarriers, 0);
+            fc.pwmMasterLastTransDirect.assign(numCarriers, 0.0);
+            fc.pwmMasterLastTransCompl.assign(numCarriers, 0.0);
+            fc.pwmMasterDirectOut.assign(numCarriers, 0.0);
+            fc.pwmMasterComplOut.assign(numCarriers, 0.0);
+
+            std::string configStr = getParamString(ctrlComp, "config", "[]");
+            if (!configStr.empty() && configStr != "[]") {
+                try {
+                    auto cfgJson = json::parse(configStr);
+                    if (cfgJson.is_array()) {
+                        for (const auto& cItem : cfgJson) {
+                            if (cItem.is_object() && cItem.contains("id")) {
+                                int cId = 0;
+                                if (cItem["id"].is_number()) cId = cItem["id"].template get<int>();
+                                else if (cItem["id"].is_string()) cId = std::stoi(cItem["id"].template get<std::string>());
+                                if (cId >= 1 && cId <= numCarriers) {
+                                    int idx = cId - 1;
+                                    if (cItem.contains("phase_source") && cItem["phase_source"] == "external") {
+                                        fc.pwmMasterPhaseExt[idx] = true;
+                                    }
+                                    if (cItem.contains("phase")) {
+                                        if (cItem["phase"].is_string()) fc.pwmMasterPhaseDeg[idx] = std::stod(cItem["phase"].template get<std::string>());
+                                        else if (cItem["phase"].is_number()) fc.pwmMasterPhaseDeg[idx] = cItem["phase"].template get<double>();
+                                    }
+                                    if (cItem.contains("level_shift") && cItem["level_shift"].is_boolean() && cItem["level_shift"].template get<bool>()) {
+                                        if (cItem.contains("level_offset")) {
+                                            if (cItem["level_offset"].is_string()) fc.pwmMasterLevelOffset[idx] = std::stod(cItem["level_offset"].template get<std::string>());
+                                            else if (cItem["level_offset"].is_number()) fc.pwmMasterLevelOffset[idx] = cItem["level_offset"].template get<double>();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (...) {}
+            }
+
+            std::string commonInKey = getParamString(ctrlComp, "In", "");
+            if (commonInKey.empty()) commonInKey = getParamString(ctrlComp, "In1", "");
+
+            for (int i = 0; i < numCarriers; ++i) {
+                int chIdx = i + 1;
+                std::string inK = isCommonMod ? commonInKey : getParamString(ctrlComp, "In" + std::to_string(chIdx), "");
+                if (inK.empty() && !isCommonMod) inK = getParamString(ctrlComp, "input_" + std::to_string(chIdx), "");
+                if (inK.empty() && !isCommonMod) inK = getParamString(ctrlComp, "input" + std::to_string(chIdx), "");
+                if (inK.empty() && i == 0) inK = commonInKey;
+
+                if (!inK.empty()) {
+                    fc.pwmMasterInIndices[i] = getOrCreateSignalIdx(inK);
+                }
+
+                if (fc.pwmMasterPhaseExt[i]) {
+                    std::string extK = getParamString(ctrlComp, "ExtPhase" + std::to_string(chIdx), "");
+                    if (!extK.empty()) fc.pwmMasterExtPhaseIndices[i] = getOrCreateSignalIdx(extK);
+                }
+
+                std::string dKey = ctrlComp.id + ".P" + std::to_string(chIdx);
+                std::string cKey = ctrlComp.id + ".P" + std::to_string(chIdx) + "_n";
+
+                fc.pwmMasterOutDirectIndices[i] = getOrCreateSignalIdx(dKey);
+                fc.pwmMasterOutComplIndices[i] = getOrCreateSignalIdx(cKey);
+
+                fc.outputSigKeys.push_back(dKey);
+                fc.outputSigKeys.push_back(cKey);
+                fc.outputSigKeys.push_back(ctrlComp.id + ".OutDirect" + std::to_string(chIdx));
+                fc.outputSigKeys.push_back(ctrlComp.id + ".OutCompl" + std::to_string(chIdx));
+                fc.outputSigKeys.push_back(ctrlComp.id + ".Out" + std::to_string(chIdx));
             }
         } else if (ctrlComp.type == ComponentType::LUT_1D) {
             fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
@@ -2028,8 +2127,68 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
                 if (mode == "floor") val = std::floor(u);
                 else if (mode == "ceil") val = std::ceil(u);
-                else if (mode == "fix" || mode == "zero") val = std::trunc(u);
                 else val = std::round(u);
+            }
+            else if (fc.type == ComponentType::PWM_MASTER) {
+                int N = fc.numInputs;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double deadTime = fc.delayDuration;
+                double Tc = 1.0 / fcHz;
+
+                for (int i = 0; i < N; ++i) {
+                    double vMod = (fc.pwmMasterInIndices[i] >= 0 && fc.pwmMasterInIndices[i] < (int)flatControlSignals.size()) 
+                                  ? flatControlSignals[fc.pwmMasterInIndices[i]] : 0.0;
+
+                    double phaseDeg = fc.pwmMasterPhaseDeg[i];
+                    if (fc.pwmMasterPhaseExt[i] && fc.pwmMasterExtPhaseIndices[i] >= 0 && fc.pwmMasterExtPhaseIndices[i] < (int)flatControlSignals.size()) {
+                        phaseDeg = flatControlSignals[fc.pwmMasterExtPhaseIndices[i]];
+                    }
+
+                    double lOffset = fc.pwmMasterLevelOffset[i];
+                    double tOffset = (phaseDeg / 360.0) * Tc;
+                    double tLocal = std::fmod(currentTime - tOffset, Tc);
+                    if (tLocal < 0.0) tLocal += Tc;
+
+                    double triVal = (tLocal < Tc / 2.0) 
+                                    ? (tLocal / (Tc / 2.0)) 
+                                    : (1.0 - (tLocal - Tc / 2.0) / (Tc / 2.0));
+                    double vCarrier = triVal + lOffset;
+
+                    int targetDirect = (vMod >= vCarrier) ? 1 : 0;
+                    int targetCompl = (targetDirect == 0) ? 1 : 0;
+
+                    if (pass == 0 && currentTime > fc.lastTime) {
+                        if (targetDirect == 1 && fc.pwmMasterLastTargetDirect[i] == 0) {
+                            fc.pwmMasterLastTransDirect[i] = currentTime;
+                        }
+                        if (targetCompl == 1 && fc.pwmMasterLastTargetCompl[i] == 0) {
+                            fc.pwmMasterLastTransCompl[i] = currentTime;
+                        }
+                        fc.pwmMasterLastTargetDirect[i] = targetDirect;
+                        fc.pwmMasterLastTargetCompl[i] = targetCompl;
+                    }
+
+                    double outD = (targetDirect == 1 && (currentTime - fc.pwmMasterLastTransDirect[i] >= deadTime - 1e-12)) ? 1.0 : 0.0;
+                    double outC = (targetCompl == 1 && (currentTime - fc.pwmMasterLastTransCompl[i] >= deadTime - 1e-12)) ? 1.0 : 0.0;
+
+                    int dIdx = fc.pwmMasterOutDirectIndices[i];
+                    int cIdx = fc.pwmMasterOutComplIndices[i];
+                    if (dIdx >= 0 && dIdx < (int)flatControlSignals.size()) flatControlSignals[dIdx] = outD;
+                    if (cIdx >= 0 && cIdx < (int)flatControlSignals.size()) flatControlSignals[cIdx] = outC;
+
+                    int chIdx = i + 1;
+                    auto itD2 = signalKeyToIdx.find(fc.id + ".OutDirect" + std::to_string(chIdx));
+                    if (itD2 != signalKeyToIdx.end() && itD2->second < (int)flatControlSignals.size()) flatControlSignals[itD2->second] = outD;
+                    auto itC2 = signalKeyToIdx.find(fc.id + ".OutCompl" + std::to_string(chIdx));
+                    if (itC2 != signalKeyToIdx.end() && itC2->second < (int)flatControlSignals.size()) flatControlSignals[itC2->second] = outC;
+                    auto itD3 = signalKeyToIdx.find(fc.id + ".Out" + std::to_string(chIdx));
+                    if (itD3 != signalKeyToIdx.end() && itD3->second < (int)flatControlSignals.size()) flatControlSignals[itD3->second] = outD;
+                }
+                if (pass == 0 && currentTime > fc.lastTime) {
+                    fc.lastTime = currentTime;
+                }
+                val = (N > 0 && fc.pwmMasterOutDirectIndices[0] >= 0 && fc.pwmMasterOutDirectIndices[0] < (int)flatControlSignals.size()) 
+                      ? flatControlSignals[fc.pwmMasterOutDirectIndices[0]] : 0.0;
             }
             else if (fc.type == ComponentType::LUT_2D) {
                 double u1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;

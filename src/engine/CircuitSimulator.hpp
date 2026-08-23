@@ -166,6 +166,7 @@ enum class ComponentType {
     ShiftReg,
 
     // Control Modulators & Signal Transforms
+    PWM_MASTER,
     PWM_3PH,
     SVPWM,
     Clarke,
@@ -284,6 +285,21 @@ struct FastCompiledComponent {
     std::vector<double> shiftBuffer;  // Buffer for SHIFT_REG
     int numInputs = 2;           // Number of inputs for multi-input logic blocks
     int shiftLength = 4;         // Shift register length
+
+    // PWM_MASTER state fields
+    std::vector<int> pwmMasterInIndices;
+    std::vector<int> pwmMasterExtPhaseIndices;
+    std::vector<int> pwmMasterOutDirectIndices;
+    std::vector<int> pwmMasterOutComplIndices;
+    std::vector<double> pwmMasterPhaseDeg;
+    std::vector<double> pwmMasterLevelOffset;
+    std::vector<bool> pwmMasterPhaseExt;
+    std::vector<int> pwmMasterLastTargetDirect;
+    std::vector<int> pwmMasterLastTargetCompl;
+    std::vector<double> pwmMasterLastTransDirect;
+    std::vector<double> pwmMasterLastTransCompl;
+    std::vector<double> pwmMasterDirectOut;
+    std::vector<double> pwmMasterComplOut;
 
     double stateVal = 0.0;
     double nextStateVal = 0.0;
