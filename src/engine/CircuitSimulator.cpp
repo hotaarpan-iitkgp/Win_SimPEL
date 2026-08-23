@@ -532,14 +532,10 @@ void CircuitSimulator::buildIndexMaps() {
         fc.outKey = getParamString(ctrlComp, "output", "");
         fc.targetKey = getParamString(ctrlComp, "target", "");
         fc.ctrlSigKey = getParamString(ctrlComp, "selected_signals", "");
-        // For flip-flops and shift registers, clock comes from "Ctrl" parameter
-        if (fc.ctrlSigKey.empty()) {
-            if (ctrlComp.type == ComponentType::DFlipFlop ||
-                ctrlComp.type == ComponentType::JKFlipFlop ||
-                ctrlComp.type == ComponentType::ShiftReg) {
-                fc.ctrlSigKey = getParamString(ctrlComp, "Ctrl", "");
-            }
-        }
+        if (fc.ctrlSigKey.empty()) fc.ctrlSigKey = getParamString(ctrlComp, "control_signal", "");
+        if (fc.ctrlSigKey.empty()) fc.ctrlSigKey = getParamString(ctrlComp, "Control", "");
+        if (fc.ctrlSigKey.empty()) fc.ctrlSigKey = getParamString(ctrlComp, "Ctrl", "");
+        if (fc.ctrlSigKey.empty()) fc.ctrlSigKey = getParamString(ctrlComp, "control", "");
 
         if (ctrlComp.type == ComponentType::Clarke) {
             fc.outKey = ctrlComp.id + ".Alpha";
