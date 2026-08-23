@@ -286,6 +286,7 @@ struct FastCompiledComponent {
     int shiftLength = 4;         // Shift register length
 
     double stateVal = 0.0;
+    double nextStateVal = 0.0;
     double filterState = 0.0;
     std::vector<double> stateVector;
 

@@ -1111,12 +1111,20 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::Derivative) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
-                if (currentTime == 0.0) {
-                    if (pass == 0) fc.stateVal = inVal;
+                if (currentTime <= 0.0) {
                     val = 0.0;
+                    fc.stateVal = inVal;
+                    fc.nextStateVal = inVal;
+                    fc.lastTime = 0.0;
                 } else {
+                    if (currentTime > fc.lastTime) {
+                        fc.stateVal = fc.nextStateVal;
+                        fc.lastTime = currentTime;
+                    }
                     val = (inVal - fc.stateVal) / dt;
-                    if (pass == 0) fc.stateVal = inVal;
+                    if (pass == 0) {
+                        fc.nextStateVal = inVal;
+                    }
                 }
             }
             else if (fc.type == ComponentType::TransferFunction) {
