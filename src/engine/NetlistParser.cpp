@@ -371,15 +371,31 @@ struct DisjointSet {
 
 static std::string endpointToPinKey(const json& ep) {
     if (!ep.is_object()) return "";
-    if (ep.contains("type") && ep["type"] == "pin") {
-        std::string cId = ep.contains("compId") ? ep["compId"].get<std::string>() : "";
-        std::string term = ep.contains("terminal") ? ep["terminal"].get<std::string>() : "";
-        return cId + "." + term;
-    } else if (ep.contains("type") && ep["type"] == "wire") {
+    std::string cId = ep.contains("compId") ? ep["compId"].get<std::string>() : (ep.contains("comp") ? ep["comp"].get<std::string>() : "");
+    std::string term = ep.contains("terminal") ? ep["terminal"].get<std::string>() : (ep.contains("term") ? ep["term"].get<std::string>() : "");
+    if (!cId.empty() && !term.empty()) return cId + "." + term;
+    if (ep.contains("type") && ep["type"] == "wire") {
         std::string wId = ep.contains("wireId") ? ep["wireId"].get<std::string>() : "";
         return "WIRE:" + wId;
     }
     return "";
+}
+
+static void parseWireEndpointKeys(const json& w, std::string& kFrom, std::string& kTo) {
+    kFrom = ""; kTo = "";
+    if (w.contains("from")) kFrom = endpointToPinKey(w["from"]);
+    if (w.contains("to")) kTo = endpointToPinKey(w["to"]);
+
+    if (kFrom.empty()) {
+        std::string cId = w.contains("fromComp") ? w["fromComp"].get<std::string>() : "";
+        std::string term = w.contains("fromTerm") ? w["fromTerm"].get<std::string>() : (w.contains("fromTerminal") ? w["fromTerminal"].get<std::string>() : "");
+        if (!cId.empty() && !term.empty()) kFrom = cId + "." + term;
+    }
+    if (kTo.empty()) {
+        std::string cId = w.contains("toComp") ? w["toComp"].get<std::string>() : "";
+        std::string term = w.contains("toTerm") ? w["toTerm"].get<std::string>() : (w.contains("toTerminal") ? w["toTerminal"].get<std::string>() : "");
+        if (!cId.empty() && !term.empty()) kTo = cId + "." + term;
+    }
 }
 
 bool NetlistParser::parseJsonString(const std::string& jsonContent, 
@@ -470,8 +486,8 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
 
             DisjointSet dset;
             for (const auto& w : root["wires"]) {
-                std::string kFrom = endpointToPinKey(w["from"]);
-                std::string kTo = endpointToPinKey(w["to"]);
+                std::string kFrom, kTo;
+                parseWireEndpointKeys(w, kFrom, kTo);
                 if (!kFrom.empty() && !kTo.empty()) {
                     dset.unite(kFrom, kTo);
                 }
@@ -502,8 +518,8 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
             // Map GOTO, FROM, and direct wire connections to switch gates & control inputs
             std::unordered_map<std::string, std::string> gotoTagToSignalKey;
             for (const auto& w : root["wires"]) {
-                std::string kFrom = endpointToPinKey(w["from"]);
-                std::string kTo = endpointToPinKey(w["to"]);
+                std::string kFrom, kTo;
+                parseWireEndpointKeys(w, kFrom, kTo);
                 
                 for (const auto& c : rawComps) {
                     if (c.parameters.count("tag")) {
@@ -521,6 +537,11 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                     for (auto& c : rawComps) {
                         if (c.id == compId) {
                             c.parameters[pinName] = kFrom;
+                            if (pinName == "A" || pinName == "In1") {
+                                c.parameters["In1"] = kFrom; c.parameters["In"] = kFrom; c.parameters["A"] = kFrom; c.parameters["input_0"] = kFrom; c.parameters["input_a"] = kFrom;
+                            } else if (pinName == "B" || pinName == "In2") {
+                                c.parameters["In2"] = kFrom; c.parameters["B"] = kFrom; c.parameters["input_1"] = kFrom; c.parameters["input_b"] = kFrom;
+                            }
                             if (pinName == "G" || pinName == "Ctrl" || pinName == "Gate" || pinName == "Control" || pinName == "control") {
                                 c.parameters["control_signal"] = kFrom;
                                 c.parameters["Control"] = kFrom;

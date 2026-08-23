@@ -1633,8 +1633,8 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = (in1 > 0.5 || in2 > 0.5) ? 1.0 : 0.0;
             }
             else if (fc.type == ComponentType::LogicOp) {
-                double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                double in1 = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double in2 = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
                 std::string op = fc.polarity;
                 bool a = (in1 > 0.5), b = (in2 > 0.5);
                 if (op == "AND") val = (a && b) ? 1.0 : 0.0;
@@ -1645,6 +1645,16 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 else if (op == "NXOR" || op == "XNOR") val = (a == b) ? 1.0 : 0.0;
                 else if (op == "NOT") val = (!a) ? 1.0 : 0.0;
                 else val = 0.0;
+
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"Out", val}, {"out", val}, {"Y", val}, {"y", val}, {"Out1", val}
+                };
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
             }
             else if (fc.type == ComponentType::BitwiseOp) {
                 int in1 = (int)(fc.in0Ptr ? *fc.in0Ptr : 0.0);

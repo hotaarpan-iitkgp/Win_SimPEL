@@ -893,12 +893,35 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input_0"] = inA;
             cObj["input_1"] = inB;
             ctrlLoopsObj["comparators"].push_back(cObj);
-        } else if (t == "LOGIC_OP") {
+        } else if (t == "LOGIC_OP" || t == "NAND" || t == "NOR" || t == "XOR" || t == "XNOR" || t == "NXOR" || t == "AND" || t == "OR" || t == "NOT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "LOGIC_OP";
-            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "AND";
-            cObj["input1"] = getIncomingSignal(comp.id, "In1");
-            cObj["input2"] = getIncomingSignal(comp.id, "In2");
+            std::string op = comp.parameters.count("operator") ? comp.parameters.at("operator") : t;
+            if (op.empty()) op = t;
+            cObj["operator"] = op;
+            std::string in1 = getIncomingSignal(comp.id, "In1");
+            if (in1 == "0.0") in1 = getIncomingSignal(comp.id, "In");
+            if (in1 == "0.0") in1 = getIncomingSignal(comp.id, "A");
+            std::string in2 = getIncomingSignal(comp.id, "In2");
+            if (in2 == "0.0") in2 = getIncomingSignal(comp.id, "B");
+            cObj["input1"] = in1;
+            cObj["input2"] = in2;
+            cObj["input_a"] = in1;
+            cObj["input_b"] = in2;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "MATH_FCN" || t == "MATH_FUNC" || t == "MathFunction" || t == "MATH") {
+            cObj["output"] = comp.id + ".Out";
+            cObj["original_type"] = "MATH_FCN";
+            cObj["function"] = comp.parameters.count("function") ? comp.parameters.at("function") : (comp.parameters.count("fcn") ? comp.parameters.at("fcn") : "exp");
+            std::string in1 = getIncomingSignal(comp.id, "In");
+            if (in1 == "0.0") in1 = getIncomingSignal(comp.id, "In1");
+            if (in1 == "0.0") in1 = getIncomingSignal(comp.id, "A");
+            std::string in2 = getIncomingSignal(comp.id, "In2");
+            if (in2 == "0.0") in2 = getIncomingSignal(comp.id, "B");
+            cObj["input"] = in1;
+            cObj["input1"] = in1;
+            cObj["input2"] = in2;
+            cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "BITWISE_OP") {
             cObj["output"] = comp.id + ".Out";
