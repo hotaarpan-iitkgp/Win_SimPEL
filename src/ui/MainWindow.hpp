@@ -68,6 +68,7 @@ private:
     bool loadDemoJsonFile(const std::string& filename);
     void loadSchematicFromJson(const nlohmann::json& j);
     void renderPropertyInspector();
+    void renderBatchPropertyInspector(const std::vector<ComponentInstance*>& selectedComps);
     void renderSimParamsModal();
     void renderCSCRIPTEditorModal();
     void renderExportOptionsModal();

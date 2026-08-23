@@ -889,6 +889,17 @@ ComponentInstance* SchematicCanvas::getSelectedComponent() {
     return nullptr;
 }
 
+std::vector<ComponentInstance*> SchematicCanvas::getSelectedComponents() {
+    std::vector<ComponentInstance*> result;
+    if (selectedComponentIds.empty()) return result;
+    for (auto& c : design.components) {
+        if (selectedComponentIds.count(c.id)) {
+            result.push_back(&c);
+        }
+    }
+    return result;
+}
+
 void SchematicCanvas::drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos) {
     float gridSize = 20.0f * zoomLevel;
     ImU32 gridColor = isDarkMode ? IM_COL32(35, 42, 56, 180) : IM_COL32(232, 227, 185, 220);

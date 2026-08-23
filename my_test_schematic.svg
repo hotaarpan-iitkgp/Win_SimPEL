@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="110 -50 620 580" width="800" height="600">
+<style>
+  .grid { stroke: #f1f5f9; stroke-width: 0.5; stroke-dasharray: 2,4; }
+  .wire { stroke: #0284c7; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .control-wire { stroke: #0284c7; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .comp-body { stroke: #0f172a; stroke-width: 2.0; fill: #ffffff; stroke-linecap: round; stroke-linejoin: round; }
+  .comp-label { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: bold; fill: #0f172a; text-anchor: middle; }
+  .param-label { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 500; fill: #0284c7; text-anchor: middle; }
+  .pin-dot { fill: #059669; }
+  .ctrl-dot { fill: #0284c7; }
+</style>
+<rect x="110" y="-50" width="620" height="580" fill="#ffffff"/>
+<g class="grid">
+  <line x1="100" y1="-50" x2="100" y2="530"/>
+  <line x1="140" y1="-50" x2="140" y2="530"/>
+  <line x1="180" y1="-50" x2="180" y2="530"/>
+  <line x1="220" y1="-50" x2="220" y2="530"/>
+  <line x1="260" y1="-50" x2="260" y2="530"/>
+  <line x1="300" y1="-50" x2="300" y2="530"/>
+  <line x1="340" y1="-50" x2="340" y2="530"/>
+  <line x1="380" y1="-50" x2="380" y2="530"/>
+  <line x1="420" y1="-50" x2="420" y2="530"/>
+  <line x1="460" y1="-50" x2="460" y2="530"/>
+  <line x1="500" y1="-50" x2="500" y2="530"/>
+  <line x1="540" y1="-50" x2="540" y2="530"/>
+  <line x1="580" y1="-50" x2="580" y2="530"/>
+  <line x1="620" y1="-50" x2="620" y2="530"/>
+  <line x1="660" y1="-50" x2="660" y2="530"/>
+  <line x1="700" y1="-50" x2="700" y2="530"/>
+  <line x1="110" y1="-60" x2="730" y2="-60"/>
+  <line x1="110" y1="-20" x2="730" y2="-20"/>
+  <line x1="110" y1="20" x2="730" y2="20"/>
+  <line x1="110" y1="60" x2="730" y2="60"/>
+  <line x1="110" y1="100" x2="730" y2="100"/>
+  <line x1="110" y1="140" x2="730" y2="140"/>
+  <line x1="110" y1="180" x2="730" y2="180"/>
+  <line x1="110" y1="220" x2="730" y2="220"/>
+  <line x1="110" y1="260" x2="730" y2="260"/>
+  <line x1="110" y1="300" x2="730" y2="300"/>
+  <line x1="110" y1="340" x2="730" y2="340"/>
+  <line x1="110" y1="380" x2="730" y2="380"/>
+  <line x1="110" y1="420" x2="730" y2="420"/>
+  <line x1="110" y1="460" x2="730" y2="460"/>
+  <line x1="110" y1="500" x2="730" y2="500"/>
+</g>
+<g id="wires">
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+  <polyline class="wire" points="0,0 0,0 0,0 0,0 0,0 0,0"/>
+</g>
+<g id="components">
+  <g id="MOSFET1">
+    <line x1="380" y1="20" x2="380" y2="45" class="comp-body" stroke-width="2"/>
+    <line x1="380" y1="75" x2="380" y2="100" class="comp-body" stroke-width="2"/>
+    <line x1="375" y1="45" x2="375" y2="75" class="comp-body" stroke-width="2"/>
+    <line x1="375" y1="60" x2="380" y2="60" class="comp-body" stroke-width="2"/>
+    <line x1="370" y1="45" x2="370" y2="75" class="comp-body" stroke-width="2"/>
+    <line x1="360" y1="60" x2="370" y2="60" class="comp-body" stroke-width="2"/>
+    <line x1="380" y1="75" x2="392" y2="75" class="comp-body" stroke-width="2"/>
+    <line x1="392" y1="75" x2="392" y2="66" class="comp-body" stroke-width="2"/>
+    <polygon points="387,66 397,66 392,54" class="comp-body" stroke-width="1.5" fill="#ffffff"/>
+    <line x1="387" y1="54" x2="397" y2="54" class="comp-body" stroke-width="2"/>
+    <line x1="392" y1="54" x2="392" y2="45" class="comp-body" stroke-width="2"/>
+    <line x1="392" y1="45" x2="380" y2="45" class="comp-body" stroke-width="2"/>
+    <text x="380" y="28" class="comp-label">MOSFET1</text>
+    <circle cx="380" cy="20" r="2.5" class="pin-dot"/>
+    <circle cx="380" cy="100" r="2.5" class="pin-dot"/>
+    <circle cx="360" cy="60" r="2.5" class="ctrl-dot"/>
+  </g>
+  <g id="FROM_SIG1">
+    <polygon points="279.508,42 327.508,42 327.508,78 279.508,78" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <text x="303.508" y="64" class="comp-label">FROM_SIG</text>
+    <text x="303.508" y="28" class="comp-label">FROM_SIG1</text>
+    <circle cx="318.508" cy="60" r="2.5" class="ctrl-dot"/>
+  </g>
+  <g id="D1">
+    <line x1="380" y1="260" x2="380" y2="228" class="comp-body" stroke-width="2"/>
+    <polygon points="392,228 368,228 380,212" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <line x1="392" y1="212" x2="368" y2="212" class="comp-body" stroke-width="2"/>
+    <line x1="380" y1="212" x2="380" y2="180" class="comp-body" stroke-width="2"/>
+    <text x="380" y="188" class="comp-label">D1</text>
+    <circle cx="380" cy="260" r="2.5" class="pin-dot"/>
+    <circle cx="380" cy="180" r="2.5" class="pin-dot"/>
+  </g>
+  <g id="V1">
+    <line x1="220" y1="120" x2="220" y2="144" class="comp-body" stroke-width="2"/>
+    <line x1="220" y1="176" x2="220" y2="200" class="comp-body" stroke-width="2"/>
+    <circle cx="220" cy="160" r="16" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <line x1="217" y1="153" x2="223" y2="153" class="comp-body" stroke-width="2"/>
+    <line x1="220" y1="150" x2="220" y2="156" class="comp-body" stroke-width="2"/>
+    <line x1="217" y1="167" x2="223" y2="167" class="comp-body" stroke-width="2"/>
+    <text x="220" y="128" class="comp-label">V1</text>
+    <text x="220" y="198" class="param-label">100</text>
+    <circle cx="220" cy="120" r="2.5" class="pin-dot"/>
+    <circle cx="220" cy="200" r="2.5" class="pin-dot"/>
+  </g>
+  <g id="L1">
+    <line x1="440" y1="140" x2="460" y2="140" class="comp-body" stroke-width="2"/>
+    <path d="M 460,140 C 460,154 473.4,154 473.4,140" class="comp-body" stroke-width="2" fill="none"/>
+    <path d="M 473.3,140 C 473.3,154 486.7,154 486.7,140" class="comp-body" stroke-width="2" fill="none"/>
+    <path d="M 486.6,140 C 486.6,154 500,154 500,140" class="comp-body" stroke-width="2" fill="none"/>
+    <line x1="500" y1="140" x2="520" y2="140" class="comp-body" stroke-width="2"/>
+    <text x="480" y="118" class="comp-label">L1</text>
+    <text x="480" y="168" class="param-label">100u</text>
+    <circle cx="440" cy="140" r="2.5" class="pin-dot"/>
+    <circle cx="520" cy="140" r="2.5" class="pin-dot"/>
+  </g>
+  <g id="C1">
+    <line x1="560" y1="180" x2="560" y2="215" class="comp-body" stroke-width="2"/>
+    <line x1="545" y1="215" x2="575" y2="215" class="comp-body" stroke-width="2"/>
+    <line x1="545" y1="225" x2="575" y2="225" class="comp-body" stroke-width="2"/>
+    <line x1="560" y1="225" x2="560" y2="260" class="comp-body" stroke-width="2"/>
+    <text x="560" y="188" class="comp-label">C1</text>
+    <text x="560" y="258" class="param-label">100u</text>
+    <circle cx="560" cy="180" r="2.5" class="pin-dot"/>
+    <circle cx="560" cy="260" r="2.5" class="pin-dot"/>
+  </g>
+  <g id="R1">
+    <polyline points="620,180 620,200 610,205 630,211 610,217 630,223 610,229 630,235 620,240 620,260" class="comp-body" stroke-width="2" fill="none"/>
+    <text x="620" y="188" class="comp-label">R1</text>
+    <text x="620" y="258" class="param-label">10</text>
+    <circle cx="620" cy="180" r="2.5" class="pin-dot"/>
+    <circle cx="620" cy="260" r="2.5" class="pin-dot"/>
+  </g>
+  <g id="GOTO_SIG1">
+    <polygon points="436,382 484,382 484,418 436,418" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <text x="460" y="404" class="comp-label">GOTO_SIG</text>
+    <text x="460" y="368" class="comp-label">GOTO_SIG1</text>
+    <circle cx="445" cy="400" r="2.5" class="ctrl-dot"/>
+  </g>
+  <g id="COMP1">
+    <polygon points="336,382 384,382 384,418 336,418" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <text x="360" y="404" class="comp-label">COMP</text>
+    <text x="360" y="368" class="comp-label">COMP1</text>
+    <circle cx="340" cy="390" r="2.5" class="pin-dot"/>
+    <circle cx="340" cy="410" r="2.5" class="pin-dot"/>
+    <circle cx="380" cy="400" r="2.5" class="ctrl-dot"/>
+  </g>
+  <g id="TRI1">
+    <polygon points="216,362 264,362 264,398 216,398" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <text x="240" y="384" class="comp-label">TRI</text>
+    <text x="240" y="348" class="comp-label">TRI1</text>
+    <circle cx="260" cy="380" r="2.5" class="ctrl-dot"/>
+  </g>
+  <g id="CONST1">
+    <polygon points="216,402 264,402 264,438 216,438" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <text x="240" y="424" class="comp-label">CONST</text>
+    <text x="240" y="388" class="comp-label">CONST1</text>
+    <text x="240" y="458" class="param-label">0.5</text>
+    <circle cx="260" cy="420" r="2.5" class="ctrl-dot"/>
+  </g>
+  <g id="SCOPE1">
+    <polygon points="466.253,321.838 514.253,321.838 514.253,357.838 466.253,357.838" class="comp-body" stroke-width="2" fill="#ffffff"/>
+    <text x="490.253" y="343.838" class="comp-label">SCOPE</text>
+    <text x="490.253" y="307.838" class="comp-label">SCOPE1</text>
+    <circle cx="474.253" cy="329.838" r="2.5" class="pin-dot"/>
+    <circle cx="474.253" cy="349.838" r="2.5" class="pin-dot"/>
+  </g>
+</g>
+</svg>

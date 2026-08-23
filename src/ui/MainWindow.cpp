@@ -2034,8 +2034,258 @@ void MainWindow::renderDemoPane() {
     ImGui::End();
 }
 
+void MainWindow::renderBatchPropertyInspector(const std::vector<ComponentInstance*>& selectedComps) {
+    if (selectedComps.empty()) return;
+
+    if (!ImGui::Begin("Property Inspector")) {
+        ImGui::End();
+        return;
+    }
+
+    // 1. Build comma-separated label string
+    std::string labelsStr = "";
+    for (size_t i = 0; i < selectedComps.size(); ++i) {
+        if (i > 0) labelsStr += ", ";
+        labelsStr += selectedComps[i]->label.empty() ? selectedComps[i]->id : selectedComps[i]->label;
+    }
+
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Selected (%d): %s", (int)selectedComps.size(), labelsStr.c_str());
+    
+    // Check if all selected components are of the SAME component type
+    bool sameType = true;
+    std::string firstType = selectedComps[0]->rawTypeStr;
+    for (const auto* c : selectedComps) {
+        if (c->rawTypeStr != firstType) {
+            sameType = false;
+            break;
+        }
+    }
+
+    if (sameType) {
+        ImGui::TextDisabled("Type: %s (Batch Edit Mode)", firstType.c_str());
+    } else {
+        ImGui::TextDisabled("Type: Mixed Component Selection");
+    }
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // ── 2. BATCH SIGNAL PROBING / PLOTTING ──
+    std::vector<ComponentInstance*> electricalComps;
+    for (auto* c : selectedComps) {
+        std::string t = c->rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+        bool isElectrical = (t == "R" || t == "L" || t == "C" || t == "V" || t == "AC_V" || t == "I" || t == "S" || t == "D" || t == "MOSFET" || t == "VM" || t == "AM" || t == "GND");
+        if (isElectrical) {
+            electricalComps.push_back(c);
+        }
+    }
+
+    if (!electricalComps.empty()) {
+        ImGui::TextColored(ImVec4(0.0f, 0.9f, 0.7f, 1.0f), "⚡ Batch Signals to Plot / Probe (%d Electrical):", (int)electricalComps.size());
+        ImGui::Spacing();
+
+        auto& cd = canvas.getCircuitRef();
+        if (cd.plotConfig.plots.empty()) {
+            cd.plotConfig.plots.push_back({ "Waveform Analysis", {} });
+        }
+        auto& plotVars = cd.plotConfig.plots[0].variables;
+
+        // Count how many have Voltage and Current checked
+        int numVChecked = 0;
+        int numIChecked = 0;
+        for (const auto* c : electricalComps) {
+            std::string vSig = "V_" + c->id;
+            std::string iSig = "I_" + c->id;
+            if (std::find(plotVars.begin(), plotVars.end(), vSig) != plotVars.end() ||
+                (c->parameters.count("plotV") && c->parameters.at("plotV") == "1")) {
+                numVChecked++;
+            }
+            if (std::find(plotVars.begin(), plotVars.end(), iSig) != plotVars.end() ||
+                (c->parameters.count("plotI") && c->parameters.at("plotI") == "1")) {
+                numIChecked++;
+            }
+        }
+
+        bool allV = (numVChecked == (int)electricalComps.size());
+        bool allI = (numIChecked == (int)electricalComps.size());
+
+        // Batch Voltage Checkbox
+        bool batchV = allV;
+        std::string vLabel = "Voltage (V) [Batch All " + std::to_string(electricalComps.size()) + "]";
+        if (numVChecked > 0 && numVChecked < (int)electricalComps.size()) {
+            vLabel += " (Partial " + std::to_string(numVChecked) + "/" + std::to_string(electricalComps.size()) + ")";
+        }
+        if (ImGui::Checkbox(vLabel.c_str(), &batchV)) {
+            for (auto* c : electricalComps) {
+                std::string vSig = "V_" + c->id;
+                if (batchV) {
+                    if (std::find(plotVars.begin(), plotVars.end(), vSig) == plotVars.end()) {
+                        plotVars.push_back(vSig);
+                    }
+                    c->parameters["plotV"] = "1";
+                    c->parameters["probe_signal"] = "1";
+                } else {
+                    auto eraseIt = std::find(plotVars.begin(), plotVars.end(), vSig);
+                    if (eraseIt != plotVars.end()) plotVars.erase(eraseIt);
+                    c->parameters["plotV"] = "0";
+                    bool anyLeft = false;
+                    for (const auto& v : plotVars) {
+                        if (v.find(c->id) != std::string::npos) { anyLeft = true; break; }
+                    }
+                    if (!anyLeft) c->parameters["probe_signal"] = "0";
+                }
+            }
+        }
+
+        // Batch Current Checkbox
+        bool batchI = allI;
+        std::string iLabel = "Current (I) [Batch All " + std::to_string(electricalComps.size()) + "]";
+        if (numIChecked > 0 && numIChecked < (int)electricalComps.size()) {
+            iLabel += " (Partial " + std::to_string(numIChecked) + "/" + std::to_string(electricalComps.size()) + ")";
+        }
+        if (ImGui::Checkbox(iLabel.c_str(), &batchI)) {
+            for (auto* c : electricalComps) {
+                std::string iSig = "I_" + c->id;
+                if (batchI) {
+                    if (std::find(plotVars.begin(), plotVars.end(), iSig) == plotVars.end()) {
+                        plotVars.push_back(iSig);
+                    }
+                    c->parameters["plotI"] = "1";
+                    c->parameters["probe_signal"] = "1";
+                } else {
+                    auto eraseIt = std::find(plotVars.begin(), plotVars.end(), iSig);
+                    if (eraseIt != plotVars.end()) plotVars.erase(eraseIt);
+                    c->parameters["plotI"] = "0";
+                    bool anyLeft = false;
+                    for (const auto& v : plotVars) {
+                        if (v.find(c->id) != std::string::npos) { anyLeft = true; break; }
+                    }
+                    if (!anyLeft) c->parameters["probe_signal"] = "0";
+                }
+            }
+        }
+
+        // Quick Batch Probing Buttons
+        ImGui::Spacing();
+        if (ImGui::Button("Probe All V", ImVec2(90, 24))) {
+            for (auto* c : electricalComps) {
+                std::string vSig = "V_" + c->id;
+                if (std::find(plotVars.begin(), plotVars.end(), vSig) == plotVars.end()) {
+                    plotVars.push_back(vSig);
+                }
+                c->parameters["plotV"] = "1";
+                c->parameters["probe_signal"] = "1";
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Probe All I", ImVec2(90, 24))) {
+            for (auto* c : electricalComps) {
+                std::string iSig = "I_" + c->id;
+                if (std::find(plotVars.begin(), plotVars.end(), iSig) == plotVars.end()) {
+                    plotVars.push_back(iSig);
+                }
+                c->parameters["plotI"] = "1";
+                c->parameters["probe_signal"] = "1";
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Clear Probes", ImVec2(90, 24))) {
+            for (auto* c : electricalComps) {
+                std::string vSig = "V_" + c->id;
+                std::string iSig = "I_" + c->id;
+                auto itV = std::find(plotVars.begin(), plotVars.end(), vSig);
+                if (itV != plotVars.end()) plotVars.erase(itV);
+                auto itI = std::find(plotVars.begin(), plotVars.end(), iSig);
+                if (itI != plotVars.end()) plotVars.erase(itI);
+                c->parameters["plotV"] = "0";
+                c->parameters["plotI"] = "0";
+                c->parameters["probe_signal"] = "0";
+            }
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+    }
+
+    // ── 3. BATCH PARAMETER EDITING (FOR SAME TYPE SELECTION) ──
+    if (sameType) {
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "🛠 Batch Parameter Editor:");
+        ImGui::TextDisabled("Single value (e.g. 100) or comma/space separated (e.g. 10, 20, 50)");
+        ImGui::Spacing();
+
+        // Collect all common parameter keys present in the first component
+        std::vector<std::string> paramKeys;
+        for (const auto& pair : selectedComps[0]->parameters) {
+            std::string p = pair.first;
+            if (p == "probe_signal" || p == "plotI" || p == "plotV" || p == "target" || p == "selected_signals" || p == "probe_type" || p == "num_inputs" || p == "num_outputs" || p == "timestep" || p == "code") continue;
+            paramKeys.push_back(p);
+        }
+
+        for (const auto& key : paramKeys) {
+            std::string displayVal = "";
+            bool allIdentical = true;
+            std::string firstVal = selectedComps[0]->parameters.count(key) ? selectedComps[0]->parameters.at(key) : "";
+
+            for (size_t i = 0; i < selectedComps.size(); ++i) {
+                std::string curV = selectedComps[i]->parameters.count(key) ? selectedComps[i]->parameters.at(key) : "";
+                if (i > 0) displayVal += ", ";
+                displayVal += curV;
+                if (curV != firstVal) allIdentical = false;
+            }
+
+            char valBuf[512] = {0};
+            if (allIdentical) {
+                strncpy(valBuf, firstVal.c_str(), sizeof(valBuf) - 1);
+            } else {
+                strncpy(valBuf, displayVal.c_str(), sizeof(valBuf) - 1);
+            }
+
+            std::string inputLabel = key + "##batch_" + key;
+            if (ImGui::InputText(inputLabel.c_str(), valBuf, sizeof(valBuf))) {
+                std::string rawInput(valBuf);
+                std::vector<std::string> tokens;
+                std::string currentTok = "";
+                for (char ch : rawInput) {
+                    if (ch == ',' || ch == ' ') {
+                        if (!currentTok.empty()) {
+                            tokens.push_back(currentTok);
+                            currentTok = "";
+                        }
+                    } else {
+                        currentTok += ch;
+                    }
+                }
+                if (!currentTok.empty()) tokens.push_back(currentTok);
+
+                if (tokens.size() == 1) {
+                    for (auto* c : selectedComps) {
+                        c->parameters[key] = tokens[0];
+                    }
+                } else if (tokens.size() > 1) {
+                    for (size_t i = 0; i < selectedComps.size(); ++i) {
+                        if (i < tokens.size()) {
+                            selectedComps[i]->parameters[key] = tokens[i];
+                        } else {
+                            selectedComps[i]->parameters[key] = tokens.back();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ImGui::End();
+}
+
 void MainWindow::renderPropertyInspector() {
-    ComponentInstance* comp = canvas.getSelectedComponent();
+    auto selectedComps = canvas.getSelectedComponents();
+    if (selectedComps.empty()) return;
+
+    if (selectedComps.size() > 1) {
+        renderBatchPropertyInspector(selectedComps);
+        return;
+    }
+
+    ComponentInstance* comp = selectedComps[0];
     if (!comp) return;
 
     if (ImGui::Begin("Property Inspector")) {

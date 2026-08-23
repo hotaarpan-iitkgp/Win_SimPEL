@@ -126,10 +126,14 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "RateLimiter" || t == "RATE_LIMITER") return ComponentType::RateLimiter;
     if (t == "Relay" || t == "RELAY") return ComponentType::Relay;
     if (t == "Comparator" || t == "COMP" || t == "comparators") return ComponentType::Comparator;
-    if (t == "LogicOp" || t == "LOGIC_OP") return ComponentType::LogicOp;
-    if (t == "NOT" || t == "NOT_OP" || t == "NOT_Gate" || t == "Not") return ComponentType::NOT_Gate;
-    if (t == "AND" || t == "AND_OP" || t == "AND_Gate" || t == "And") return ComponentType::AND_Gate;
-    if (t == "OR" || t == "OR_OP" || t == "OR_Gate" || t == "Or") return ComponentType::OR_Gate;
+    if (t == "LogicOp" || t == "LOGIC_OP" || t == "logic_gates") return ComponentType::LogicOp;
+    if (t == "NOT" || t == "not" || t == "NOT_OP" || t == "NOT_Gate" || t == "Not") return ComponentType::NOT_Gate;
+    if (t == "AND" || t == "and" || t == "AND_OP" || t == "AND_Gate" || t == "And") return ComponentType::AND_Gate;
+    if (t == "OR" || t == "or" || t == "OR_OP" || t == "OR_Gate" || t == "Or") return ComponentType::OR_Gate;
+    if (t == "NAND" || t == "nand" || t == "NAND_OP" || t == "NAND_Gate") return ComponentType::LogicOp;
+    if (t == "NOR" || t == "nor" || t == "NOR_OP" || t == "NOR_Gate") return ComponentType::LogicOp;
+    if (t == "XOR" || t == "xor" || t == "XOR_OP" || t == "XOR_Gate") return ComponentType::LogicOp;
+    if (t == "XNOR" || t == "xnor" || t == "NXOR" || t == "nxor" || t == "XNOR_OP" || t == "XNOR_Gate") return ComponentType::LogicOp;
     if (t == "BitwiseOp" || t == "BITWISE_OP") return ComponentType::BitwiseOp;
     if (t == "CombLogic" || t == "COMB_LOGIC") return ComponentType::CombLogic;
     if (t == "EdgeDetect" || t == "EDGE_DETECT") return ComponentType::EdgeDetect;
@@ -179,6 +183,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "BUS_SELECTOR") return ComponentType::BusSelector;
     if (t == "TERMINATOR" || t == "terminators") return ComponentType::Terminator;
     if (t == "POLYNOMIAL" || t == "functions") return ComponentType::Polynomial;
+    if (t == "MATH_FCN" || t == "MathFcn" || t == "MATH_FUNCTION" || t == "MathFunction") return ComponentType::MathFunction;
     if (t == "ALGEBRAIC_CONSTRAINT") return ComponentType::AlgebraicConstraint;
     if (t == "XFMR" || t == "Transformer" || t == "transformers") return ComponentType::Transformer;
     return ComponentType::Unknown;
@@ -265,6 +270,16 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
         }
     }
 
+    std::string itemTypeLower = itemType;
+    std::transform(itemTypeLower.begin(), itemTypeLower.end(), itemTypeLower.begin(), ::toupper);
+    if (itemTypeLower == "NAND") comp.parameters["operator"] = "NAND";
+    else if (itemTypeLower == "NOR") comp.parameters["operator"] = "NOR";
+    else if (itemTypeLower == "XOR") comp.parameters["operator"] = "XOR";
+    else if (itemTypeLower == "XNOR" || itemTypeLower == "NXOR") comp.parameters["operator"] = "XNOR";
+    else if (itemTypeLower == "NOT") comp.parameters["operator"] = "NOT";
+    else if (itemTypeLower == "AND") comp.parameters["operator"] = "AND";
+    else if (itemTypeLower == "OR") comp.parameters["operator"] = "OR";
+
     if (item.contains("inputs") && item["inputs"].is_array()) {
         int idx = 0;
         for (const auto& inp : item["inputs"]) {
@@ -272,6 +287,14 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
                 std::string sVal = inp.get<std::string>();
                 comp.parameters["input_" + std::to_string(idx)] = sVal;
                 comp.parameters["In" + std::to_string(idx + 1)] = sVal;
+                if (idx == 0) {
+                    comp.parameters["In"] = sVal;
+                    comp.parameters["input"] = sVal;
+                    comp.parameters["input_a"] = sVal;
+                }
+                if (idx == 1) {
+                    comp.parameters["input_b"] = sVal;
+                }
                 idx++;
             }
         }
@@ -297,15 +320,32 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
 
     if (item.contains("parameters") && item["parameters"].is_object()) {
         for (auto& [k, v] : item["parameters"].items()) {
-            if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-            else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+            std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? std::to_string(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
+            comp.parameters[k] = valStr;
+
+            // Alias mappings for parameter key discrepancies
+            if (k == "start_of_dead_zone") comp.parameters["start"] = valStr;
+            else if (k == "end_of_dead_zone") comp.parameters["end"] = valStr;
+            else if (k == "lower_limit") comp.parameters["min"] = valStr;
+            else if (k == "upper_limit") comp.parameters["max"] = valStr;
+            else if (k == "cutoff_freq") comp.parameters["fc"] = valStr;
+            else if (k == "damping") comp.parameters["zeta"] = valStr;
+            else if (k == "pulse_duration") comp.parameters["duration"] = valStr;
         }
     }
 
     for (auto& [k, v] : item.items()) {
         if (k == "id" || k == "nodes" || k == "type" || k == "parameters" || k == "label" || k == "inputs" || k == "outputs") continue;
-        if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-        else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+        std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? std::to_string(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
+        comp.parameters[k] = valStr;
+
+        if (k == "start_of_dead_zone") comp.parameters["start"] = valStr;
+        else if (k == "end_of_dead_zone") comp.parameters["end"] = valStr;
+        else if (k == "lower_limit") comp.parameters["min"] = valStr;
+        else if (k == "upper_limit") comp.parameters["max"] = valStr;
+        else if (k == "cutoff_freq") comp.parameters["fc"] = valStr;
+        else if (k == "damping") comp.parameters["zeta"] = valStr;
+        else if (k == "pulse_duration") comp.parameters["duration"] = valStr;
     }
 
     outList.push_back(comp);
@@ -477,16 +517,13 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                 if (dotPos != std::string::npos) {
                     std::string compId = kTo.substr(0, dotPos);
                     std::string pinName = kTo.substr(dotPos + 1);
-                    if (pinName == "G" || pinName == "Ctrl" || pinName == "Gate") {
-                        for (auto& c : rawComps) {
-                            if (c.id == compId && (c.type == ComponentType::Switch || c.type == ComponentType::MOSFET || c.type == ComponentType::BJT || c.type == ComponentType::JFET || c.type == ComponentType::Thyristor || c.type == ComponentType::IGBTDiode)) {
+                    for (auto& c : rawComps) {
+                        if (c.id == compId) {
+                            c.parameters[pinName] = kFrom;
+                            if (pinName == "G" || pinName == "Ctrl" || pinName == "Gate" || pinName == "Control" || pinName == "control") {
                                 c.parameters["control_signal"] = kFrom;
-                            }
-                        }
-                    } else if (pinName == "In" || pinName.rfind("In", 0) == 0) {
-                        for (auto& c : rawComps) {
-                            if (c.id == compId) {
-                                c.parameters[pinName] = kFrom;
+                                c.parameters["Control"] = kFrom;
+                                c.parameters["Ctrl"] = kFrom;
                             }
                         }
                     }

@@ -531,63 +531,87 @@ void CircuitSimulator::buildIndexMaps() {
 
         if (ctrlComp.type == ComponentType::Clarke) {
             fc.outKey = ctrlComp.id + ".Alpha";
-            std::string inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", "");
-            std::string inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", "");
-            std::string inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", "");
+            std::string inA = getParamString(ctrlComp, "Va", ""); if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", ""); if (inA.empty()) inA = getParamString(ctrlComp, "input_a", "");
+            std::string inB = getParamString(ctrlComp, "Vb", ""); if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", ""); if (inB.empty()) inB = getParamString(ctrlComp, "input_b", "");
+            std::string inC = getParamString(ctrlComp, "Vc", ""); if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", ""); if (inC.empty()) inC = getParamString(ctrlComp, "input_c", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
             fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Valpha");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vbeta");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Valpha"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vbeta"));
         } else if (ctrlComp.type == ComponentType::InvClarke) {
             fc.outKey = ctrlComp.id + ".A";
-            std::string inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", "");
-            std::string inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
+            std::string inAlpha = getParamString(ctrlComp, "Valpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "input_alpha", "");
+            std::string inBeta = getParamString(ctrlComp, "Vbeta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "input_beta", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
             fc.outputSigKeys.push_back(ctrlComp.id + ".A");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Va");
             fc.outputSigKeys.push_back(ctrlComp.id + ".B");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vb");
             fc.outputSigKeys.push_back(ctrlComp.id + ".C");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vc");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".A"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Va"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".B"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vb"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".C"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vc"));
         } else if (ctrlComp.type == ComponentType::Park) {
             fc.outKey = ctrlComp.id + ".d";
-            std::string inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", "");
-            std::string inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
-            std::string inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", "");
+            std::string inAlpha = getParamString(ctrlComp, "Valpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "input_alpha", "");
+            std::string inBeta = getParamString(ctrlComp, "Vbeta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "input_beta", "");
+            std::string inTheta = getParamString(ctrlComp, "theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "input_theta", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
             fc.outputSigKeys.push_back(ctrlComp.id + ".d");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vd");
             fc.outputSigKeys.push_back(ctrlComp.id + ".q");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vq");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".d"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vd"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".q"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vq"));
         } else if (ctrlComp.type == ComponentType::InvPark) {
             fc.outKey = ctrlComp.id + ".Alpha";
-            std::string inD = getParamString(ctrlComp, "d", ""); if (inD.empty()) inD = getParamString(ctrlComp, "In1", "");
-            std::string inQ = getParamString(ctrlComp, "q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "In2", "");
-            std::string inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", "");
+            std::string inD = getParamString(ctrlComp, "Vd", ""); if (inD.empty()) inD = getParamString(ctrlComp, "d", ""); if (inD.empty()) inD = getParamString(ctrlComp, "D", ""); if (inD.empty()) inD = getParamString(ctrlComp, "In1", ""); if (inD.empty()) inD = getParamString(ctrlComp, "input_d", "");
+            std::string inQ = getParamString(ctrlComp, "Vq", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "Q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "In2", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "input_q", "");
+            std::string inTheta = getParamString(ctrlComp, "theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "input_theta", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inD));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inQ));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
             fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Valpha");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vbeta");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Valpha"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vbeta"));
         } else if (ctrlComp.type == ComponentType::PWM_3PH || ctrlComp.type == ComponentType::SVPWM) {
-            fc.outKey = ctrlComp.id + ".OutA";
-            std::string inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", "");
-            std::string inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", "");
-            std::string inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", "");
+            fc.outKey = ctrlComp.id + ".G1";
+            std::string inA = getParamString(ctrlComp, "Va", ""); if (inA.empty()) inA = getParamString(ctrlComp, "Valpha", ""); if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", ""); if (inA.empty()) inA = getParamString(ctrlComp, "input_a", "");
+            std::string inB = getParamString(ctrlComp, "Vb", ""); if (inB.empty()) inB = getParamString(ctrlComp, "Vbeta", ""); if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", ""); if (inB.empty()) inB = getParamString(ctrlComp, "input_b", "");
+            std::string inC = getParamString(ctrlComp, "Vc", ""); if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", ""); if (inC.empty()) inC = getParamString(ctrlComp, "input_c", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".G1");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".G2");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".G3");
             fc.outputSigKeys.push_back(ctrlComp.id + ".OutA");
             fc.outputSigKeys.push_back(ctrlComp.id + ".OutB");
             fc.outputSigKeys.push_back(ctrlComp.id + ".OutC");
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".G1"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".G2"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".G3"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutA"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutB"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".OutC"));
@@ -1748,7 +1772,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             }
             else if (fc.type == ComponentType::Filter1st) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double fcHz = (fc.freq > 0.0) ? fc.freq : 1000.0;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 100.0;
                 double tau = 1.0 / (2.0 * 3.141592653589793 * fcHz);
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
                 if (currentTime == 0.0) fc.filterState = inVal;
@@ -1757,7 +1781,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             }
             else if (fc.type == ComponentType::Filter2nd) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double fcHz = (fc.freq > 0.0) ? fc.freq : 1000.0;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 100.0;
                 double Q = (fc.gain > 0.0) ? fc.gain : 0.707;
                 double w0 = 2.0 * 3.141592653589793 * fcHz;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
@@ -1770,6 +1794,157 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     fc.stateVal += fc.filterState * dt;
                 }
                 val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::StateSpace) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
+
+                auto parseMat = [](std::string s) -> std::vector<std::vector<double>> {
+                    std::vector<std::vector<double>> mat;
+                    if (s.empty()) return mat;
+                    for (char& c : s) {
+                        if (c == '[' || c == ']' || c == ',') c = ' ';
+                    }
+                    std::stringstream ss(s);
+                    std::string line;
+                    while (std::getline(ss, line, ';')) {
+                        std::stringstream lineSS(line);
+                        std::vector<double> row;
+                        double v;
+                        while (lineSS >> v) row.push_back(v);
+                        if (!row.empty()) mat.push_back(row);
+                    }
+                    return mat;
+                };
+
+                std::vector<std::vector<double>> A = parseMat(fc.polarity);
+                std::vector<std::vector<double>> B = parseMat(fc.vPlotKey);
+                std::vector<std::vector<double>> C = parseMat(fc.vAlphaKey);
+                std::vector<std::vector<double>> D = parseMat(fc.vBetaKey);
+
+                if (A.empty()) A = {{-1.0}};
+                if (B.empty()) B = {{1.0}};
+                if (C.empty()) C = {{1.0}};
+                if (D.empty()) D = {{0.0}};
+
+                size_t n = A.size();
+
+                if (fc.stateVector.size() != n) {
+                    fc.stateVector.assign(n, 0.0);
+                }
+
+                auto getXDotSS = [&](const std::vector<double>& xCurr, double uVal) -> std::vector<double> {
+                    std::vector<double> xD(n, 0.0);
+                    for (size_t i = 0; i < n; ++i) {
+                        double ax = 0.0;
+                        for (size_t j = 0; j < n && j < A[i].size(); ++j) ax += A[i][j] * xCurr[j];
+                        double bu = B[i].empty() ? 0.0 : B[i][0] * uVal;
+                        xD[i] = ax + bu;
+                    }
+                    return xD;
+                };
+
+                std::vector<double> k1 = getXDotSS(fc.stateVector, inVal);
+                std::vector<double> x2(n); for (size_t k = 0; k < n; ++k) x2[k] = fc.stateVector[k] + 0.5 * dt * k1[k];
+                std::vector<double> k2 = getXDotSS(x2, inVal);
+                std::vector<double> x3(n); for (size_t k = 0; k < n; ++k) x3[k] = fc.stateVector[k] + 0.5 * dt * k2[k];
+                std::vector<double> k3 = getXDotSS(x3, inVal);
+                std::vector<double> x4(n); for (size_t k = 0; k < n; ++k) x4[k] = fc.stateVector[k] + dt * k3[k];
+                std::vector<double> k4 = getXDotSS(x4, inVal);
+
+                if (pass == 0) {
+                    for (size_t k = 0; k < n; ++k) {
+                        fc.stateVector[k] += (dt / 6.0) * (k1[k] + 2.0 * k2[k] + 2.0 * k3[k] + k4[k]);
+                    }
+                }
+
+                double yVal = 0.0;
+                for (size_t j = 0; j < n && j < C[0].size(); ++j) yVal += C[0][j] * fc.stateVector[j];
+                double du = D[0].empty() ? 0.0 : D[0][0] * inVal;
+                val = yVal + du;
+            }
+            else if (fc.type == ComponentType::MathFunction) {
+                double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                std::string fcn = fc.polarity;
+                std::transform(fcn.begin(), fcn.end(), fcn.begin(), ::tolower);
+                if (fcn == "exp") val = std::exp(u);
+                else if (fcn == "log" || fcn == "ln") val = std::log(u);
+                else if (fcn == "10^u" || fcn == "pow10") val = std::pow(10.0, u);
+                else if (fcn == "log10") val = std::log10(u);
+                else if (fcn == "square") val = u * u;
+                else if (fcn == "sqrt") val = (u >= 0.0) ? std::sqrt(u) : 0.0;
+                else if (fcn == "reciprocal" || fcn == "1/u") val = (u != 0.0) ? (1.0 / u) : 0.0;
+                else if (fcn == "abs") val = std::abs(u);
+                else val = std::exp(u);
+            }
+            else if (fc.type == ComponentType::Round) {
+                double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                std::string mode = fc.polarity;
+                std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
+                if (mode == "floor") val = std::floor(u);
+                else if (mode == "ceil") val = std::ceil(u);
+                else if (mode == "fix" || mode == "zero") val = std::trunc(u);
+                else val = std::round(u);
+            }
+            else if (fc.type == ComponentType::LUT_2D) {
+                double u1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double u2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+
+                auto parseV = [](std::string s) -> std::vector<double> {
+                    std::vector<double> vec;
+                    if (s.empty()) return vec;
+                    for (char& c : s) if (c == '[' || c == ']' || c == ',') c = ' ';
+                    std::stringstream ss(s); double v;
+                    while (ss >> v) vec.push_back(v);
+                    return vec;
+                };
+
+                auto parseM = [](std::string s) -> std::vector<std::vector<double>> {
+                    std::vector<std::vector<double>> mat;
+                    if (s.empty()) return mat;
+                    for (char& c : s) if (c == '[' || c == ']' || c == ',') c = ' ';
+                    std::stringstream ss(s); std::string line;
+                    while (std::getline(ss, line, ';')) {
+                        std::stringstream lineSS(line); std::vector<double> row; double v;
+                        while (lineSS >> v) row.push_back(v);
+                        if (!row.empty()) mat.push_back(row);
+                    }
+                    return mat;
+                };
+
+                std::vector<double> rowX = parseV(fc.polarity);
+                std::vector<double> colY = parseV(fc.vPlotKey);
+                std::vector<std::vector<double>> tableZ = parseM(fc.vAlphaKey);
+
+                if (rowX.empty()) rowX = {0.0, 1.0};
+                if (colY.empty()) colY = {0.0, 1.0};
+                if (tableZ.empty()) tableZ = {{0.0, 1.0}, {1.0, 2.0}};
+
+                size_t nr = rowX.size();
+                size_t nc = colY.size();
+
+                size_t rIdx = 0;
+                for (size_t i = 0; i < nr - 1; ++i) if (u1 >= rowX[i]) rIdx = i;
+                if (rIdx >= nr - 1 && nr >= 2) rIdx = nr - 2;
+
+                size_t cIdx = 0;
+                for (size_t j = 0; j < nc - 1; ++j) if (u2 >= colY[j]) cIdx = j;
+                if (cIdx >= nc - 1 && nc >= 2) cIdx = nc - 2;
+
+                double x0 = rowX[rIdx], x1 = (rIdx + 1 < nr) ? rowX[rIdx + 1] : x0 + 1.0;
+                double y0 = colY[cIdx], y1 = (cIdx + 1 < nc) ? colY[cIdx + 1] : y0 + 1.0;
+
+                double tx = (x1 > x0) ? (u1 - x0) / (x1 - x0) : 0.0;
+                double ty = (y1 > y0) ? (u2 - y0) / (y1 - y0) : 0.0;
+                tx = std::clamp(tx, 0.0, 1.0);
+                ty = std::clamp(ty, 0.0, 1.0);
+
+                double z00 = (rIdx < tableZ.size() && cIdx < tableZ[rIdx].size()) ? tableZ[rIdx][cIdx] : 0.0;
+                double z01 = (rIdx < tableZ.size() && cIdx + 1 < tableZ[rIdx].size()) ? tableZ[rIdx][cIdx + 1] : z00;
+                double z10 = (rIdx + 1 < tableZ.size() && cIdx < tableZ[rIdx + 1].size()) ? tableZ[rIdx + 1][cIdx] : z00;
+                double z11 = (rIdx + 1 < tableZ.size() && cIdx + 1 < tableZ[rIdx + 1].size()) ? tableZ[rIdx + 1][cIdx + 1] : z01;
+
+                val = (1.0 - tx) * (1.0 - ty) * z00 + tx * (1.0 - ty) * z10 + (1.0 - tx) * ty * z01 + tx * ty * z11;
             }
             else if (fc.type == ComponentType::RmsVal) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
@@ -1965,7 +2140,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
 
                 auto cIt = cscriptEngines.find(fc.id);
                 if (cIt != cscriptEngines.end()) {
-                    if (pass == 1) {
+                    if (pass == 0) {
                         cIt->second.step(currentTime, scriptInValsBuf, config.stepSize);
                     }
 

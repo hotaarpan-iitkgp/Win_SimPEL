@@ -156,6 +156,7 @@ public:
     const std::set<std::string>& getSelectedComponentIds() const { return selectedComponentIds; }
     const std::set<std::string>& getSelectedWireIds() const { return selectedWireIds; }
     ComponentInstance* getSelectedComponent();
+    std::vector<ComponentInstance*> getSelectedComponents();
 
     bool isAdaptiveZoomMode() const { return adaptiveZoomMode; }
     void toggleAdaptiveZoom() { adaptiveZoomMode = !adaptiveZoomMode; isBoxZooming = false; }
