@@ -470,7 +470,22 @@ void CircuitSimulator::buildIndexMaps() {
             fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
             fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
         } else if (ctrlComp.type == ComponentType::LogicOp || ctrlComp.type == ComponentType::BitwiseOp) {
-            fc.polarity = getParamString(ctrlComp, "operator", "AND");
+            std::string op = getParamString(ctrlComp, "operator", "");
+            if (op.empty()) op = getParamString(ctrlComp, "op", "");
+            if (op.empty()) op = getParamString(ctrlComp, "logic_operator", "");
+            if (op.empty()) {
+                std::string orig = getParamString(ctrlComp, "original_type", "");
+                if (orig == "NAND" || orig == "nand") op = "NAND";
+                else if (orig == "NOR" || orig == "nor") op = "NOR";
+                else if (orig == "XOR" || orig == "xor") op = "XOR";
+                else if (orig == "XNOR" || orig == "xnor" || orig == "NXOR") op = "XNOR";
+                else if (orig == "NOT" || orig == "not") op = "NOT";
+                else if (orig == "AND" || orig == "and") op = "AND";
+                else if (orig == "OR" || orig == "or") op = "OR";
+                else op = "AND";
+            }
+            std::transform(op.begin(), op.end(), op.begin(), ::toupper);
+            fc.polarity = op;
         } else if (ctrlComp.type == ComponentType::CombLogic) {
             fc.polarity = getParamString(ctrlComp, "truth_table", "");
         } else if (ctrlComp.type == ComponentType::EdgeDetect) {
@@ -566,6 +581,8 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input_a", "");
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input", "");   // e.g. GAIN "input": "TRI1.Out"
         if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "input1", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "A", "");
+        if (fc.in0Key.empty()) fc.in0Key = getParamString(ctrlComp, "in_a", "");
 
         fc.in1Key = getParamString(ctrlComp, "In2", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "Den", "");
@@ -573,6 +590,8 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input_1", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input_b", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "input2", "");  // secondary input alias
+        if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "B", "");
+        if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "in_b", "");
         fc.outKey = getParamString(ctrlComp, "output", "");
         fc.targetKey = getParamString(ctrlComp, "target", "");
         fc.ctrlSigKey = getParamString(ctrlComp, "selected_signals", "");
