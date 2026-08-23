@@ -1835,8 +1835,17 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double alpha = (2.0 * va - vb - vc) / 3.0;
                 double beta = (vb - vc) / 1.7320508075688772;
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = alpha;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = beta;
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"Alpha", alpha}, {"Valpha", alpha}, {"alpha", alpha}, {"Out1", alpha}, {"OutA", alpha},
+                    {"Beta", beta}, {"Vbeta", beta}, {"beta", beta}, {"Out2", beta}, {"OutB", beta}
+                };
+
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
                 val = alpha;
             }
             else if (fc.type == ComponentType::InvClarke) {
@@ -1847,9 +1856,17 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double vb = -0.5 * alpha + (1.7320508075688772 / 2.0) * beta;
                 double vc = -0.5 * alpha - (1.7320508075688772 / 2.0) * beta;
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = va;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = vb;
-                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = vc;
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"A", va}, {"Va", va}, {"OutA", va}, {"Out1", va},
+                    {"B", vb}, {"Vb", vb}, {"OutB", vb}, {"Out2", vb},
+                    {"C", vc}, {"Vc", vc}, {"OutC", vc}, {"Out3", vc}
+                };
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
                 val = va;
             }
             else if (fc.type == ComponentType::Park) {
@@ -1863,8 +1880,16 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double vd = alpha * cosT + beta * sinT;
                 double vq = -alpha * sinT + beta * cosT;
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = vd;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = vq;
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"d", vd}, {"Vd", vd}, {"Direct", vd}, {"OutD", vd}, {"Out1", vd},
+                    {"q", vq}, {"Vq", vq}, {"Quadrature", vq}, {"OutQ", vq}, {"Out2", vq}
+                };
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
                 val = vd;
             }
             else if (fc.type == ComponentType::InvPark) {
@@ -1878,8 +1903,16 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double alpha = vd * cosT - vq * sinT;
                 double beta = vd * sinT + vq * cosT;
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = alpha;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = beta;
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"Alpha", alpha}, {"Valpha", alpha}, {"alpha", alpha}, {"Out1", alpha},
+                    {"Beta", beta}, {"Vbeta", beta}, {"beta", beta}, {"Out2", beta}
+                };
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
                 val = alpha;
             }
             else if (fc.type == ComponentType::PWM_3PH) {
