@@ -873,8 +873,25 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "RATE_LIMITER") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "RATE_LIMITER";
-            cObj["up"] = formatJSStyleDouble(parsedParams.count("up") ? parsedParams["up"] : 10.0);
-            cObj["down"] = formatJSStyleDouble(parsedParams.count("down") ? parsedParams["down"] : -10.0);
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            double upRate = getParamVal({"rising_slew_rate", "slew_rate_rising", "rising_rate", "rate_up", "slew_rate_up", "rate_rising", "up", "rising"}, 10.0);
+            double downRate = getParamVal({"falling_slew_rate", "slew_rate_falling", "falling_rate", "rate_down", "slew_rate_down", "rate_falling", "down", "falling"}, -10.0);
+
+            cObj["up"] = formatJSStyleDouble(upRate);
+            cObj["down"] = formatJSStyleDouble(downRate);
+            cObj["rising_slew_rate"] = formatJSStyleDouble(upRate);
+            cObj["falling_slew_rate"] = formatJSStyleDouble(downRate);
+
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
             cObj["input1"] = inSig;

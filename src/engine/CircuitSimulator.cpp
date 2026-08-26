@@ -559,8 +559,17 @@ void CircuitSimulator::buildIndexMaps() {
             if (!ctrlComp.parameters.count("end_of_dead_zone") && ctrlComp.parameters.count("end")) fc.maxVal = evaluateParam(ctrlComp, "end", 0.5);
             if (!ctrlComp.parameters.count("end_of_dead_zone") && !ctrlComp.parameters.count("end") && ctrlComp.parameters.count("max")) fc.maxVal = evaluateParam(ctrlComp, "max", 0.5);
         } else if (ctrlComp.type == ComponentType::RateLimiter) {
-            fc.rateUp = evaluateParam(ctrlComp, "up", 10.0);
-            fc.rateDown = evaluateParam(ctrlComp, "down", -10.0);
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (ctrlComp.parameters.count(k)) {
+                        try { return std::stod(ctrlComp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            fc.rateUp = getParamVal({"rising_slew_rate", "slew_rate_rising", "rising_rate", "rate_up", "slew_rate_up", "rate_rising", "up", "rising"}, 10.0);
+            fc.rateDown = getParamVal({"falling_slew_rate", "slew_rate_falling", "falling_rate", "rate_down", "slew_rate_down", "rate_falling", "down", "falling"}, -10.0);
         } else if (ctrlComp.type == ComponentType::Filter1st || ctrlComp.type == ComponentType::Filter2nd) {
             fc.freq = evaluateParam(ctrlComp, "cutoff_freq", 100.0);
             if (!ctrlComp.parameters.count("cutoff_freq") && ctrlComp.parameters.count("fc")) fc.freq = evaluateParam(ctrlComp, "fc", 100.0);
