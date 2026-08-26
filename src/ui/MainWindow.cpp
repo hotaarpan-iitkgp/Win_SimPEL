@@ -2427,9 +2427,9 @@ void MainWindow::renderPropertyInspector() {
             } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
                 comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
             }
-        } else if (pKey == "operator" || pKey == "op" || pKey == "relop") {
-            if (t == "RELATIONAL_OPERATOR" || t == "COMP" || t == "COMPARE_TO_CONSTANT") {
-                comboChoices = {"==", "~=", "<", "<=", ">", ">="};
+        } else if (pKey == "operator" || pKey == "op" || pKey == "relop" || pKey == "relational_operator" || pKey == "condition" || pKey == "comparison") {
+            if (t == "RELATIONAL_OPERATOR" || t == "COMP" || t == "COMPARE" || t == "COMP_CONST" || t == "COMPARE_TO_CONSTANT" || t == "COMPARE_TO_ZERO" || t == "Comparator" || t == "CompareToConstant" || t == "CompareToZero") {
+                comboChoices = {"==", "~=", "!=", "<", "<=", ">", ">="};
             } else if (t == "BITWISE_OP") {
                 comboChoices = {"AND", "OR", "XOR", "NOT", "SHIFT_LEFT", "SHIFT_RIGHT"};
             } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
