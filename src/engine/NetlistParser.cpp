@@ -146,10 +146,10 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "ShiftReg" || t == "SHIFT_REG") return ComponentType::ShiftReg;
     if (t == "PWM_3PH") return ComponentType::PWM_3PH;
     if (t == "SVPWM") return ComponentType::SVPWM;
-    if (t == "CLARKE" || t == "Clarke") return ComponentType::Clarke;
-    if (t == "PARK" || t == "Park") return ComponentType::Park;
-    if (t == "INV_CLARKE" || t == "InvClarke") return ComponentType::InvClarke;
-    if (t == "INV_PARK" || t == "InvPark") return ComponentType::InvPark;
+    if (t == "CLARKE" || t == "Clarke" || t == "CLARKE_TRANSFORM" || t == "CLARKE_TRANS") return ComponentType::Clarke;
+    if (t == "PARK" || t == "Park" || t == "PARK_TRANSFORM" || t == "PARK_TRANS") return ComponentType::Park;
+    if (t == "INV_CLARKE" || t == "InvClarke" || t == "INV_CLARKE_TRANSFORM" || t == "INV_CLARKE_TRANS") return ComponentType::InvClarke;
+    if (t == "INV_PARK" || t == "InvPark" || t == "INV_PARK_TRANSFORM" || t == "INV_PARK_TRANS") return ComponentType::InvPark;
     if (t == "PER_AVG" || t == "PerAvg") return ComponentType::PerAvg;
     if (t == "PERIODIC_IMP_AVG" || t == "PeriodicImpAvg") return ComponentType::PeriodicImpAvg;
     if (t == "FOURIER_TRANS" || t == "FourierTrans") return ComponentType::FourierTrans;

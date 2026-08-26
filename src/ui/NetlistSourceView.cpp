@@ -1029,37 +1029,138 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["D"] = getIncomingSignal(comp.id, "D");
             cObj["Clk"] = getIncomingSignal(comp.id, "Ctrl");
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "CLARKE") {
+        } else if (t == "CLARKE" || t == "CLARKE_TRANSFORM" || t == "Clarke") {
             cObj["output_alpha"] = comp.id + ".Alpha";
             cObj["output_beta"] = comp.id + ".Beta";
             cObj["original_type"] = "CLARKE";
-            cObj["input_a"] = getIncomingSignal(comp.id, "A");
-            cObj["input_b"] = getIncomingSignal(comp.id, "B");
-            cObj["input_c"] = getIncomingSignal(comp.id, "C");
+
+            std::string inA = getIncomingSignal(comp.id, "A");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "Va");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "a");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "In1");
+
+            std::string inB = getIncomingSignal(comp.id, "B");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "Vb");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "b");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "In2");
+
+            std::string inC = getIncomingSignal(comp.id, "C");
+            if (inC == "0.0") inC = getIncomingSignal(comp.id, "Vc");
+            if (inC == "0.0") inC = getIncomingSignal(comp.id, "c");
+            if (inC == "0.0") inC = getIncomingSignal(comp.id, "In3");
+
+            cObj["input_a"] = inA;
+            cObj["input_b"] = inB;
+            cObj["input_c"] = inC;
+            cObj["input_A"] = inA;
+            cObj["input_B"] = inB;
+            cObj["input_C"] = inC;
+            cObj["Va"] = inA;
+            cObj["Vb"] = inB;
+            cObj["Vc"] = inC;
+            cObj["A"] = inA;
+            cObj["B"] = inB;
+            cObj["C"] = inC;
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "INV_CLARKE") {
+        } else if (t == "INV_CLARKE" || t == "INV_CLARKE_TRANSFORM" || t == "InvClarke") {
             cObj["output_a"] = comp.id + ".A";
             cObj["output_b"] = comp.id + ".B";
             cObj["output_c"] = comp.id + ".C";
             cObj["original_type"] = "INV_CLARKE";
-            cObj["input_alpha"] = getIncomingSignal(comp.id, "Alpha");
-            cObj["input_beta"] = getIncomingSignal(comp.id, "Beta");
+
+            std::string inAlpha = getIncomingSignal(comp.id, "Alpha");
+            if (inAlpha == "0.0") inAlpha = getIncomingSignal(comp.id, "Valpha");
+            if (inAlpha == "0.0") inAlpha = getIncomingSignal(comp.id, "alpha");
+            if (inAlpha == "0.0") inAlpha = getIncomingSignal(comp.id, "In1");
+
+            std::string inBeta = getIncomingSignal(comp.id, "Beta");
+            if (inBeta == "0.0") inBeta = getIncomingSignal(comp.id, "Vbeta");
+            if (inBeta == "0.0") inBeta = getIncomingSignal(comp.id, "beta");
+            if (inBeta == "0.0") inBeta = getIncomingSignal(comp.id, "In2");
+
+            cObj["input_alpha"] = inAlpha;
+            cObj["input_beta"] = inBeta;
+            cObj["Valpha"] = inAlpha;
+            cObj["Vbeta"] = inBeta;
+            cObj["Alpha"] = inAlpha;
+            cObj["Beta"] = inBeta;
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "PARK") {
+        } else if (t == "PARK" || t == "PARK_TRANSFORM" || t == "Park") {
             cObj["output_d"] = comp.id + ".d";
             cObj["output_q"] = comp.id + ".q";
             cObj["original_type"] = "PARK";
-            cObj["input_alpha"] = getIncomingSignal(comp.id, "Alpha");
-            cObj["input_beta"] = getIncomingSignal(comp.id, "Beta");
-            cObj["input_theta"] = getIncomingSignal(comp.id, "Theta");
+
+            std::string inAlpha = getIncomingSignal(comp.id, "Alpha");
+            if (inAlpha == "0.0") inAlpha = getIncomingSignal(comp.id, "Valpha");
+            if (inAlpha == "0.0") inAlpha = getIncomingSignal(comp.id, "alpha");
+            if (inAlpha == "0.0") inAlpha = getIncomingSignal(comp.id, "In1");
+
+            std::string inBeta = getIncomingSignal(comp.id, "Beta");
+            if (inBeta == "0.0") inBeta = getIncomingSignal(comp.id, "Vbeta");
+            if (inBeta == "0.0") inBeta = getIncomingSignal(comp.id, "beta");
+            if (inBeta == "0.0") inBeta = getIncomingSignal(comp.id, "In2");
+
+            std::string inTheta = getIncomingSignal(comp.id, "Theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "wt");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "In3");
+
+            std::string inA = getIncomingSignal(comp.id, "A");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "Va");
+            std::string inB = getIncomingSignal(comp.id, "B");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "Vb");
+            std::string inC = getIncomingSignal(comp.id, "C");
+            if (inC == "0.0") inC = getIncomingSignal(comp.id, "Vc");
+
+            cObj["input_alpha"] = inAlpha;
+            cObj["input_beta"] = inBeta;
+            cObj["input_theta"] = inTheta;
+            cObj["input_a"] = inA;
+            cObj["input_b"] = inB;
+            cObj["input_c"] = inC;
+            cObj["Valpha"] = inAlpha;
+            cObj["Vbeta"] = inBeta;
+            cObj["Theta"] = inTheta;
+            cObj["theta"] = inTheta;
+            cObj["Alpha"] = inAlpha;
+            cObj["Beta"] = inBeta;
+            cObj["A"] = inA;
+            cObj["B"] = inB;
+            cObj["C"] = inC;
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "INV_PARK") {
+        } else if (t == "INV_PARK" || t == "INV_PARK_TRANSFORM" || t == "InvPark") {
             cObj["output_alpha"] = comp.id + ".Alpha";
             cObj["output_beta"] = comp.id + ".Beta";
             cObj["original_type"] = "INV_PARK";
-            cObj["input_d"] = getIncomingSignal(comp.id, "d");
-            cObj["input_q"] = getIncomingSignal(comp.id, "q");
-            cObj["input_theta"] = getIncomingSignal(comp.id, "Theta");
+
+            std::string inD = getIncomingSignal(comp.id, "d");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "Vd");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "D");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "d_in");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "In1");
+
+            std::string inQ = getIncomingSignal(comp.id, "q");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "Vq");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "Q");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "q_in");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "In2");
+
+            std::string inTheta = getIncomingSignal(comp.id, "Theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "wt");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "In3");
+
+            cObj["input_d"] = inD;
+            cObj["input_q"] = inQ;
+            cObj["input_theta"] = inTheta;
+            cObj["Vd"] = inD;
+            cObj["Vq"] = inQ;
+            cObj["d"] = inD;
+            cObj["q"] = inQ;
+            cObj["D"] = inD;
+            cObj["Q"] = inQ;
+            cObj["Theta"] = inTheta;
+            cObj["theta"] = inTheta;
             ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "PWM_3PH") {
             cObj["output_a"] = comp.id + ".OutA";
@@ -1721,8 +1822,13 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
                 try { numChannels = std::stoi(comp.parameters.at("channels")); } catch (...) {}
             }
             for (int ch = 1; ch <= std::max(1, numChannels); ++ch) {
-                std::string varName = comp.id + ".In" + std::to_string(ch);
-                if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+                std::string inSig = getIncomingSignal(comp.id, "In" + std::to_string(ch));
+                if (inSig != "0.0") {
+                    if (!addedVars.count(inSig)) { wantedVars.push_back(inSig); addedVars.insert(inSig); }
+                } else {
+                    std::string varName = comp.id + ".In" + std::to_string(ch);
+                    if (!addedVars.count(varName)) { wantedVars.push_back(varName); addedVars.insert(varName); }
+                }
             }
         }
     }

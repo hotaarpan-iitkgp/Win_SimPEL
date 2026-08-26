@@ -206,8 +206,29 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
         for (const auto& wItem : j["wires"]) {
             CircuitSim::WireInstance wire;
             wire.id = wItem.value("id", "");
-            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
-            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
+            if (wItem.contains("from")) {
+                parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
+            } else if (wItem.contains("fromComp")) {
+                wire.from.compId = wItem.value("fromComp", "");
+                wire.from.terminal = resolveTerminalName(wire.from.compId, wItem.value("fromTerm", wItem.value("fromTerminal", "")));
+                wire.from.isWireJunction = false;
+            }
+
+            if (wItem.contains("to")) {
+                parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
+            } else if (wItem.contains("toComp")) {
+                wire.to.compId = wItem.value("toComp", "");
+                wire.to.terminal = resolveTerminalName(wire.to.compId, wItem.value("toTerm", wItem.value("toTerminal", "")));
+                wire.to.isWireJunction = false;
+            }
+
+            if (wItem.value("isJunction", false) || wItem.contains("targetWireId")) {
+                wire.to.isWireJunction = true;
+                wire.to.targetWireId = wItem.value("targetWireId", "");
+                wire.to.junctionX = wItem.value("jX", 0.0f);
+                wire.to.junctionY = wItem.value("jY", 0.0f);
+            }
+
             cd.wires.push_back(wire);
         }
         sanitizeCircuitWires(cd);

@@ -148,7 +148,10 @@ std::vector<std::string> SVGExporter::traceScopeInputSignals(const CircuitDesign
                                 sigKey = "V_" + comp.id;
                             }
                         } else {
-                            if (source.terminal.find("Out") != std::string::npos) {
+                            if (!source.terminal.empty() && 
+                                source.terminal != "In" && source.terminal != "In1" && source.terminal != "In2" &&
+                                source.terminal != "In3" && source.terminal != "Plus" && source.terminal != "Minus" &&
+                                source.terminal != "Ctrl" && source.terminal != "Ref") {
                                 sigKey = comp.id + "." + source.terminal;
                             } else {
                                 sigKey = comp.id + ".Out";

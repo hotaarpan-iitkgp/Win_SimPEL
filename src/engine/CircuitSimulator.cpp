@@ -741,70 +741,85 @@ void CircuitSimulator::buildIndexMaps() {
 
         if (ctrlComp.type == ComponentType::Clarke) {
             fc.outKey = ctrlComp.id + ".Alpha";
-            std::string inA = getParamString(ctrlComp, "Va", ""); if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", ""); if (inA.empty()) inA = getParamString(ctrlComp, "input_a", "");
-            std::string inB = getParamString(ctrlComp, "Vb", ""); if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", ""); if (inB.empty()) inB = getParamString(ctrlComp, "input_b", "");
-            std::string inC = getParamString(ctrlComp, "Vc", ""); if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", ""); if (inC.empty()) inC = getParamString(ctrlComp, "input_c", "");
+            std::string inA = getParamString(ctrlComp, "input_a", ""); if (inA.empty()) inA = getParamString(ctrlComp, "input_A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "Va", ""); if (inA.empty()) inA = getParamString(ctrlComp, "a", ""); if (inA.empty()) inA = getParamString(ctrlComp, "In1", "");
+            std::string inB = getParamString(ctrlComp, "input_b", ""); if (inB.empty()) inB = getParamString(ctrlComp, "input_B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "Vb", ""); if (inB.empty()) inB = getParamString(ctrlComp, "b", ""); if (inB.empty()) inB = getParamString(ctrlComp, "In2", "");
+            std::string inC = getParamString(ctrlComp, "input_c", ""); if (inC.empty()) inC = getParamString(ctrlComp, "input_C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "Vc", ""); if (inC.empty()) inC = getParamString(ctrlComp, "c", ""); if (inC.empty()) inC = getParamString(ctrlComp, "In3", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
             fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Valpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".alpha");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Vbeta");
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Valpha"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vbeta"));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".beta");
+            for (const auto& k : fc.outputSigKeys) {
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
+            }
         } else if (ctrlComp.type == ComponentType::InvClarke) {
             fc.outKey = ctrlComp.id + ".A";
-            std::string inAlpha = getParamString(ctrlComp, "Valpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "input_alpha", "");
-            std::string inBeta = getParamString(ctrlComp, "Vbeta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "input_beta", "");
+            std::string inAlpha = getParamString(ctrlComp, "input_alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Valpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", "");
+            std::string inBeta = getParamString(ctrlComp, "input_beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Vbeta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
             fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".A");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Va");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".a");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".B");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vb");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".b");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".C");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vc");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".c");
+            for (const auto& k : fc.outputSigKeys) {
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
+            }
+        } else if (ctrlComp.type == ComponentType::Park) {
+            fc.outKey = ctrlComp.id + ".d";
+            std::string inAlpha = getParamString(ctrlComp, "input_alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Valpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", "");
+            std::string inBeta = getParamString(ctrlComp, "input_beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Vbeta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", "");
+            std::string inTheta = getParamString(ctrlComp, "input_theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "wt", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", "");
+            std::string inA = getParamString(ctrlComp, "input_a", ""); if (inA.empty()) inA = getParamString(ctrlComp, "input_A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "A", ""); if (inA.empty()) inA = getParamString(ctrlComp, "Va", "");
+            std::string inB = getParamString(ctrlComp, "input_b", ""); if (inB.empty()) inB = getParamString(ctrlComp, "input_B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "B", ""); if (inB.empty()) inB = getParamString(ctrlComp, "Vb", "");
+            std::string inC = getParamString(ctrlComp, "input_c", ""); if (inC.empty()) inC = getParamString(ctrlComp, "input_C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "C", ""); if (inC.empty()) inC = getParamString(ctrlComp, "Vc", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inA));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inB));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inC));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".d");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vd");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".D");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".q");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vq");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Q");
+            for (const auto& k : fc.outputSigKeys) {
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
+            }
+        } else if (ctrlComp.type == ComponentType::InvPark) {
+            fc.outKey = ctrlComp.id + ".Alpha";
+            std::string inD = getParamString(ctrlComp, "input_d", ""); if (inD.empty()) inD = getParamString(ctrlComp, "d", ""); if (inD.empty()) inD = getParamString(ctrlComp, "Vd", ""); if (inD.empty()) inD = getParamString(ctrlComp, "D", ""); if (inD.empty()) inD = getParamString(ctrlComp, "d_in", ""); if (inD.empty()) inD = getParamString(ctrlComp, "In1", "");
+            std::string inQ = getParamString(ctrlComp, "input_q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "Vq", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "Q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "q_in", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "In2", "");
+            std::string inTheta = getParamString(ctrlComp, "input_theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "wt", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", "");
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inD));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inQ));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Valpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".alpha");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".Vbeta");
+            fc.outputSigKeys.push_back(ctrlComp.id + ".beta");
             fc.outputSigKeys.push_back(ctrlComp.id + ".A");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Va");
             fc.outputSigKeys.push_back(ctrlComp.id + ".B");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Vb");
             fc.outputSigKeys.push_back(ctrlComp.id + ".C");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Vc");
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".A"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Va"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".B"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vb"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".C"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vc"));
-        } else if (ctrlComp.type == ComponentType::Park) {
-            fc.outKey = ctrlComp.id + ".d";
-            std::string inAlpha = getParamString(ctrlComp, "Valpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "Alpha", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "In1", ""); if (inAlpha.empty()) inAlpha = getParamString(ctrlComp, "input_alpha", "");
-            std::string inBeta = getParamString(ctrlComp, "Vbeta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "Beta", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "In2", ""); if (inBeta.empty()) inBeta = getParamString(ctrlComp, "input_beta", "");
-            std::string inTheta = getParamString(ctrlComp, "theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "input_theta", "");
-            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inAlpha));
-            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inBeta));
-            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
-            fc.outputSigKeys.push_back(ctrlComp.id + ".d");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".Vd");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".q");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".Vq");
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".d"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vd"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".q"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vq"));
-        } else if (ctrlComp.type == ComponentType::InvPark) {
-            fc.outKey = ctrlComp.id + ".Alpha";
-            std::string inD = getParamString(ctrlComp, "Vd", ""); if (inD.empty()) inD = getParamString(ctrlComp, "d", ""); if (inD.empty()) inD = getParamString(ctrlComp, "D", ""); if (inD.empty()) inD = getParamString(ctrlComp, "In1", ""); if (inD.empty()) inD = getParamString(ctrlComp, "input_d", "");
-            std::string inQ = getParamString(ctrlComp, "Vq", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "Q", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "In2", ""); if (inQ.empty()) inQ = getParamString(ctrlComp, "input_q", "");
-            std::string inTheta = getParamString(ctrlComp, "theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "Theta", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "In3", ""); if (inTheta.empty()) inTheta = getParamString(ctrlComp, "input_theta", "");
-            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inD));
-            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inQ));
-            fc.inputSigIndices.push_back(getOrCreateSignalIdx(inTheta));
-            fc.outputSigKeys.push_back(ctrlComp.id + ".Alpha");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".Valpha");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".Beta");
-            fc.outputSigKeys.push_back(ctrlComp.id + ".Vbeta");
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Alpha"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Valpha"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Beta"));
-            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Vbeta"));
+            for (const auto& k : fc.outputSigKeys) {
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
+            }
         } else if (ctrlComp.type == ComponentType::PWM_3PH || ctrlComp.type == ComponentType::SVPWM) {
             fc.outKey = ctrlComp.id + ".G1";
             std::string inA = getParamString(ctrlComp, "Valpha", ""); 
@@ -1905,6 +1920,27 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 }
                 val = alpha;
             }
+            else if (fc.type == ComponentType::Clarke) {
+                double va = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double vb = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double vc = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double alpha = (2.0 * va - vb - vc) / 3.0;
+                double beta = (vb - vc) / 1.7320508075688772;
+
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"Alpha", alpha}, {"Valpha", alpha}, {"alpha", alpha}, {"Out1", alpha}, {"OutA", alpha},
+                    {"Beta", beta}, {"Vbeta", beta}, {"beta", beta}, {"Out2", beta}, {"OutB", beta}
+                };
+
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
+                val = alpha;
+            }
             else if (fc.type == ComponentType::InvClarke) {
                 double alpha = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 double beta = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
@@ -1914,9 +1950,9 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double vc = -0.5 * alpha - (1.7320508075688772 / 2.0) * beta;
 
                 std::vector<std::pair<std::string, double>> outputs = {
-                    {"A", va}, {"Va", va}, {"OutA", va}, {"Out1", va},
-                    {"B", vb}, {"Vb", vb}, {"OutB", vb}, {"Out2", vb},
-                    {"C", vc}, {"Vc", vc}, {"OutC", vc}, {"Out3", vc}
+                    {"A", va}, {"Va", va}, {"a", va}, {"OutA", va}, {"Out1", va},
+                    {"B", vb}, {"Vb", vb}, {"b", vb}, {"OutB", vb}, {"Out2", vb},
+                    {"C", vc}, {"Vc", vc}, {"c", vc}, {"OutC", vc}, {"Out3", vc}
                 };
                 for (const auto& p : outputs) {
                     auto it = signalKeyToIdx.find(fc.id + "." + p.first);
@@ -1931,6 +1967,15 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double beta = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
                 double theta = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
 
+                double va = (fc.inputSigIndices.size() > 3 && fc.inputSigIndices[3] >= 0 && fc.inputSigIndices[3] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[3]] : 0.0;
+                double vb = (fc.inputSigIndices.size() > 4 && fc.inputSigIndices[4] >= 0 && fc.inputSigIndices[4] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[4]] : 0.0;
+                double vc = (fc.inputSigIndices.size() > 5 && fc.inputSigIndices[5] >= 0 && fc.inputSigIndices[5] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[5]] : 0.0;
+
+                if (alpha == 0.0 && beta == 0.0 && (va != 0.0 || vb != 0.0 || vc != 0.0)) {
+                    alpha = (2.0 * va - vb - vc) / 3.0;
+                    beta = (vb - vc) / 1.7320508075688772;
+                }
+
                 double cosT = std::cos(theta);
                 double sinT = std::sin(theta);
 
@@ -1938,8 +1983,8 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double vq = -alpha * sinT + beta * cosT;
 
                 std::vector<std::pair<std::string, double>> outputs = {
-                    {"d", vd}, {"Vd", vd}, {"Direct", vd}, {"OutD", vd}, {"Out1", vd},
-                    {"q", vq}, {"Vq", vq}, {"Quadrature", vq}, {"OutQ", vq}, {"Out2", vq}
+                    {"d", vd}, {"Vd", vd}, {"Direct", vd}, {"OutD", vd}, {"Out1", vd}, {"D", vd},
+                    {"q", vq}, {"Vq", vq}, {"Quadrature", vq}, {"OutQ", vq}, {"Out2", vq}, {"Q", vq}
                 };
                 for (const auto& p : outputs) {
                     auto it = signalKeyToIdx.find(fc.id + "." + p.first);
@@ -1960,9 +2005,16 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 double alpha = vd * cosT - vq * sinT;
                 double beta = vd * sinT + vq * cosT;
 
+                double va = alpha;
+                double vb = -0.5 * alpha + (1.7320508075688772 / 2.0) * beta;
+                double vc = -0.5 * alpha - (1.7320508075688772 / 2.0) * beta;
+
                 std::vector<std::pair<std::string, double>> outputs = {
                     {"Alpha", alpha}, {"Valpha", alpha}, {"alpha", alpha}, {"Out1", alpha},
-                    {"Beta", beta}, {"Vbeta", beta}, {"beta", beta}, {"Out2", beta}
+                    {"Beta", beta}, {"Vbeta", beta}, {"beta", beta}, {"Out2", beta},
+                    {"A", va}, {"Va", va}, {"a", va},
+                    {"B", vb}, {"Vb", vb}, {"b", vb},
+                    {"C", vc}, {"Vc", vc}, {"c", vc}
                 };
                 for (const auto& p : outputs) {
                     auto it = signalKeyToIdx.find(fc.id + "." + p.first);
