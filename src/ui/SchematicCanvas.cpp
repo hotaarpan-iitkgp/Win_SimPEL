@@ -2852,6 +2852,8 @@ void SchematicCanvas::copySelected() {
             jw["fromTerm"] = w.from.terminal;
             jw["toComp"] = w.to.compId;
             jw["toTerm"] = w.to.terminal;
+            jw["from"] = {{"compId", w.from.compId}, {"terminal", w.from.terminal}, {"type", "pin"}};
+            jw["to"] = {{"compId", w.to.compId}, {"terminal", w.to.terminal}, {"type", "pin"}};
             jw["fromNode"] = w.fromNode;
             jw["toNode"] = w.toNode;
             jw["isJunction"] = w.to.isWireJunction;
@@ -2908,6 +2910,9 @@ void SchematicCanvas::pasteSelected() {
 
     try {
         nlohmann::json jData = nlohmann::json::parse(jsonStr);
+        if (jData.contains("type") && jData["type"] == "circuitsim_schematic" && jData.contains("data")) {
+            jData = jData["data"];
+        }
         if (!jData.contains("components") || !jData["components"].is_array()) return;
 
         selectedComponentIds.clear();
@@ -2943,9 +2948,19 @@ void SchematicCanvas::pasteSelected() {
             comp.y = jComp.value("y", 0.0f) + offsetY;
             comp.rotation = jComp.value("rotation", 0);
 
-            if (jComp.contains("params")) {
+            if (jComp.contains("parameters") && jComp["parameters"].is_object()) {
+                for (auto& [k, v] : jComp["parameters"].items()) {
+                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
+                    else comp.parameters[k] = v.dump();
+                }
+            }
+            if (jComp.contains("params") && jComp["params"].is_object()) {
                 for (auto& [k, v] : jComp["params"].items()) {
                     if (v.is_string()) comp.parameters[k] = v.get<std::string>();
+                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
+                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
                     else comp.parameters[k] = v.dump();
                 }
             }
@@ -3011,12 +3026,23 @@ void SchematicCanvas::pasteSelected() {
                 wire.id = oldWireIdToNewWireId.count(oldWId) ? oldWireIdToNewWireId[oldWId] : ("wire_" + std::to_string(rand() % 100000));
 
                 std::string oldFromComp = jw.value("fromComp", "");
+                std::string oldFromTerm = jw.value("fromTerm", "");
+                if (oldFromComp.empty() && jw.contains("from") && jw["from"].is_object()) {
+                    oldFromComp = jw["from"].value("compId", "");
+                    oldFromTerm = jw["from"].value("terminal", "");
+                }
+
                 std::string oldToComp = jw.value("toComp", "");
+                std::string oldToTerm = jw.value("toTerm", "");
+                if (oldToComp.empty() && jw.contains("to") && jw["to"].is_object()) {
+                    oldToComp = jw["to"].value("compId", "");
+                    oldToTerm = jw["to"].value("terminal", "");
+                }
 
                 wire.from.compId = oldToNewId.count(oldFromComp) ? oldToNewId[oldFromComp] : "";
-                wire.from.terminal = oldToNewId.count(oldFromComp) ? jw.value("fromTerm", "") : "";
+                wire.from.terminal = oldToNewId.count(oldFromComp) ? oldFromTerm : "";
                 wire.to.compId = oldToNewId.count(oldToComp) ? oldToNewId[oldToComp] : "";
-                wire.to.terminal = oldToNewId.count(oldToComp) ? jw.value("toTerm", "") : "";
+                wire.to.terminal = oldToNewId.count(oldToComp) ? oldToTerm : "";
 
                 bool isJunc = jw.value("isJunction", false);
                 std::string origTargetW = jw.value("targetWireId", "");
