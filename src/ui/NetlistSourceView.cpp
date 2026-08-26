@@ -851,8 +851,25 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "SATURATION") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "SATURATION";
-            cObj["min"] = formatJSStyleDouble(parsedParams.count("min") ? parsedParams["min"] : -10.0);
-            cObj["max"] = formatJSStyleDouble(parsedParams.count("max") ? parsedParams["max"] : 10.0);
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            double minVal = getParamVal({"lower_limit", "min_limit", "min", "minVal", "v_min", "min_val", "lower", "low"}, -10.0);
+            double maxVal = getParamVal({"upper_limit", "max_limit", "max", "maxVal", "v_max", "max_val", "upper", "high"}, 10.0);
+
+            cObj["min"] = formatJSStyleDouble(minVal);
+            cObj["max"] = formatJSStyleDouble(maxVal);
+            cObj["lower_limit"] = formatJSStyleDouble(minVal);
+            cObj["upper_limit"] = formatJSStyleDouble(maxVal);
+
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
             cObj["input1"] = inSig;

@@ -543,13 +543,17 @@ void CircuitSimulator::buildIndexMaps() {
             if (!ctrlComp.parameters.count("hit_threshold") && !ctrlComp.parameters.count("offset") && ctrlComp.parameters.count("threshold")) fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.0);
             fc.polarity = getParamString(ctrlComp, "direction", "either");
         } else if (ctrlComp.type == ComponentType::Saturation) {
-            fc.minVal = evaluateParam(ctrlComp, "lower_limit", -10.0);
-            if (!ctrlComp.parameters.count("lower_limit") && ctrlComp.parameters.count("min")) fc.minVal = evaluateParam(ctrlComp, "min", -10.0);
-            if (!ctrlComp.parameters.count("lower_limit") && !ctrlComp.parameters.count("min") && ctrlComp.parameters.count("minVal")) fc.minVal = evaluateParam(ctrlComp, "minVal", -10.0);
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (ctrlComp.parameters.count(k)) {
+                        try { return std::stod(ctrlComp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
 
-            fc.maxVal = evaluateParam(ctrlComp, "upper_limit", 10.0);
-            if (!ctrlComp.parameters.count("upper_limit") && ctrlComp.parameters.count("max")) fc.maxVal = evaluateParam(ctrlComp, "max", 10.0);
-            if (!ctrlComp.parameters.count("upper_limit") && !ctrlComp.parameters.count("max") && ctrlComp.parameters.count("maxVal")) fc.maxVal = evaluateParam(ctrlComp, "maxVal", 10.0);
+            fc.minVal = getParamVal({"lower_limit", "min_limit", "min", "minVal", "v_min", "min_val", "lower", "low"}, -10.0);
+            fc.maxVal = getParamVal({"upper_limit", "max_limit", "max", "maxVal", "v_max", "max_val", "upper", "high"}, 10.0);
         } else if (ctrlComp.type == ComponentType::DeadZone) {
             auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
                 for (const auto& k : keys) {
@@ -1689,7 +1693,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 }
             }
             else if (fc.type == ComponentType::Saturation) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.empty() || fc.inputSigIndices[0] < 0) ? (fc.in0Ptr ? *fc.in0Ptr : 0.0) : flatControlSignals[fc.inputSigIndices[0]];
                 val = std::max(fc.minVal, std::min(fc.maxVal, inVal));
             }
             else if (fc.type == ComponentType::DeadZone) {
