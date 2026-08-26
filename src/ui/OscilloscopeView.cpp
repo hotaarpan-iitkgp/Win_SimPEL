@@ -478,7 +478,8 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
                 ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
             }
 
-            if (ImPlot::BeginPlot(cat.title.c_str(), ImVec2(-1, -1),
+            std::string plotTitleId = "##" + cat.title + "_" + std::to_string(i);
+            if (ImPlot::BeginPlot(plotTitleId.c_str(), ImVec2(-1, -1),
                                    isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None)) {
 
                 // Assign Select to Middle Mouse Button (valid index 2) to avoid ImGui IM_ASSERT(button >= 0 && button < 5) crash

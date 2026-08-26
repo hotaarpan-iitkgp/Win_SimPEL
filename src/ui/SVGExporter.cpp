@@ -773,7 +773,7 @@ bool SVGExporter::exportScopeToSVGString(
 
     float svgWidth = 1000.0f;
     float paneHeight = 280.0f;
-    float headerHeight = 60.0f;
+    float headerHeight = 25.0f;
     float footerHeight = 45.0f;
     float totalHeight = headerHeight + renderPanes * paneHeight + footerHeight;
 
@@ -787,7 +787,6 @@ bool SVGExporter::exportScopeToSVGString(
     out << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << svgWidth << "\" height=\"" << totalHeight << "\" viewBox=\"0 0 " << svgWidth << " " << totalHeight << "\">\n";
     out << "<style>\n";
     out << "  .bg { fill: " << bgCol << "; }\n";
-    out << "  .title { font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: bold; fill: " << textCol << "; text-anchor: middle; }\n";
     out << "  .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; fill: #475569; text-anchor: middle; }\n";
     out << "  .pane-bg { fill: " << cardBg << "; stroke: " << borderCol << "; stroke-width: 1.2; rx: 2px; }\n";
     out << "  .grid-line { stroke: " << gridCol << "; stroke-width: 0.8; stroke-dasharray: 3,3; }\n";
@@ -800,9 +799,8 @@ bool SVGExporter::exportScopeToSVGString(
     // Pure White Publication Background
     out << "<rect class=\"bg\" width=\"" << svgWidth << "\" height=\"" << totalHeight << "\"/>\n";
 
-    // Title
-    out << "<text class=\"title\" x=\"" << svgWidth * 0.5f << "\" y=\"30\">" << xmlEscape(scopeTitle) << "</text>\n";
-    out << "<text class=\"subtitle\" x=\"" << svgWidth * 0.5f << "\" y=\"48\">IEEE Academic Publication Output | Span: ["
+    // Subtitle (Span)
+    out << "<text class=\"subtitle\" x=\"" << svgWidth * 0.5f << "\" y=\"18\">IEEE Academic Publication Output | Span: ["
         << std::setprecision(5) << tStart << "s - " << tEnd << "s]</text>\n";
 
     float plotX = 90.0f;

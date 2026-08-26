@@ -1648,7 +1648,7 @@ void MainWindow::executeBatchExportWithOptions(const std::string& folderPath, co
                             if (!validKeys.empty()) {
                                 SVGExporter::ScopeReportData srd;
                                 srd.scopeId = comp.id;
-                                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
+                                srd.scopeTitle = (comp.label.empty() || comp.label == comp.id) ? comp.id : (comp.label + " (" + comp.id + ")");
                                 srd.signalKeys = validKeys;
                                 srd.signalLabels = validLabels;
                                 srd.numPanes = (int)validKeys.size();
@@ -1732,7 +1732,7 @@ void MainWindow::executeSingleExportWithOptions(const SVGExporter::ReportExportO
             if (!validKeys.empty()) {
                 SVGExporter::ScopeReportData srd;
                 srd.scopeId = comp.id;
-                srd.scopeTitle = comp.label.empty() ? comp.id : (comp.label + " (" + comp.id + ")");
+                srd.scopeTitle = (comp.label.empty() || comp.label == comp.id) ? comp.id : (comp.label + " (" + comp.id + ")");
                 srd.signalKeys = validKeys;
                 srd.signalLabels = validLabels;
                 srd.numPanes = (int)validKeys.size();
