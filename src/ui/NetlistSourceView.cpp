@@ -862,8 +862,25 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "DEAD_ZONE") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "DEAD_ZONE";
-            cObj["start"] = formatJSStyleDouble(parsedParams.count("start") ? parsedParams["start"] : -0.5);
-            cObj["end"] = formatJSStyleDouble(parsedParams.count("end") ? parsedParams["end"] : 0.5);
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            double startVal = getParamVal({"start_of_dead_zone", "dead_zone_start", "start_dead_zone", "start", "min", "lower_limit", "low", "lower"}, -0.5);
+            double endVal = getParamVal({"end_of_dead_zone", "dead_zone_end", "end_dead_zone", "end", "max", "upper_limit", "high", "upper"}, 0.5);
+
+            cObj["start"] = formatJSStyleDouble(startVal);
+            cObj["end"] = formatJSStyleDouble(endVal);
+            cObj["start_of_dead_zone"] = formatJSStyleDouble(startVal);
+            cObj["end_of_dead_zone"] = formatJSStyleDouble(endVal);
+
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
             cObj["input1"] = inSig;

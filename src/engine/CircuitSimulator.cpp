@@ -551,13 +551,17 @@ void CircuitSimulator::buildIndexMaps() {
             if (!ctrlComp.parameters.count("upper_limit") && ctrlComp.parameters.count("max")) fc.maxVal = evaluateParam(ctrlComp, "max", 10.0);
             if (!ctrlComp.parameters.count("upper_limit") && !ctrlComp.parameters.count("max") && ctrlComp.parameters.count("maxVal")) fc.maxVal = evaluateParam(ctrlComp, "maxVal", 10.0);
         } else if (ctrlComp.type == ComponentType::DeadZone) {
-            fc.minVal = evaluateParam(ctrlComp, "start_of_dead_zone", -0.5);
-            if (!ctrlComp.parameters.count("start_of_dead_zone") && ctrlComp.parameters.count("start")) fc.minVal = evaluateParam(ctrlComp, "start", -0.5);
-            if (!ctrlComp.parameters.count("start_of_dead_zone") && !ctrlComp.parameters.count("start") && ctrlComp.parameters.count("min")) fc.minVal = evaluateParam(ctrlComp, "min", -0.5);
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (ctrlComp.parameters.count(k)) {
+                        try { return std::stod(ctrlComp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
 
-            fc.maxVal = evaluateParam(ctrlComp, "end_of_dead_zone", 0.5);
-            if (!ctrlComp.parameters.count("end_of_dead_zone") && ctrlComp.parameters.count("end")) fc.maxVal = evaluateParam(ctrlComp, "end", 0.5);
-            if (!ctrlComp.parameters.count("end_of_dead_zone") && !ctrlComp.parameters.count("end") && ctrlComp.parameters.count("max")) fc.maxVal = evaluateParam(ctrlComp, "max", 0.5);
+            fc.minVal = getParamVal({"start_of_dead_zone", "dead_zone_start", "start_dead_zone", "start", "min", "lower_limit", "low", "lower"}, -0.5);
+            fc.maxVal = getParamVal({"end_of_dead_zone", "dead_zone_end", "end_dead_zone", "end", "max", "upper_limit", "high", "upper"}, 0.5);
         } else if (ctrlComp.type == ComponentType::RateLimiter) {
             auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
                 for (const auto& k : keys) {
@@ -1689,7 +1693,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = std::max(fc.minVal, std::min(fc.maxVal, inVal));
             }
             else if (fc.type == ComponentType::DeadZone) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.empty() || fc.inputSigIndices[0] < 0) ? (fc.in0Ptr ? *fc.in0Ptr : 0.0) : flatControlSignals[fc.inputSigIndices[0]];
                 if (inVal > fc.maxVal) val = inVal - fc.maxVal;
                 else if (inVal < fc.minVal) val = inVal - fc.minVal;
                 else val = 0.0;
