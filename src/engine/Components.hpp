@@ -142,6 +142,8 @@ enum class ComponentType {
     Park,                 // PARK
     InvClarke,            // INV_CLARKE
     InvPark,              // INV_PARK
+    DqToAbc,              // DQ_TO_ABC, DQ_ABC, INV_PARK_3PH
+    AbcToDq,              // ABC_TO_DQ, ABC_DQ, PARK_3PH
 
     // Control Filters & Measurements
     PerAvg,               // PER_AVG
@@ -336,6 +338,8 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "PARK" || typeStr == "Park" || typeStr == "PARK_TRANSFORM" || typeStr == "PARK_TRANS") return ComponentType::Park;
     if (typeStr == "INV_CLARKE" || typeStr == "InvClarke" || typeStr == "INV_CLARKE_TRANSFORM" || typeStr == "INV_CLARKE_TRANS") return ComponentType::InvClarke;
     if (typeStr == "INV_PARK" || typeStr == "InvPark" || typeStr == "INV_PARK_TRANSFORM" || typeStr == "INV_PARK_TRANS") return ComponentType::InvPark;
+    if (typeStr == "DQ_TO_ABC" || typeStr == "DQ_ABC" || typeStr == "INV_PARK_3PH" || typeStr == "PARK_INV_3PH" || typeStr == "DqToAbc") return ComponentType::DqToAbc;
+    if (typeStr == "ABC_TO_DQ" || typeStr == "ABC_DQ" || typeStr == "PARK_3PH" || typeStr == "PARK_3PHASE" || typeStr == "AbcToDq") return ComponentType::AbcToDq;
     if (typeStr == "PER_AVG" || typeStr == "PerAvg") return ComponentType::PerAvg;
     if (typeStr == "PERIODIC_IMP_AVG" || typeStr == "PeriodicImpAvg") return ComponentType::PeriodicImpAvg;
     if (typeStr == "FOURIER_TRANS" || typeStr == "FourierTrans") return ComponentType::FourierTrans;
@@ -449,6 +453,8 @@ inline std::string componentTypeToString(ComponentType type) {
         case ComponentType::Terminator: return "Terminator";
         case ComponentType::Polynomial: return "Polynomial";
         case ComponentType::AlgebraicConstraint: return "AlgebraicConstraint";
+        case ComponentType::DqToAbc: return "DQ_TO_ABC";
+        case ComponentType::AbcToDq: return "ABC_TO_DQ";
         default: return "Unknown";
     }
 }
@@ -587,6 +593,22 @@ inline void setupComponentPins(ComponentInstance& comp) {
     } else if (t == "KEY_TRIGGER" || t == "KeyTrigger") {
         Pin out; out.name = "Out"; out.relativeX = 25; out.relativeY = 0; out.isOutput = true;
         comp.pins = {out};
+    } else if (t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH" || t == "DqToAbc") {
+        Pin d; d.name = "d"; d.relativeX = -25; d.relativeY = -15; d.isInput = true;
+        Pin q; q.name = "q"; q.relativeX = -25; q.relativeY = 0; q.isInput = true;
+        Pin theta; theta.name = "Theta"; theta.relativeX = -25; theta.relativeY = 15; theta.isInput = true;
+        Pin a; a.name = "A"; a.relativeX = 25; a.relativeY = -15; a.isOutput = true;
+        Pin b; b.name = "B"; b.relativeX = 25; b.relativeY = 0; b.isOutput = true;
+        Pin c; c.name = "C"; c.relativeX = 25; c.relativeY = 15; c.isOutput = true;
+        comp.pins = {d, q, theta, a, b, c};
+    } else if (t == "ABC_TO_DQ" || t == "ABC_DQ" || t == "PARK_3PH" || t == "AbcToDq") {
+        Pin a; a.name = "A"; a.relativeX = -25; a.relativeY = -15; a.isInput = true;
+        Pin b; b.name = "B"; b.relativeX = -25; b.relativeY = 0; b.isInput = true;
+        Pin c; c.name = "C"; c.relativeX = -25; c.relativeY = 15; c.isInput = true;
+        Pin theta; theta.name = "Theta"; theta.relativeX = -25; theta.relativeY = 30; theta.isInput = true;
+        Pin d; d.name = "d"; d.relativeX = 25; d.relativeY = -10; d.isOutput = true;
+        Pin q; q.name = "q"; q.relativeX = 25; q.relativeY = 10; q.isOutput = true;
+        comp.pins = {a, b, c, theta, d, q};
     }
 }
 

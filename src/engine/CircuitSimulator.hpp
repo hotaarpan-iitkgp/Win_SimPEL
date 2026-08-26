@@ -173,6 +173,8 @@ enum class ComponentType {
     Park,
     InvClarke,
     InvPark,
+    DqToAbc,
+    AbcToDq,
 
     // Control Filters & Measurements
     PerAvg,

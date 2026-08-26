@@ -150,6 +150,8 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "PARK" || t == "Park" || t == "PARK_TRANSFORM" || t == "PARK_TRANS") return ComponentType::Park;
     if (t == "INV_CLARKE" || t == "InvClarke" || t == "INV_CLARKE_TRANSFORM" || t == "INV_CLARKE_TRANS") return ComponentType::InvClarke;
     if (t == "INV_PARK" || t == "InvPark" || t == "INV_PARK_TRANSFORM" || t == "INV_PARK_TRANS") return ComponentType::InvPark;
+    if (t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH" || t == "PARK_INV_3PH" || t == "DqToAbc") return ComponentType::DqToAbc;
+    if (t == "ABC_TO_DQ" || t == "ABC_DQ" || t == "PARK_3PH" || t == "PARK_3PHASE" || t == "AbcToDq") return ComponentType::AbcToDq;
     if (t == "PER_AVG" || t == "PerAvg") return ComponentType::PerAvg;
     if (t == "PERIODIC_IMP_AVG" || t == "PeriodicImpAvg") return ComponentType::PeriodicImpAvg;
     if (t == "FOURIER_TRANS" || t == "FourierTrans") return ComponentType::FourierTrans;

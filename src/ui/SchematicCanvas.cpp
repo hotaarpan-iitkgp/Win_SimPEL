@@ -208,6 +208,12 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "INV_PARK") {
         return {{"d", -20, -15, -1, 0, true}, {"q", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"Alpha", 20, -10, 1, 0, true}, {"Beta", 20, 10, 1, 0, true}};
     }
+    if (t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH") {
+        return {{"d", -20, -15, -1, 0, true}, {"q", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}};
+    }
+    if (t == "ABC_TO_DQ" || t == "ABC_DQ" || t == "PARK_3PH") {
+        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"Theta", -20, 30, -1, 0, true}, {"d", 20, -10, 1, 0, true}, {"q", 20, 10, 1, 0, true}};
+    }
     if (t == "PWM_3PH" || t == "SVPWM") {
         return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"OutA", 20, -15, 1, 0, true}, {"OutB", 20, 0, 1, 0, true}, {"OutC", 20, 15, 1, 0, true}};
     }
@@ -2019,11 +2025,11 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         std::string modLbl = (t == "SVPWM") ? "SVPWM" : "PWM 3Ph";
         drawList->AddText(rotatePt(-20*s, -6*s, c.x, c.y, rot), color, modLbl.c_str());
-    } else if (t == "CLARKE" || t == "INV_CLARKE" || t == "PARK" || t == "INV_PARK") {
+    } else if (t == "CLARKE" || t == "INV_CLARKE" || t == "PARK" || t == "INV_PARK" || t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH" || t == "ABC_TO_DQ" || t == "ABC_DQ" || t == "PARK_3PH") {
         float hw = 28*s, hh = 20*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
-        std::string trLbl = (t == "CLARKE") ? "abc->αβ" : ((t == "INV_CLARKE") ? "αβ->abc" : ((t == "PARK") ? "αβ->dq" : "dq->αβ"));
+        std::string trLbl = (t == "CLARKE") ? "abc->αβ" : ((t == "INV_CLARKE") ? "αβ->abc" : ((t == "PARK") ? "αβ->dq" : ((t == "INV_PARK") ? "dq->αβ" : ((t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH") ? "dqθ->abc" : "abcθ->dq"))));
         drawList->AddText(rotatePt(-24*s, -6*s, c.x, c.y, rot), color, trLbl.c_str());
     } else if (t == "PER_AVG" || t == "PERIODIC_IMP_AVG" || t == "FOURIER_TRANS" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" || t == "FOURIER_ANALYSIS" || t == "RMS_VAL" || t == "THD_VAL" || t == "PLL_LOOP") {
         float hw = 26*s, hh = 18*s;

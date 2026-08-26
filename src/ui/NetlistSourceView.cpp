@@ -1162,6 +1162,69 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["Theta"] = inTheta;
             cObj["theta"] = inTheta;
             ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH" || t == "DqToAbc") {
+            cObj["output_a"] = comp.id + ".A";
+            cObj["output_b"] = comp.id + ".B";
+            cObj["output_c"] = comp.id + ".C";
+            cObj["original_type"] = "DQ_TO_ABC";
+
+            std::string inD = getIncomingSignal(comp.id, "d");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "Vd");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "D");
+            if (inD == "0.0") inD = getIncomingSignal(comp.id, "In1");
+
+            std::string inQ = getIncomingSignal(comp.id, "q");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "Vq");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "Q");
+            if (inQ == "0.0") inQ = getIncomingSignal(comp.id, "In2");
+
+            std::string inTheta = getIncomingSignal(comp.id, "Theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "wt");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "In3");
+
+            cObj["input_d"] = inD;
+            cObj["input_q"] = inQ;
+            cObj["input_theta"] = inTheta;
+            cObj["Vd"] = inD;
+            cObj["Vq"] = inQ;
+            cObj["d"] = inD;
+            cObj["q"] = inQ;
+            cObj["Theta"] = inTheta;
+            cObj["theta"] = inTheta;
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "ABC_TO_DQ" || t == "ABC_DQ" || t == "PARK_3PH" || t == "AbcToDq") {
+            cObj["output_d"] = comp.id + ".d";
+            cObj["output_q"] = comp.id + ".q";
+            cObj["original_type"] = "ABC_TO_DQ";
+
+            std::string inA = getIncomingSignal(comp.id, "A");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "Va");
+            if (inA == "0.0") inA = getIncomingSignal(comp.id, "In1");
+
+            std::string inB = getIncomingSignal(comp.id, "B");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "Vb");
+            if (inB == "0.0") inB = getIncomingSignal(comp.id, "In2");
+
+            std::string inC = getIncomingSignal(comp.id, "C");
+            if (inC == "0.0") inC = getIncomingSignal(comp.id, "Vc");
+            if (inC == "0.0") inC = getIncomingSignal(comp.id, "In3");
+
+            std::string inTheta = getIncomingSignal(comp.id, "Theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "theta");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "wt");
+            if (inTheta == "0.0") inTheta = getIncomingSignal(comp.id, "In4");
+
+            cObj["input_a"] = inA;
+            cObj["input_b"] = inB;
+            cObj["input_c"] = inC;
+            cObj["input_theta"] = inTheta;
+            cObj["Va"] = inA;
+            cObj["Vb"] = inB;
+            cObj["Vc"] = inC;
+            cObj["Theta"] = inTheta;
+            cObj["theta"] = inTheta;
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "PWM_3PH") {
             cObj["output_a"] = comp.id + ".OutA";
             cObj["output_b"] = comp.id + ".OutB";
