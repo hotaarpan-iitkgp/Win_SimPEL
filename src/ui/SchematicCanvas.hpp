@@ -90,6 +90,16 @@ private:
     char pulseWidthBuf[64] = "0.5";
     char pulseDelayBuf[64] = "0";
 
+    bool showCompConstModal = false;
+    int compConstCompIdx = -1;
+    int compConstOpIdx = 0;
+    char compConstValBuf[64] = "0.0";
+
+    bool showEdgeDetectModal = false;
+    int edgeDetectCompIdx = -1;
+    int edgeDetectTypeIdx = 0;
+    char edgeDetectPulseWidthBuf[64] = "1e-3";
+
     void drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos);
     void drawComponents(ImDrawList* drawList, ImVec2 canvasPos);
     void drawWires(ImDrawList* drawList, ImVec2 canvasPos);

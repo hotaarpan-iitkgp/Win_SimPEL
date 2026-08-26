@@ -1162,6 +1162,21 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
         drawList->AddText(rotatePt(-22*s, -10*s, c.x, c.y, rot), color, "PWM");
         drawList->AddText(rotatePt(-24*s, 2*s, c.x, c.y, rot), IM_COL32(245, 158, 11, 255), "MASTER");
+    } else if (t == "COMP_CONST" || t == "COMPARE_TO_CONSTANT") {
+        float hw = 24*s, hh = 16*s;
+        drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
+        drawList->AddRect({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, color, 4*s, 0, 2.0f*s);
+
+        std::string op = comp.parameters.count("operator") ? comp.parameters.at("operator") : (comp.parameters.count("op") ? comp.parameters.at("op") : "==");
+        std::string cVal = comp.parameters.count("threshold") ? comp.parameters.at("threshold") : (comp.parameters.count("constant") ? comp.parameters.at("constant") : (comp.parameters.count("const") ? comp.parameters.at("const") : (comp.parameters.count("value") ? comp.parameters.at("value") : "0")));
+
+        std::string symText = op + " " + cVal;
+        ImVec2 txtSz = ImGui::CalcTextSize(symText.c_str());
+        ImVec2 txtPos = rotatePt(-txtSz.x * 0.5f, -txtSz.y * 0.5f, c.x, c.y, rot);
+        drawList->AddText(txtPos, color, symText.c_str());
+
+        drawList->AddLine(rotatePt(-hw - 4*s, 0, c.x, c.y, rot), rotatePt(-hw, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(hw, 0, c.x, c.y, rot), rotatePt(hw + 4*s, 0, c.x, c.y, rot), color, 2.0f*s);
     } else if (t == "EDGE_DETECT" || t == "EdgeDetector") {
         float hw = 22*s, hh = 16*s;
         drawList->AddRectFilled({c.x - hw, c.y - hh}, {c.x + hw, c.y + hh}, blockBg, 4*s);
@@ -3207,10 +3222,70 @@ void SchematicCanvas::renderModals() {
                 pulseCompIdx = -1;
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::EndPopup();
+        }
+    }
+
+    if (showCompConstModal) {
+        ImGui::OpenPopup("Compare to Constant Parameters Modal");
+        if (ImGui::BeginPopupModal("Compare to Constant Parameters Modal", &showCompConstModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Edit Compare to Constant Configuration:");
+            ImGui::Separator();
+            const char* ops[] = { "== (Equal)", "!= (Not Equal)", "< (Less Than)", "<= (Less Than or Equal)", "> (Greater Than)", ">= (Greater Than or Equal)" };
+            ImGui::Combo("Operator", &compConstOpIdx, ops, IM_ARRAYSIZE(ops));
+            ImGui::InputText("Constant Value", compConstValBuf, sizeof(compConstValBuf));
+            ImGui::Spacing();
+            if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
+                pushUndoState();
+                if (compConstCompIdx >= 0 && compConstCompIdx < (int)design.components.size()) {
+                    auto& c = design.components[compConstCompIdx];
+                    const char* opsStr[] = { "==", "!=", "<", "<=", ">", ">=" };
+                    c.parameters["operator"] = opsStr[compConstOpIdx];
+                    c.parameters["constant"] = compConstValBuf;
+                    c.parameters["threshold"] = compConstValBuf;
+                    c.label = std::string(opsStr[compConstOpIdx]) + " " + compConstValBuf;
+                }
+                showCompConstModal = false;
+                compConstCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
             ImGui::SameLine();
             if (ImGui::Button("Cancel", ImVec2(100, 30))) {
-                showPulseModal = false;
-                pulseCompIdx = -1;
+                showCompConstModal = false;
+                compConstCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    if (showEdgeDetectModal) {
+        ImGui::OpenPopup("Edge Detector Parameters Modal");
+        if (ImGui::BeginPopupModal("Edge Detector Parameters Modal", &showEdgeDetectModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Edit Edge Detector Configuration:");
+            ImGui::Separator();
+            const char* edgeTypes[] = { "Rising Edge", "Falling Edge", "Either Edge" };
+            ImGui::Combo("Detection Mode", &edgeDetectTypeIdx, edgeTypes, IM_ARRAYSIZE(edgeTypes));
+            ImGui::InputText("Pulse Width (s)", edgeDetectPulseWidthBuf, sizeof(edgeDetectPulseWidthBuf));
+            ImGui::Spacing();
+            if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
+                pushUndoState();
+                if (edgeDetectCompIdx >= 0 && edgeDetectCompIdx < (int)design.components.size()) {
+                    auto& c = design.components[edgeDetectCompIdx];
+                    const char* edgesStr[] = { "rising", "falling", "either" };
+                    c.parameters["edge"] = edgesStr[edgeDetectTypeIdx];
+                    c.parameters["edge_type"] = edgesStr[edgeDetectTypeIdx];
+                    c.parameters["pulse_width"] = edgeDetectPulseWidthBuf;
+                    c.label = "Edge (" + std::string(edgesStr[edgeDetectTypeIdx]) + ")";
+                }
+                showEdgeDetectModal = false;
+                edgeDetectCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 30))) {
+                showEdgeDetectModal = false;
+                edgeDetectCompIdx = -1;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -3765,6 +3840,33 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     strncpy(pulsePeriodBuf, period.c_str(), sizeof(pulsePeriodBuf));
                     strncpy(pulseWidthBuf, width.c_str(), sizeof(pulseWidthBuf));
                     strncpy(pulseDelayBuf, delay.c_str(), sizeof(pulseDelayBuf));
+                } else if (comp.rawTypeStr == "COMP_CONST" || comp.rawTypeStr == "COMPARE_TO_CONSTANT" || comp.type == ComponentType::CompareToConstant) {
+                    showCompConstModal = true;
+                    compConstCompIdx = (int)i;
+                    std::string op = comp.parameters.count("operator") ? comp.parameters["operator"] : (comp.parameters.count("op") ? comp.parameters["op"] : "==");
+                    std::string val = comp.parameters.count("threshold") ? comp.parameters["threshold"] : (comp.parameters.count("constant") ? comp.parameters["constant"] : (comp.parameters.count("const") ? comp.parameters["const"] : (comp.parameters.count("value") ? comp.parameters["value"] : "0.0")));
+
+                    if (op == "==" || op == "=") compConstOpIdx = 0;
+                    else if (op == "!=" || op == "~=") compConstOpIdx = 1;
+                    else if (op == "<") compConstOpIdx = 2;
+                    else if (op == "<=") compConstOpIdx = 3;
+                    else if (op == ">") compConstOpIdx = 4;
+                    else if (op == ">=") compConstOpIdx = 5;
+                    else compConstOpIdx = 0;
+
+                    strncpy(compConstValBuf, val.c_str(), sizeof(compConstValBuf) - 1);
+                } else if (comp.rawTypeStr == "EDGE_DETECT" || comp.rawTypeStr == "EdgeDetector" || comp.type == ComponentType::EdgeDetect) {
+                    showEdgeDetectModal = true;
+                    edgeDetectCompIdx = (int)i;
+                    std::string edge = comp.parameters.count("edge") ? comp.parameters["edge"] : (comp.parameters.count("edge_type") ? comp.parameters["edge_type"] : "rising");
+                    std::string pw = comp.parameters.count("pulse_width") ? comp.parameters["pulse_width"] : "1e-3";
+
+                    std::transform(edge.begin(), edge.end(), edge.begin(), ::tolower);
+                    if (edge.find("fall") != std::string::npos) edgeDetectTypeIdx = 1;
+                    else if (edge.find("either") != std::string::npos || edge.find("both") != std::string::npos) edgeDetectTypeIdx = 2;
+                    else edgeDetectTypeIdx = 0;
+
+                    strncpy(edgeDetectPulseWidthBuf, pw.c_str(), sizeof(edgeDetectPulseWidthBuf) - 1);
                 } else if (comp.rawTypeStr == "SCOPE") {
                     // Open the scope popup window (MainWindow will handle creation)
                     scopeOpenRequest.pending = true;

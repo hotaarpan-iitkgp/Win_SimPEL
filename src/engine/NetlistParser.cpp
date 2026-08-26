@@ -140,7 +140,7 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "Monostable" || t == "MONOSTABLE") return ComponentType::Monostable;
     if (t == "Monoflop" || t == "MONOFLOP") return ComponentType::Monoflop;
     if (t == "RelationalOp" || t == "RELATIONAL_OPERATOR") return ComponentType::RelationalOp;
-    if (t == "CompareToConstant" || t == "COMPARE_TO_CONSTANT") return ComponentType::CompareToConstant;
+    if (t == "CompareToConstant" || t == "COMPARE_TO_CONSTANT" || t == "COMP_CONST") return ComponentType::CompareToConstant;
     if (t == "DFlipFlop" || t == "D_FLIP_FLOP") return ComponentType::DFlipFlop;
     if (t == "JKFlipFlop" || t == "JK_FLIP_FLOP") return ComponentType::JKFlipFlop;
     if (t == "ShiftReg" || t == "SHIFT_REG") return ComponentType::ShiftReg;

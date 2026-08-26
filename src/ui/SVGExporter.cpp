@@ -656,6 +656,20 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
             ImVec2 symPos = svgRotatePt(0, 4, c.x, c.y, rot);
             std::string sym = (t == "PROD" || t == "PRODUCT_RECT") ? "Π" : "Σ";
             out << "    <text x=\"" << symPos.x << "\" y=\"" << symPos.y << "\" class=\"comp-label\">" << sym << "</text>\n";
+        } else if (t == "COMP_CONST" || t == "COMPARE_TO_CONSTANT") {
+            float hw = 24.0f, hh = 18.0f;
+            ImVec2 rectPts[] = {
+                svgRotatePt(-hw, -hh, c.x, c.y, rot),
+                svgRotatePt(hw, -hh, c.x, c.y, rot),
+                svgRotatePt(hw, hh, c.x, c.y, rot),
+                svgRotatePt(-hw, hh, c.x, c.y, rot)
+            };
+            drawPolygon(rectPts, 4, 2.0f, true);
+            std::string op = comp.parameters.count("operator") ? comp.parameters.at("operator") : (comp.parameters.count("op") ? comp.parameters.at("op") : "==");
+            std::string cVal = comp.parameters.count("threshold") ? comp.parameters.at("threshold") : (comp.parameters.count("constant") ? comp.parameters.at("constant") : (comp.parameters.count("const") ? comp.parameters.at("const") : (comp.parameters.count("value") ? comp.parameters.at("value") : "0")));
+            std::string sym = op + " " + cVal;
+            ImVec2 lblPos = svgRotatePt(0, 4, c.x, c.y, rot);
+            out << "    <text x=\"" << lblPos.x << "\" y=\"" << lblPos.y << "\" class=\"comp-label\">" << xmlEscape(sym) << "</text>\n";
         } else {
             // Generic Block Box with rotated geometry
             float hw = 24.0f, hh = 18.0f;

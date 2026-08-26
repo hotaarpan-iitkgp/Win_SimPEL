@@ -326,7 +326,7 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "Monostable" || typeStr == "MONOSTABLE") return ComponentType::Monostable;
     if (typeStr == "Monoflop" || typeStr == "MONOFLOP") return ComponentType::Monoflop;
     if (typeStr == "RelationalOp" || typeStr == "RELATIONAL_OPERATOR") return ComponentType::RelationalOp;
-    if (typeStr == "CompareToConstant" || typeStr == "COMPARE_TO_CONSTANT") return ComponentType::CompareToConstant;
+    if (typeStr == "CompareToConstant" || typeStr == "COMPARE_TO_CONSTANT" || typeStr == "COMP_CONST") return ComponentType::CompareToConstant;
     if (typeStr == "DFlipFlop" || typeStr == "D_FLIP_FLOP") return ComponentType::DFlipFlop;
     if (typeStr == "JKFlipFlop" || typeStr == "JK_FLIP_FLOP") return ComponentType::JKFlipFlop;
     if (typeStr == "ShiftReg" || typeStr == "SHIFT_REG") return ComponentType::ShiftReg;

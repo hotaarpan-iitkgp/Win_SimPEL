@@ -978,12 +978,25 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["input1"] = getIncomingSignal(comp.id, "In1");
             cObj["input2"] = getIncomingSignal(comp.id, "In2");
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "COMPARE_TO_CONSTANT") {
+        } else if (t == "COMPARE_TO_CONSTANT" || t == "COMP_CONST") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "COMPARE_TO_CONSTANT";
-            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "==";
-            cObj["constant"] = formatJSStyleDouble(parsedParams.count("constant") ? parsedParams["constant"] : 0.0);
+            std::string op = comp.parameters.count("operator") ? comp.parameters.at("operator") : (comp.parameters.count("op") ? comp.parameters.at("op") : "==");
+            cObj["operator"] = op;
+
+            double cVal = 0.0;
+            if (parsedParams.count("threshold")) cVal = parsedParams["threshold"];
+            else if (parsedParams.count("constant")) cVal = parsedParams["constant"];
+            else if (parsedParams.count("const")) cVal = parsedParams["const"];
+            else if (parsedParams.count("value")) cVal = parsedParams["value"];
+            else if (parsedParams.count("val")) cVal = parsedParams["val"];
+
+            cObj["constant"] = formatJSStyleDouble(cVal);
+            cObj["threshold"] = formatJSStyleDouble(cVal);
+
             std::string inSig = getIncomingSignal(comp.id, "In");
+            if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In1");
+            if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "A");
             cObj["input"] = inSig;
             cObj["input1"] = inSig;
             cObj["input2"] = "0.0";

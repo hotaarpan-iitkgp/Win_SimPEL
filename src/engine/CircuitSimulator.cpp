@@ -613,30 +613,45 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::CombLogic) {
             fc.polarity = getParamString(ctrlComp, "truth_table", "");
         } else if (ctrlComp.type == ComponentType::EdgeDetect) {
-            fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
+            std::string em = getParamString(ctrlComp, "edge", "");
+            if (em.empty()) em = getParamString(ctrlComp, "edge_type", "");
+            if (em.empty()) em = getParamString(ctrlComp, "detection_mode", "");
+            if (em.empty()) em = getParamString(ctrlComp, "trigger_edge", "");
+            if (em.empty()) em = getParamString(ctrlComp, "mode", "rising");
+            std::transform(em.begin(), em.end(), em.begin(), ::tolower);
+            if (em.find("fall") != std::string::npos || em == "neg" || em == "negative") fc.edgeMode = "falling";
+            else if (em.find("both") != std::string::npos || em.find("either") != std::string::npos) fc.edgeMode = "either";
+            else fc.edgeMode = "rising";
+
             fc.pulseDuration = evaluateParam(ctrlComp, "pulse_width", 1e-3);
+            if (!ctrlComp.parameters.count("pulse_width") && ctrlComp.parameters.count("duration")) fc.pulseDuration = evaluateParam(ctrlComp, "duration", 1e-3);
+            if (!ctrlComp.parameters.count("pulse_width") && !ctrlComp.parameters.count("duration") && ctrlComp.parameters.count("width")) fc.pulseDuration = evaluateParam(ctrlComp, "width", 1e-3);
         } else if (ctrlComp.type == ComponentType::Monostable || ctrlComp.type == ComponentType::Monoflop) {
             fc.pulseDuration = evaluateParam(ctrlComp, "duration", 0.01);
             if (!ctrlComp.parameters.count("duration") && ctrlComp.parameters.count("pulse_duration")) fc.pulseDuration = evaluateParam(ctrlComp, "pulse_duration", 0.01);
             if (!ctrlComp.parameters.count("duration") && !ctrlComp.parameters.count("pulse_duration") && ctrlComp.parameters.count("pulse_width")) fc.pulseDuration = evaluateParam(ctrlComp, "pulse_width", 0.01);
             if (!ctrlComp.parameters.count("duration") && !ctrlComp.parameters.count("pulse_duration") && !ctrlComp.parameters.count("pulse_width") && ctrlComp.parameters.count("width")) fc.pulseDuration = evaluateParam(ctrlComp, "width", 0.01);
 
-            fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
-            if (fc.edgeMode.empty() || !ctrlComp.parameters.count("trigger_edge")) fc.edgeMode = getParamString(ctrlComp, "edge", "rising");
+            std::string em = getParamString(ctrlComp, "trigger_edge", "");
+            if (em.empty()) em = getParamString(ctrlComp, "edge", "rising");
+            std::transform(em.begin(), em.end(), em.begin(), ::tolower);
+            if (em.find("fall") != std::string::npos || em == "neg" || em == "negative") fc.edgeMode = "falling";
+            else if (em.find("both") != std::string::npos || em.find("either") != std::string::npos) fc.edgeMode = "either";
+            else fc.edgeMode = "rising";
 
             fc.retriggerable = (getParamString(ctrlComp, "retriggerable", "false") == "true");
         } else if (ctrlComp.type == ComponentType::RelationalOp) {
             fc.polarity = getParamString(ctrlComp, "operator", "==");
         } else if (ctrlComp.type == ComponentType::CompareToConstant) {
-            fc.polarity = getParamString(ctrlComp, "operator", ">");
-            if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "op", ">");
-            if (fc.polarity.empty()) fc.polarity = getParamString(ctrlComp, "relop", ">");
+            fc.polarity = getParamString(ctrlComp, "operator", "==");
+            if (!ctrlComp.parameters.count("operator") && ctrlComp.parameters.count("op")) fc.polarity = getParamString(ctrlComp, "op", "==");
+            if (!ctrlComp.parameters.count("operator") && !ctrlComp.parameters.count("op") && ctrlComp.parameters.count("relop")) fc.polarity = getParamString(ctrlComp, "relop", "==");
 
-            fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.25);
-            if (!ctrlComp.parameters.count("threshold") && ctrlComp.parameters.count("constant")) fc.thresholdVal = evaluateParam(ctrlComp, "constant", 0.25);
-            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && ctrlComp.parameters.count("const")) fc.thresholdVal = evaluateParam(ctrlComp, "const", 0.25);
-            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && !ctrlComp.parameters.count("const") && ctrlComp.parameters.count("value")) fc.thresholdVal = evaluateParam(ctrlComp, "value", 0.25);
-            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && !ctrlComp.parameters.count("const") && !ctrlComp.parameters.count("value") && ctrlComp.parameters.count("val")) fc.thresholdVal = evaluateParam(ctrlComp, "val", 0.25);
+            fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.0);
+            if (!ctrlComp.parameters.count("threshold") && ctrlComp.parameters.count("constant")) fc.thresholdVal = evaluateParam(ctrlComp, "constant", 0.0);
+            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && ctrlComp.parameters.count("const")) fc.thresholdVal = evaluateParam(ctrlComp, "const", 0.0);
+            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && !ctrlComp.parameters.count("const") && ctrlComp.parameters.count("value")) fc.thresholdVal = evaluateParam(ctrlComp, "value", 0.0);
+            if (!ctrlComp.parameters.count("threshold") && !ctrlComp.parameters.count("constant") && !ctrlComp.parameters.count("const") && !ctrlComp.parameters.count("value") && ctrlComp.parameters.count("val")) fc.thresholdVal = evaluateParam(ctrlComp, "val", 0.0);
         } else if (ctrlComp.type == ComponentType::DFlipFlop) {
             fc.q_state = evaluateParam(ctrlComp, "initial_state", 0.0) > 0.5 ? 1.0 : 0.0;
             fc.edgeMode = getParamString(ctrlComp, "trigger_edge", "rising");
@@ -1683,7 +1698,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 else val = 0.0;
             }
             else if (fc.type == ComponentType::CompareToConstant) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 double cVal = fc.thresholdVal;
                 std::string op = fc.polarity;
                 if (op == "==" || op == "=") val = (std::abs(inVal - cVal) < 1e-12) ? 1.0 : 0.0;
@@ -1693,14 +1708,36 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 else if (op == ">") val = (inVal > cVal) ? 1.0 : 0.0;
                 else if (op == ">=") val = (inVal >= cVal) ? 1.0 : 0.0;
                 else val = 0.0;
+
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"Out", val}, {"out", val}, {"Y", val}, {"y", val}, {"Out1", val}
+                };
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
             }
             else if (fc.type == ComponentType::EdgeDetect) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 double pulseW = (fc.pulseDuration > 0.0) ? fc.pulseDuration : 1e-3;
+
+                if (currentTime == 0.0) {
+                    fc.prevVal = inVal;
+                    fc.edgeActive = false;
+                    fc.triggerTime = -1.0;
+                }
+
                 bool detected = false;
-                if (fc.edgeMode == "rising") detected = (fc.prevVal <= 0.5 && inVal > 0.5);
-                else if (fc.edgeMode == "falling") detected = (fc.prevVal > 0.5 && inVal <= 0.5);
-                else detected = ((fc.prevVal <= 0.5 && inVal > 0.5) || (fc.prevVal > 0.5 && inVal <= 0.5));
+                if (fc.edgeMode == "falling") {
+                    detected = (fc.prevVal > 0.5 && inVal <= 0.5);
+                } else if (fc.edgeMode == "either") {
+                    detected = ((fc.prevVal <= 0.5 && inVal > 0.5) || (fc.prevVal > 0.5 && inVal <= 0.5));
+                } else {
+                    detected = (fc.prevVal <= 0.5 && inVal > 0.5);
+                }
+
                 if (detected && !fc.edgeActive) {
                     fc.edgeActive = true;
                     fc.triggerTime = currentTime;
@@ -1713,6 +1750,16 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     fc.lastTime = currentTime;
                 }
                 val = fc.edgeActive ? 1.0 : 0.0;
+
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"Out", val}, {"out", val}, {"Y", val}, {"y", val}, {"Out1", val}
+                };
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
             }
             else if (fc.type == ComponentType::Monostable || fc.type == ComponentType::Monoflop) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
