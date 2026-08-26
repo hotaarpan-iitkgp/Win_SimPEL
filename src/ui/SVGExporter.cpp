@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
+#include <iostream>
 
 namespace CircuitSim {
 
@@ -102,8 +103,20 @@ std::vector<std::string> SVGExporter::traceScopeInputSignals(const CircuitDesign
         std::string targetPin = "In" + std::to_string(ch + 1);
 
         for (const auto& wire : design.wires) {
-            bool scopeOnTo = (wire.to.compId == scopeId && wire.to.terminal == targetPin);
-            bool scopeOnFrom = (wire.from.compId == scopeId && wire.from.terminal == targetPin);
+            auto matchScopePin = [](const std::string& term, const std::string& target, int channelIdx) {
+                if (term == target) return true;
+                std::string lTerm = term;
+                std::transform(lTerm.begin(), lTerm.end(), lTerm.begin(), ::tolower);
+                std::string lTarget = target;
+                std::transform(lTarget.begin(), lTarget.end(), lTarget.begin(), ::tolower);
+                if (lTerm == lTarget) return true;
+                if (lTerm == "in" + std::to_string(channelIdx + 1)) return true;
+                if (lTerm == "ch" + std::to_string(channelIdx + 1)) return true;
+                if (channelIdx == 0 && lTerm == "in") return true;
+                return false;
+            };
+            bool scopeOnTo = (wire.to.compId == scopeId && matchScopePin(wire.to.terminal, targetPin, ch));
+            bool scopeOnFrom = (wire.from.compId == scopeId && matchScopePin(wire.from.terminal, targetPin, ch));
 
             if (!scopeOnTo && !scopeOnFrom) continue;
 

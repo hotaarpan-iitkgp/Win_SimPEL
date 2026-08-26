@@ -522,7 +522,12 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::MemoryBlock) {
             fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
         } else if (ctrlComp.type == ComponentType::Quantizer) {
-            fc.minVal = evaluateParam(ctrlComp, "step_size", 0.5);
+            if (ctrlComp.parameters.count("interval")) fc.minVal = evaluateParam(ctrlComp, "interval", 0.5);
+            else if (ctrlComp.parameters.count("step_size")) fc.minVal = evaluateParam(ctrlComp, "step_size", 0.5);
+            else if (ctrlComp.parameters.count("step")) fc.minVal = evaluateParam(ctrlComp, "step", 0.5);
+            else if (ctrlComp.parameters.count("quantization_interval")) fc.minVal = evaluateParam(ctrlComp, "quantization_interval", 0.5);
+            else if (ctrlComp.parameters.count("q")) fc.minVal = evaluateParam(ctrlComp, "q", 0.5);
+            else fc.minVal = evaluateParam(ctrlComp, "step_size", 0.5);
             fc.polarity = getParamString(ctrlComp, "mode", "round");
         } else if (ctrlComp.type == ComponentType::SignalSwitch) {
             fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.5);
@@ -732,6 +737,7 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "B", "");
         if (fc.in1Key.empty()) fc.in1Key = getParamString(ctrlComp, "in_b", "");
         fc.outKey = getParamString(ctrlComp, "output", "");
+        if (fc.outKey.empty()) fc.outKey = ctrlComp.id + ".Out";
         fc.targetKey = getParamString(ctrlComp, "target", "");
         fc.ctrlSigKey = getParamString(ctrlComp, "selected_signals", "");
         if (fc.ctrlSigKey.empty()) fc.ctrlSigKey = getParamString(ctrlComp, "control_signal", "");
@@ -1593,7 +1599,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = fc.prevVal;
             }
             else if (fc.type == ComponentType::Quantizer) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 double step = (fc.minVal > 0.0) ? fc.minVal : 0.5;
                 double ratio = inVal / step;
                 double q = 0.0;

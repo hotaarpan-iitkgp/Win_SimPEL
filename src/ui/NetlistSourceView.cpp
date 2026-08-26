@@ -788,7 +788,20 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "QUANTIZER") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "QUANTIZER";
-            cObj["step_size"] = formatJSStyleDouble(parsedParams.count("step_size") ? parsedParams["step_size"] : 0.5);
+            double stepVal = 0.5;
+            if (parsedParams.count("interval")) stepVal = parsedParams["interval"];
+            else if (parsedParams.count("step_size")) stepVal = parsedParams["step_size"];
+            else if (parsedParams.count("step")) stepVal = parsedParams["step"];
+            else if (parsedParams.count("quantization_interval")) stepVal = parsedParams["quantization_interval"];
+            else if (parsedParams.count("q")) stepVal = parsedParams["q"];
+            else if (comp.parameters.count("interval")) { try { stepVal = std::stod(comp.parameters.at("interval")); } catch(...) {} }
+            else if (comp.parameters.count("step_size")) { try { stepVal = std::stod(comp.parameters.at("step_size")); } catch(...) {} }
+            else if (comp.parameters.count("step")) { try { stepVal = std::stod(comp.parameters.at("step")); } catch(...) {} }
+            else if (comp.parameters.count("quantization_interval")) { try { stepVal = std::stod(comp.parameters.at("quantization_interval")); } catch(...) {} }
+            else if (comp.parameters.count("q")) { try { stepVal = std::stod(comp.parameters.at("q")); } catch(...) {} }
+
+            cObj["step_size"] = formatJSStyleDouble(stepVal);
+            cObj["interval"] = formatJSStyleDouble(stepVal);
             cObj["mode"] = comp.parameters.count("mode") ? comp.parameters.at("mode") : "round";
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;

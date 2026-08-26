@@ -167,13 +167,15 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
             comp.x = cItem.value("x", 0.0f);
             comp.y = cItem.value("y", 0.0f);
             comp.rotation = cItem.value("rotation", 0);
-            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
-                for (auto& [k, v] : cItem["parameters"].items()) {
+            auto parseParamsObj = [&](const nlohmann::json& pObj) {
+                for (auto& [k, v] : pObj.items()) {
                     if (v.is_string()) comp.parameters[k] = v.get<std::string>();
                     else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
                     else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
                 }
-            }
+            };
+            if (cItem.contains("parameters") && cItem["parameters"].is_object()) parseParamsObj(cItem["parameters"]);
+            if (cItem.contains("params") && cItem["params"].is_object()) parseParamsObj(cItem["params"]);
             CircuitSim::setupComponentPins(comp);
             cd.components.push_back(comp);
         }
@@ -222,9 +224,11 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
                 wire.to.isWireJunction = false;
             }
 
-            if (wItem.value("isJunction", false) || wItem.contains("targetWireId")) {
+            bool isJunc = wItem.value("isJunction", false);
+            std::string targetWId = wItem.value("targetWireId", "");
+            if (isJunc || !targetWId.empty()) {
                 wire.to.isWireJunction = true;
-                wire.to.targetWireId = wItem.value("targetWireId", "");
+                wire.to.targetWireId = targetWId;
                 wire.to.junctionX = wItem.value("jX", 0.0f);
                 wire.to.junctionY = wItem.value("jY", 0.0f);
             }

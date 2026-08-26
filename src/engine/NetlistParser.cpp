@@ -321,8 +321,8 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
         comp.parameters["control_signal"] = item["control_signal"].get<std::string>();
     }
 
-    if (item.contains("parameters") && item["parameters"].is_object()) {
-        for (auto& [k, v] : item["parameters"].items()) {
+    auto parseParamsMap = [&](const json& pObj) {
+        for (auto& [k, v] : pObj.items()) {
             std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? std::to_string(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
             comp.parameters[k] = valStr;
 
@@ -335,7 +335,9 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
             else if (k == "damping") comp.parameters["zeta"] = valStr;
             else if (k == "pulse_duration") comp.parameters["duration"] = valStr;
         }
-    }
+    };
+    if (item.contains("parameters") && item["parameters"].is_object()) parseParamsMap(item["parameters"]);
+    if (item.contains("params") && item["params"].is_object()) parseParamsMap(item["params"]);
 
     for (auto& [k, v] : item.items()) {
         if (k == "id" || k == "nodes" || k == "type" || k == "parameters" || k == "label" || k == "inputs" || k == "outputs") continue;
