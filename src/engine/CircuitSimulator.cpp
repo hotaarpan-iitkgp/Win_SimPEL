@@ -596,8 +596,19 @@ void CircuitSimulator::buildIndexMaps() {
             if (!ctrlComp.parameters.count("function") && !ctrlComp.parameters.count("func") && ctrlComp.parameters.count("fcn")) fc.polarity = getParamString(ctrlComp, "fcn", "exp");
             if (!ctrlComp.parameters.count("function") && !ctrlComp.parameters.count("func") && !ctrlComp.parameters.count("fcn") && ctrlComp.parameters.count("operator")) fc.polarity = getParamString(ctrlComp, "operator", "exp");
         } else if (ctrlComp.type == ComponentType::Relay) {
-            fc.onThresh = evaluateParam(ctrlComp, "on_threshold", 1.0);
-            fc.offThresh = evaluateParam(ctrlComp, "off_threshold", -1.0);
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (ctrlComp.parameters.count(k)) {
+                        try { return std::stod(ctrlComp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            fc.onThresh = getParamVal({"switch_on_point", "on_point", "switch_on", "on_threshold", "high_threshold", "upper_threshold", "on"}, 1.0);
+            fc.offThresh = getParamVal({"switch_off_point", "off_point", "switch_off", "off_threshold", "low_threshold", "lower_threshold", "off"}, -1.0);
+            fc.outValOn = getParamVal({"output_on", "on_output", "on_val", "output_high", "on_value"}, 1.0);
+            fc.outValOff = getParamVal({"output_off", "off_output", "off_val", "output_low", "off_value"}, 0.0);
         } else if (ctrlComp.type == ComponentType::LogicOp || ctrlComp.type == ComponentType::BitwiseOp) {
             std::string op = getParamString(ctrlComp, "operator", "");
             if (op.empty()) op = getParamString(ctrlComp, "op", "");
@@ -1691,10 +1702,10 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 }
             }
             else if (fc.type == ComponentType::Relay) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.empty() || fc.inputSigIndices[0] < 0) ? (fc.in0Ptr ? *fc.in0Ptr : 0.0) : flatControlSignals[fc.inputSigIndices[0]];
                 if (inVal >= fc.onThresh) fc.relayState = 1;
                 else if (inVal <= fc.offThresh) fc.relayState = 0;
-                val = (double)fc.relayState;
+                val = (fc.relayState == 1) ? fc.outValOn : fc.outValOff;
             }
             else if (fc.type == ComponentType::Comparator) {
                 double inA = fc.in0Ptr ? *fc.in0Ptr : 0.0;

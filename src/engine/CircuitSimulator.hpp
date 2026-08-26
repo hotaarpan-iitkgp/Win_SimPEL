@@ -271,6 +271,8 @@ struct FastCompiledComponent {
     double thresholdVal = 0.5;
     double onThresh = 1.0;
     double offThresh = -1.0;
+    double outValOn = 1.0;
+    double outValOff = 0.0;
     double rateUp = 10.0;
     double rateDown = -10.0;
     int relayState = 0;

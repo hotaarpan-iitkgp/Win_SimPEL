@@ -884,8 +884,29 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "RELAY") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "RELAY";
-            cObj["on_threshold"] = formatJSStyleDouble(parsedParams.count("on_threshold") ? parsedParams["on_threshold"] : 1.0);
-            cObj["off_threshold"] = formatJSStyleDouble(parsedParams.count("off_threshold") ? parsedParams["off_threshold"] : -1.0);
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            double onThresh = getParamVal({"switch_on_point", "on_point", "switch_on", "on_threshold", "high_threshold", "upper_threshold", "on"}, 1.0);
+            double offThresh = getParamVal({"switch_off_point", "off_point", "switch_off", "off_threshold", "low_threshold", "lower_threshold", "off"}, -1.0);
+            double outOn = getParamVal({"output_on", "on_output", "on_val", "output_high", "on_value"}, 1.0);
+            double outOff = getParamVal({"output_off", "off_output", "off_val", "output_low", "off_value"}, 0.0);
+
+            cObj["on_threshold"] = formatJSStyleDouble(onThresh);
+            cObj["off_threshold"] = formatJSStyleDouble(offThresh);
+            cObj["switch_on_point"] = formatJSStyleDouble(onThresh);
+            cObj["switch_off_point"] = formatJSStyleDouble(offThresh);
+            cObj["output_on"] = formatJSStyleDouble(outOn);
+            cObj["output_off"] = formatJSStyleDouble(outOff);
+
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
             cObj["input1"] = inSig;
