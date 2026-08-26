@@ -105,6 +105,10 @@ private:
     int hitCrossingDirIdx = 0;
     char hitCrossingOffsetBuf[64] = "0.0";
 
+    bool showRoundModal = false;
+    int roundCompIdx = -1;
+    int roundModeIdx = 0;
+
     void drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos);
     void drawComponents(ImDrawList* drawList, ImVec2 canvasPos);
     void drawWires(ImDrawList* drawList, ImVec2 canvasPos);

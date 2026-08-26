@@ -3355,6 +3355,36 @@ void SchematicCanvas::renderModals() {
             ImGui::EndPopup();
         }
     }
+
+    if (showRoundModal) {
+        ImGui::OpenPopup("Round Function Parameters Modal");
+        if (ImGui::BeginPopupModal("Round Function Parameters Modal", &showRoundModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Edit Round Function Configuration:");
+            ImGui::Separator();
+            const char* modes[] = { "nearest (Round to nearest integer)", "floor (Round towards -infinity)", "ceil (Round towards +infinity)", "fix (Round towards zero / trunc)" };
+            ImGui::Combo("Rounding Mode", &roundModeIdx, modes, IM_ARRAYSIZE(modes));
+            ImGui::Spacing();
+            if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
+                pushUndoState();
+                if (roundCompIdx >= 0 && roundCompIdx < (int)design.components.size()) {
+                    auto& c = design.components[roundCompIdx];
+                    const char* modesStr[] = { "nearest", "floor", "ceil", "fix" };
+                    c.parameters["mode"] = modesStr[roundModeIdx];
+                    c.parameters["function"] = modesStr[roundModeIdx];
+                }
+                showRoundModal = false;
+                roundCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 30))) {
+                showRoundModal = false;
+                roundCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
 }
 
 void SchematicCanvas::render(const char* title, ImVec2 size) {
@@ -3943,6 +3973,15 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     else hitCrossingDirIdx = 0;
 
                     strncpy(hitCrossingOffsetBuf, offset.c_str(), sizeof(hitCrossingOffsetBuf) - 1);
+                } else if (comp.rawTypeStr == "ROUND" || comp.type == ComponentType::Round) {
+                    showRoundModal = true;
+                    roundCompIdx = (int)i;
+                    std::string m = comp.parameters.count("mode") ? comp.parameters["mode"] : (comp.parameters.count("function") ? comp.parameters["function"] : "nearest");
+                    std::transform(m.begin(), m.end(), m.begin(), ::tolower);
+                    if (m.find("floor") != std::string::npos) roundModeIdx = 1;
+                    else if (m.find("ceil") != std::string::npos) roundModeIdx = 2;
+                    else if (m.find("fix") != std::string::npos || m.find("trunc") != std::string::npos) roundModeIdx = 3;
+                    else roundModeIdx = 0;
                 } else if (comp.rawTypeStr == "SCOPE") {
                     // Open the scope popup window (MainWindow will handle creation)
                     scopeOpenRequest.pending = true;

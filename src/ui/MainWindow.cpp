@@ -2445,8 +2445,10 @@ void MainWindow::renderPropertyInspector() {
             }
         } else if (pKey == "filter_type" || (pKey == "type" && (t == "FILTER_1ST" || t == "FILTER_2ND"))) {
             comboChoices = {"lowpass", "highpass", "bandpass", "bandstop"};
-        } else if (pKey == "alignment" || pKey == "mode") {
-            if (t == "PWM" || t == "PWM_3PH" || t == "SVPWM") {
+        } else if (pKey == "alignment" || pKey == "mode" || pKey == "rounding_mode") {
+            if (t == "ROUND") {
+                comboChoices = {"nearest", "floor", "ceil", "fix"};
+            } else if (t == "PWM" || t == "PWM_3PH" || t == "SVPWM") {
                 comboChoices = {"edge", "center", "symmetric", "asymmetric"};
             } else if (t == "FOURIER_ANALYSIS" || t == "FOURIER_TRANS") {
                 comboChoices = {"magnitude_phase", "real_imag", "harmonic_series"};
