@@ -100,6 +100,11 @@ private:
     int edgeDetectTypeIdx = 0;
     char edgeDetectPulseWidthBuf[64] = "1e-3";
 
+    bool showHitCrossingModal = false;
+    int hitCrossingCompIdx = -1;
+    int hitCrossingDirIdx = 0;
+    char hitCrossingOffsetBuf[64] = "0.0";
+
     void drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos);
     void drawComponents(ImDrawList* drawList, ImVec2 canvasPos);
     void drawWires(ImDrawList* drawList, ImVec2 canvasPos);

@@ -2435,9 +2435,9 @@ void MainWindow::renderPropertyInspector() {
             } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
                 comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
             }
-        } else if (pKey == "edgetype" || pKey == "edge") {
-            if (t == "EDGE_DETECT") {
-                comboChoices = {"rising", "falling", "either"};
+        } else if (pKey == "edgetype" || pKey == "edge" || pKey == "direction" || pKey == "hit_direction" || pKey == "dir") {
+            if (t == "EDGE_DETECT" || t == "HIT_CROSSING") {
+                comboChoices = {"either", "rising", "falling"};
             }
         } else if (pKey == "datatype" || pKey == "output_type") {
             if (t == "DATATYPE_CONV") {

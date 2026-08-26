@@ -3323,6 +3323,38 @@ void SchematicCanvas::renderModals() {
             ImGui::EndPopup();
         }
     }
+
+    if (showHitCrossingModal) {
+        ImGui::OpenPopup("Hit Crossing Parameters Modal");
+        if (ImGui::BeginPopupModal("Hit Crossing Parameters Modal", &showHitCrossingModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Edit Hit Crossing Configuration:");
+            ImGui::Separator();
+            const char* dirs[] = { "either (Rising or Falling)", "rising (Positive Crossing)", "falling (Negative Crossing)" };
+            ImGui::Combo("Hit Direction", &hitCrossingDirIdx, dirs, IM_ARRAYSIZE(dirs));
+            ImGui::InputText("Hit Offset / Threshold", hitCrossingOffsetBuf, sizeof(hitCrossingOffsetBuf));
+            ImGui::Spacing();
+            if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
+                pushUndoState();
+                if (hitCrossingCompIdx >= 0 && hitCrossingCompIdx < (int)design.components.size()) {
+                    auto& c = design.components[hitCrossingCompIdx];
+                    const char* dirsStr[] = { "either", "rising", "falling" };
+                    c.parameters["direction"] = dirsStr[hitCrossingDirIdx];
+                    c.parameters["hit_threshold"] = hitCrossingOffsetBuf;
+                    c.parameters["offset"] = hitCrossingOffsetBuf;
+                }
+                showHitCrossingModal = false;
+                hitCrossingCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 30))) {
+                showHitCrossingModal = false;
+                hitCrossingCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
 }
 
 void SchematicCanvas::render(const char* title, ImVec2 size) {
@@ -3899,6 +3931,18 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     else edgeDetectTypeIdx = 0;
 
                     strncpy(edgeDetectPulseWidthBuf, pw.c_str(), sizeof(edgeDetectPulseWidthBuf) - 1);
+                } else if (comp.rawTypeStr == "HIT_CROSSING" || comp.type == ComponentType::HitCrossing) {
+                    showHitCrossingModal = true;
+                    hitCrossingCompIdx = (int)i;
+                    std::string dir = comp.parameters.count("direction") ? comp.parameters["direction"] : (comp.parameters.count("dir") ? comp.parameters["dir"] : "either");
+                    std::string offset = comp.parameters.count("hit_threshold") ? comp.parameters["hit_threshold"] : (comp.parameters.count("offset") ? comp.parameters["offset"] : "0.0");
+
+                    std::transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
+                    if (dir.find("rise") != std::string::npos || dir.find("pos") != std::string::npos) hitCrossingDirIdx = 1;
+                    else if (dir.find("fall") != std::string::npos || dir.find("neg") != std::string::npos) hitCrossingDirIdx = 2;
+                    else hitCrossingDirIdx = 0;
+
+                    strncpy(hitCrossingOffsetBuf, offset.c_str(), sizeof(hitCrossingOffsetBuf) - 1);
                 } else if (comp.rawTypeStr == "SCOPE") {
                     // Open the scope popup window (MainWindow will handle creation)
                     scopeOpenRequest.pending = true;
