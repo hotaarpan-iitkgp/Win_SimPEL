@@ -467,9 +467,10 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                 }
 
                 std::string plotTitle = (ch < (int)channelLabels.size()) ? channelLabels[ch] : ("Ch" + std::to_string(ch+1));
+                std::string plotTitleId = "##" + plotTitle + "_" + std::to_string(i);
                 ImPlotFlags pflags = isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None;
 
-                if (ImPlot::BeginPlot(plotTitle.c_str(), ImVec2(-1, -1), pflags)) {
+                if (ImPlot::BeginPlot(plotTitleId.c_str(), ImVec2(-1, -1), pflags)) {
                     if (isZoomActive) {
                         ImPlot::GetInputMap().Select = ImGuiMouseButton_Middle;
                         ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
@@ -915,8 +916,9 @@ void ScopeWindow::renderHarmonicsWindow(const CircuitSimEngine::TelemetryData& d
                 int ch = i % numChannels;
                 const std::string& sigKey = (ch < (int)channelSignalKeys.size()) ? channelSignalKeys[ch] : "";
                 std::string paneTitle = (ch < (int)channelLabels.size()) ? channelLabels[ch] : ("Ch" + std::to_string(ch+1));
+                std::string paneTitleId = "##" + paneTitle + "_" + std::to_string(i);
 
-                if (ImPlot::BeginPlot(paneTitle.c_str(), ImVec2(-1, -1))) {
+                if (ImPlot::BeginPlot(paneTitleId.c_str(), ImVec2(-1, -1))) {
                     ImPlot::SetupAxes("Harmonic Order (n)", "Magnitude");
                     ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, (double)maxN + 0.5, ImGuiCond_Always);
 

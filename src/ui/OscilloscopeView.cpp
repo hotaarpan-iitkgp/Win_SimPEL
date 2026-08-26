@@ -987,8 +987,9 @@ void OscilloscopeView::renderHarmonicsWindow(const CircuitSimEngine::TelemetryDa
             for (int i = 0; i < renderPanes; ++i) {
                 const auto& pair = activeSigs[i % activeSigs.size()];
                 std::string paneTitle = pair.first;
+                std::string paneTitleId = "##" + paneTitle + "_" + std::to_string(i);
 
-                if (ImPlot::BeginPlot(paneTitle.c_str(), ImVec2(-1, -1))) {
+                if (ImPlot::BeginPlot(paneTitleId.c_str(), ImVec2(-1, -1))) {
                     ImPlot::SetupAxes("Harmonic Order (n)", "Magnitude");
                     ImPlot::SetupAxisLimits(ImAxis_X1, 0.5, (double)maxN + 0.5, ImGuiCond_Always);
 
