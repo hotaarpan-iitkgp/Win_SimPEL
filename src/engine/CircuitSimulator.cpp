@@ -325,6 +325,12 @@ void CircuitSimulator::buildIndexMaps() {
             fc.amplitude = evaluateParam(ctrlComp, "amplitude", 1.0);
             fc.freq = evaluateParam(ctrlComp, "frequency", 50.0);
             fc.delay = evaluateParam(ctrlComp, "phase", 0.0); // phase degrees
+            fc.val = evaluateParam(ctrlComp, "bias", 0.0);
+            if (!ctrlComp.parameters.count("bias")) {
+                fc.val = evaluateParam(ctrlComp, "offset", 
+                         evaluateParam(ctrlComp, "dc_offset", 
+                         evaluateParam(ctrlComp, "dc", 0.0)));
+            }
         } else if (ctrlComp.type == ComponentType::RandomNumbers) {
             fc.val = evaluateParam(ctrlComp, "mean", 0.0);
             fc.gain = evaluateParam(ctrlComp, "std", 1.0);
@@ -579,14 +585,17 @@ void CircuitSimulator::buildIndexMaps() {
             fc.rateUp = getParamVal({"rising_slew_rate", "slew_rate_rising", "rising_rate", "rate_up", "slew_rate_up", "rate_rising", "up", "rising"}, 10.0);
             fc.rateDown = getParamVal({"falling_slew_rate", "slew_rate_falling", "falling_rate", "rate_down", "slew_rate_down", "rate_falling", "down", "falling"}, -10.0);
         } else if (ctrlComp.type == ComponentType::Filter1st || ctrlComp.type == ComponentType::Filter2nd) {
-            fc.freq = evaluateParam(ctrlComp, "cutoff_freq", 100.0);
-            if (!ctrlComp.parameters.count("cutoff_freq") && ctrlComp.parameters.count("fc")) fc.freq = evaluateParam(ctrlComp, "fc", 100.0);
-            if (!ctrlComp.parameters.count("cutoff_freq") && !ctrlComp.parameters.count("fc") && ctrlComp.parameters.count("freq")) fc.freq = evaluateParam(ctrlComp, "freq", 100.0);
-            if (!ctrlComp.parameters.count("cutoff_freq") && !ctrlComp.parameters.count("fc") && !ctrlComp.parameters.count("freq") && ctrlComp.parameters.count("frequency")) fc.freq = evaluateParam(ctrlComp, "frequency", 100.0);
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (ctrlComp.parameters.count(k)) {
+                        try { return std::stod(ctrlComp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
 
-            fc.gain = evaluateParam(ctrlComp, "damping", 0.707);
-            if (!ctrlComp.parameters.count("damping") && ctrlComp.parameters.count("zeta")) fc.gain = evaluateParam(ctrlComp, "zeta", 0.707);
-            if (!ctrlComp.parameters.count("damping") && !ctrlComp.parameters.count("zeta") && ctrlComp.parameters.count("Q")) fc.gain = evaluateParam(ctrlComp, "Q", 0.707);
+            fc.freq = getParamVal({"cutoff_freq", "cutoff", "fc", "freq", "frequency", "f"}, 100.0);
+            fc.gain = getParamVal({"damping", "damping_ratio", "zeta", "Q", "q"}, 0.707);
         } else if (ctrlComp.type == ComponentType::PerAvg || ctrlComp.type == ComponentType::MovAvg) {
             fc.delayDuration = evaluateParam(ctrlComp, "period", 0.02);
             if (!ctrlComp.parameters.count("period") && ctrlComp.parameters.count("T")) fc.delayDuration = evaluateParam(ctrlComp, "T", 0.02);
@@ -1304,7 +1313,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = (currentTime >= fc.delay) ? fc.val + fc.gain * (currentTime - fc.delay) : fc.val;
             }
             else if (fc.type == ComponentType::SineWave) {
-                val = fc.amplitude * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + fc.delay * 3.141592653589793 / 180.0);
+                val = fc.val + fc.amplitude * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + fc.delay * 3.141592653589793 / 180.0);
             }
             else if (fc.type == ComponentType::Step) {
                 val = (currentTime >= fc.delay) ? fc.maxVal : fc.minVal;
@@ -2369,7 +2378,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 val = fc.shiftBuffer.empty() ? inVal : (sum / fc.shiftBuffer.size());
             }
             else if (fc.type == ComponentType::Filter1st) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.empty() || fc.inputSigIndices[0] < 0) ? (fc.in0Ptr ? *fc.in0Ptr : 0.0) : flatControlSignals[fc.inputSigIndices[0]];
                 double fcHz = (fc.freq > 0.0) ? fc.freq : 100.0;
                 double tau = 1.0 / (2.0 * 3.141592653589793 * fcHz);
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
@@ -2392,9 +2401,9 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                 }
             }
             else if (fc.type == ComponentType::Filter2nd) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inVal = (fc.inputSigIndices.empty() || fc.inputSigIndices[0] < 0) ? (fc.in0Ptr ? *fc.in0Ptr : 0.0) : flatControlSignals[fc.inputSigIndices[0]];
                 double fcHz = (fc.freq > 0.0) ? fc.freq : 100.0;
-                double zeta = (fc.gain > 0.0) ? fc.gain : 0.707;
+                double zeta = (fc.gain >= 0.0) ? fc.gain : 0.707;
                 double w0 = 2.0 * 3.141592653589793 * fcHz;
                 double dt = (config.stepSize > 0.0) ? config.stepSize : 1e-5;
                 if (currentTime <= 0.0) {

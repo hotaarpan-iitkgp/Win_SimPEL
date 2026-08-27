@@ -109,6 +109,13 @@ private:
     int roundCompIdx = -1;
     int roundModeIdx = 0;
 
+    bool showSineWaveModal = false;
+    int sineWaveCompIdx = -1;
+    char sineWaveAmpBuf[64] = "1.0";
+    char sineWaveFreqBuf[64] = "50.0";
+    char sineWavePhaseBuf[64] = "0.0";
+    char sineWaveBiasBuf[64] = "0.0";
+
     void drawGrid(ImDrawList* drawList, ImVec2 canvasSize, ImVec2 canvasPos);
     void drawComponents(ImDrawList* drawList, ImVec2 canvasPos);
     void drawWires(ImDrawList* drawList, ImVec2 canvasPos);

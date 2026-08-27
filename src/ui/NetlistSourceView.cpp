@@ -589,9 +589,23 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "SINE_WAVE") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "SINE_WAVE";
-            cObj["amplitude"] = formatJSStyleDouble(parsedParams.count("amplitude") ? parsedParams["amplitude"] : 1.0);
-            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 50.0);
-            cObj["phase"] = formatJSStyleDouble(parsedParams.count("phase") ? parsedParams["phase"] : 0.0);
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            cObj["amplitude"] = formatJSStyleDouble(getParamVal({"amplitude", "amp", "a"}, 1.0));
+            cObj["frequency"] = formatJSStyleDouble(getParamVal({"frequency", "freq", "f"}, 50.0));
+            cObj["phase"] = formatJSStyleDouble(getParamVal({"phase", "ph"}, 0.0));
+            double biasVal = getParamVal({"bias", "offset", "dc_offset", "dc"}, 0.0);
+            cObj["bias"] = formatJSStyleDouble(biasVal);
+            cObj["offset"] = formatJSStyleDouble(biasVal);
             cObj["value"] = 1.0;
             ctrlLoopsObj["constants"].push_back(cObj);
         } else if (t == "STEP") {
@@ -1363,17 +1377,49 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
         } else if (t == "FILTER_1ST") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "FILTER_1ST";
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            double fcVal = getParamVal({"cutoff_freq", "cutoff", "fc", "freq", "frequency", "f"}, 100.0);
+            cObj["cutoff_freq"] = formatJSStyleDouble(fcVal);
+            cObj["fc"] = formatJSStyleDouble(fcVal);
             cObj["type"] = comp.parameters.count("type") ? comp.parameters.at("type") : "Lowpass";
-            cObj["fc"] = comp.parameters.count("fc") ? comp.parameters.at("fc") : "1k";
+
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "FILTER_2ND") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "FILTER_2ND";
+
+            auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
+                for (const auto& k : keys) {
+                    if (parsedParams.count(k)) return parsedParams[k];
+                    if (comp.parameters.count(k)) {
+                        try { return std::stod(comp.parameters.at(k)); } catch(...) {}
+                    }
+                }
+                return defaultVal;
+            };
+
+            double fcVal = getParamVal({"cutoff_freq", "cutoff", "fc", "freq", "frequency", "f"}, 100.0);
+            double dampingVal = getParamVal({"damping", "damping_ratio", "zeta", "Q", "q"}, 0.707);
+
+            cObj["cutoff_freq"] = formatJSStyleDouble(fcVal);
+            cObj["fc"] = formatJSStyleDouble(fcVal);
+            cObj["damping"] = formatJSStyleDouble(dampingVal);
+            cObj["zeta"] = formatJSStyleDouble(dampingVal);
+            cObj["Q"] = formatJSStyleDouble(dampingVal);
             cObj["type"] = comp.parameters.count("type") ? comp.parameters.at("type") : "Lowpass";
-            cObj["fc"] = comp.parameters.count("fc") ? comp.parameters.at("fc") : "1k";
-            cObj["Q"] = formatJSStyleDouble(parsedParams.count("Q") ? parsedParams["Q"] : 0.707);
+
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig; cObj["input1"] = inSig; cObj["input2"] = "0.0"; cObj["K"] = 1.0;
             ctrlLoopsObj["gains"].push_back(cObj);

@@ -3385,6 +3385,40 @@ void SchematicCanvas::renderModals() {
             ImGui::EndPopup();
         }
     }
+
+    if (showSineWaveModal) {
+        ImGui::OpenPopup("Sine Wave Parameters Modal");
+        if (ImGui::BeginPopupModal("Sine Wave Parameters Modal", &showSineWaveModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Edit Sine Wave Source Configuration:");
+            ImGui::Separator();
+            ImGui::InputText("Amplitude", sineWaveAmpBuf, sizeof(sineWaveAmpBuf));
+            ImGui::InputText("Frequency (Hz)", sineWaveFreqBuf, sizeof(sineWaveFreqBuf));
+            ImGui::InputText("Phase (deg)", sineWavePhaseBuf, sizeof(sineWavePhaseBuf));
+            ImGui::InputText("Bias / Offset", sineWaveBiasBuf, sizeof(sineWaveBiasBuf));
+            ImGui::Spacing();
+            if (ImGui::Button("Save Parameters", ImVec2(140, 30))) {
+                pushUndoState();
+                if (sineWaveCompIdx >= 0 && sineWaveCompIdx < (int)design.components.size()) {
+                    auto& c = design.components[sineWaveCompIdx];
+                    c.parameters["amplitude"] = sineWaveAmpBuf;
+                    c.parameters["frequency"] = sineWaveFreqBuf;
+                    c.parameters["phase"] = sineWavePhaseBuf;
+                    c.parameters["bias"] = sineWaveBiasBuf;
+                    c.parameters["offset"] = sineWaveBiasBuf;
+                }
+                showSineWaveModal = false;
+                sineWaveCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 30))) {
+                showSineWaveModal = false;
+                sineWaveCompIdx = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
 }
 
 void SchematicCanvas::render(const char* title, ImVec2 size) {
@@ -3982,6 +4016,18 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                     else if (m.find("ceil") != std::string::npos) roundModeIdx = 2;
                     else if (m.find("fix") != std::string::npos || m.find("trunc") != std::string::npos) roundModeIdx = 3;
                     else roundModeIdx = 0;
+                } else if (comp.rawTypeStr == "SINE_WAVE" || comp.type == ComponentType::SineWave) {
+                    showSineWaveModal = true;
+                    sineWaveCompIdx = (int)i;
+                    std::string amp = comp.parameters.count("amplitude") ? comp.parameters["amplitude"] : "1.0";
+                    std::string freq = comp.parameters.count("frequency") ? comp.parameters["frequency"] : "50.0";
+                    std::string phase = comp.parameters.count("phase") ? comp.parameters["phase"] : "0.0";
+                    std::string bias = comp.parameters.count("bias") ? comp.parameters["bias"] : (comp.parameters.count("offset") ? comp.parameters["offset"] : (comp.parameters.count("dc_offset") ? comp.parameters["dc_offset"] : "0.0"));
+
+                    strncpy(sineWaveAmpBuf, amp.c_str(), sizeof(sineWaveAmpBuf) - 1);
+                    strncpy(sineWaveFreqBuf, freq.c_str(), sizeof(sineWaveFreqBuf) - 1);
+                    strncpy(sineWavePhaseBuf, phase.c_str(), sizeof(sineWavePhaseBuf) - 1);
+                    strncpy(sineWaveBiasBuf, bias.c_str(), sizeof(sineWaveBiasBuf) - 1);
                 } else if (comp.rawTypeStr == "SCOPE") {
                     // Open the scope popup window (MainWindow will handle creation)
                     scopeOpenRequest.pending = true;
