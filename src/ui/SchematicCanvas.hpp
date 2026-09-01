@@ -7,6 +7,8 @@
 #include <string>
 #include <set>
 #include <stack>
+#include <unordered_set>
+#include <unordered_map>
 
 namespace CircuitSim {
 
@@ -126,6 +128,42 @@ private:
     void renderModals();
 
     bool isPinConnected(const std::string& compId, const std::string& pinName) const;
+
+    // ── Per-frame lookup caches ──────────────────────────────────────────────
+    // Rebuilt once at the top of render(). Without these, drawTerminals() called
+    // isPinConnected() for every pin of every component, and each of those scanned
+    // every wire while allocating uppercase copies of terminal names inside
+    // isTerminalMatch() — O(components x pins x wires) heap churn every frame.
+    mutable std::unordered_set<std::string> frameConnectedPins;
+    mutable std::unordered_map<std::string, std::vector<TerminalDef>> frameTerminals;
+    mutable std::unordered_map<std::string, const ComponentInstance*> frameCompMap;
+    mutable std::unordered_map<std::string, int> framePinDomain;
+    void rebuildFrameCaches() const;
+    const std::vector<TerminalDef>& cachedTerminals(const ComponentInstance& comp) const;
+    const ComponentInstance* findComp(const std::string& id) const;
+    // getPinDomain() builds two uppercase std::strings on every call; memoise it.
+    // Returns true when the pin belongs to the control domain.
+    bool isControlPinCached(const ComponentInstance& comp, const std::string& pinName) const;
+
+    // Visible-area culling bounds (screen space), set each frame in render().
+    mutable ImVec2 cullMin{0.0f, 0.0f};
+    mutable ImVec2 cullMax{0.0f, 0.0f};
+    bool isPointVisible(const ImVec2& p, float margin) const {
+        return p.x >= cullMin.x - margin && p.x <= cullMax.x + margin &&
+               p.y >= cullMin.y - margin && p.y <= cullMax.y + margin;
+    }
+    bool isSegmentVisible(const ImVec2& a, const ImVec2& b, float margin) const {
+        float loX = (a.x < b.x ? a.x : b.x) - margin, hiX = (a.x > b.x ? a.x : b.x) + margin;
+        float loY = (a.y < b.y ? a.y : b.y) - margin, hiY = (a.y > b.y ? a.y : b.y) + margin;
+        return !(hiX < cullMin.x || loX > cullMax.x || hiY < cullMin.y || loY > cullMax.y);
+    }
+
+    // Zoom-aware label rendering. Text drawn through these scales with the canvas
+    // instead of staying at a fixed pixel size, and disappears once it would be
+    // too small to read (which also removes the overlap seen when zoomed out).
+    static constexpr float LABEL_MIN_PX = 5.0f;
+    void drawScaledText(ImDrawList* dl, const ImVec2& pos, ImU32 col, const char* text, float zoom, float basePx = 0.0f) const;
+    ImVec2 calcScaledTextSize(const char* text, float zoom, float basePx = 0.0f) const;
     
     // Routing & Validation Engine (matching schematic_routing_guide.md)
     void autoSelectWiresForSelectedComponents();

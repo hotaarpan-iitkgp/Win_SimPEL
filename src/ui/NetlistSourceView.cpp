@@ -164,11 +164,13 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
         for (const auto& w : tempDesign.wires) {
             bool matchesTo = (w.to.compId == compId && (w.to.terminal == pinName ||
-                (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1")) ||
+                (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1" || w.to.terminal == "Ctrl")) ||
+                (pinName == "Ctrl" && (w.to.terminal == "Ctrl" || w.to.terminal == "In" || w.to.terminal == "In1")) ||
                 ((pinName == "A" || pinName == "Plus") && (w.to.terminal == "A" || w.to.terminal == "Plus" || w.to.terminal == "In1")) ||
                 ((pinName == "B" || pinName == "Minus") && (w.to.terminal == "B" || w.to.terminal == "Minus" || w.to.terminal == "In2"))));
             bool matchesFrom = (w.from.compId == compId && (w.from.terminal == pinName ||
-                (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1")) ||
+                (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1" || w.from.terminal == "Ctrl")) ||
+                (pinName == "Ctrl" && (w.from.terminal == "Ctrl" || w.from.terminal == "In" || w.from.terminal == "In1")) ||
                 ((pinName == "A" || pinName == "Plus") && (w.from.terminal == "A" || w.from.terminal == "Plus" || w.from.terminal == "In1")) ||
                 ((pinName == "B" || pinName == "Minus") && (w.from.terminal == "B" || w.from.terminal == "Minus" || w.from.terminal == "In2"))));
 
@@ -257,7 +259,13 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
 
         if (t == "R" || t == "RESISTOR") {
             cObj["nodes"] = formattedNodes;
-            cObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 10.0);
+            // Accept "value" (native) plus "resistance"/"R" aliases used by the web tool,
+            // otherwise an imported resistor silently falls back to the 10 ohm default.
+            double rVal = 10.0;
+            if (parsedParams.count("value")) rVal = parsedParams["value"];
+            else if (parsedParams.count("resistance")) rVal = parsedParams["resistance"];
+            else if (parsedParams.count("R")) rVal = parsedParams["R"];
+            cObj["value"] = formatJSStyleDouble(rVal);
             cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
             cObj["src_type"] = "static";
             physStageObj["resistors"].push_back(cObj);
@@ -328,9 +336,12 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             std::string nodeN = (formattedNodes.size() > 3) ? formattedNodes[3].get<std::string>() : (comp.id + "_N");
 
             if (conn == "Delta") {
+                // Only two independent sources are emitted. Three ideal sources wired in a
+                // closed delta form a KVL loop of voltage sources, which is rank-deficient
+                // and makes the MNA matrix singular. With V_AB and V_BC defined, V_CA is
+                // implied as -(V_AB + V_BC), which is exact for a balanced set.
                 json vsAB; vsAB["id"] = comp.id + "_AB"; vsAB["nodes"] = json::array({nodeA, nodeB}); vsAB["amplitude"] = formatJSStyleDouble(amp); vsAB["frequency"] = formatJSStyleDouble(freq); vsAB["phase"] = formatJSStyleDouble(phase); vsAB["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsAB);
                 json vsBC; vsBC["id"] = comp.id + "_BC"; vsBC["nodes"] = json::array({nodeB, nodeC}); vsBC["amplitude"] = formatJSStyleDouble(amp); vsBC["frequency"] = formatJSStyleDouble(freq); vsBC["phase"] = formatJSStyleDouble(phase - 120.0); vsBC["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsBC);
-                json vsCA; vsCA["id"] = comp.id + "_CA"; vsCA["nodes"] = json::array({nodeC, nodeA}); vsCA["amplitude"] = formatJSStyleDouble(amp); vsCA["frequency"] = formatJSStyleDouble(freq); vsCA["phase"] = formatJSStyleDouble(phase + 120.0); vsCA["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsCA);
             } else {
                 json vsA; vsA["id"] = comp.id + "_A"; vsA["nodes"] = json::array({nodeA, nodeN}); vsA["amplitude"] = formatJSStyleDouble(amp); vsA["frequency"] = formatJSStyleDouble(freq); vsA["phase"] = formatJSStyleDouble(phase); vsA["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsA);
                 json vsB; vsB["id"] = comp.id + "_B"; vsB["nodes"] = json::array({nodeB, nodeN}); vsB["amplitude"] = formatJSStyleDouble(amp); vsB["frequency"] = formatJSStyleDouble(freq); vsB["phase"] = formatJSStyleDouble(phase - 120.0); vsB["type"] = "ac"; physStageObj["voltage_sources"].push_back(vsB);
@@ -373,6 +384,8 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
             cObj["iL0"] = formatJSStyleDouble(parsedParams.count("iL0") ? parsedParams["iL0"] : 0.0);
             cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            // "variable" marks a signal-driven value; saturable elements are not.
+            cObj["src_type"] = (t == "VAR_L") ? "variable" : "static";
             physStageObj["inductors"].push_back(cObj);
         } else if (t == "VAR_C" || t == "SAT_C") {
             cObj["nodes"] = formattedNodes;
@@ -380,6 +393,7 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["esr"] = formatJSStyleDouble(parsedParams.count("esr") ? parsedParams["esr"] : 0.0);
             cObj["vC0"] = formatJSStyleDouble(parsedParams.count("vC0") ? parsedParams["vC0"] : 0.0);
             cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["src_type"] = (t == "VAR_C") ? "variable" : "static";
             physStageObj["capacitors"].push_back(cObj);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";

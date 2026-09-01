@@ -44,6 +44,43 @@ ScopeWindow::ScopeWindow(const std::string& scopeCompId, int channels,
     autoFitNext = true;
     numPanes = std::max(1, numChannels); // Default: one subplot per channel
     useSubplots = (numChannels > 1);
+
+    channelPaneMap.resize(numChannels);
+    for (int i = 0; i < numChannels; ++i) {
+        channelPaneMap[i] = useSubplots ? i : 0;
+    }
+}
+
+void ScopeWindow::normalizePaneMap() {
+    if (channelPaneMap.size() != (size_t)numChannels) {
+        channelPaneMap.resize(numChannels);
+        for (int i = 0; i < numChannels; ++i) channelPaneMap[i] = useSubplots ? i : 0;
+    }
+
+    if (!useSubplots) {
+        for (int i = 0; i < numChannels; ++i) channelPaneMap[i] = 0;
+        numPanes = 1;
+        return;
+    }
+
+    // Collect unique pane indices in order of first appearance
+    std::vector<int> activePanes;
+    for (int p : channelPaneMap) {
+        if (std::find(activePanes.begin(), activePanes.end(), p) == activePanes.end()) {
+            activePanes.push_back(p);
+        }
+    }
+
+    // Map each unique pane index to 0..K-1
+    for (int i = 0; i < numChannels; ++i) {
+        auto it = std::find(activePanes.begin(), activePanes.end(), channelPaneMap[i]);
+        if (it != activePanes.end()) {
+            channelPaneMap[i] = (int)std::distance(activePanes.begin(), it);
+        } else {
+            channelPaneMap[i] = 0;
+        }
+    }
+    numPanes = std::max(1, (int)activePanes.size());
 }
 
 void ScopeWindow::render(CircuitSimEngine::CircuitSimulator& simulator, const std::string& projectBaseName) {
@@ -230,10 +267,16 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data, con
         const char* layoutLabel = useSubplots ? "Layout: Split" : "Layout: Overlay";
         if (ImGui::Button(layoutLabel)) {
             useSubplots = !useSubplots;
-            numPanes = useSubplots ? numChannels : 1;
+            if (useSubplots) {
+                for (int i = 0; i < numChannels; ++i) channelPaneMap[i] = i;
+            } else {
+                for (int i = 0; i < numChannels; ++i) channelPaneMap[i] = 0;
+            }
+            normalizePaneMap();
+            autoFitNext = true;
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Toggle between separate channel subplots or overlaid single plot");
+            ImGui::SetTooltip("Toggle between separate channel subplots or overlaid single plot.\nDrag & drop channel tags to custom merge or isolate subplots!");
         }
         ImGui::SameLine();
     }
@@ -308,139 +351,40 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
     bool doFitThisFrame = autoFitNext;
     if (autoFitNext) autoFitNext = false;
 
-    int renderPanes = std::min(numPanes, numChannels);
-    if (renderPanes < 1) renderPanes = 1;
+    normalizePaneMap();
+    int renderPanes = useSubplots ? numPanes : 1;
 
-    // Determine layout: subplots if multiple panes, single plot otherwise
-    if (renderPanes == 1) {
-        // Single plot with all channels overlaid
-        if (doFitThisFrame) {
-            double xMin = 0.0;
-            double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
-            double yMin = 1e30, yMax = -1e30;
-            for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
-                const std::string& sigKey = channelSignalKeys[ch];
-                if (sigKey.empty()) continue;
-                auto it = data.voltages.find(sigKey);
-                if (it == data.voltages.end()) {
-                    std::string alt = sigKey;
-                    if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
-                        alt = alt.substr(0, alt.size()-4);
-                        it = data.voltages.find(alt);
-                    }
-                    if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
-                    if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
-                }
-                if (it != data.voltages.end()) {
-                    for (double v : it->second) {
-                        if (v < yMin) yMin = v;
-                        if (v > yMax) yMax = v;
-                    }
+    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(4.0f, 2.0f));
+    ImPlot::PushStyleVar(ImPlotStyleVar_LabelPadding, ImVec2(2.0f, 2.0f));
+
+    if (ImPlot::BeginSubplots("##ScopeSubplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
+        for (int p = 0; p < renderPanes; ++p) {
+            // Collect all channels assigned to pane p
+            std::vector<int> paneChannels;
+            for (int ch = 0; ch < numChannels; ++ch) {
+                int assignedPane = useSubplots ? channelPaneMap[ch] : 0;
+                if (assignedPane == p) {
+                    paneChannels.push_back(ch);
                 }
             }
-            if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
-            double ySpan = yMax - yMin;
-            double yPad = (ySpan > 1e-12) ? (0.10 * ySpan) : ((std::abs(yMin) > 1e-6) ? (0.10 * std::abs(yMin)) : 1.0);
-            ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
-        }
-        if (pendingZoom[0].hasPending) {
-            if (pendingZoom[0].type == SZ_X_ONLY)
-                ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[0].xMin, pendingZoom[0].xMax, ImGuiCond_Always);
-            else if (pendingZoom[0].type == SZ_Y_ONLY)
-                ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[0].yMin, pendingZoom[0].yMax, ImGuiCond_Always);
-            else if (pendingZoom[0].type == SZ_BOX_2D) {
-                ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[0].xMin, pendingZoom[0].xMax, ImGuiCond_Always);
-                ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[0].yMin, pendingZoom[0].yMax, ImGuiCond_Always);
-            }
-            pendingZoom[0].hasPending = false;
-        }
 
-        ImPlotFlags plotFlags = isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None;
-        if (ImPlot::BeginPlot("##ScopeSingle", ImVec2(-1, -1), plotFlags)) {
-            if (isZoomActive) {
-                ImPlot::GetInputMap().Select = ImGuiMouseButton_Middle;
-                ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
-                ImPlot::GetInputMap().Pan = ImGuiMouseButton_Right;
-            } else {
-                ImPlot::GetInputMap().Select = ImGuiMouseButton_Right;
-                ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
-                ImPlot::GetInputMap().Pan = ImGuiMouseButton_Left;
-            }
-            ImPlot::SetupAxes("Time (s)", "Amplitude");
-
-            ImPlotRect limits = ImPlot::GetPlotLimits();
-            viewTimeMin = limits.X.Min;
-            viewTimeMax = limits.X.Max;
-
-            if (isZoomActive) renderZoomOverlay(0);
-            renderCursorOverlay(0, data);
-
-            for (int ch = 0; ch < numChannels && ch < (int)channelSignalKeys.size(); ++ch) {
-                const std::string& sigKey = channelSignalKeys[ch];
-                if (sigKey.empty()) continue;
-                auto it = data.voltages.find(sigKey);
-                if (it == data.voltages.end()) {
-                    // Try alternate keys
-                    std::string alt = sigKey;
-                    if (alt.size() > 4 && alt.substr(alt.size()-4) == ".Out") {
-                        alt = alt.substr(0, alt.size()-4);
-                        it = data.voltages.find(alt);
-                    }
-                    if (it == data.voltages.end()) it = data.voltages.find("V_" + sigKey);
-                    if (it == data.voltages.end()) it = data.voltages.find("I_" + sigKey);
+            // Apply pending zoom
+            if (pendingZoom[p].hasPending) {
+                if (pendingZoom[p].type == SZ_X_ONLY)
+                    ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[p].xMin, pendingZoom[p].xMax, ImGuiCond_Always);
+                else if (pendingZoom[p].type == SZ_Y_ONLY)
+                    ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[p].yMin, pendingZoom[p].yMax, ImGuiCond_Always);
+                else if (pendingZoom[p].type == SZ_BOX_2D) {
+                    ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[p].xMin, pendingZoom[p].xMax, ImGuiCond_Always);
+                    ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[p].yMin, pendingZoom[p].yMax, ImGuiCond_Always);
                 }
-                if (it != data.voltages.end() && !it->second.empty()) {
-                    int pts = std::min(numPoints, (int)it->second.size());
-                    ImPlotSpec spec;
-                    spec.LineColor = palette[ch % numColors];
-                    spec.LineWeight = traceLineWidth;
-                    std::string lbl = (ch < (int)channelLabels.size()) ? channelLabels[ch] : sigKey;
+                pendingZoom[p].hasPending = false;
+            } else if (doFitThisFrame) {
+                double xMin = 0.0;
+                double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
+                double yMin = 1e30, yMax = -1e30;
 
-                    InterpolationMode mode = globalPlotMode;
-                    if (globalPlotMode == InterpolationMode::AutoHybrid) {
-                        mode = detectDefaultInterpolationMode(sigKey);
-                    }
-
-                    if (mode == InterpolationMode::AlwaysStairs) {
-                        ImPlot::PlotStairs(lbl.c_str(), timeData, it->second.data(), pts, spec);
-                    } else if (mode == InterpolationMode::AutoHybrid) {
-                        std::vector<double> rawT(timeData, timeData + pts);
-                        std::vector<double> rawY(it->second.begin(), it->second.begin() + pts);
-                        std::vector<double> hT, hY;
-                        buildHybridVertices(rawT, rawY, hT, hY);
-                        ImPlot::PlotLine(lbl.c_str(), hT.data(), hY.data(), (int)hT.size(), spec);
-                    } else {
-                        ImPlot::PlotLine(lbl.c_str(), timeData, it->second.data(), pts, spec);
-                    }
-                }
-            }
-            ImPlot::EndPlot();
-        }
-    } else {
-
-        ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(4.0f, 2.0f));
-        ImPlot::PushStyleVar(ImPlotStyleVar_LabelPadding, ImVec2(2.0f, 2.0f));
-
-        // Multiple subplots — one per channel, linked X-axis
-        if (ImPlot::BeginSubplots("##ScopeSubplots", renderPanes, 1, ImVec2(-1, -1), ImPlotSubplotFlags_LinkCols)) {
-            for (int i = 0; i < renderPanes; ++i) {
-                int ch = i % numChannels;
-
-                // Apply pending zoom
-                if (pendingZoom[i].hasPending) {
-                    if (pendingZoom[i].type == SZ_X_ONLY)
-                        ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[i].xMin, pendingZoom[i].xMax, ImGuiCond_Always);
-                    else if (pendingZoom[i].type == SZ_Y_ONLY)
-                        ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[i].yMin, pendingZoom[i].yMax, ImGuiCond_Always);
-                    else if (pendingZoom[i].type == SZ_BOX_2D) {
-                        ImPlot::SetNextAxisLimits(ImAxis_X1, pendingZoom[i].xMin, pendingZoom[i].xMax, ImGuiCond_Always);
-                        ImPlot::SetNextAxisLimits(ImAxis_Y1, pendingZoom[i].yMin, pendingZoom[i].yMax, ImGuiCond_Always);
-                    }
-                    pendingZoom[i].hasPending = false;
-                } else if (doFitThisFrame) {
-                    double xMin = 0.0;
-                    double xMax = data.timeHistory.empty() ? 1.0 : data.timeHistory.back();
-                    double yMin = 1e30, yMax = -1e30;
+                for (int ch : paneChannels) {
                     if (ch < (int)channelSignalKeys.size()) {
                         const std::string& sigKey = channelSignalKeys[ch];
                         auto it = data.voltages.find(sigKey);
@@ -460,41 +404,46 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                             }
                         }
                     }
-                    if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
-                    double ySpan = yMax - yMin;
-                    double yPad = (ySpan > 1e-12) ? (0.10 * ySpan) : ((std::abs(yMin) > 1e-6) ? (0.10 * std::abs(yMin)) : 1.0);
-                    ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
+                }
+                if (yMin > yMax) { yMin = -1.0; yMax = 1.0; }
+                double ySpan = yMax - yMin;
+                double yPad = (ySpan > 1e-12) ? (0.10 * ySpan) : ((std::abs(yMin) > 1e-6) ? (0.10 * std::abs(yMin)) : 1.0);
+                ImPlot::SetNextAxesLimits(xMin, xMax, yMin - yPad, yMax + yPad, ImGuiCond_Always);
+            }
+
+            std::string plotTitleId = "##PanePlot_" + std::to_string(p);
+            ImPlotFlags pflags = isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None;
+
+            if (ImPlot::BeginPlot(plotTitleId.c_str(), ImVec2(-1, -1), pflags)) {
+                if (isZoomActive) {
+                    ImPlot::GetInputMap().Select = ImGuiMouseButton_Middle;
+                    ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
+                    ImPlot::GetInputMap().Pan = ImGuiMouseButton_Right;
+                } else {
+                    ImPlot::GetInputMap().Select = ImGuiMouseButton_Right;
+                    ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
+                    ImPlot::GetInputMap().Pan = ImGuiMouseButton_Left;
                 }
 
-                std::string plotTitle = (ch < (int)channelLabels.size()) ? channelLabels[ch] : ("Ch" + std::to_string(ch+1));
-                std::string plotTitleId = "##" + plotTitle + "_" + std::to_string(i);
-                ImPlotFlags pflags = isZoomActive ? ImPlotFlags_NoMenus : ImPlotFlags_None;
+                bool isBottomPlot = (p == renderPanes - 1);
+                if (!isBottomPlot) {
+                    ImPlot::SetupAxes(nullptr, "Amplitude", ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoLabel, 0);
+                } else {
+                    ImPlot::SetupAxes("Time (s)", "Amplitude", 0, 0);
+                }
 
-                if (ImPlot::BeginPlot(plotTitleId.c_str(), ImVec2(-1, -1), pflags)) {
-                    if (isZoomActive) {
-                        ImPlot::GetInputMap().Select = ImGuiMouseButton_Middle;
-                        ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Right;
-                        ImPlot::GetInputMap().Pan = ImGuiMouseButton_Right;
-                    } else {
-                        ImPlot::GetInputMap().Select = ImGuiMouseButton_Right;
-                        ImPlot::GetInputMap().SelectCancel = ImGuiMouseButton_Left;
-                        ImPlot::GetInputMap().Pan = ImGuiMouseButton_Left;
-                    }
+                // Hide default legend so custom drag badges take over
+                ImPlot::SetupLegend(ImPlotLocation_NorthWest, ImPlotLegendFlags_NoButtons);
 
-                    bool isBottomPlot = (i == renderPanes - 1);
-                    if (!isBottomPlot) {
-                        ImPlot::SetupAxes(nullptr, "Amplitude", ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoLabel, 0);
-                    } else {
-                        ImPlot::SetupAxes("Time (s)", "Amplitude", 0, 0);
-                    }
+                ImPlotRect limits = ImPlot::GetPlotLimits();
+                viewTimeMin = limits.X.Min;
+                viewTimeMax = limits.X.Max;
 
-                    ImPlotRect limits = ImPlot::GetPlotLimits();
-                    viewTimeMin = limits.X.Min;
-                    viewTimeMax = limits.X.Max;
+                if (isZoomActive) renderZoomOverlay(p);
+                renderCursorOverlay(p, data);
 
-                    if (isZoomActive) renderZoomOverlay(i);
-                    renderCursorOverlay(i, data);
-
+                // Draw all waveforms assigned to pane p
+                for (int ch : paneChannels) {
                     const std::string& sigKey = (ch < (int)channelSignalKeys.size()) ? channelSignalKeys[ch] : "";
                     if (!sigKey.empty()) {
                         auto it = data.voltages.find(sigKey);
@@ -532,12 +481,141 @@ void ScopeWindow::renderPlots(const CircuitSimEngine::TelemetryData& data) {
                             }
                         }
                     }
-                    ImPlot::EndPlot();
+                }
+
+                // Render interactive Drag & Drop Channel Tag Badges inside pane p
+                ImVec2 plotPos = ImPlot::GetPlotPos();
+                ImVec2 badgePos = ImVec2(plotPos.x + 10.0f, plotPos.y + 8.0f);
+
+                for (int ch : paneChannels) {
+                    std::string labelStr = (ch < (int)channelLabels.size()) ? channelLabels[ch] : channelSignalKeys[ch];
+                    std::string tagText = "Ch" + std::to_string(ch + 1) + ": " + labelStr;
+                    ImVec2 txtSize = ImGui::CalcTextSize(tagText.c_str());
+                    float badgeW = txtSize.x + 24.0f;
+                    float badgeH = txtSize.y + 6.0f;
+
+                    ImGui::SetCursorScreenPos(badgePos);
+                    ImGui::PushID(ch);
+                    ImGui::InvisibleButton("##chBadgeBtn", ImVec2(badgeW, badgeH));
+                    bool hovered = ImGui::IsItemHovered();
+
+                    ImDrawList* drawList = ImGui::GetWindowDrawList();
+                    ImVec2 bMin = badgePos;
+                    ImVec2 bMax = ImVec2(badgePos.x + badgeW, badgePos.y + badgeH);
+
+                    ImVec4 chColor = palette[ch % numColors];
+                    ImU32 bgCol = ImColor(isDarkMode ? ImVec4(0.12f, 0.16f, 0.24f, 0.85f) : ImVec4(0.92f, 0.94f, 0.98f, 0.85f));
+                    if (hovered) bgCol = ImColor(isDarkMode ? ImVec4(0.22f, 0.30f, 0.45f, 0.95f) : ImVec4(0.80f, 0.85f, 0.95f, 0.95f));
+
+                    drawList->AddRectFilled(bMin, bMax, bgCol, 4.0f);
+                    drawList->AddRect(bMin, bMax, ImColor(chColor), 4.0f, 0, 1.5f);
+
+                    // Color square icon
+                    ImVec2 sqMin = ImVec2(bMin.x + 5.0f, bMin.y + (badgeH - 10.0f) * 0.5f);
+                    ImVec2 sqMax = ImVec2(sqMin.x + 10.0f, sqMin.y + 10.0f);
+                    drawList->AddRectFilled(sqMin, sqMax, ImColor(chColor), 2.0f);
+
+                    // Badge text
+                    ImVec2 txtPos = ImVec2(sqMax.x + 5.0f, bMin.y + (badgeH - txtSize.y) * 0.5f);
+                    drawList->AddText(txtPos, ImColor(isDarkMode ? ImVec4(0.95f, 0.95f, 0.95f, 1.0f) : ImVec4(0.10f, 0.10f, 0.10f, 1.0f)), tagText.c_str());
+
+                    // Drag Source for channel tag
+                    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                        ImGui::SetDragDropPayload("SCOPE_CHANNEL_DRAG", &ch, sizeof(int));
+                        ImGui::Text("Move %s", tagText.c_str());
+                        ImGui::EndDragDropSource();
+                    }
+
+                    if (hovered) {
+                        ImGui::SetTooltip("Drag & Drop onto another subplot to merge, or drop below to isolate into a new subplot.\nRight-click for options.");
+                    }
+
+                    // Context Menu on right click
+                    if (ImGui::BeginPopupContextItem("##chBadgeCtx")) {
+                        ImGui::TextDisabled("Channel Options (%s)", tagText.c_str());
+                        ImGui::Separator();
+                        if (ImGui::MenuItem("Isolate into New Subplot")) {
+                            channelPaneMap[ch] = numPanes + 100;
+                            useSubplots = true;
+                            normalizePaneMap();
+                            autoFitNext = true;
+                        }
+                        if (numPanes > 1) {
+                            for (int destP = 0; destP < numPanes; ++destP) {
+                                if (destP != p) {
+                                    std::string mStr = "Merge into Subplot " + std::to_string(destP + 1);
+                                    if (ImGui::MenuItem(mStr.c_str())) {
+                                        channelPaneMap[ch] = destP;
+                                        normalizePaneMap();
+                                        autoFitNext = true;
+                                    }
+                                }
+                            }
+                        }
+                        if (ImGui::MenuItem("Reset Layout (Split All)")) {
+                            useSubplots = true;
+                            for (int i = 0; i < numChannels; ++i) channelPaneMap[i] = i;
+                            normalizePaneMap();
+                            autoFitNext = true;
+                        }
+                        ImGui::EndPopup();
+                    }
+
+                    ImGui::PopID();
+                    badgePos.x += badgeW + 6.0f; // offset horizontally for next channel badge in same pane
+                }
+
+                // Subplot Drop Target (dropping onto pane p canvas)
+                ImVec2 pMin = ImPlot::GetPlotPos();
+                ImVec2 pSize = ImPlot::GetPlotSize();
+                if (ImGui::BeginDragDropTargetCustom(ImRect(pMin, ImVec2(pMin.x + pSize.x, pMin.y + pSize.y)), ImGui::GetID(("##SubplotDropTarget_" + std::to_string(p)).c_str()))) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCOPE_CHANNEL_DRAG")) {
+                        int draggedCh = *(const int*)payload->Data;
+                        if (draggedCh >= 0 && draggedCh < numChannels) {
+                            channelPaneMap[draggedCh] = p;
+                            normalizePaneMap();
+                            autoFitNext = true;
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+
+                ImPlot::EndPlot();
+            }
+        }
+        ImPlot::EndSubplots();
+    }
+    ImPlot::PopStyleVar(2);
+
+    // Drop zone at the bottom of the scope window to isolate a channel into a NEW subplot
+    bool isDraggingCh = (ImGui::GetDragDropPayload() != nullptr && std::string(ImGui::GetDragDropPayload()->DataType) == "SCOPE_CHANNEL_DRAG");
+    if (isDraggingCh) {
+        ImGui::Spacing();
+        ImGui::Dummy(ImVec2(-1, 26.0f));
+        ImVec2 dropMin = ImGui::GetItemRectMin();
+        ImVec2 dropMax = ImGui::GetItemRectMax();
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        drawList->AddRectFilled(dropMin, dropMax, ImColor(ImVec4(0.10f, 0.50f, 0.90f, 0.30f)), 4.0f);
+        drawList->AddRect(dropMin, dropMax, ImColor(ImVec4(0.20f, 0.70f, 1.00f, 0.85f)), 4.0f, 0, 1.5f);
+
+        std::string dropHint = "+ Drop channel here to isolate into a NEW subplot";
+        ImVec2 hintSize = ImGui::CalcTextSize(dropHint.c_str());
+        ImVec2 hintPos = ImVec2(dropMin.x + (dropMax.x - dropMin.x - hintSize.x) * 0.5f, dropMin.y + (dropMax.y - dropMin.y - hintSize.y) * 0.5f);
+        drawList->AddText(hintPos, ImColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f)), dropHint.c_str());
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCOPE_CHANNEL_DRAG")) {
+                int draggedCh = *(const int*)payload->Data;
+                if (draggedCh >= 0 && draggedCh < numChannels) {
+                    channelPaneMap[draggedCh] = numPanes + 100;
+                    useSubplots = true;
+                    normalizePaneMap();
+                    autoFitNext = true;
                 }
             }
-            ImPlot::EndSubplots();
+            ImGui::EndDragDropTarget();
         }
-        ImPlot::PopStyleVar(2);
     }
 }
 

@@ -37,6 +37,7 @@ enum class ComponentType {
     PWLResistor,
     ElectricalAlgebraic,
     Thyristor,
+    IGBT,
     GTO,
     IGBTDiode,
     IGCT,
@@ -230,6 +231,12 @@ struct FastCompiledComponent {
     double esr = 0.0;
     double Ron = 0.01;
     double Roff = 1e6;
+
+    // Signal-controlled passive elements (VAR_R / VAR_L / VAR_C). When isVariable is
+    // set and a control signal is bound, the element value is taken from that signal
+    // each timestep instead of the fixed nominal parameter.
+    bool isVariable = false;
+    double nominalVal = 0.0;
     double Vvd = 0.7;
     double Iholding = 0.01;
     double Vgt = 0.5;

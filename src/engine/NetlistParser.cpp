@@ -55,7 +55,10 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "E_ALGEBRAIC" || t == "ElectricalAlgebraic") return ComponentType::ElectricalAlgebraic;
     if (t == "THYRISTOR" || t == "SCR" || t == "Thyristor") return ComponentType::Thyristor;
     if (t == "GTO") return ComponentType::GTO;
+    // Must come before the IGBT_DIODE check would otherwise be shadowed; plain IGBT
+    // previously had no mapping at all and fell through to Unknown (never stamped).
     if (t == "IGBT_DIODE" || t == "IGBTDiode") return ComponentType::IGBTDiode;
+    if (t == "IGBT") return ComponentType::IGBT;
     if (t == "IGCT") return ComponentType::IGCT;
     if (t == "BJT") return ComponentType::BJT;
     if (t == "JFET") return ComponentType::JFET;

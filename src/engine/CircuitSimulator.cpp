@@ -1,5 +1,6 @@
 #include "CircuitSimulator.hpp"
 #include <cmath>
+#include <cctype>
 #include <iostream>
 #include <algorithm>
 #include <sstream>
@@ -9,6 +10,17 @@
 using json = nlohmann::json;
 
 namespace CircuitSimEngine {
+
+// Effective value of a passive element for the current timestep. Signal-controlled
+// elements (VAR_R / VAR_L / VAR_C) read their value from the bound control signal,
+// floored to keep the MNA stamp well conditioned. Elements with no control signal
+// wired up fall back to their nominal parameter value.
+static inline double liveElementValue(const FastCompiledComponent& fc, double floorVal) {
+    if (!fc.isVariable || fc.ctrlSigPtr == nullptr) return fc.val;
+    double v = *fc.ctrlSigPtr;
+    if (!(v == v)) return fc.nominalVal;      // NaN guard
+    return (v < floorVal) ? floorVal : v;
+}
 
 void CircuitSimulator::setup(const std::vector<ComponentModel>& physComps, 
                             const std::vector<ComponentModel>& ctrlComps, 
@@ -124,7 +136,10 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (comp.type == ComponentType::Capacitor) {
             double v0 = evaluateParam(comp, "vC0", 0.0);
             capVoltagesPrev[comp.id] = v0;
-        } else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor || comp.type == ComponentType::MOSFET) {
+        } else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor || comp.type == ComponentType::MOSFET ||
+                   comp.type == ComponentType::IGBT || comp.type == ComponentType::GTO ||
+                   comp.type == ComponentType::IGCT || comp.type == ComponentType::IGBTDiode ||
+                   comp.type == ComponentType::BJT || comp.type == ComponentType::JFET) {
             diodeStatePrev[comp.id] = 0.0; // Initially OFF
         } else if (comp.type == ComponentType::Switch) {
             switchStatePrev[comp.id] = 0.0;
@@ -199,6 +214,8 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.val == 0.0 && comp.parameters.count("v")) fc.val = evaluateParam(comp, "v", 0.0);
         if (fc.val == 0.0 && comp.parameters.count("V")) fc.val = evaluateParam(comp, "V", 0.0);
         if (fc.val == 0.0 && comp.parameters.count("amplitude")) fc.val = evaluateParam(comp, "amplitude", 0.0);
+        // Web-tool alias for resistance
+        if (fc.val == 0.0 && comp.parameters.count("resistance")) fc.val = evaluateParam(comp, "resistance", 0.0);
         if (fc.type == ComponentType::Capacitor) {
             fc.val = evaluateParam(comp, "C", 1e-6);
             fc.stateIdx = (int)flatCapVoltages.size();
@@ -210,7 +227,10 @@ void CircuitSimulator::buildIndexMaps() {
             flatIndCurrents.push_back(indCurrentsPrev[comp.id]);
             flatIndVoltages.push_back(0.0);
         }
-        else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor || comp.type == ComponentType::MOSFET) {
+        else if (comp.type == ComponentType::Diode || comp.type == ComponentType::Thyristor || comp.type == ComponentType::MOSFET ||
+                 comp.type == ComponentType::IGBT || comp.type == ComponentType::GTO ||
+                 comp.type == ComponentType::IGCT || comp.type == ComponentType::IGBTDiode ||
+                 comp.type == ComponentType::BJT || comp.type == ComponentType::JFET) {
             fc.stateIdx = (int)flatDiodeStates.size();
             flatDiodeStates.push_back(0.0);
         }
@@ -245,6 +265,30 @@ void CircuitSimulator::buildIndexMaps() {
         fc.vPlotKey = "V_" + comp.id;
         fc.iPlotKey = "I_" + comp.id;
         fc.ctrlSigKey = getParamString(comp, "control_signal", "");
+
+        // Signal-controlled passive element (VAR_R / VAR_L / VAR_C). The netlist marks
+        // these with src_type == "variable"; the nominal parameter is retained as the
+        // value used whenever no control signal is actually wired up.
+        if (getParamString(comp, "src_type", "") == "variable" &&
+            (fc.type == ComponentType::Resistor ||
+             fc.type == ComponentType::Capacitor ||
+             fc.type == ComponentType::Inductor)) {
+            fc.isVariable = true;
+
+            // getIncomingSignal() yields the literal "0.0" when the Ctrl pin is left
+            // unconnected. Treat any bare numeric key as "no signal" so the element
+            // keeps its nominal value instead of collapsing to zero.
+            const std::string& k = fc.ctrlSigKey;
+            bool numericOnly = !k.empty();
+            for (char c : k) {
+                if (!std::isdigit((unsigned char)c) && c != '.' && c != '-' && c != '+') {
+                    numericOnly = false;
+                    break;
+                }
+            }
+            if (k.empty() || numericOnly) fc.ctrlSigKey.clear();
+        }
+        fc.nominalVal = fc.val;
 
         fc.vPlotSignalIdx = getOrCreateSignalIdx(fc.vPlotKey);
         fc.iPlotSignalIdx = getOrCreateSignalIdx(fc.iPlotKey);
@@ -1094,6 +1138,10 @@ void CircuitSimulator::buildIndexMaps() {
         int n2 = fc.n2;
 
         if (fc.type == ComponentType::Resistor) {
+            // Signal-controlled resistors change every timestep, so they must not be
+            // baked into the static matrix — assembleMNA() stamps them instead.
+            if (fc.isVariable) continue;
+
             double Rtotal = fc.val + fc.esr;
             if (Rtotal < 1e-6) Rtotal = 1e-6;
             double g = 1.0 / Rtotal;
@@ -1260,7 +1308,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
 
         double iComp = 0.0;
         if (fc.type == ComponentType::Resistor) {
-            double Rtotal = fc.val + fc.esr;
+            double Rtotal = liveElementValue(fc, 1e-6) + fc.esr;
             if (Rtotal < 1e-6) Rtotal = 1e-6;
             iComp = vDiff / Rtotal;
         } else if (fc.type == ComponentType::Inductor) {
@@ -1279,6 +1327,23 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
             double R = (state > 0.5) ? fc.Ron : fc.Roff;
             iComp = (state > 0.5) ? ((vDiff - fc.Vvd) / R) : (vDiff / R);
+        } else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
+                   fc.type == ComponentType::IGCT || fc.type == ComponentType::BJT ||
+                   fc.type == ComponentType::IGBTDiode) {
+            double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double R = (state > 0.5) ? fc.Ron : fc.Roff;
+            if (R < 1e-6) R = 1e-6;
+            if (state > 0.5) {
+                double offset = (vDiff >= 0.0) ? fc.Vvd : -fc.Vvd;
+                iComp = (vDiff - offset) / R;
+            } else {
+                iComp = vDiff / R;
+            }
+        } else if (fc.type == ComponentType::JFET) {
+            double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double R = (state > 0.5) ? fc.Ron : fc.Roff;
+            if (R < 1e-6) R = 1e-6;
+            iComp = vDiff / R;
         } else if (fc.type == ComponentType::Switch) {
             double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
             iComp = vDiff / ((ctrlVal > 0.5) ? fc.Ron : fc.Roff);
@@ -3053,6 +3118,53 @@ bool CircuitSimulator::updateDeviceStates() {
                     changed = true;
                 }
             }
+        } else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
+                   fc.type == ComponentType::IGCT || fc.type == ComponentType::BJT) {
+            // Unidirectional gate/base turn-on AND turn-off capable devices. They
+            // conduct only from n1 -> n2 while driven, and block reverse voltage.
+            double v1 = (fc.n1 >= 0 && fc.n1 < totalDim) ? X[fc.n1] : 0.0;
+            double v2 = (fc.n2 >= 0 && fc.n2 < totalDim) ? X[fc.n2] : 0.0;
+            double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+
+            bool isDriven = (vGate > 0.5);
+            bool isForward = ((v1 - v2) >= fc.Vvd - 1e-4);
+            double newState = (isDriven && isForward) ? 1.0 : 0.0;
+
+            if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) {
+                if (std::abs(newState - flatDiodeStates[fc.stateIdx]) > 0.1) {
+                    flatDiodeStates[fc.stateIdx] = newState;
+                    changed = true;
+                }
+            }
+        } else if (fc.type == ComponentType::IGBTDiode) {
+            // IGBT with anti-parallel freewheeling diode: forward conduction is gated,
+            // reverse conduction happens whenever the diode is forward biased.
+            double v1 = (fc.n1 >= 0 && fc.n1 < totalDim) ? X[fc.n1] : 0.0;
+            double v2 = (fc.n2 >= 0 && fc.n2 < totalDim) ? X[fc.n2] : 0.0;
+            double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+
+            bool isDriven = (vGate > 0.5);
+            bool isForward = ((v1 - v2) >= fc.Vvd - 1e-4);
+            bool isFreewheeling = ((v2 - v1) >= fc.Vvd - 1e-4);
+            double newState = ((isDriven && isForward) || isFreewheeling) ? 1.0 : 0.0;
+
+            if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) {
+                if (std::abs(newState - flatDiodeStates[fc.stateIdx]) > 0.1) {
+                    flatDiodeStates[fc.stateIdx] = newState;
+                    changed = true;
+                }
+            }
+        } else if (fc.type == ComponentType::JFET) {
+            // Gate-controlled bidirectional channel (no forward offset, no body diode).
+            double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+            double newState = (vGate > 0.5) ? 1.0 : 0.0;
+
+            if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) {
+                if (std::abs(newState - flatDiodeStates[fc.stateIdx]) > 0.1) {
+                    flatDiodeStates[fc.stateIdx] = newState;
+                    changed = true;
+                }
+            }
         } else if (fc.type == ComponentType::Switch) {
             double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
 
@@ -3082,8 +3194,21 @@ void CircuitSimulator::assembleMNA(double currentTime) {
         int n1 = fc.n1;
         int n2 = fc.n2;
 
-        if (fc.type == ComponentType::Capacitor) {
-            double C = fc.val;
+        if (fc.type == ComponentType::Resistor && fc.isVariable) {
+            // Signal-controlled resistor: conductance taken from the control signal.
+            double Rtotal = liveElementValue(fc, 1e-6) + fc.esr;
+            if (Rtotal < 1e-6) Rtotal = 1e-6;
+            double g = 1.0 / Rtotal;
+
+            if (n1 >= 0) K[n1 * totalDim + n1] += g;
+            if (n2 >= 0) K[n2 * totalDim + n2] += g;
+            if (n1 >= 0 && n2 >= 0) {
+                K[n1 * totalDim + n2] -= g;
+                K[n2 * totalDim + n1] -= g;
+            }
+        }
+        else if (fc.type == ComponentType::Capacitor) {
+            double C = liveElementValue(fc, 1e-15);
             if (C < 1e-15) C = 1e-15;
 
             double rEq = (dt / C) + fc.esr;
@@ -3102,7 +3227,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             if (n2 >= 0) B[n2] -= iEq;
         }
         else if (fc.type == ComponentType::Inductor) {
-            double L = fc.val;
+            double L = liveElementValue(fc, 1e-12);
             if (L < 1e-12) L = 1e-12;
             int lIdx = fc.lIdx;
             bool useTrap = (config.solver == "trapezoidal" || config.solver == "trap" || config.solver == "rk4");
@@ -3199,6 +3324,47 @@ void CircuitSimulator::assembleMNA(double currentTime) {
                 double iEq = g * fc.Vvd;
                 if (n1 >= 0) B[n1] += iEq;
                 if (n2 >= 0) B[n2] -= iEq;
+            }
+        }
+        else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
+                 fc.type == ComponentType::IGCT || fc.type == ComponentType::BJT ||
+                 fc.type == ComponentType::IGBTDiode) {
+            // Conducting state is resolved by updateDeviceStates(); stamp Ron/Roff plus
+            // the on-state forward offset (Vce(sat) / Vt / Vf) as a Norton equivalent.
+            double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double R = (state > 0.5) ? fc.Ron : fc.Roff;
+            if (R < 1e-6) R = 1e-6;
+            double g = 1.0 / R;
+
+            if (n1 >= 0) K[n1 * totalDim + n1] += g;
+            if (n2 >= 0) K[n2 * totalDim + n2] += g;
+            if (n1 >= 0 && n2 >= 0) {
+                K[n1 * totalDim + n2] -= g;
+                K[n2 * totalDim + n1] -= g;
+            }
+
+            if (state > 0.5) {
+                double v1 = (n1 >= 0 && n1 < totalDim) ? X[n1] : 0.0;
+                double v2 = (n2 >= 0 && n2 < totalDim) ? X[n2] : 0.0;
+                // Offset opposes the direction of conduction.
+                double sign = ((v2 - v1) > (v1 - v2)) ? -1.0 : 1.0;
+                double iEq = g * fc.Vvd * sign;
+                if (n1 >= 0) B[n1] += iEq;
+                if (n2 >= 0) B[n2] -= iEq;
+            }
+        }
+        else if (fc.type == ComponentType::JFET) {
+            // Bidirectional gate-controlled channel, no forward voltage offset.
+            double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+            double R = (state > 0.5) ? fc.Ron : fc.Roff;
+            if (R < 1e-6) R = 1e-6;
+            double g = 1.0 / R;
+
+            if (n1 >= 0) K[n1 * totalDim + n1] += g;
+            if (n2 >= 0) K[n2 * totalDim + n2] += g;
+            if (n1 >= 0 && n2 >= 0) {
+                K[n1 * totalDim + n2] -= g;
+                K[n2 * totalDim + n1] -= g;
             }
         }
         else if (fc.type == ComponentType::Switch) {
@@ -3356,12 +3522,12 @@ SimulationOutput CircuitSimulator::runTransient() {
             double iComp = 0.0;
 
             if (fc.type == ComponentType::Resistor) {
-                double Rtotal = fc.val + fc.esr;
+                double Rtotal = liveElementValue(fc, 1e-6) + fc.esr;
                 if (Rtotal < 1e-6) Rtotal = 1e-6;
                 iComp = vDiff / Rtotal;
             }
             else if (fc.type == ComponentType::Capacitor) {
-                double C = fc.val;
+                double C = liveElementValue(fc, 1e-15);
                 if (C < 1e-15) C = 1e-15;
                 double rEq = (h / C) + fc.esr;
                 double gEq = 1.0 / rEq;
@@ -3394,6 +3560,25 @@ SimulationOutput CircuitSimulator::runTransient() {
                 double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
                 double R = (state > 0.5) ? fc.Ron : fc.Roff;
                 iComp = (state > 0.5) ? ((vDiff - fc.Vvd) / R) : (vDiff / R);
+            }
+            else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
+                     fc.type == ComponentType::IGCT || fc.type == ComponentType::BJT ||
+                     fc.type == ComponentType::IGBTDiode) {
+                double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+                double R = (state > 0.5) ? fc.Ron : fc.Roff;
+                if (R < 1e-6) R = 1e-6;
+                if (state > 0.5) {
+                    double offset = (vDiff >= 0.0) ? fc.Vvd : -fc.Vvd;
+                    iComp = (vDiff - offset) / R;
+                } else {
+                    iComp = vDiff / R;
+                }
+            }
+            else if (fc.type == ComponentType::JFET) {
+                double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+                double R = (state > 0.5) ? fc.Ron : fc.Roff;
+                if (R < 1e-6) R = 1e-6;
+                iComp = vDiff / R;
             }
             else if (fc.type == ComponentType::Switch) {
                 double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;

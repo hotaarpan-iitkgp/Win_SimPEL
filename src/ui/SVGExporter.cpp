@@ -154,7 +154,14 @@ std::vector<std::string> SVGExporter::traceScopeInputSignals(const CircuitDesign
                                    comp.type == ComponentType::ACVoltageSource ||
                                    comp.type == ComponentType::Diode ||
                                    comp.type == ComponentType::Switch ||
-                                   comp.type == ComponentType::MOSFET) {
+                                   comp.type == ComponentType::MOSFET ||
+                                   comp.type == ComponentType::Thyristor ||
+                                   comp.type == ComponentType::IGBT ||
+                                   comp.type == ComponentType::IGBTDiode ||
+                                   comp.type == ComponentType::GTO ||
+                                   comp.type == ComponentType::IGCT ||
+                                   comp.type == ComponentType::BJT ||
+                                   comp.type == ComponentType::JFET) {
                             if (source.terminal.find("I") != std::string::npos || source.terminal == "AM") {
                                 sigKey = "I_" + comp.id;
                             } else {
@@ -589,13 +596,60 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
             drawLine(svgRotatePt(-12, 8, c.x, c.y, rot), svgRotatePt(12, 8, c.x, c.y, rot));
             drawLine(svgRotatePt(0, 8, c.x, c.y, rot), svgRotatePt(0, 40, c.x, c.y, rot));
         } else if (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT") {
-            drawLine(svgRotatePt(0, -20, c.x, c.y, rot), svgRotatePt(0, -8, c.x, c.y, rot));
-            ImVec2 tri[] = {svgRotatePt(-12, -8, c.x, c.y, rot), svgRotatePt(12, -8, c.x, c.y, rot), svgRotatePt(0, 8, c.x, c.y, rot)};
+            // Leads run to +/-40 to match the terminal positions in getTerminals().
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -10, c.x, c.y, rot));
+            ImVec2 tri[] = {svgRotatePt(-13, -10, c.x, c.y, rot), svgRotatePt(13, -10, c.x, c.y, rot), svgRotatePt(0, 9, c.x, c.y, rot)};
             drawPolygon(tri, 3, 2.0f, true);
-            drawLine(svgRotatePt(-12, 8, c.x, c.y, rot), svgRotatePt(12, 8, c.x, c.y, rot));
-            drawLine(svgRotatePt(0, 8, c.x, c.y, rot), svgRotatePt(0, 20, c.x, c.y, rot));
-            drawLine(svgRotatePt(-20, 10, c.x, c.y, rot), svgRotatePt(-10, 10, c.x, c.y, rot));
-            drawLine(svgRotatePt(-10, 10, c.x, c.y, rot), svgRotatePt(-5, 8, c.x, c.y, rot));
+            drawLine(svgRotatePt(-13, 9, c.x, c.y, rot), svgRotatePt(13, 9, c.x, c.y, rot), 2.5f);
+            drawLine(svgRotatePt(0, 9, c.x, c.y, rot), svgRotatePt(0, 40, c.x, c.y, rot));
+            drawLine(svgRotatePt(-20, 10, c.x, c.y, rot), svgRotatePt(-9, 10, c.x, c.y, rot));
+            drawLine(svgRotatePt(-9, 10, c.x, c.y, rot), svgRotatePt(-3, 7, c.x, c.y, rot));
+            if (t == "GTO" || t == "IGCT") {
+                // Turn-off capability marker: double arrowhead on the gate lead
+                drawLine(svgRotatePt(-17, 6, c.x, c.y, rot), svgRotatePt(-13, 10, c.x, c.y, rot), 1.5f);
+                drawLine(svgRotatePt(-17, 14, c.x, c.y, rot), svgRotatePt(-13, 10, c.x, c.y, rot), 1.5f);
+                drawLine(svgRotatePt(-13, 6, c.x, c.y, rot), svgRotatePt(-17, 10, c.x, c.y, rot), 1.5f);
+                drawLine(svgRotatePt(-13, 14, c.x, c.y, rot), svgRotatePt(-17, 10, c.x, c.y, rot), 1.5f);
+            }
+        } else if (t == "IGBT" || t == "IGBT_DIODE") {
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -15, c.x, c.y, rot));
+            drawLine(svgRotatePt(0, 15, c.x, c.y, rot), svgRotatePt(0, 40, c.x, c.y, rot));
+            drawLine(svgRotatePt(-5, -15, c.x, c.y, rot), svgRotatePt(-5, 15, c.x, c.y, rot));
+            drawLine(svgRotatePt(-10, -15, c.x, c.y, rot), svgRotatePt(-10, 15, c.x, c.y, rot));
+            drawLine(svgRotatePt(-20, 0, c.x, c.y, rot), svgRotatePt(-10, 0, c.x, c.y, rot));
+            drawLine(svgRotatePt(-5, -10, c.x, c.y, rot), svgRotatePt(0, -10, c.x, c.y, rot));
+            drawLine(svgRotatePt(-5, 10, c.x, c.y, rot), svgRotatePt(0, 10, c.x, c.y, rot));
+            ImVec2 eArr[] = {svgRotatePt(-4, 6, c.x, c.y, rot), svgRotatePt(0, 10, c.x, c.y, rot), svgRotatePt(-4, 14, c.x, c.y, rot)};
+            drawPolygon(eArr, 3, 1.0f, true);
+            if (t == "IGBT_DIODE") {
+                drawLine(svgRotatePt(0, 15, c.x, c.y, rot), svgRotatePt(14, 15, c.x, c.y, rot), 1.5f);
+                drawLine(svgRotatePt(14, 15, c.x, c.y, rot), svgRotatePt(14, 6, c.x, c.y, rot), 1.5f);
+                ImVec2 dTri[] = {svgRotatePt(9, 6, c.x, c.y, rot), svgRotatePt(19, 6, c.x, c.y, rot), svgRotatePt(14, -6, c.x, c.y, rot)};
+                drawPolygon(dTri, 3, 1.5f, true);
+                drawLine(svgRotatePt(9, -6, c.x, c.y, rot), svgRotatePt(19, -6, c.x, c.y, rot), 1.5f);
+                drawLine(svgRotatePt(14, -6, c.x, c.y, rot), svgRotatePt(14, -15, c.x, c.y, rot), 1.5f);
+                drawLine(svgRotatePt(14, -15, c.x, c.y, rot), svgRotatePt(0, -15, c.x, c.y, rot), 1.5f);
+            }
+        } else if (t == "BJT") {
+            drawLine(svgRotatePt(-20, 0, c.x, c.y, rot), svgRotatePt(-8, 0, c.x, c.y, rot));
+            drawLine(svgRotatePt(-8, -14, c.x, c.y, rot), svgRotatePt(-8, 14, c.x, c.y, rot), 2.5f);
+            drawLine(svgRotatePt(-8, -8, c.x, c.y, rot), svgRotatePt(6, -18, c.x, c.y, rot));
+            drawLine(svgRotatePt(6, -18, c.x, c.y, rot), svgRotatePt(6, -40, c.x, c.y, rot));
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(6, -40, c.x, c.y, rot));
+            drawLine(svgRotatePt(-8, 8, c.x, c.y, rot), svgRotatePt(6, 18, c.x, c.y, rot));
+            drawLine(svgRotatePt(6, 18, c.x, c.y, rot), svgRotatePt(6, 40, c.x, c.y, rot));
+            drawLine(svgRotatePt(0, 40, c.x, c.y, rot), svgRotatePt(6, 40, c.x, c.y, rot));
+            ImVec2 bArr[] = {svgRotatePt(-1, 11, c.x, c.y, rot), svgRotatePt(6, 18, c.x, c.y, rot), svgRotatePt(-3, 17, c.x, c.y, rot)};
+            drawPolygon(bArr, 3, 1.0f, true);
+        } else if (t == "JFET") {
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -14, c.x, c.y, rot));
+            drawLine(svgRotatePt(0, 14, c.x, c.y, rot), svgRotatePt(0, 40, c.x, c.y, rot));
+            drawLine(svgRotatePt(-6, -14, c.x, c.y, rot), svgRotatePt(-6, 14, c.x, c.y, rot), 2.5f);
+            drawLine(svgRotatePt(-6, -14, c.x, c.y, rot), svgRotatePt(0, -14, c.x, c.y, rot));
+            drawLine(svgRotatePt(-6, 14, c.x, c.y, rot), svgRotatePt(0, 14, c.x, c.y, rot));
+            drawLine(svgRotatePt(-20, 0, c.x, c.y, rot), svgRotatePt(-6, 0, c.x, c.y, rot));
+            ImVec2 jArr[] = {svgRotatePt(-12, -4, c.x, c.y, rot), svgRotatePt(-6, 0, c.x, c.y, rot), svgRotatePt(-12, 4, c.x, c.y, rot)};
+            drawPolygon(jArr, 3, 1.0f, true);
         } else if (t == "MOSFET" || t == "vg-FET" || t == "VGFET") {
             drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -15, c.x, c.y, rot));
             drawLine(svgRotatePt(0, 15, c.x, c.y, rot), svgRotatePt(0, 40, c.x, c.y, rot));

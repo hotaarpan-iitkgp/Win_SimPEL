@@ -176,6 +176,32 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
             };
             if (cItem.contains("parameters") && cItem["parameters"].is_object()) parseParamsObj(cItem["parameters"]);
             if (cItem.contains("params") && cItem["params"].is_object()) parseParamsObj(cItem["params"]);
+
+            // Normalise web-tool parameter aliases onto the native keys, otherwise the
+            // value is ignored by the solver and silently falls back to a default.
+            if (comp.type == CircuitSim::ComponentType::Resistor ||
+                comp.type == CircuitSim::ComponentType::VariableResistor ||
+                comp.type == CircuitSim::ComponentType::PWLResistor) {
+                if (!comp.parameters.count("value")) {
+                    if (comp.parameters.count("resistance")) comp.parameters["value"] = comp.parameters["resistance"];
+                    else if (comp.parameters.count("R")) comp.parameters["value"] = comp.parameters["R"];
+                }
+                comp.parameters.erase("resistance");
+            }
+
+            // Backfill energy-storage initial-condition params so they are editable
+            // in the Property Inspector even for circuits saved without them.
+            if (comp.type == CircuitSim::ComponentType::Inductor ||
+                comp.type == CircuitSim::ComponentType::VariableInductor ||
+                comp.type == CircuitSim::ComponentType::SaturableInductor) {
+                if (!comp.parameters.count("iL0")) comp.parameters["iL0"] = "0";
+            }
+            if (comp.type == CircuitSim::ComponentType::Capacitor ||
+                comp.type == CircuitSim::ComponentType::VariableCapacitor ||
+                comp.type == CircuitSim::ComponentType::SaturableCapacitor) {
+                if (!comp.parameters.count("vC0")) comp.parameters["vC0"] = "0";
+            }
+
             CircuitSim::setupComponentPins(comp);
             cd.components.push_back(comp);
         }
@@ -205,6 +231,19 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
     };
 
     if (j.contains("wires") && j["wires"].is_array()) {
+        // Pass 1: build a remap table from legacy/original wire ids ("oldId") to the
+        // current wire ids. Copy-pasted or re-exported schematics keep pointing their
+        // junction "targetWireId" at the pre-copy ids, which would otherwise dangle.
+        std::unordered_map<std::string, std::string> wireIdRemap;
+        std::unordered_set<std::string> knownWireIds;
+        for (const auto& wItem : j["wires"]) {
+            std::string wid = wItem.value("id", "");
+            if (wid.empty()) continue;
+            knownWireIds.insert(wid);
+            std::string oldId = wItem.value("oldId", "");
+            if (!oldId.empty() && oldId != wid) wireIdRemap[oldId] = wid;
+        }
+
         for (const auto& wItem : j["wires"]) {
             CircuitSim::WireInstance wire;
             wire.id = wItem.value("id", "");
@@ -226,7 +265,10 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
 
             bool isJunc = wItem.value("isJunction", false);
             std::string targetWId = wItem.value("targetWireId", "");
-            if (isJunc || !targetWId.empty()) {
+            // Only convert the "to" endpoint into a wire junction when it does NOT
+            // already reference a real component pin. Previously this overwrote valid
+            // pin connections, silently disconnecting components (e.g. series meters).
+            if ((isJunc || !targetWId.empty()) && wire.to.compId.empty()) {
                 wire.to.isWireJunction = true;
                 wire.to.targetWireId = targetWId;
                 wire.to.junctionX = wItem.value("jX", 0.0f);
@@ -235,6 +277,32 @@ static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) 
 
             cd.wires.push_back(wire);
         }
+
+        // Pass 2: resolve junction targets through the oldId remap table.
+        for (auto& w : cd.wires) {
+            auto remapEndpoint = [&](CircuitSim::WireEndpoint& ep) {
+                if (!ep.isWireJunction || ep.targetWireId.empty()) return;
+                if (knownWireIds.count(ep.targetWireId)) return; // already valid
+                auto it = wireIdRemap.find(ep.targetWireId);
+                if (it != wireIdRemap.end()) ep.targetWireId = it->second;
+            };
+            remapEndpoint(w.from);
+            remapEndpoint(w.to);
+        }
+
+        // Pass 3: drop junctions that still cannot be resolved — they contribute no
+        // electrical connection and would create phantom isolated nets.
+        for (auto& w : cd.wires) {
+            auto dropDangling = [&](CircuitSim::WireEndpoint& ep) {
+                if (ep.isWireJunction && !ep.targetWireId.empty() &&
+                    !knownWireIds.count(ep.targetWireId)) {
+                    ep.targetWireId.clear();
+                }
+            };
+            dropDangling(w.from);
+            dropDangling(w.to);
+        }
+
         sanitizeCircuitWires(cd);
     }
     return cd;

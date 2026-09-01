@@ -188,6 +188,7 @@ enum class ComponentType {
 
     // Power Semiconductors
     Thyristor,            // THYRISTOR
+    IGBT,                 // IGBT
     GTO,                  // GTO
     IGBTDiode,            // IGBT_DIODE
     IGCT,                 // IGCT
@@ -247,7 +248,7 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "vg-FET" || typeStr == "VGFET") return ComponentType::VGFET;
     if (typeStr == "GOTO_SIG" || typeStr == "GOTO" || typeStr == "GotoSignal") return ComponentType::GotoSignal;
     if (typeStr == "FROM_SIG" || typeStr == "FROM" || typeStr == "FromSignal") return ComponentType::FromSignal;
-    if (typeStr == "IGBT") return ComponentType::Switch;
+    if (typeStr == "IGBT") return ComponentType::IGBT;
     if (typeStr == "IGBT_DIODE" || typeStr == "IGBTDiode") return ComponentType::IGBTDiode;
     if (typeStr == "IGCT") return ComponentType::IGCT;
     if (typeStr == "GTO") return ComponentType::GTO;
@@ -500,27 +501,54 @@ inline void setupComponentPins(ComponentInstance& comp) {
         t == "V" || t == "VoltageSource" || t == "DC_V" || t == "DC_V1" || t == "ac" || t == "ACVoltageSource" || t == "AC_V" ||
         t == "I" || t == "CurrentSource" || t == "DC_I" || t == "AC_I" || t == "ACCurrentSource" ||
         t == "D" || t == "Diode" ||
-        t == "VAR_R" || t == "VariableResistor" || t == "VAR_L" || t == "VariableInductor" || t == "VAR_C" || t == "VariableCapacitor" ||
         t == "SAT_L" || t == "SaturableInductor" || t == "SAT_C" || t == "SaturableCapacitor" || t == "PWL_R" || t == "PWLResistor") {
         
         Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
         Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
         comp.pins = {pinA, pinB};
+    } else if (t == "VAR_R" || t == "VariableResistor" ||
+               t == "VAR_L" || t == "VariableInductor" ||
+               t == "VAR_C" || t == "VariableCapacitor") {
+        // Signal-controlled passives need a control input so the element value can be
+        // driven by a waveform. Order matches getTerminals(): A/B first, Ctrl last.
+        Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
+        Pin pinCtrl; pinCtrl.name = "Ctrl"; pinCtrl.relativeX = -30; pinCtrl.relativeY = 0; pinCtrl.isInput = true; pinCtrl.isCtrl = true;
+        comp.pins = {pinA, pinB, pinCtrl};
     } else if (t == "VM" || t == "Voltmeter" || t == "AM" || t == "Ammeter") {
         Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
         Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
         Pin pinOut; pinOut.name = "Out"; pinOut.relativeX = 20; pinOut.relativeY = 0; pinOut.isOutput = true;
         comp.pins = {pinA, pinB, pinOut};
     } else if (t == "CTRL_V" || t == "ControlledVoltageSource" || t == "CTRL_I" || t == "ControlledCurrentSource") {
-        Pin pinIn; pinIn.name = "In"; pinIn.relativeX = -30; pinIn.relativeY = 0; pinIn.isInput = true;
+        // The control pin must be named "Ctrl": the netlist generator resolves the
+        // driving signal via getIncomingSignal(id, "Ctrl"). It used to be named "In",
+        // so the lookup always failed and the source saw a constant 0.
         Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
         Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
-        comp.pins = {pinIn, pinA, pinB};
-    } else if (t == "MOSFET" || t == "vg-FET") {
+        Pin pinCtrl; pinCtrl.name = "Ctrl"; pinCtrl.relativeX = -30; pinCtrl.relativeY = 0; pinCtrl.isInput = true; pinCtrl.isCtrl = true;
+        // Order must match getTerminals(): electrical A/B first, control pin last, so
+        // nodes[0]/nodes[1] remain the two electrical terminals.
+        comp.pins = {pinA, pinB, pinCtrl};
+    } else if (t == "MOSFET" || t == "vg-FET" || t == "VGFET" ||
+               t == "IGBT" || t == "IGBT_DIODE" || t == "IGBTDiode" ||
+               t == "JFET") {
         Pin pinD; pinD.name = "D"; pinD.relativeX = 0; pinD.relativeY = -40;
         Pin pinS; pinS.name = "S"; pinS.relativeX = 0; pinS.relativeY = 40;
         Pin pinG; pinG.name = "G"; pinG.relativeX = -20; pinG.relativeY = 0; pinG.isCtrl = true;
         comp.pins = {pinD, pinS, pinG};
+    } else if (t == "THYRISTOR" || t == "Thyristor" || t == "SCR" || t == "GTO" || t == "IGCT") {
+        // Anode / Cathode / Gate
+        Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
+        Pin pinK; pinK.name = "K"; pinK.relativeX = 0; pinK.relativeY = 40;
+        Pin pinG; pinG.name = "G"; pinG.relativeX = -20; pinG.relativeY = 10; pinG.isCtrl = true;
+        comp.pins = {pinA, pinK, pinG};
+    } else if (t == "BJT") {
+        // Collector / Emitter / Base
+        Pin pinC; pinC.name = "C"; pinC.relativeX = 0; pinC.relativeY = -40;
+        Pin pinE; pinE.name = "E"; pinE.relativeX = 0; pinE.relativeY = 40;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = -20; pinB.relativeY = 0; pinB.isCtrl = true;
+        comp.pins = {pinC, pinE, pinB};
     } else if (t == "S" || t == "Switch") {
         Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
         Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;

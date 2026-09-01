@@ -169,6 +169,25 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
         }
     }
 
+    if (groundRoot.empty()) {
+        // Fallback: reference the neutral ("N") of the first polyphase source. Without
+        // this a circuit fed only by a 3-phase source has no reference node at all and
+        // the MNA system is left resting on the 1e-12 gmin shunts (ill-conditioned).
+        for (const auto& comp : design.components) {
+            std::string t = comp.rawTypeStr;
+            std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+            if (t == "V_3PH" || t == "I_3PH" ||
+                comp.type == ComponentType::ThreePhaseSource ||
+                comp.type == ComponentType::ThreePhaseCurrentSource) {
+                std::string pinN = dsu.find(comp.id + ":N");
+                if (!pinN.empty()) {
+                    groundRoot = pinN;
+                    break;
+                }
+            }
+        }
+    }
+
     // Map roots to node names ("0" for Ground, "node_1", "node_2", etc.)
     std::unordered_map<std::string, std::string> rootToNode;
     if (!groundRoot.empty()) {

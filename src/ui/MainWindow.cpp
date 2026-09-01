@@ -1128,13 +1128,13 @@ void MainWindow::renderComponentPalette() {
 
             // Electrical Domain Passive Components sub-library
             { "Resistor (R)", "R", "R", ComponentType::Resistor, "R", "electrical", "Passive Components", {{"value", "10"}}, true },
-            { "Inductor (L)", "L", "L", ComponentType::Inductor, "L", "electrical", "Passive Components", {{"L", "10m"}, {"esr", "0"}}, true },
-            { "Capacitor (C)", "C", "C", ComponentType::Capacitor, "C", "electrical", "Passive Components", {{"C", "100u"}, {"esr", "0"}}, true },
+            { "Inductor (L)", "L", "L", ComponentType::Inductor, "L", "electrical", "Passive Components", {{"L", "10m"}, {"esr", "0"}, {"iL0", "0"}}, true },
+            { "Capacitor (C)", "C", "C", ComponentType::Capacitor, "C", "electrical", "Passive Components", {{"C", "100u"}, {"esr", "0"}, {"vC0", "0"}}, true },
             { "Variable Resistor (VAR_R)", "var R", "VAR_R", ComponentType::VariableResistor, "VAR_R", "electrical", "Passive Components", {{"value", "10"}}, false },
-            { "Variable Inductor (VAR_L)", "var L", "VAR_L", ComponentType::VariableInductor, "VAR_L", "electrical", "Passive Components", {{"L", "10m"}}, false },
-            { "Variable Capacitor (VAR_C)", "var C", "VAR_C", ComponentType::VariableCapacitor, "VAR_C", "electrical", "Passive Components", {{"C", "100u"}}, false },
-            { "Saturable Inductor (SAT_L)", "sat L", "SAT_L", ComponentType::SaturableInductor, "SAT_L", "electrical", "Passive Components", {{"L", "10m"}}, false },
-            { "Saturable Capacitor (SAT_C)", "sat C", "SAT_C", ComponentType::SaturableCapacitor, "SAT_C", "electrical", "Passive Components", {{"C", "100u"}}, false },
+            { "Variable Inductor (VAR_L)", "var L", "VAR_L", ComponentType::VariableInductor, "VAR_L", "electrical", "Passive Components", {{"L", "10m"}, {"iL0", "0"}}, false },
+            { "Variable Capacitor (VAR_C)", "var C", "VAR_C", ComponentType::VariableCapacitor, "VAR_C", "electrical", "Passive Components", {{"C", "100u"}, {"vC0", "0"}}, false },
+            { "Saturable Inductor (SAT_L)", "sat L", "SAT_L", ComponentType::SaturableInductor, "SAT_L", "electrical", "Passive Components", {{"L", "10m"}, {"iL0", "0"}}, false },
+            { "Saturable Capacitor (SAT_C)", "sat C", "SAT_C", ComponentType::SaturableCapacitor, "SAT_C", "electrical", "Passive Components", {{"C", "100u"}, {"vC0", "0"}}, false },
             { "Pi-Section Line (PI_SECTION)", "Pi Line", "PI_SECTION", ComponentType::PiSectionLine, "PI_SECTION", "electrical", "Passive Components", {}, false },
             { "Transmission Line (3ph) (LINE_3PH)", "3Ph Line", "LINE_3PH", ComponentType::TransmissionLine3Ph, "LINE_3PH", "electrical", "Passive Components", {}, false },
             { "Piece-wise Linear Resistor (PWL_R)", "pwl R", "PWL_R", ComponentType::PWLResistor, "PWL_R", "electrical", "Passive Components", {{"value", "10"}}, false },
@@ -2388,6 +2388,48 @@ void MainWindow::renderPropertyInspector() {
                     } catch (...) {}
                 }
             }
+        }
+    }
+
+    // ── Measurement / Probe selection (Voltage and/or Current) ──
+    {
+        bool isElectrical =
+            comp->type == ComponentType::Resistor || comp->type == ComponentType::Capacitor ||
+            comp->type == ComponentType::Inductor || comp->type == ComponentType::VoltageSource ||
+            comp->type == ComponentType::ACVoltageSource || comp->type == ComponentType::CurrentSource ||
+            comp->type == ComponentType::ACCurrentSource || comp->type == ComponentType::Diode ||
+            comp->type == ComponentType::Switch || comp->type == ComponentType::MOSFET ||
+            comp->type == ComponentType::Thyristor || comp->type == ComponentType::ThreePhaseSource ||
+            comp->type == ComponentType::ThreePhaseCurrentSource ||
+            comp->type == ComponentType::IGBT || comp->type == ComponentType::IGBTDiode ||
+            comp->type == ComponentType::GTO || comp->type == ComponentType::IGCT ||
+            comp->type == ComponentType::BJT || comp->type == ComponentType::JFET ||
+            comp->type == ComponentType::VGFET ||
+            comp->type == ComponentType::VariableResistor || comp->type == ComponentType::VariableCapacitor ||
+            comp->type == ComponentType::VariableInductor;
+
+        if (isElectrical) {
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Measure / Probe:");
+
+            bool plotV = comp->parameters.count("plotV") && comp->parameters.at("plotV") == "1";
+            bool plotI = comp->parameters.count("plotI") && comp->parameters.at("plotI") == "1";
+
+            if (ImGui::Checkbox("Voltage (V)##measV", &plotV)) {
+                comp->parameters["plotV"] = plotV ? "1" : "0";
+                canvas.syncProbeSignals();
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox("Current (I)##measI", &plotI)) {
+                comp->parameters["plotI"] = plotI ? "1" : "0";
+                canvas.syncProbeSignals();
+            }
+
+            if (comp->type == ComponentType::ThreePhaseSource ||
+                comp->type == ComponentType::ThreePhaseCurrentSource) {
+                ImGui::TextDisabled("Emitted per phase (e.g. V_%s_A, I_%s_A)", comp->id.c_str(), comp->id.c_str());
+            }
+            ImGui::Spacing();
         }
     }
 

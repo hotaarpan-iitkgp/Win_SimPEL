@@ -61,9 +61,12 @@ private:
     bool isDarkMode = true;
     float traceLineWidth = 2.0f;
 
-    // Layout mode
-    bool useSubplots = true;   // true = each channel in its own subplot row
-    int numPanes = 1;          // how many subplot rows to show (auto or manual)
+    // Layout mode & channel-to-pane mapping
+    bool useSubplots = true;   // true = split subplots mode, false = overlaid single plot
+    int numPanes = 1;          // number of active subplots
+    std::vector<int> channelPaneMap; // channelPaneMap[ch] = pane index for channel ch
+
+    void normalizePaneMap();
 
     // Zoom & Cursor & Interpolation state
     ScopeZoomMode activeZoomMode = ScopeZoomMode::Disabled;

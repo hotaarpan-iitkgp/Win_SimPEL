@@ -123,14 +123,25 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "R" || t == "L" || t == "C" || t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource" ||
         t == "I" || t == "DC_I" || t == "DC_I1" || t == "CurrentSource" ||
         t == "D" || t == "Diode" || t == "AC_V" || t == "AC_I" ||
-        t == "VAR_R" || t == "VAR_L" || t == "VAR_C" || t == "SAT_L" || t == "SAT_C" || t == "PWL_R") {
+        t == "SAT_L" || t == "SAT_C" || t == "PWL_R") {
         return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}};
+    }
+    if (t == "VAR_R" || t == "VariableResistor" ||
+        t == "VAR_L" || t == "VariableInductor" ||
+        t == "VAR_C" || t == "VariableCapacitor") {
+        // Third pin is the signal input that drives the element value.
+        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Ctrl", -30, 0, -1, 0, true}};
     }
     if (t == "VM" || t == "AM") {
         return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Out", 20, 0, 1, 0, true}};
     }
     if (t == "MOSFET" || t == "vg-FET") {
         return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
+    }
+    if (t == "CTRL_V" || t == "ControlledVoltageSource" || t == "CTRL_I" || t == "ControlledCurrentSource") {
+        // Without this entry getTerminals() returned {} for controlled sources, so
+        // NetlistBuilder assigned them no nodes at all and they were stamped nowhere.
+        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Ctrl", -30, 0, -1, 0, true}};
     }
     if (t == "S") {
         return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Ctrl", -20, 0, -1, 0, true}};
@@ -262,14 +273,18 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "LINE_3PH") {
         return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}};
     }
-    if (t == "THYRISTOR" || t == "GTO" || t == "IGCT") {
-        return {{"A", 0, -20, 0, -1, true}, {"K", 0, 20, 0, 1, true}, {"G", -20, 10, -1, 0, true}};
+    // Power semiconductors. The two power terminals must be electrical (isControl =
+    // false) — only the gate/base is a control-domain pin. Marking the power terminals
+    // as control broke domain isolation and coloured power wires as signal lines.
+    // Geometry matches the +/-40 body span used by the other two-terminal devices.
+    if (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT") {
+        return {{"A", 0, -40, 0, -1, false}, {"K", 0, 40, 0, 1, false}, {"G", -20, 10, -1, 0, true}};
     }
     if (t == "BJT") {
-        return {{"C", 0, -20, 0, -1, true}, {"E", 0, 20, 0, 1, true}, {"B", -20, 0, -1, 0, true}};
+        return {{"C", 0, -40, 0, -1, false}, {"E", 0, 40, 0, 1, false}, {"B", -20, 0, -1, 0, true}};
     }
-    if (t == "JFET" || t == "MOSFET" || t == "IGBT" || t == "IGBT_DIODE") {
-        return {{"D", 0, -20, 0, -1, true}, {"S", 0, 20, 0, 1, true}, {"G", -20, 0, -1, 0, true}};
+    if (t == "JFET" || t == "IGBT" || t == "IGBT_DIODE") {
+        return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
     }
     if (t == "BREAKER" || t == "SR_SWITCH") {
         return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
@@ -330,8 +345,10 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "FROM_SIG" || t == "FROM") {
         return {{"Out", 15, 0, 1, 0, true}};
     }
-    if (t == "vg-FET" || t == "VGFET") {
-        return {{"D", 0, -20, 0, -1, true}, {"S", 0, 20, 0, 1, true}};
+    if (t == "VGFET") {
+        // "vg-FET" is handled alongside MOSFET near the top of this function; this entry
+        // covers the alternate spelling and must stay identical to it.
+        return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
     }
     if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
         return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"TL", -20, 30, -1, 0, true}, {"Speed", 20, 0, 1, 0, true}};
@@ -787,16 +804,118 @@ void SchematicCanvas::drawCurrentFlowAnimation(ImDrawList* drawList, ImVec2 p1, 
     (void)drawList; (void)p1; (void)mid; (void)mid2; (void)p2; (void)isControlNet; (void)timeSec;
 }
 
-bool SchematicCanvas::isPinConnected(const std::string& compId, const std::string& pinName) const {
-    const ComponentInstance* comp = nullptr;
+// Collapses a terminal name onto a canonical representative for its alias group.
+// The groups mirror isTerminalMatch() exactly, so hashing on the canonical form is
+// equivalent to calling isTerminalMatch() but without the per-comparison allocations.
+static const char* canonicalTerminal(const std::string& upper) {
+    const std::string& a = upper;
+    if (a == "A" || a == "PLUS" || a == "IN1" || a == "IN" || a == "INPUT_0" || a == "IN_0") return "A";
+    if (a == "B" || a == "MINUS" || a == "IN2" || a == "INPUT_1" || a == "IN_1") return "B";
+    if (a == "OUT" || a == "OUT1" || a == "OUTPUT" || a == "OUTPUT_0" || a == "OUTDIRECT1") return "OUT";
+    if (a == "P1" || a == "P1A" || a == "P1_1" || a == "PA") return "P1";
+    if (a == "P2" || a == "P1B" || a == "P1_2" || a == "PB") return "P2";
+    if (a == "S1" || a == "S1A" || a == "S1_1" || a == "SA") return "S1";
+    if (a == "S2" || a == "S1B" || a == "S1_2" || a == "SB") return "S2";
+    if (a == "S2A" || a == "S3" || a == "S2_1") return "S3";
+    if (a == "S2B" || a == "S4" || a == "S2_2") return "S4";
+    return nullptr; // no alias group — use the uppercase name itself
+}
+
+// Key used by the per-frame connected-pin set and pin-domain memo.
+static std::string pinKey(const std::string& compId, const std::string& terminal) {
+    std::string upper;
+    upper.reserve(terminal.size());
+    for (char c : terminal) upper += (char)::toupper((unsigned char)c);
+
+    const char* canon = canonicalTerminal(upper);
+
+    std::string k;
+    k.reserve(compId.size() + (canon ? 4 : upper.size()) + 1);
+    k += compId;
+    k += '\x1f';
+    if (canon) k += canon; else k += upper;
+    return k;
+}
+
+bool SchematicCanvas::isControlPinCached(const ComponentInstance& comp, const std::string& pinName) const {
+    std::string key = pinKey(comp.id, pinName);
+    auto it = framePinDomain.find(key);
+    if (it != framePinDomain.end()) return it->second != 0;
+    bool ctrl = (getPinDomain(comp, pinName) == DomainType::Control);
+    framePinDomain.emplace(std::move(key), ctrl ? 1 : 0);
+    return ctrl;
+}
+
+void SchematicCanvas::rebuildFrameCaches() const {
+    frameCompMap.clear();
+    frameTerminals.clear();
+    frameConnectedPins.clear();
+    framePinDomain.clear();
+
+    frameCompMap.reserve(design.components.size() * 2);
     for (const auto& c : design.components) {
-        if (c.id == compId) { comp = &c; break; }
+        frameCompMap[c.id] = &c;
     }
+
+    frameConnectedPins.reserve(design.wires.size() * 3);
     for (const auto& w : design.wires) {
-        if (w.from.compId == compId && (w.from.terminal == pinName || (comp && isTerminalMatch(comp->rawTypeStr, w.from.terminal, pinName)))) return true;
-        if (w.to.compId == compId && (w.to.terminal == pinName || (comp && isTerminalMatch(comp->rawTypeStr, w.to.terminal, pinName)))) return true;
+        if (!w.from.compId.empty()) frameConnectedPins.insert(pinKey(w.from.compId, w.from.terminal));
+        if (!w.to.compId.empty())   frameConnectedPins.insert(pinKey(w.to.compId, w.to.terminal));
     }
-    return false;
+}
+
+const ComponentInstance* SchematicCanvas::findComp(const std::string& id) const {
+    auto it = frameCompMap.find(id);
+    if (it != frameCompMap.end()) return it->second;
+    for (const auto& c : design.components) {
+        if (c.id == id) return &c;
+    }
+    return nullptr;
+}
+
+const std::vector<TerminalDef>& SchematicCanvas::cachedTerminals(const ComponentInstance& comp) const {
+    auto it = frameTerminals.find(comp.id);
+    if (it != frameTerminals.end()) return it->second;
+
+    std::vector<TerminalDef> terms = getTerminals(comp);
+    if (terms.empty() && !comp.pins.empty()) {
+        for (const auto& pin : comp.pins) {
+            TerminalDef td;
+            td.name = pin.name.c_str();
+            td.x = pin.relativeX;
+            td.y = pin.relativeY;
+            td.dx = pin.isOutput ? 1.0f : -1.0f;
+            td.dy = 0;
+            td.isControl = pin.isCtrl || pin.isInput || pin.isOutput;
+            terms.push_back(td);
+        }
+    }
+    return frameTerminals.emplace(comp.id, std::move(terms)).first->second;
+}
+
+// Base size is taken from the font's native size rather than ImGui::GetFontSize(),
+// so these stay correct even when called inside a SetWindowFontScale() region.
+ImVec2 SchematicCanvas::calcScaledTextSize(const char* text, float zoom, float basePx) const {
+    ImFont* font = ImGui::GetFont();
+    float base = (basePx > 0.0f) ? basePx : font->LegacySize;
+    float px = base * zoom;
+    if (px < LABEL_MIN_PX) return ImVec2(0.0f, 0.0f);
+    return font->CalcTextSizeA(px, FLT_MAX, 0.0f, text);
+}
+
+void SchematicCanvas::drawScaledText(ImDrawList* dl, const ImVec2& pos, ImU32 col, const char* text, float zoom, float basePx) const {
+    if (!text || !*text) return;
+    ImFont* font = ImGui::GetFont();
+    float base = (basePx > 0.0f) ? basePx : font->LegacySize;
+    float px = base * zoom;
+    // Below this the glyphs are unreadable smudges; skipping them keeps the view
+    // clean when zoomed out and avoids the fixed-size overlap artefact.
+    if (px < LABEL_MIN_PX) return;
+    dl->AddText(font, px, pos, col, text);
+}
+
+bool SchematicCanvas::isPinConnected(const std::string& compId, const std::string& pinName) const {
+    return frameConnectedPins.find(pinKey(compId, pinName)) != frameConnectedPins.end();
 }
 
 void SchematicCanvas::pushUndoState() {
@@ -1046,6 +1165,90 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
         
         drawList->AddLine(rotatePt(12*s, -6*s, c.x, c.y, rot), rotatePt(12*s, -15*s, c.x, c.y, rot), color, 1.5f*s);
         drawList->AddLine(rotatePt(12*s, -15*s, c.x, c.y, rot), rotatePt(0, -15*s, c.x, c.y, rot), color, 1.5f*s);
+    } else if (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT") {
+        // Anode lead (top) -> triangle -> cathode bar -> cathode lead (bottom)
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -10*s, c.x, c.y, rot), color, 2.0f*s);
+        ImVec2 tri[] = { rotatePt(-13*s, -10*s, c.x, c.y, rot),
+                         rotatePt( 13*s, -10*s, c.x, c.y, rot),
+                         rotatePt(  0,     9*s, c.x, c.y, rot) };
+        drawList->AddTriangleFilled(tri[0], tri[1], tri[2], IM_COL32(0, 230, 120, 30));
+        drawList->AddTriangle(tri[0], tri[1], tri[2], color, 2.0f*s);
+        drawList->AddLine(rotatePt(-13*s, 9*s, c.x, c.y, rot), rotatePt(13*s, 9*s, c.x, c.y, rot), color, 2.5f*s);
+        drawList->AddLine(rotatePt(0, 9*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
+
+        // Gate lead into the cathode side
+        drawList->AddLine(rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(-9*s, 10*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-9*s, 10*s, c.x, c.y, rot), rotatePt(-3*s, 7*s, c.x, c.y, rot), color, 2.0f*s);
+
+        if (t == "GTO" || t == "IGCT") {
+            // Turn-off capability: double arrowhead on the gate lead
+            drawList->AddLine(rotatePt(-17*s, 6*s, c.x, c.y, rot), rotatePt(-13*s, 10*s, c.x, c.y, rot), color, 1.5f*s);
+            drawList->AddLine(rotatePt(-17*s, 14*s, c.x, c.y, rot), rotatePt(-13*s, 10*s, c.x, c.y, rot), color, 1.5f*s);
+            drawList->AddLine(rotatePt(-13*s, 6*s, c.x, c.y, rot), rotatePt(-17*s, 10*s, c.x, c.y, rot), color, 1.5f*s);
+            drawList->AddLine(rotatePt(-13*s, 14*s, c.x, c.y, rot), rotatePt(-17*s, 10*s, c.x, c.y, rot), color, 1.5f*s);
+        }
+        if (t == "IGCT") {
+            drawList->AddText(rotatePt(15*s, -4*s, c.x, c.y, rot), color, "IGCT");
+        }
+    } else if (t == "IGBT" || t == "IGBT_DIODE") {
+        // Collector lead (top) / emitter lead (bottom)
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -15*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, 15*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
+        // Channel bar and insulated gate plate
+        drawList->AddLine(rotatePt(-5*s, -15*s, c.x, c.y, rot), rotatePt(-5*s, 15*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-10*s, -15*s, c.x, c.y, rot), rotatePt(-10*s, 15*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-10*s, 0, c.x, c.y, rot), color, 2.0f*s);
+        // Collector / emitter connections onto the channel
+        drawList->AddLine(rotatePt(-5*s, -10*s, c.x, c.y, rot), rotatePt(0, -10*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-5*s,  10*s, c.x, c.y, rot), rotatePt(0,  10*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, -15*s, c.x, c.y, rot), rotatePt(0, -10*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0,  10*s, c.x, c.y, rot), rotatePt(0,  15*s, c.x, c.y, rot), color, 2.0f*s);
+        // Emitter arrow (points out of the device, toward the emitter)
+        ImVec2 eArr[] = { rotatePt(-4*s, 6*s, c.x, c.y, rot),
+                          rotatePt( 0,   10*s, c.x, c.y, rot),
+                          rotatePt(-4*s, 14*s, c.x, c.y, rot) };
+        drawList->AddTriangleFilled(eArr[0], eArr[1], eArr[2], color);
+
+        if (t == "IGBT_DIODE") {
+            // Anti-parallel freewheeling diode on the right-hand side
+            drawList->AddLine(rotatePt(0, 15*s, c.x, c.y, rot), rotatePt(14*s, 15*s, c.x, c.y, rot), color, 1.5f*s);
+            drawList->AddLine(rotatePt(14*s, 15*s, c.x, c.y, rot), rotatePt(14*s, 6*s, c.x, c.y, rot), color, 1.5f*s);
+            ImVec2 dTri[] = { rotatePt( 9*s,  6*s, c.x, c.y, rot),
+                              rotatePt(19*s,  6*s, c.x, c.y, rot),
+                              rotatePt(14*s, -6*s, c.x, c.y, rot) };
+            drawList->AddTriangleFilled(dTri[0], dTri[1], dTri[2], IM_COL32(0, 230, 120, 30));
+            drawList->AddTriangle(dTri[0], dTri[1], dTri[2], color, 1.5f*s);
+            drawList->AddLine(rotatePt(9*s, -6*s, c.x, c.y, rot), rotatePt(19*s, -6*s, c.x, c.y, rot), color, 1.5f*s);
+            drawList->AddLine(rotatePt(14*s, -6*s, c.x, c.y, rot), rotatePt(14*s, -15*s, c.x, c.y, rot), color, 1.5f*s);
+            drawList->AddLine(rotatePt(14*s, -15*s, c.x, c.y, rot), rotatePt(0, -15*s, c.x, c.y, rot), color, 1.5f*s);
+        }
+    } else if (t == "BJT") {
+        // Base plate with collector / emitter leads at 45 degrees (NPN)
+        drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-8*s, 0, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-8*s, -14*s, c.x, c.y, rot), rotatePt(-8*s, 14*s, c.x, c.y, rot), color, 2.5f*s);
+        drawList->AddLine(rotatePt(-8*s, -8*s, c.x, c.y, rot), rotatePt(6*s, -18*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(6*s, -18*s, c.x, c.y, rot), rotatePt(6*s, -40*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(6*s, -40*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-8*s, 8*s, c.x, c.y, rot), rotatePt(6*s, 18*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(6*s, 18*s, c.x, c.y, rot), rotatePt(6*s, 40*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, 40*s, c.x, c.y, rot), rotatePt(6*s, 40*s, c.x, c.y, rot), color, 2.0f*s);
+        // Emitter arrow pointing away from the base (NPN)
+        ImVec2 bArr[] = { rotatePt(-1*s, 11*s, c.x, c.y, rot),
+                          rotatePt( 6*s, 18*s, c.x, c.y, rot),
+                          rotatePt(-3*s, 17*s, c.x, c.y, rot) };
+        drawList->AddTriangleFilled(bArr[0], bArr[1], bArr[2], color);
+    } else if (t == "JFET") {
+        // Drain / source leads with a single vertical channel and gate arrow (N-channel)
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -14*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(0, 14*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-6*s, -14*s, c.x, c.y, rot), rotatePt(-6*s, 14*s, c.x, c.y, rot), color, 2.5f*s);
+        drawList->AddLine(rotatePt(-6*s, -14*s, c.x, c.y, rot), rotatePt(0, -14*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-6*s,  14*s, c.x, c.y, rot), rotatePt(0,  14*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-20*s, 0, c.x, c.y, rot), rotatePt(-6*s, 0, c.x, c.y, rot), color, 2.0f*s);
+        ImVec2 jArr[] = { rotatePt(-12*s, -4*s, c.x, c.y, rot),
+                          rotatePt(-6*s,   0,   c.x, c.y, rot),
+                          rotatePt(-12*s,  4*s, c.x, c.y, rot) };
+        drawList->AddTriangleFilled(jArr[0], jArr[1], jArr[2], color);
     } else if (t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource") {
         drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -16*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 16*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
@@ -2055,26 +2258,9 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
 }
 
 void SchematicCanvas::drawTerminals(ImDrawList* drawList, const ComponentInstance& comp, ImVec2 center, float s, ImVec2 mousePos, float& minPinDist) {
-    auto terminals = getTerminals(comp);
-    if (terminals.empty() && !comp.pins.empty()) {
-        for (const auto& pin : comp.pins) {
-            TerminalDef td;
-            td.name = pin.name.c_str();
-            td.x = pin.relativeX;
-            td.y = pin.relativeY;
-            td.dx = pin.isOutput ? 1.0f : -1.0f;
-            td.dy = 0;
-            td.isControl = pin.isCtrl || pin.isInput || pin.isOutput;
-            terminals.push_back(td);
-        }
-    }
+    const std::vector<TerminalDef>& terminals = cachedTerminals(comp);
 
-    const ComponentInstance* startComp = nullptr;
-    if (isWiring) {
-        for (const auto& c : design.components) {
-            if (c.id == wireStartCompId) { startComp = &c; break; }
-        }
-    }
+    const ComponentInstance* startComp = isWiring ? findComp(wireStartCompId) : nullptr;
     
     for (const auto& term : terminals) {
         ImVec2 tPos = rotatePt(term.x * s, term.y * s, center.x, center.y, (float)comp.rotation);
@@ -2082,7 +2268,7 @@ void SchematicCanvas::drawTerminals(ImDrawList* drawList, const ComponentInstanc
         bool isHovered = (dist < 14.0f * s);
         bool isConnected = isPinConnected(comp.id, term.name);
 
-        bool isControl = getPinDomain(comp, term.name) == DomainType::Control;
+        bool isControl = isControlPinCached(comp, term.name);
         
         if (isHovered && dist < minPinDist) {
             minPinDist = dist;
@@ -2121,19 +2307,7 @@ void SchematicCanvas::drawTerminals(ImDrawList* drawList, const ComponentInstanc
 }
 
 bool SchematicCanvas::getTerminalPortStub(const ComponentInstance& comp, const std::string& terminalName, ImVec2 canvasPos, float zoomLevel, ImVec2& outPinPos, ImVec2& outStubPos, bool& outIsVertical) const {
-    auto terminals = getTerminals(comp);
-    if (terminals.empty() && !comp.pins.empty()) {
-        for (const auto& pin : comp.pins) {
-            TerminalDef td;
-            td.name = pin.name.c_str();
-            td.x = pin.relativeX;
-            td.y = pin.relativeY;
-            td.dx = pin.isOutput ? 1.0f : -1.0f;
-            td.dy = 0;
-            td.isControl = pin.isCtrl || pin.isInput || pin.isOutput;
-            terminals.push_back(td);
-        }
-    }
+    const std::vector<TerminalDef>& terminals = cachedTerminals(comp);
 
     ImVec2 compCenter = worldToScreen(comp.x, comp.y, canvasPos);
     for (const auto& t : terminals) {
@@ -2162,9 +2336,18 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
     std::unordered_map<std::string, DomainType> wireDomainMap;
     buildAllWireDomains(design, wireDomainMap);
 
-    std::unordered_map<std::string, const ComponentInstance*> compMap;
-    compMap.reserve(design.components.size());
-    for (const auto& c : design.components) compMap[c.id] = &c;
+    // Reuse the per-frame component index instead of rebuilding it here.
+    const std::unordered_map<std::string, const ComponentInstance*>& compMap = frameCompMap;
+
+    // Lowercase index of already-resolved wire geometry, so junction targets resolve
+    // by hash lookup rather than a lowercase-transforming linear scan per wire.
+    std::unordered_map<std::string, const std::tuple<ImVec2, ImVec2, ImVec2, ImVec2>*> wirePointsLower;
+    wirePointsLower.reserve(design.wires.size() * 2);
+    auto lowerOf = [](const std::string& s) {
+        std::string r; r.reserve(s.size());
+        for (char c : s) r += (char)::tolower((unsigned char)c);
+        return r;
+    };
 
     for (auto& wire : design.wires) {
         ImVec2 p1(0, 0), p1_stub(0, 0), p2(0, 0), p2_stub(0, 0);
@@ -2186,14 +2369,11 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         }
 
         if (wire.to.isWireJunction) {
-            std::string targetLower = wire.to.targetWireId;
-            std::transform(targetLower.begin(), targetLower.end(), targetLower.begin(), ::tolower);
-
             bool foundTarget = false;
-            for (const auto& [k, v] : wirePointsMap) {
-                std::string kLower = k;
-                std::transform(kLower.begin(), kLower.end(), kLower.begin(), ::tolower);
-                if (kLower == targetLower) {
+            auto itT = wirePointsLower.find(lowerOf(wire.to.targetWireId));
+            if (itT != wirePointsLower.end()) {
+                {
+                    const auto& v = *(itT->second);
                     ImVec2 tp1 = std::get<0>(v);
                     ImVec2 tmid = std::get<1>(v);
                     ImVec2 tmid2 = std::get<2>(v);
@@ -2210,7 +2390,6 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                     p2_stub = p2;
                     foundTo = true;
                     foundTarget = true;
-                    break;
                 }
             }
             if (!foundTarget) {
@@ -2219,12 +2398,10 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 foundTo = true;
             }
         } else {
-            for (const auto& comp : design.components) {
-                if (comp.id == wire.to.compId) {
-                    bool dummyVert;
-                    foundTo = getTerminalPortStub(comp, wire.to.terminal, canvasPos, zoomLevel, p2, p2_stub, dummyVert);
-                    break;
-                }
+            auto itTo = compMap.find(wire.to.compId);
+            if (itTo != compMap.end()) {
+                bool dummyVert;
+                foundTo = getTerminalPortStub(*(itTo->second), wire.to.terminal, canvasPos, zoomLevel, p2, p2_stub, dummyVert);
             }
         }
 
@@ -2309,7 +2486,21 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 }
             }
 
-            wirePointsMap[wire.id] = {p1_stub, c1, c2, p2_stub};
+            auto& stored = wirePointsMap[wire.id];
+            stored = {p1_stub, c1, c2, p2_stub};
+            wirePointsLower[lowerOf(wire.id)] = &stored;
+
+            // Cull wires wholly outside the viewport. Geometry above is still recorded
+            // so junction targets on off-screen wires continue to resolve correctly.
+            {
+                float m = 24.0f * zoomLevel;
+                bool visible = isSegmentVisible(p1, p1_stub, m) ||
+                               isSegmentVisible(p1_stub, c1, m) ||
+                               isSegmentVisible(c1, c2, m) ||
+                               isSegmentVisible(c2, p2_stub, m) ||
+                               isSegmentVisible(p2_stub, p2, m);
+                if (!visible) continue;
+            }
 
             float d0 = 0, d1 = 0, d2 = 0, d3 = 0, d4 = 0;
             ImVec2 q0 = getClosestPointOnSegment(mousePos, p1, p1_stub, d0);
@@ -2330,11 +2521,8 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 if (isWiring) {
                     ImVec2 startP(0, 0), startStub(0, 0);
                     bool startIsVert = false;
-                    for (const auto& comp : design.components) {
-                        if (comp.id == wireStartCompId) {
-                            getTerminalPortStub(comp, wireStartPin, canvasPos, zoomLevel, startP, startStub, startIsVert);
-                            break;
-                        }
+                    if (const ComponentInstance* sc = findComp(wireStartCompId)) {
+                        getTerminalPortStub(*sc, wireStartPin, canvasPos, zoomLevel, startP, startStub, startIsVert);
                     }
                     if (startIsVert && std::abs(startStub.x - bestQ.x) < 20.0f * zoomLevel) {
                         snapQ.x = startStub.x;
@@ -2596,7 +2784,10 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
         outHalfW = std::max(outHalfW, 32.0f);
         outHalfH = std::max(outHalfH, std::max(22.0f, numPins * 15.0f + 2.0f));
     } else if (t == "R" || t == "C" || t == "L" || t == "D" || t == "V" || t == "DC_V" || t == "I" || t == "DC_I" ||
-               t == "AC_V" || t == "AC_I" || t == "CTRL_V" || t == "CTRL_I" || t == "S" || t == "MOSFET" || t == "VM" || t == "AM") {
+               t == "AC_V" || t == "AC_I" || t == "CTRL_V" || t == "CTRL_I" || t == "S" || t == "MOSFET" || t == "VM" || t == "AM" ||
+               t == "vg-FET" || t == "VGFET" ||
+               t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT" ||
+               t == "IGBT" || t == "IGBT_DIODE" || t == "BJT" || t == "JFET") {
         outHalfW = std::max(outHalfW, 14.0f);
         outHalfH = std::max(outHalfH, 14.0f);
     } else {
@@ -2620,13 +2811,18 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
     for (auto& comp : design.components) {
         ImVec2 center = worldToScreen(comp.x, comp.y, canvasPos);
         float s = zoomLevel;
-        
-        bool isSelected = selectedComponentIds.count(comp.id) > 0;
-        ImU32 defaultColor = isDarkMode ? IM_COL32(200, 210, 230, 255) : IM_COL32(30, 41, 59, 255);
-        ImU32 componentColor = isSelected ? IM_COL32(255, 180, 0, 255) : defaultColor;
 
         float hw = 25.0f, hh = 25.0f;
         getComponentBounds(comp, hw, hh);
+
+        // Skip anything fully outside the visible canvas. On large schematics this is
+        // what keeps dragging responsive, since only on-screen parts get processed.
+        float cullPad = (std::max(hw, hh) + 40.0f) * s;
+        if (!isPointVisible(center, cullPad)) continue;
+
+        bool isSelected = selectedComponentIds.count(comp.id) > 0;
+        ImU32 defaultColor = isDarkMode ? IM_COL32(200, 210, 230, 255) : IM_COL32(30, 41, 59, 255);
+        ImU32 componentColor = isSelected ? IM_COL32(255, 180, 0, 255) : defaultColor;
 
         if (isSelected) {
             drawList->AddRectFilled(
@@ -2640,9 +2836,17 @@ void SchematicCanvas::drawComponents(ImDrawList* drawList, ImVec2 canvasPos) {
         }
         
         drawComponentShape(drawList, comp, center, s, componentColor, isDarkMode);
+
+        // Reference designator, centred over the body and scaled with the zoom so it
+        // shrinks along with the symbol instead of overlapping its neighbours.
         ImU32 labelColor = isDarkMode ? IM_COL32(180, 190, 210, 255) : IM_COL32(15, 23, 42, 255);
-        std::string dispId = !comp.id.empty() ? comp.id : comp.label;
-        drawList->AddText({center.x - (hw - 4.0f)*s, center.y - (hh + 16.0f)*s}, labelColor, dispId.c_str());
+        const std::string& dispId = !comp.id.empty() ? comp.id : comp.label;
+        ImVec2 lblSz = calcScaledTextSize(dispId.c_str(), s);
+        if (lblSz.x > 0.0f) {
+            drawScaledText(drawList,
+                           ImVec2(center.x - lblSz.x * 0.5f, center.y - (hh + 6.0f) * s - lblSz.y),
+                           labelColor, dispId.c_str(), s);
+        }
         drawTerminals(drawList, comp, center, s, mousePos, minPinDist);
     }
 }
@@ -3430,13 +3634,31 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
     lastRenderedCanvasSize = canvasSize;
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
+    // Rebuild the O(1) lookup tables once per frame, then draw against them.
+    rebuildFrameCaches();
+    cullMin = canvasPos;
+    cullMax = ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
+
     ImU32 canvasBgColor = isDarkMode ? IM_COL32(15, 23, 42, 255) : IM_COL32(246, 243, 206, 255);
     drawList->AddRectFilled(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), canvasBgColor);
     drawList->PushClipRect(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), true);
     
     drawGrid(drawList, canvasSize, canvasPos);
+
+    // Scale in-schematic glyphs (symbol letters, block captions, pin names) with the
+    // zoom. SetWindowFontScale updates the shared draw-list font size, so every
+    // ImDrawList::AddText below picks it up without touching each call site.
+    // Clamped so deep zoom-out does not degenerate into sub-pixel mush.
+    float glyphScale = zoomLevel;
+    if (glyphScale < 0.25f) glyphScale = 0.25f;
+    if (glyphScale > 3.0f)  glyphScale = 3.0f;
+    ImGui::SetWindowFontScale(glyphScale);
+
     drawComponents(drawList, canvasPos);
     drawWires(drawList, canvasPos);
+
+    ImGui::SetWindowFontScale(1.0f);
+
     drawBreadcrumbs(drawList, canvasPos);
 
     ImGuiIO& io = ImGui::GetIO();
@@ -4075,16 +4297,39 @@ void SchematicCanvas::syncProbeSignals() {
     std::vector<std::string> probedTargets;
 
     for (const auto& comp : design.components) {
-        bool isProbed = (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1") ||
-                        (comp.parameters.count("plotI") && comp.parameters.at("plotI") == "1") ||
-                        (comp.parameters.count("plotV") && comp.parameters.at("plotV") == "1");
-        if (isProbed) {
-            probedTargets.push_back(comp.id);
-            if (comp.type == ComponentType::Inductor) {
-                probedSignals.push_back("I_" + comp.id);
+        bool wantV = (comp.parameters.count("plotV") && comp.parameters.at("plotV") == "1");
+        bool wantI = (comp.parameters.count("plotI") && comp.parameters.at("plotI") == "1");
+        bool probeFlag = (comp.parameters.count("probe_signal") && comp.parameters.at("probe_signal") == "1");
+
+        if (!wantV && !wantI && !probeFlag) continue;
+
+        // A bare "probe_signal" request means "measure this component" — emit both the
+        // voltage across it and the current through it rather than voltage only.
+        if (probeFlag && !wantV && !wantI) {
+            wantV = true;
+            wantI = true;
+        }
+
+        probedTargets.push_back(comp.id);
+
+        // Polyphase sources are expanded into per-phase sub-components by the netlist
+        // generator, so "V_<id>" / "I_<id>" never exist. Probe each phase instead.
+        std::vector<std::string> baseIds;
+        if (comp.type == ComponentType::ThreePhaseSource ||
+            comp.type == ComponentType::ThreePhaseCurrentSource) {
+            std::string conn = comp.parameters.count("connection") ? comp.parameters.at("connection") : "Y";
+            if (conn == "Delta") {
+                baseIds = { comp.id + "_AB", comp.id + "_BC" };
             } else {
-                probedSignals.push_back("V_" + comp.id);
+                baseIds = { comp.id + "_A", comp.id + "_B", comp.id + "_C" };
             }
+        } else {
+            baseIds = { comp.id };
+        }
+
+        for (const auto& baseId : baseIds) {
+            if (wantV) probedSignals.push_back("V_" + baseId);
+            if (wantI) probedSignals.push_back("I_" + baseId);
         }
     }
 
