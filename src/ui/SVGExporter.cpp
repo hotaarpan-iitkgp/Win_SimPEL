@@ -258,6 +258,23 @@ std::string SVGExporter::saveHTMLFileDialog(const std::string& title, const std:
     return "";
 }
 
+// Two-terminal magnetic elements: every pin except an explicit Ctrl input carries
+// flux rate rather than current.
+static bool isMagneticBlockType(ComponentType t) {
+    return t == ComponentType::MagneticPermeance || t == ComponentType::LinearCore ||
+           t == ComponentType::AirGap || t == ComponentType::LeakageFluxPath ||
+           t == ComponentType::MagneticResistance || t == ComponentType::MMFSource ||
+           t == ComponentType::MMFSourceControlled;
+}
+
+// True when the given pin of the given component sits in the magnetic domain.
+// The Winding straddles both domains: E+/E- are electrical, M+/M- are magnetic.
+static bool isMagneticPin(const ComponentInstance& comp, const std::string& pin) {
+    if (comp.type == ComponentType::Winding) return (pin == "M+" || pin == "M-");
+    if (isMagneticBlockType(comp.type)) return (pin != "Ctrl");
+    return false;
+}
+
 static bool getTerminalPortStubSVG(const ComponentInstance& comp, const std::string& terminalName, ImVec2& outPinPos, ImVec2& outStubPos, bool& outIsVertical) {
     auto terminals = getTerminals(comp);
     if (terminals.empty() && !comp.pins.empty()) {
@@ -366,6 +383,8 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
     std::string paramLabelCol = "#0284c7";// Parameter value text
     std::string pinDotCol = "#059669";    // Green terminal dot fill
     std::string ctrlPinDotCol = "#0284c7";// Cyan control dot fill
+    std::string magWireCol = "#7e22ce";   // Purple magnetic flux wire
+    std::string magPinDotCol = "#7e22ce"; // Purple magnetic terminal dot fill
 
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     out << "<svg xmlns=\"http://www.w3.org/2000/svg\" ";
@@ -378,8 +397,10 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
     out << "  .comp-body { stroke: " << bodyStroke << "; stroke-width: 2.0; fill: " << bodyFill << "; stroke-linecap: round; stroke-linejoin: round; }\n";
     out << "  .comp-label { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: bold; fill: " << compLabelCol << "; text-anchor: middle; }\n";
     out << "  .param-label { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 500; fill: " << paramLabelCol << "; text-anchor: middle; }\n";
+    out << "  .magnetic-wire { stroke: " << magWireCol << "; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }\n";
     out << "  .pin-dot { fill: " << pinDotCol << "; }\n";
     out << "  .ctrl-dot { fill: " << ctrlPinDotCol << "; }\n";
+    out << "  .mag-dot { fill: " << magPinDotCol << "; }\n";
     out << "</style>\n";
 
     // Pure White Background
@@ -501,7 +522,21 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
         }
 
         bool isControl = (!w.from.terminal.empty() && (w.from.terminal == "G" || w.from.terminal == "Out" || w.from.terminal == "In"));
-        std::string cls = isControl ? "control-wire" : "wire";
+
+        // Magnetic nets take precedence: check whichever endpoint resolves to a
+        // component and ask if that pin is in the magnetic domain.
+        bool isMagnetic = false;
+        {
+            auto itF = compMap.find(w.from.compId);
+            if (itF != compMap.end() && isMagneticPin(*(itF->second), w.from.terminal)) isMagnetic = true;
+            if (!isMagnetic) {
+                auto itT = compMap.find(w.to.compId);
+                if (itT != compMap.end() && isMagneticPin(*(itT->second), w.to.terminal)) isMagnetic = true;
+            }
+        }
+
+        std::string cls = isMagnetic ? "magnetic-wire" : (isControl ? "control-wire" : "wire");
+        const char* junctionDotCls = isMagnetic ? "mag-dot" : (isControl ? "ctrl-dot" : "pin-dot");
 
         if (!w.manualPath.empty()) {
             out << "  <polyline class=\"" << cls << "\" points=\"" << p1.x << "," << p1.y << " " << p1_stub.x << "," << p1_stub.y;
@@ -534,10 +569,10 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
 
         // Junction connection dots
         if (w.to.isWireJunction) {
-            out << "  <circle cx=\"" << w.to.junctionX << "\" cy=\"" << w.to.junctionY << "\" r=\"4.0\" class=\"" << (isControl ? "ctrl-dot" : "pin-dot") << "\"/>\n";
+            out << "  <circle cx=\"" << w.to.junctionX << "\" cy=\"" << w.to.junctionY << "\" r=\"4.0\" class=\"" << junctionDotCls << "\"/>\n";
         }
         if (w.from.isWireJunction) {
-            out << "  <circle cx=\"" << w.from.junctionX << "\" cy=\"" << w.from.junctionY << "\" r=\"4.0\" class=\"" << (isControl ? "ctrl-dot" : "pin-dot") << "\"/>\n";
+            out << "  <circle cx=\"" << w.from.junctionX << "\" cy=\"" << w.from.junctionY << "\" r=\"4.0\" class=\"" << junctionDotCls << "\"/>\n";
         }
     }
     out << "</g>\n";
@@ -664,6 +699,80 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
             drawLine(svgRotatePt(7, -6, c.x, c.y, rot), svgRotatePt(17, -6, c.x, c.y, rot));
             drawLine(svgRotatePt(12, -6, c.x, c.y, rot), svgRotatePt(12, -15, c.x, c.y, rot));
             drawLine(svgRotatePt(12, -15, c.x, c.y, rot), svgRotatePt(0, -15, c.x, c.y, rot));
+        // ───────────────────── MAGNETIC DOMAIN SYMBOLS ─────────────────────
+        } else if (t == "WINDING") {
+            // Electrical leads + coil
+            drawLine(svgRotatePt(-25, -25, c.x, c.y, rot), svgRotatePt(-14, -25, c.x, c.y, rot));
+            drawLine(svgRotatePt(-25,  25, c.x, c.y, rot), svgRotatePt(-14,  25, c.x, c.y, rot));
+            drawLine(svgRotatePt(-14, -25, c.x, c.y, rot), svgRotatePt(-14, -14, c.x, c.y, rot));
+            drawLine(svgRotatePt(-14,  25, c.x, c.y, rot), svgRotatePt(-14,  14, c.x, c.y, rot));
+            for (int i = 0; i < 3; ++i) {
+                float y0 = -14.0f + i * 9.5f;
+                float y1 = -14.0f + (i + 1) * 9.5f;
+                // Approximate each coil half-loop with a short polyline
+                ImVec2 pts[4] = {
+                    svgRotatePt(-14, y0, c.x, c.y, rot),
+                    svgRotatePt(-22, y0 + 1.5f, c.x, c.y, rot),
+                    svgRotatePt(-22, y1 - 1.5f, c.x, c.y, rot),
+                    svgRotatePt(-14, y1, c.x, c.y, rot)
+                };
+                for (int k = 0; k < 3; ++k) drawLine(pts[k], pts[k + 1], 2.0f);
+            }
+            // Core bars
+            drawLine(svgRotatePt(-6, -22, c.x, c.y, rot), svgRotatePt(-6, 22, c.x, c.y, rot), 2.5f);
+            drawLine(svgRotatePt(-1, -22, c.x, c.y, rot), svgRotatePt(-1, 22, c.x, c.y, rot), 2.5f);
+            // Magnetic leads
+            drawLine(svgRotatePt(25, -25, c.x, c.y, rot), svgRotatePt(6, -25, c.x, c.y, rot));
+            drawLine(svgRotatePt(25,  25, c.x, c.y, rot), svgRotatePt(6,  25, c.x, c.y, rot));
+            drawLine(svgRotatePt(6, -25, c.x, c.y, rot), svgRotatePt(6, -8, c.x, c.y, rot));
+            drawLine(svgRotatePt(6,  25, c.x, c.y, rot), svgRotatePt(6,  8, c.x, c.y, rot));
+        } else if (t == "MAG_PERMEANCE" || t == "LEAKAGE_PATH") {
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -5, c.x, c.y, rot));
+            drawLine(svgRotatePt(0,  40, c.x, c.y, rot), svgRotatePt(0,  5, c.x, c.y, rot));
+            if (t == "LEAKAGE_PATH") {
+                for (int i = -3; i <= 3; ++i) {
+                    float x0 = i * 5.0f;
+                    drawLine(svgRotatePt(x0 - 1.6f, -5, c.x, c.y, rot), svgRotatePt(x0 + 1.6f, -5, c.x, c.y, rot), 2.5f);
+                    drawLine(svgRotatePt(x0 - 1.6f,  5, c.x, c.y, rot), svgRotatePt(x0 + 1.6f,  5, c.x, c.y, rot), 2.5f);
+                }
+            } else {
+                drawLine(svgRotatePt(-16, -5, c.x, c.y, rot), svgRotatePt(16, -5, c.x, c.y, rot), 2.5f);
+                drawLine(svgRotatePt(-16,  5, c.x, c.y, rot), svgRotatePt(16,  5, c.x, c.y, rot), 2.5f);
+            }
+        } else if (t == "LINEAR_CORE" || t == "AIR_GAP") {
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -16, c.x, c.y, rot));
+            drawLine(svgRotatePt(0,  40, c.x, c.y, rot), svgRotatePt(0,  16, c.x, c.y, rot));
+            if (t == "AIR_GAP") {
+                ImVec2 top[4] = { svgRotatePt(-14, -16, c.x, c.y, rot), svgRotatePt(14, -16, c.x, c.y, rot),
+                                  svgRotatePt(14, -6, c.x, c.y, rot),  svgRotatePt(-14, -6, c.x, c.y, rot) };
+                drawPolygon(top, 4, 2.0f, true);
+                ImVec2 bot[4] = { svgRotatePt(-14, 6, c.x, c.y, rot), svgRotatePt(14, 6, c.x, c.y, rot),
+                                  svgRotatePt(14, 16, c.x, c.y, rot), svgRotatePt(-14, 16, c.x, c.y, rot) };
+                drawPolygon(bot, 4, 2.0f, true);
+            } else {
+                ImVec2 body[4] = { svgRotatePt(-14, -16, c.x, c.y, rot), svgRotatePt(14, -16, c.x, c.y, rot),
+                                   svgRotatePt(14, 16, c.x, c.y, rot),  svgRotatePt(-14, 16, c.x, c.y, rot) };
+                drawPolygon(body, 4, 2.0f, true);
+                for (int i = 0; i < 4; ++i) {
+                    float xo = -10.0f + i * 6.5f;
+                    drawLine(svgRotatePt(xo, -13, c.x, c.y, rot), svgRotatePt(xo + 6, 13, c.x, c.y, rot), 1.0f);
+                }
+            }
+        } else if (t == "MAG_RESISTANCE") {
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -18, c.x, c.y, rot));
+            drawLine(svgRotatePt(0,  40, c.x, c.y, rot), svgRotatePt(0,  18, c.x, c.y, rot));
+            ImVec2 body[4] = { svgRotatePt(-10, -18, c.x, c.y, rot), svgRotatePt(10, -18, c.x, c.y, rot),
+                               svgRotatePt(10, 18, c.x, c.y, rot),  svgRotatePt(-10, 18, c.x, c.y, rot) };
+            drawPolygon(body, 4, 2.0f, false);
+        } else if (t == "MMF_SRC" || t == "MMF_SRC_CTRL") {
+            drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -16, c.x, c.y, rot));
+            drawLine(svgRotatePt(0,  16, c.x, c.y, rot), svgRotatePt(0,  40, c.x, c.y, rot));
+            drawCircle(c, 16.0f, 2.0f, true);
+            drawLine(svgRotatePt(6, -22, c.x, c.y, rot), svgRotatePt(12, -22, c.x, c.y, rot), 1.5f);
+            drawLine(svgRotatePt(9, -25, c.x, c.y, rot), svgRotatePt(9, -19, c.x, c.y, rot), 1.5f);
+            if (t == "MMF_SRC_CTRL") {
+                drawLine(svgRotatePt(-30, 0, c.x, c.y, rot), svgRotatePt(-16, 0, c.x, c.y, rot));
+            }
         } else if (t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource") {
             drawLine(svgRotatePt(0, -40, c.x, c.y, rot), svgRotatePt(0, -16, c.x, c.y, rot));
             drawLine(svgRotatePt(0, 16, c.x, c.y, rot), svgRotatePt(0, 40, c.x, c.y, rot));
@@ -777,7 +886,9 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
         for (const auto& term : terms) {
             ImVec2 pPos = svgRotatePt(term.x, term.y, c.x, c.y, rot);
             bool isControl = (term.name == "G" || term.name == "Out" || term.name == "In" || term.name == "Ctrl");
-            out << "    <circle cx=\"" << pPos.x << "\" cy=\"" << pPos.y << "\" r=\"2.5\" class=\"" << (isControl ? "ctrl-dot" : "pin-dot") << "\"/>\n";
+            bool isMag = isMagneticPin(comp, term.name);
+            const char* dotCls = isMag ? "mag-dot" : (isControl ? "ctrl-dot" : "pin-dot");
+            out << "    <circle cx=\"" << pPos.x << "\" cy=\"" << pPos.y << "\" r=\"2.5\" class=\"" << dotCls << "\"/>\n";
         }
 
         out << "  </g>\n";

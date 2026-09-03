@@ -1182,6 +1182,17 @@ void MainWindow::renderComponentPalette() {
 
             // Electrical Domain Custom Machine/Load Models sub-library
             { "Generalized Electrical Block (GEN_EBLOCK)", "Gen E-Block", "GEN_EBLOCK", ComponentType::GenEBlock, "GEN_EBLOCK", "electrical", "Custom Machine/Load Models", {{"terminals", "3"}}, true },
+
+            // ── Magnetic sub-library (permeance-capacitance analogy) ──
+            // MMF <-> node potential, flux rate <-> branch current, permeance <-> capacitance.
+            { "Winding (WINDING)", "Winding", "W", ComponentType::Winding, "WINDING", "electrical", "Magnetic", {{"N", "100"}}, false },
+            { "Magnetic Permeance (MAG_PERMEANCE)", "Permeance", "PM", ComponentType::MagneticPermeance, "MAG_PERMEANCE", "electrical", "Magnetic", {{"P", "1u"}, {"F0", "0"}}, false },
+            { "Linear Core (LINEAR_CORE)", "Core", "CORE", ComponentType::LinearCore, "LINEAR_CORE", "electrical", "Magnetic", {{"A", "1e-4"}, {"l", "0.1"}, {"mu_r", "1000"}, {"F0", "0"}}, false },
+            { "Air Gap (AIR_GAP)", "Air Gap", "GAP", ComponentType::AirGap, "AIR_GAP", "electrical", "Magnetic", {{"A", "1e-4"}, {"l", "1m"}, {"F0", "0"}}, false },
+            { "Leakage Flux Path (LEAKAGE_PATH)", "Leakage", "PLK", ComponentType::LeakageFluxPath, "LEAKAGE_PATH", "electrical", "Magnetic", {{"P", "10n"}, {"F0", "0"}}, false },
+            { "Magnetic Resistance (MAG_RESISTANCE)", "Rm", "RM", ComponentType::MagneticResistance, "MAG_RESISTANCE", "electrical", "Magnetic", {{"Rm", "1M"}}, false },
+            { "MMF Source (MMF_SRC)", "MMF", "FS", ComponentType::MMFSource, "MMF_SRC", "electrical", "Magnetic", {{"F", "100"}}, false },
+            { "MMF Source Controlled (MMF_SRC_CTRL)", "MMF Ctrl", "FSC", ComponentType::MMFSourceControlled, "MMF_SRC_CTRL", "electrical", "Magnetic", {{"gain", "1.0"}}, false },
         };
 
         // Helper lambda to render a list of components in a responsive 2-column or 1-column grid
@@ -1357,7 +1368,7 @@ void MainWindow::renderComponentPalette() {
                 ImGui::PushID("cat_electrical");
                 ImGui::Indent(8.0f);
                 
-                std::vector<const ComponentMeta*> connect, elecSources, meters, passives, semiSwitches, switches, transformers, machines, electronics, ics, customLoads;
+                std::vector<const ComponentMeta*> connect, elecSources, meters, passives, semiSwitches, switches, transformers, machines, electronics, ics, customLoads, magnetic;
                 for (const auto& item : allComponents) {
                     if (std::string(item.category) == "electrical") {
                         std::string sub = item.subcategory;
@@ -1372,6 +1383,7 @@ void MainWindow::renderComponentPalette() {
                         else if (sub == "Electronics") electronics.push_back(&item);
                         else if (sub == "Integrated Circuits (ICs)") ics.push_back(&item);
                         else if (sub == "Custom Machine/Load Models") customLoads.push_back(&item);
+                        else if (sub == "Magnetic") magnetic.push_back(&item);
                     }
                 }
 
@@ -1386,6 +1398,7 @@ void MainWindow::renderComponentPalette() {
                 renderSubheading("Electronics", electronics);
                 renderSubheading("Integrated Circuits (ICs)", ics);
                 renderSubheading("Custom Machine/Load Models", customLoads);
+                renderSubheading("Magnetic", magnetic);
 
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
@@ -2405,6 +2418,11 @@ void MainWindow::renderPropertyInspector() {
             comp->type == ComponentType::GTO || comp->type == ComponentType::IGCT ||
             comp->type == ComponentType::BJT || comp->type == ComponentType::JFET ||
             comp->type == ComponentType::VGFET ||
+            // Magnetic blocks: "voltage" is MMF [A-t] and "current" is flux rate [Wb/s]
+            comp->type == ComponentType::Winding || comp->type == ComponentType::MagneticPermeance ||
+            comp->type == ComponentType::LinearCore || comp->type == ComponentType::AirGap ||
+            comp->type == ComponentType::LeakageFluxPath || comp->type == ComponentType::MagneticResistance ||
+            comp->type == ComponentType::MMFSource || comp->type == ComponentType::MMFSourceControlled ||
             comp->type == ComponentType::VariableResistor || comp->type == ComponentType::VariableCapacitor ||
             comp->type == ComponentType::VariableInductor;
 

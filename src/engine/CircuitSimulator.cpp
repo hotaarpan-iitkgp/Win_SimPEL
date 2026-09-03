@@ -147,6 +147,10 @@ void CircuitSimulator::buildIndexMaps() {
             int wCount = (int)comp.nodes.size() / 2;
             if (wCount < 2) wCount = 2;
             numXfmrWindings += wCount;
+        } else if (comp.type == ComponentType::Winding) {
+            // Gyrator needs two branch unknowns: the electrical port current and the
+            // magnetic port flux rate. They share the transformer extra-unknown pool.
+            numXfmrWindings += 2;
         }
     }
 
@@ -208,6 +212,12 @@ void CircuitSimulator::buildIndexMaps() {
             if (fc.windings.size() > 1) fc.wIdx1 = fc.windings[1].wIdx;
             fc.polarity = getParamString(comp, "polarity", "");
         }
+        else if (comp.type == ComponentType::Winding) {
+            // wIdx0 = electrical port current I_e, wIdx1 = magnetic port flux rate PhiDot.
+            int base = numNodes + (int)vSourceToIdx.size() + (int)inductorToIdx.size();
+            fc.wIdx0 = base + currentWindingOffset++;
+            fc.wIdx1 = base + currentWindingOffset++;
+        }
 
         fc.val = evaluateParam(comp, "val", 0.0);
         if (fc.val == 0.0 && comp.parameters.count("value")) fc.val = evaluateParam(comp, "value", 0.0);
@@ -216,6 +226,13 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.val == 0.0 && comp.parameters.count("amplitude")) fc.val = evaluateParam(comp, "amplitude", 0.0);
         // Web-tool alias for resistance
         if (fc.val == 0.0 && comp.parameters.count("resistance")) fc.val = evaluateParam(comp, "resistance", 0.0);
+        if (comp.type == ComponentType::Winding) {
+            // Number of turns acts as the gyration resistance.
+            fc.val = evaluateParam(comp, "N", 0.0);
+            if (fc.val == 0.0) fc.val = evaluateParam(comp, "turns", 0.0);
+            if (fc.val == 0.0) fc.val = evaluateParam(comp, "value", 1.0);
+            if (std::abs(fc.val) < 1e-12) fc.val = 1.0; // a zero-turn winding is meaningless
+        }
         if (fc.type == ComponentType::Capacitor) {
             fc.val = evaluateParam(comp, "C", 1e-6);
             fc.stateIdx = (int)flatCapVoltages.size();
@@ -1178,6 +1195,42 @@ void CircuitSimulator::buildIndexMaps() {
                 K_static[lIdx * totalDim + n2] += 1.0;
             }
         }
+        else if (fc.type == ComponentType::Winding) {
+            // ── Electrical <-> magnetic gyrator (PLECS permeance-capacitance analogy) ──
+            //   v_elec = N * PhiDot        (Faraday)
+            //   i_elec = F / N             (Ampere)
+            // n1,n2 = electrical +,-   n3,n4 = magnetic +,-
+            // rIe carries the electrical port current, rIm carries the flux rate.
+            // The magnetic-side KCL sign is inverted relative to the electrical side:
+            // that anti-symmetry is what makes this a gyrator rather than a transformer,
+            // and it is what turns a magnetic capacitance into an electrical inductance
+            // (L = N^2 * P) instead of the reciprocal.
+            int rIe = fc.wIdx0;
+            int rIm = fc.wIdx1;
+            if (rIe < 0 || rIm < 0) continue;
+
+            double N = fc.val;
+            if (std::abs(N) < 1e-12) N = 1.0;
+
+            int n3 = fc.n3;
+            int n4 = fc.n4;
+
+            // KCL: I_e leaves n1 and enters n2; PhiDot enters n3 and leaves n4.
+            if (n1 >= 0) K_static[n1 * totalDim + rIe] += 1.0;
+            if (n2 >= 0) K_static[n2 * totalDim + rIe] -= 1.0;
+            if (n3 >= 0) K_static[n3 * totalDim + rIm] -= 1.0;
+            if (n4 >= 0) K_static[n4 * totalDim + rIm] += 1.0;
+
+            // Row rIe:  I_e - (V(n3) - V(n4)) / N = 0
+            K_static[rIe * totalDim + rIe] += 1.0;
+            if (n3 >= 0) K_static[rIe * totalDim + n3] -= 1.0 / N;
+            if (n4 >= 0) K_static[rIe * totalDim + n4] += 1.0 / N;
+
+            // Row rIm:  (V(n1) - V(n2)) - N * PhiDot = 0
+            if (n1 >= 0) K_static[rIm * totalDim + n1] += 1.0;
+            if (n2 >= 0) K_static[rIm * totalDim + n2] -= 1.0;
+            K_static[rIm * totalDim + rIm] -= N;
+        }
         else if (isTransformerType(fc.type)) {
             if (fc.windings.empty()) continue;
 
@@ -1327,6 +1380,9 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
             double R = (state > 0.5) ? fc.Ron : fc.Roff;
             iComp = (state > 0.5) ? ((vDiff - fc.Vvd) / R) : (vDiff / R);
+        } else if (fc.type == ComponentType::Winding) {
+            // Electrical port current of the gyrator.
+            if (fc.wIdx0 >= 0 && fc.wIdx0 < totalDim) iComp = X[fc.wIdx0];
         } else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
                    fc.type == ComponentType::IGCT || fc.type == ComponentType::BJT ||
                    fc.type == ComponentType::IGBTDiode) {
@@ -3560,6 +3616,9 @@ SimulationOutput CircuitSimulator::runTransient() {
                 double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
                 double R = (state > 0.5) ? fc.Ron : fc.Roff;
                 iComp = (state > 0.5) ? ((vDiff - fc.Vvd) / R) : (vDiff / R);
+            }
+            else if (fc.type == ComponentType::Winding) {
+                if (fc.wIdx0 >= 0 && fc.wIdx0 < totalDim) iComp = X[fc.wIdx0];
             }
             else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
                      fc.type == ComponentType::IGCT || fc.type == ComponentType::BJT ||

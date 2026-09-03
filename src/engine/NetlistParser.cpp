@@ -53,6 +53,19 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "LINE_3PH" || t == "TransmissionLine3Ph") return ComponentType::TransmissionLine3Ph;
     if (t == "PWL_R" || t == "PWLResistor") return ComponentType::PWLResistor;
     if (t == "E_ALGEBRAIC" || t == "ElectricalAlgebraic") return ComponentType::ElectricalAlgebraic;
+    // ── Magnetic domain (permeance-capacitance analogy) ──
+    // The Winding is a real gyrator element. Everything else collapses onto an
+    // existing primitive: a permeance is a capacitance in the magnetic domain,
+    // a magnetic resistance is a conductance, and an MMF source is a voltage source.
+    if (t == "WINDING" || t == "Winding" || t == "windings") return ComponentType::Winding;
+    if (t == "MAG_PERMEANCE" || t == "MagneticPermeance" ||
+        t == "LINEAR_CORE" || t == "LinearCore" ||
+        t == "AIR_GAP" || t == "AirGap" ||
+        t == "LEAKAGE_PATH" || t == "LeakageFluxPath") return ComponentType::Capacitor;
+    if (t == "MAG_RESISTANCE" || t == "MagneticResistance") return ComponentType::Resistor;
+    if (t == "MMF_SRC" || t == "MMFSource") return ComponentType::VoltageSource;
+    if (t == "MMF_SRC_CTRL" || t == "MMFSourceControlled") return ComponentType::ControlledVoltageSource;
+
     if (t == "THYRISTOR" || t == "SCR" || t == "Thyristor") return ComponentType::Thyristor;
     if (t == "GTO") return ComponentType::GTO;
     // Must come before the IGBT_DIODE check would otherwise be shadowed; plain IGBT

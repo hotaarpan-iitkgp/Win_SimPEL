@@ -56,7 +56,11 @@ static void getCSCRIPTPorts(const ComponentInstance& comp, std::vector<CircuitSi
     }
 }
 
-enum class DomainType { Power, Control };
+// Magnetic is a third, separate domain. Although the solver models it with the same
+// MNA machinery as the electrical domain (permeance-capacitance analogy), the two are
+// physically distinct quantities — MMF/flux-rate versus voltage/current — so wiring
+// one to the other is a modelling error and is blocked at the schematic level.
+enum class DomainType { Power, Control, Magnetic };
 
 static ImVec2 rotatePt(float px, float py, float cx, float cy, float angleDeg) {
     if (angleDeg == 0.0f) return ImVec2(cx + px, cy + py);
@@ -273,6 +277,22 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "LINE_3PH") {
         return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}};
     }
+    // ── Magnetic domain blocks ──
+    // Winding bridges the two domains: E+/E- are electrical, M+/M- are magnetic.
+    if (t == "WINDING") {
+        return {{"E+", -25, -25, -1, 0, false}, {"E-", -25, 25, -1, 0, false},
+                {"M+",  25, -25,  1, 0, false}, {"M-",  25, 25,  1, 0, false}};
+    }
+    // Two-terminal magnetic elements.
+    if (t == "MAG_PERMEANCE" || t == "LINEAR_CORE" || t == "AIR_GAP" ||
+        t == "LEAKAGE_PATH" || t == "MAG_RESISTANCE" || t == "MMF_SRC") {
+        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}};
+    }
+    if (t == "MMF_SRC_CTRL") {
+        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false},
+                {"Ctrl", -30, 0, -1, 0, true}};
+    }
+
     // Power semiconductors. The two power terminals must be electrical (isControl =
     // false) — only the gate/base is a control-domain pin. Marking the power terminals
     // as control broke domain isolation and coloured power wires as signal lines.
@@ -529,11 +549,34 @@ static bool isTerminalMatch(const std::string& compTypeStr, const std::string& t
     return false;
 }
 
+static const char* domainName(DomainType d) {
+    switch (d) {
+        case DomainType::Control:  return "Control Signal";
+        case DomainType::Magnetic: return "Magnetic Flux";
+        default:                   return "Electrical Power";
+    }
+}
+
 static DomainType getPinDomain(const ComponentInstance& comp, const std::string& pinName) {
     std::string t = comp.rawTypeStr;
     std::transform(t.begin(), t.end(), t.begin(), ::toupper);
     std::string p = pinName;
     std::transform(p.begin(), p.end(), p.begin(), ::toupper);
+
+    // ── Magnetic domain pins ──
+    if (t == "WINDING") {
+        // Left pair is electrical, right pair is magnetic.
+        if (p == "M+" || p == "M-") return DomainType::Magnetic;
+        return DomainType::Power;
+    }
+    if (t == "MAG_PERMEANCE" || t == "LINEAR_CORE" || t == "AIR_GAP" ||
+        t == "LEAKAGE_PATH" || t == "MAG_RESISTANCE" || t == "MMF_SRC") {
+        return DomainType::Magnetic;
+    }
+    if (t == "MMF_SRC_CTRL") {
+        if (p == "CTRL" || p == "IN") return DomainType::Control;
+        return DomainType::Magnetic;
+    }
 
     if ((t == "MOSFET" || t == "VG-FET" || t == "IGBT" || t == "IGBT_DIODE" || t == "IGCT" || t == "GTO" || t == "THYRISTOR" || t == "JFET") && (p == "G" || p == "GATE")) return DomainType::Control;
     if (t == "BJT" && (p == "B" || p == "BASE")) return DomainType::Control;
@@ -591,42 +634,47 @@ static void buildAllWireDomains(const CircuitDesign& design, std::unordered_map<
     compMap.reserve(design.components.size());
     for (const auto& comp : design.components) compMap[comp.id] = &comp;
 
+    // Seed each wire from whichever endpoint sits on a non-Power pin. Power is the
+    // default, so any Control or Magnetic endpoint determines the net's domain.
     for (const auto& wire : design.wires) {
         DomainType dom = DomainType::Power;
         if (!wire.from.isWireJunction && !wire.from.compId.empty()) {
             auto it = compMap.find(wire.from.compId);
             if (it != compMap.end()) {
-                if (getPinDomain(*(it->second), wire.from.terminal) == DomainType::Control) dom = DomainType::Control;
+                DomainType d = getPinDomain(*(it->second), wire.from.terminal);
+                if (d != DomainType::Power) dom = d;
             }
         }
-        if (dom != DomainType::Control && !wire.to.isWireJunction && !wire.to.compId.empty()) {
+        if (dom == DomainType::Power && !wire.to.isWireJunction && !wire.to.compId.empty()) {
             auto it = compMap.find(wire.to.compId);
             if (it != compMap.end()) {
-                if (getPinDomain(*(it->second), wire.to.terminal) == DomainType::Control) dom = DomainType::Control;
+                DomainType d = getPinDomain(*(it->second), wire.to.terminal);
+                if (d != DomainType::Power) dom = d;
             }
         }
         outDomainMap[wire.id] = dom;
     }
 
+    // Propagate the non-Power domain across junction-connected wires until stable.
     bool changed = true;
     int maxIter = (int)design.wires.size();
     for (int iter = 0; iter < maxIter && changed; ++iter) {
         changed = false;
         for (const auto& wire : design.wires) {
-            if (outDomainMap[wire.id] == DomainType::Control) continue;
+            if (outDomainMap[wire.id] != DomainType::Power) continue;
 
             if (wire.from.isWireJunction && !wire.from.targetWireId.empty()) {
                 auto it = outDomainMap.find(wire.from.targetWireId);
-                if (it != outDomainMap.end() && it->second == DomainType::Control) {
-                    outDomainMap[wire.id] = DomainType::Control;
+                if (it != outDomainMap.end() && it->second != DomainType::Power) {
+                    outDomainMap[wire.id] = it->second;
                     changed = true;
                     continue;
                 }
             }
             if (wire.to.isWireJunction && !wire.to.targetWireId.empty()) {
                 auto it = outDomainMap.find(wire.to.targetWireId);
-                if (it != outDomainMap.end() && it->second == DomainType::Control) {
-                    outDomainMap[wire.id] = DomainType::Control;
+                if (it != outDomainMap.end() && it->second != DomainType::Power) {
+                    outDomainMap[wire.id] = it->second;
                     changed = true;
                     continue;
                 }
@@ -635,8 +683,8 @@ static void buildAllWireDomains(const CircuitDesign& design, std::unordered_map<
                 if (w.id == wire.id) continue;
                 bool branches = (w.from.isWireJunction && w.from.targetWireId == wire.id) ||
                                 (w.to.isWireJunction && w.to.targetWireId == wire.id);
-                if (branches && outDomainMap[w.id] == DomainType::Control) {
-                    outDomainMap[wire.id] = DomainType::Control;
+                if (branches && outDomainMap[w.id] != DomainType::Power) {
+                    outDomainMap[wire.id] = outDomainMap[w.id];
                     changed = true;
                     break;
                 }
@@ -837,13 +885,19 @@ static std::string pinKey(const std::string& compId, const std::string& terminal
     return k;
 }
 
-bool SchematicCanvas::isControlPinCached(const ComponentInstance& comp, const std::string& pinName) const {
+// Memoised pin domain. Returns the DomainType as an int (0 = Power, 1 = Control,
+// 2 = Magnetic) because DomainType is local to this translation unit.
+int SchematicCanvas::pinDomainIdCached(const ComponentInstance& comp, const std::string& pinName) const {
     std::string key = pinKey(comp.id, pinName);
     auto it = framePinDomain.find(key);
-    if (it != framePinDomain.end()) return it->second != 0;
-    bool ctrl = (getPinDomain(comp, pinName) == DomainType::Control);
-    framePinDomain.emplace(std::move(key), ctrl ? 1 : 0);
-    return ctrl;
+    if (it != framePinDomain.end()) return it->second;
+    int id = (int)getPinDomain(comp, pinName);
+    framePinDomain.emplace(std::move(key), id);
+    return id;
+}
+
+bool SchematicCanvas::isControlPinCached(const ComponentInstance& comp, const std::string& pinName) const {
+    return pinDomainIdCached(comp, pinName) == (int)DomainType::Control;
 }
 
 void SchematicCanvas::rebuildFrameCaches() const {
@@ -1249,6 +1303,99 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
                           rotatePt(-6*s,   0,   c.x, c.y, rot),
                           rotatePt(-12*s,  4*s, c.x, c.y, rot) };
         drawList->AddTriangleFilled(jArr[0], jArr[1], jArr[2], color);
+    // ───────────────────────── MAGNETIC DOMAIN SYMBOLS ─────────────────────────
+    } else if (t == "WINDING") {
+        // Coil on the electrical side, core hatching on the magnetic side.
+        ImU32 magCol = IM_COL32(196, 132, 252, 255);
+        // Electrical leads
+        drawList->AddLine(rotatePt(-25*s, -25*s, c.x, c.y, rot), rotatePt(-14*s, -25*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-25*s,  25*s, c.x, c.y, rot), rotatePt(-14*s,  25*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-14*s, -25*s, c.x, c.y, rot), rotatePt(-14*s, -14*s, c.x, c.y, rot), color, 2.0f*s);
+        drawList->AddLine(rotatePt(-14*s,  25*s, c.x, c.y, rot), rotatePt(-14*s,  14*s, c.x, c.y, rot), color, 2.0f*s);
+        // Coil: three half-loops bulging left
+        for (int i = 0; i < 3; ++i) {
+            float y0 = (-14.0f + i * 9.5f) * s;
+            float y1 = (-14.0f + (i + 1) * 9.5f) * s;
+            ImVec2 a  = rotatePt(-14*s, y0, c.x, c.y, rot);
+            ImVec2 b  = rotatePt(-14*s, y1, c.x, c.y, rot);
+            ImVec2 h1 = rotatePt(-24*s, y0, c.x, c.y, rot);
+            ImVec2 h2 = rotatePt(-24*s, y1, c.x, c.y, rot);
+            drawList->AddBezierCubic(a, h1, h2, b, color, 2.0f*s, 12);
+        }
+        // Core: two vertical bars between the domains
+        drawList->AddLine(rotatePt(-6*s, -22*s, c.x, c.y, rot), rotatePt(-6*s, 22*s, c.x, c.y, rot), magCol, 2.5f*s);
+        drawList->AddLine(rotatePt(-1*s, -22*s, c.x, c.y, rot), rotatePt(-1*s, 22*s, c.x, c.y, rot), magCol, 2.5f*s);
+        // Magnetic leads
+        drawList->AddLine(rotatePt(25*s, -25*s, c.x, c.y, rot), rotatePt(6*s, -25*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(25*s,  25*s, c.x, c.y, rot), rotatePt(6*s,  25*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(6*s, -25*s, c.x, c.y, rot), rotatePt(6*s, -8*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(6*s,  25*s, c.x, c.y, rot), rotatePt(6*s,  8*s, c.x, c.y, rot), magCol, 2.0f*s);
+        // Turns count
+        {
+            std::string nTxt = comp.parameters.count("N") ? comp.parameters.at("N") : "1";
+            drawList->AddText(rotatePt(9*s, -4*s, c.x, c.y, rot), magCol, nTxt.c_str());
+        }
+    } else if (t == "MAG_PERMEANCE" || t == "LEAKAGE_PATH") {
+        // Permeance is a capacitance in the magnetic domain: two parallel plates.
+        ImU32 magCol = IM_COL32(196, 132, 252, 255);
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -5*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(0,  40*s, c.x, c.y, rot), rotatePt(0,  5*s, c.x, c.y, rot), magCol, 2.0f*s);
+        if (t == "LEAKAGE_PATH") {
+            // Dashed plates mark a stray/parasitic path
+            for (int i = -3; i <= 3; ++i) {
+                float x0 = i * 5.0f * s;
+                drawList->AddLine(rotatePt(x0 - 1.6f*s, -5*s, c.x, c.y, rot), rotatePt(x0 + 1.6f*s, -5*s, c.x, c.y, rot), magCol, 2.5f*s);
+                drawList->AddLine(rotatePt(x0 - 1.6f*s,  5*s, c.x, c.y, rot), rotatePt(x0 + 1.6f*s,  5*s, c.x, c.y, rot), magCol, 2.5f*s);
+            }
+        } else {
+            drawList->AddLine(rotatePt(-16*s, -5*s, c.x, c.y, rot), rotatePt(16*s, -5*s, c.x, c.y, rot), magCol, 2.5f*s);
+            drawList->AddLine(rotatePt(-16*s,  5*s, c.x, c.y, rot), rotatePt(16*s,  5*s, c.x, c.y, rot), magCol, 2.5f*s);
+        }
+        drawList->AddText(rotatePt(19*s, -6*s, c.x, c.y, rot), magCol, (t == "LEAKAGE_PATH") ? "Pl" : "P");
+    } else if (t == "LINEAR_CORE" || t == "AIR_GAP") {
+        // Core segment: a hatched block. Air gap splits it with a visible break.
+        ImU32 magCol = IM_COL32(196, 132, 252, 255);
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -16*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(0,  40*s, c.x, c.y, rot), rotatePt(0,  16*s, c.x, c.y, rot), magCol, 2.0f*s);
+        if (t == "AIR_GAP") {
+            // Two core faces separated by a gap
+            drawList->AddRectFilled(rotatePt(-14*s, -16*s, c.x, c.y, rot), rotatePt(14*s, -6*s, c.x, c.y, rot), IM_COL32(196, 132, 252, 45));
+            drawList->AddRect(rotatePt(-14*s, -16*s, c.x, c.y, rot), rotatePt(14*s, -6*s, c.x, c.y, rot), magCol, 0, 0, 2.0f*s);
+            drawList->AddRectFilled(rotatePt(-14*s, 6*s, c.x, c.y, rot), rotatePt(14*s, 16*s, c.x, c.y, rot), IM_COL32(196, 132, 252, 45));
+            drawList->AddRect(rotatePt(-14*s, 6*s, c.x, c.y, rot), rotatePt(14*s, 16*s, c.x, c.y, rot), magCol, 0, 0, 2.0f*s);
+            drawList->AddText(rotatePt(18*s, -6*s, c.x, c.y, rot), magCol, "gap");
+        } else {
+            drawList->AddRectFilled(rotatePt(-14*s, -16*s, c.x, c.y, rot), rotatePt(14*s, 16*s, c.x, c.y, rot), IM_COL32(196, 132, 252, 45));
+            drawList->AddRect(rotatePt(-14*s, -16*s, c.x, c.y, rot), rotatePt(14*s, 16*s, c.x, c.y, rot), magCol, 0, 0, 2.0f*s);
+            // Hatching to read as ferromagnetic material
+            for (int i = 0; i < 4; ++i) {
+                float xo = (-10.0f + i * 6.5f) * s;
+                drawList->AddLine(rotatePt(xo, -13*s, c.x, c.y, rot), rotatePt(xo + 6*s, 13*s, c.x, c.y, rot), magCol, 1.0f*s);
+            }
+            drawList->AddText(rotatePt(18*s, -6*s, c.x, c.y, rot), magCol, "core");
+        }
+    } else if (t == "MAG_RESISTANCE") {
+        // Dissipative magnetic element: resistor body in the magnetic colour.
+        ImU32 magCol = IM_COL32(196, 132, 252, 255);
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -18*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(0,  40*s, c.x, c.y, rot), rotatePt(0,  18*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddRect(rotatePt(-10*s, -18*s, c.x, c.y, rot), rotatePt(10*s, 18*s, c.x, c.y, rot), magCol, 0, 0, 2.0f*s);
+        drawList->AddText(rotatePt(14*s, -6*s, c.x, c.y, rot), magCol, "Rm");
+    } else if (t == "MMF_SRC" || t == "MMF_SRC_CTRL") {
+        // MMF source: circle with F symbol, in the magnetic colour.
+        ImU32 magCol = IM_COL32(196, 132, 252, 255);
+        drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -16*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddLine(rotatePt(0,  16*s, c.x, c.y, rot), rotatePt(0,  40*s, c.x, c.y, rot), magCol, 2.0f*s);
+        drawList->AddCircle(c, 16*s, magCol, 0, 2.0f*s);
+        drawList->AddText(rotatePt(-4*s, -7*s, c.x, c.y, rot), magCol, "F");
+        // '+' marks the positive magnetic terminal
+        drawList->AddLine(rotatePt(6*s, -22*s, c.x, c.y, rot), rotatePt(12*s, -22*s, c.x, c.y, rot), magCol, 1.5f*s);
+        drawList->AddLine(rotatePt(9*s, -25*s, c.x, c.y, rot), rotatePt(9*s, -19*s, c.x, c.y, rot), magCol, 1.5f*s);
+        if (t == "MMF_SRC_CTRL") {
+            // Control lead in the signal colour
+            drawList->AddLine(rotatePt(-30*s, 0, c.x, c.y, rot), rotatePt(-16*s, 0, c.x, c.y, rot),
+                              IM_COL32(56, 189, 248, 255), 2.0f*s);
+        }
     } else if (t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource") {
         drawList->AddLine(rotatePt(0, -40*s, c.x, c.y, rot), rotatePt(0, -16*s, c.x, c.y, rot), color, 2.0f*s);
         drawList->AddLine(rotatePt(0, 16*s, c.x, c.y, rot), rotatePt(0, 40*s, c.x, c.y, rot), color, 2.0f*s);
@@ -2268,8 +2415,10 @@ void SchematicCanvas::drawTerminals(ImDrawList* drawList, const ComponentInstanc
         bool isHovered = (dist < 14.0f * s);
         bool isConnected = isPinConnected(comp.id, term.name);
 
-        bool isControl = isControlPinCached(comp, term.name);
-        
+        DomainType pinDom = (DomainType)pinDomainIdCached(comp, term.name);
+        bool isControl = (pinDom == DomainType::Control);
+        bool isMagnetic = (pinDom == DomainType::Magnetic);
+
         if (isHovered && dist < minPinDist) {
             minPinDist = dist;
             hoveredPinCompId = comp.id;
@@ -2277,27 +2426,30 @@ void SchematicCanvas::drawTerminals(ImDrawList* drawList, const ComponentInstanc
 
             if (isWiring && startComp) {
                 DomainType startDom = getPinDomain(*startComp, wireStartPin);
-                DomainType targetDom = getPinDomain(comp, term.name);
-                if (startDom != targetDom) {
+                if (startDom != pinDom) {
                     ImGui::SetTooltip("🚫 CANNOT CONNECT: %s Pin cannot connect to %s Pin!",
-                        startDom == DomainType::Control ? "Control Signal" : "Electrical Power",
-                        targetDom == DomainType::Control ? "Control Signal" : "Electrical Power");
+                        domainName(startDom), domainName(pinDom));
                 } else {
-                    ImGui::SetTooltip("%s.%s (%s)", comp.id.c_str(), term.name, isControl ? "Control Domain" : "Power Domain");
+                    ImGui::SetTooltip("%s.%s (%s Domain)", comp.id.c_str(), term.name, domainName(pinDom));
                 }
             } else {
-                ImGui::SetTooltip("%s.%s (%s)", comp.id.c_str(), term.name, isControl ? "Control Domain" : "Power Domain");
+                ImGui::SetTooltip("%s.%s (%s Domain)", comp.id.c_str(), term.name, domainName(pinDom));
             }
         }
 
         bool isClosestHovered = (!hoveredPinCompId.empty() && hoveredPinCompId == comp.id && hoveredPinName == term.name);
-        float radius = isClosestHovered ? 6.0f * s : (isConnected ? 2.0f * s : (isControl ? 4.0f * s : 4.5f * s));
-        ImU32 termColor = isClosestHovered ? IM_COL32(255, 200, 50, 255) : (isControl ? IM_COL32(56, 189, 248, 230) : IM_COL32(0, 230, 120, 230));
+        float radius = isClosestHovered ? 6.0f * s : (isConnected ? 2.0f * s : ((isControl || isMagnetic) ? 4.0f * s : 4.5f * s));
+
+        // Pin dot colour per domain: green = electrical power, cyan = control signal,
+        // purple = magnetic flux. Matches the wire colouring for each domain.
+        ImU32 domainPinColor = isMagnetic ? IM_COL32(196, 132, 252, 230)
+                             : (isControl ? IM_COL32(56, 189, 248, 230)
+                                          : IM_COL32(0, 230, 120, 230));
+        ImU32 termColor = isClosestHovered ? IM_COL32(255, 200, 50, 255) : domainPinColor;
 
         if (isClosestHovered && isWiring && startComp) {
             DomainType startDom = getPinDomain(*startComp, wireStartPin);
-            DomainType targetDom = getPinDomain(comp, term.name);
-            if (startDom != targetDom) {
+            if (startDom != pinDom) {
                 termColor = IM_COL32(255, 50, 50, 255);
             }
         }
@@ -2355,6 +2507,7 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 
         DomainType wDom = getWireDomainFast(wire, wireDomainMap);
         bool isControlNet = (wDom == DomainType::Control);
+        bool isMagneticNet = (wDom == DomainType::Magnetic);
 
         bool fromIsVertical = false;
         if (wire.from.isWireJunction) {
@@ -2540,10 +2693,14 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             bool isThisWireHovered = (wire.id == hoveredWireId);
             ImU32 powerWireColor = isDarkMode ? IM_COL32(0, 230, 120, 255) : IM_COL32(4, 120, 87, 255);
             ImU32 ctrlWireColor = isDarkMode ? IM_COL32(56, 189, 248, 255) : IM_COL32(2, 132, 199, 255);
+            // Magnetic nets get their own colour (amber/violet) so flux paths read
+            // distinctly from electrical power and control signal wiring.
+            ImU32 magWireColor = isDarkMode ? IM_COL32(196, 132, 252, 255) : IM_COL32(126, 34, 206, 255);
             ImU32 selColor = isDarkMode ? IM_COL32(255, 180, 0, 255) : IM_COL32(217, 119, 6, 255);
             ImU32 hovColor = isDarkMode ? IM_COL32(255, 220, 100, 255) : IM_COL32(245, 158, 11, 255);
 
-            ImU32 wireColor = isSelected ? selColor : (isThisWireHovered ? hovColor : (isControlNet ? ctrlWireColor : powerWireColor));
+            ImU32 domainColor = isMagneticNet ? magWireColor : (isControlNet ? ctrlWireColor : powerWireColor);
+            ImU32 wireColor = isSelected ? selColor : (isThisWireHovered ? hovColor : domainColor);
             float thickness = (isSelected || isThisWireHovered) ? 3.5f * zoomLevel : 2.5f * zoomLevel;
 
             if (isSelected) {
@@ -2562,10 +2719,10 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             drawList->AddLine(p2_stub, p2, wireColor, thickness);
 
             if (wire.to.isWireJunction) {
-                drawList->AddCircleFilled(p2, 4.0f * zoomLevel, isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255));
+                drawList->AddCircleFilled(p2, 4.0f * zoomLevel, domainColor);
             }
             if (wire.from.isWireJunction) {
-                drawList->AddCircleFilled(p1, 4.0f * zoomLevel, isControlNet ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255));
+                drawList->AddCircleFilled(p1, 4.0f * zoomLevel, domainColor);
             }
 
             // Interactive Segment Drag Handles (Horizontal / Vertical 4-Way Dragging)
@@ -2637,8 +2794,7 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             drawList->AddCircleFilled(jScreen, 6.0f * zoomLevel, IM_COL32(255, 50, 50, 255));
             drawList->AddCircle(jScreen, 9.0f * zoomLevel, IM_COL32(255, 50, 50, 255), 0, 2.0f * zoomLevel);
             ImGui::SetTooltip("🚫 CANNOT CONNECT: %s Line cannot attach to %s Wire!",
-                startDom == DomainType::Control ? "Control Signal" : "Electrical Power",
-                targetWireDom == DomainType::Control ? "Control Signal" : "Electrical Power");
+                domainName(startDom), domainName(targetWireDom));
         } else {
             ImU32 dotCol = (startDom == DomainType::Control) ? IM_COL32(56, 189, 248, 255) : IM_COL32(0, 230, 120, 255);
             drawList->AddCircleFilled(jScreen, 6.0f * zoomLevel, dotCol);
@@ -2787,9 +2943,15 @@ void SchematicCanvas::getComponentBounds(const ComponentInstance& comp, float& o
                t == "AC_V" || t == "AC_I" || t == "CTRL_V" || t == "CTRL_I" || t == "S" || t == "MOSFET" || t == "VM" || t == "AM" ||
                t == "vg-FET" || t == "VGFET" ||
                t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT" ||
-               t == "IGBT" || t == "IGBT_DIODE" || t == "BJT" || t == "JFET") {
+               t == "IGBT" || t == "IGBT_DIODE" || t == "BJT" || t == "JFET" ||
+               t == "MAG_PERMEANCE" || t == "LEAKAGE_PATH" || t == "LINEAR_CORE" ||
+               t == "AIR_GAP" || t == "MAG_RESISTANCE" || t == "MMF_SRC" || t == "MMF_SRC_CTRL") {
         outHalfW = std::max(outHalfW, 14.0f);
         outHalfH = std::max(outHalfH, 14.0f);
+    } else if (t == "WINDING") {
+        // Four-terminal block spanning both domains.
+        outHalfW = std::max(outHalfW, 26.0f);
+        outHalfH = std::max(outHalfH, 28.0f);
     } else {
         outHalfW = std::max(outHalfW, 22.0f);
         outHalfH = std::max(outHalfH, 22.0f);
@@ -2999,6 +3161,94 @@ void SchematicCanvas::cleanupOrphanedJunctions() {
             if (validWireIds.count(w.to.targetWireId) == 0) {
                 w.to.isWireJunction = false;
                 w.to.targetWireId.clear();
+            }
+        }
+    }
+}
+
+void SchematicCanvas::consolidateOverlappingWires() {
+    if (design.wires.empty() || design.components.empty()) return;
+
+    // Component map for fast coordinate lookups
+    std::unordered_map<std::string, const ComponentInstance*> compMap;
+    compMap.reserve(design.components.size());
+    for (const auto& comp : design.components) compMap[comp.id] = &comp;
+
+    // Group direct wire connections by component terminal "compId.terminal"
+    struct PinConn {
+        size_t wireIdx;
+        bool isFrom;
+    };
+    std::unordered_map<std::string, std::vector<PinConn>> termConnMap;
+
+    for (size_t wi = 0; wi < design.wires.size(); ++wi) {
+        const auto& w = design.wires[wi];
+        if (!w.from.isWireJunction && !w.from.compId.empty() && !w.from.terminal.empty()) {
+            std::string key = w.from.compId + "." + w.from.terminal;
+            termConnMap[key].push_back({wi, true});
+        }
+        if (!w.to.isWireJunction && !w.to.compId.empty() && !w.to.terminal.empty()) {
+            std::string key = w.to.compId + "." + w.to.terminal;
+            termConnMap[key].push_back({wi, false});
+        }
+    }
+
+    // For any terminal with > 1 incoming/outgoing direct wires, convert subsequent wires to junctions
+    for (const auto& [termKey, conns] : termConnMap) {
+        if (conns.size() <= 1) continue;
+
+        size_t dotPos = termKey.find('.');
+        if (dotPos == std::string::npos) continue;
+        std::string compId = termKey.substr(0, dotPos);
+        std::string termName = termKey.substr(dotPos + 1);
+
+        auto itC = compMap.find(compId);
+        if (itC == compMap.end()) continue;
+        const ComponentInstance& comp = *(itC->second);
+
+        // Find terminal coordinate and port stub point in world space
+        ImVec2 pinPos(comp.x, comp.y);
+        ImVec2 stubPos(comp.x, comp.y);
+        auto terms = getTerminals(comp);
+        for (const auto& t : terms) {
+            if (isTerminalMatch(comp.rawTypeStr, t.name, termName)) {
+                float rad = comp.rotation * 3.14159265f / 180.0f;
+                float rx = t.relX * std::cos(rad) - t.relY * std::sin(rad);
+                float ry = t.relX * std::sin(rad) + t.relY * std::cos(rad);
+                pinPos = ImVec2(comp.x + rx, comp.y + ry);
+
+                float dx = t.dx * std::cos(rad) - t.dy * std::sin(rad);
+                float dy = t.dx * std::sin(rad) + t.dy * std::cos(rad);
+                stubPos = ImVec2(pinPos.x + dx * 20.0f, pinPos.y + dy * 20.0f);
+                break;
+            }
+        }
+
+        // Primary wire stays directly connected
+        std::string mainWireId = design.wires[conns[0].wireIdx].id;
+
+        // Subsequent wires connect as junction onto mainWire at stubPos
+        for (size_t i = 1; i < conns.size(); ++i) {
+            size_t subIdx = conns[i].wireIdx;
+            if (subIdx >= design.wires.size()) continue;
+            WireInstance& subW = design.wires[subIdx];
+
+            if (conns[i].isFrom) {
+                subW.from.isWireJunction = true;
+                subW.from.targetWireId = mainWireId;
+                subW.from.junctionX = stubPos.x;
+                subW.from.junctionY = stubPos.y;
+                subW.from.compId.clear();
+                subW.from.terminal.clear();
+                subW.fromNode = mainWireId + ".junction";
+            } else {
+                subW.to.isWireJunction = true;
+                subW.to.targetWireId = mainWireId;
+                subW.to.junctionX = stubPos.x;
+                subW.to.junctionY = stubPos.y;
+                subW.to.compId.clear();
+                subW.to.terminal.clear();
+                subW.toNode = mainWireId + ".junction";
             }
         }
     }
@@ -3287,6 +3537,7 @@ void SchematicCanvas::pasteSelected() {
         }
 
         cleanupOrphanedJunctions();
+        consolidateOverlappingWires();
     } catch (...) {}
 }
 
@@ -3805,11 +4056,50 @@ void SchematicCanvas::render(const char* title, ImVec2 size) {
                         while (existingWIds.count("w" + std::to_string(candW))) candW++;
                         wire.id = "w" + std::to_string(candW);
 
+                        // Check if target pin already has an existing wire connection
+                        std::string existingTargetWireId;
+                        for (const auto& w : design.wires) {
+                            if ((!w.from.isWireJunction && w.from.compId == hoveredPinCompId && w.from.terminal == hoveredPinName) ||
+                                (!w.to.isWireJunction && w.to.compId == hoveredPinCompId && w.to.terminal == hoveredPinName)) {
+                                existingTargetWireId = w.id;
+                                break;
+                            }
+                        }
+
                         wire.from.compId = wireStartCompId;
                         wire.from.terminal = wireStartPin;
-                        wire.to.compId = hoveredPinCompId;
-                        wire.to.terminal = hoveredPinName;
+
+                        if (!existingTargetWireId.empty()) {
+                            // Find target terminal port stub in world space
+                            ImVec2 pinPos(targetComp->x, targetComp->y);
+                            ImVec2 stubPos(targetComp->x, targetComp->y);
+                            auto terms = getTerminals(*targetComp);
+                            for (const auto& t : terms) {
+                                if (isTerminalMatch(targetComp->rawTypeStr, t.name, hoveredPinName)) {
+                                    float rad = targetComp->rotation * 3.14159265f / 180.0f;
+                                    float rx = t.relX * std::cos(rad) - t.relY * std::sin(rad);
+                                    float ry = t.relX * std::sin(rad) + t.relY * std::cos(rad);
+                                    pinPos = ImVec2(targetComp->x + rx, targetComp->y + ry);
+
+                                    float dx = t.dx * std::cos(rad) - t.dy * std::sin(rad);
+                                    float dy = t.dx * std::sin(rad) + t.dy * std::cos(rad);
+                                    stubPos = ImVec2(pinPos.x + dx * 20.0f, pinPos.y + dy * 20.0f);
+                                    break;
+                                }
+                            }
+
+                            wire.to.isWireJunction = true;
+                            wire.to.targetWireId = existingTargetWireId;
+                            wire.to.junctionX = stubPos.x;
+                            wire.to.junctionY = stubPos.y;
+                            wire.toNode = existingTargetWireId + ".junction";
+                        } else {
+                            wire.to.compId = hoveredPinCompId;
+                            wire.to.terminal = hoveredPinName;
+                        }
+
                         design.wires.push_back(wire);
+                        consolidateOverlappingWires();
                         normalizeControlWires();
                         isWiring = false;
                         activeWireCorners.clear();

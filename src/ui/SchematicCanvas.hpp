@@ -142,7 +142,9 @@ private:
     const std::vector<TerminalDef>& cachedTerminals(const ComponentInstance& comp) const;
     const ComponentInstance* findComp(const std::string& id) const;
     // getPinDomain() builds two uppercase std::strings on every call; memoise it.
-    // Returns true when the pin belongs to the control domain.
+    // pinDomainIdCached returns the DomainType as an int: 0 = Power, 1 = Control,
+    // 2 = Magnetic (DomainType itself is private to SchematicCanvas.cpp).
+    int pinDomainIdCached(const ComponentInstance& comp, const std::string& pinName) const;
     bool isControlPinCached(const ComponentInstance& comp, const std::string& pinName) const;
 
     // Visible-area culling bounds (screen space), set each frame in render().
@@ -169,6 +171,7 @@ private:
     void autoSelectWiresForSelectedComponents();
     void deleteSelected();
     void cleanupOrphanedJunctions();
+    void consolidateOverlappingWires();
     void normalizeControlWires();
     void rebuildNetlist();
     std::vector<ImVec2> simplifyPath(const std::vector<ImVec2>& points) const;
@@ -195,7 +198,7 @@ public:
 
     void syncProbeSignals();
 
-    void setCircuit(const CircuitDesign& circuit) { design = circuit; pushUndoState(); }
+    void setCircuit(const CircuitDesign& circuit) { design = circuit; cleanupOrphanedJunctions(); consolidateOverlappingWires(); pushUndoState(); }
     const CircuitDesign& getCircuit() const { return design; }
     CircuitDesign& getCircuitRef() { return design; }
 

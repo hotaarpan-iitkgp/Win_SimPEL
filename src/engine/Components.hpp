@@ -217,6 +217,17 @@ enum class ComponentType {
     // Electrical Machines & Custom
     InductionMotor,       // INDUCTION_MOTOR, IND_MOTOR
 
+    // Magnetic domain (permeance-capacitance analogy).
+    // MMF <-> node potential, flux rate <-> branch current, permeance <-> capacitance.
+    Winding,              // WINDING            electrical <-> magnetic gyrator
+    MagneticPermeance,    // MAG_PERMEANCE      P [Wb/A]
+    LinearCore,           // LINEAR_CORE        P = mu0*mur*A/l
+    AirGap,               // AIR_GAP            P = mu0*A/l
+    LeakageFluxPath,      // LEAKAGE_PATH       shunt leakage permeance
+    MagneticResistance,   // MAG_RESISTANCE     PhiDot = Gfe*F (core loss)
+    MMFSource,            // MMF_SRC            constant MMF
+    MMFSourceControlled,  // MMF_SRC_CTRL       signal-driven MMF
+
     Unknown
 };
 
@@ -255,6 +266,16 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
     if (typeStr == "Thyristor" || typeStr == "THYRISTOR" || typeStr == "SCR") return ComponentType::Thyristor;
     if (typeStr == "BJT") return ComponentType::BJT;
     if (typeStr == "JFET") return ComponentType::JFET;
+    // ── Magnetic domain blocks ──
+    if (typeStr == "WINDING" || typeStr == "Winding") return ComponentType::Winding;
+    if (typeStr == "MAG_PERMEANCE" || typeStr == "MagneticPermeance") return ComponentType::MagneticPermeance;
+    if (typeStr == "LINEAR_CORE" || typeStr == "LinearCore") return ComponentType::LinearCore;
+    if (typeStr == "AIR_GAP" || typeStr == "AirGap") return ComponentType::AirGap;
+    if (typeStr == "LEAKAGE_PATH" || typeStr == "LeakageFluxPath") return ComponentType::LeakageFluxPath;
+    if (typeStr == "MAG_RESISTANCE" || typeStr == "MagneticResistance") return ComponentType::MagneticResistance;
+    if (typeStr == "MMF_SRC" || typeStr == "MMFSource") return ComponentType::MMFSource;
+    if (typeStr == "MMF_SRC_CTRL" || typeStr == "MMFSourceControlled") return ComponentType::MMFSourceControlled;
+
     if (typeStr == "Transformer" || typeStr == "XFMR") return ComponentType::Transformer;
     if (typeStr == "IDEAL_XFMR" || typeStr == "IdealTransformer") return ComponentType::IdealTransformer;
     if (typeStr == "XFMR_2W" || typeStr == "Transformer2W") return ComponentType::Transformer2W;
@@ -398,6 +419,14 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
 
 inline std::string componentTypeToString(ComponentType type) {
     switch (type) {
+        case ComponentType::Winding: return "WINDING";
+        case ComponentType::MagneticPermeance: return "MAG_PERMEANCE";
+        case ComponentType::LinearCore: return "LINEAR_CORE";
+        case ComponentType::AirGap: return "AIR_GAP";
+        case ComponentType::LeakageFluxPath: return "LEAKAGE_PATH";
+        case ComponentType::MagneticResistance: return "MAG_RESISTANCE";
+        case ComponentType::MMFSource: return "MMF_SRC";
+        case ComponentType::MMFSourceControlled: return "MMF_SRC_CTRL";
         case ComponentType::Resistor: return "Resistor";
         case ComponentType::VariableResistor: return "VariableResistor";
         case ComponentType::Capacitor: return "Capacitor";
@@ -537,6 +566,23 @@ inline void setupComponentPins(ComponentInstance& comp) {
         Pin pinS; pinS.name = "S"; pinS.relativeX = 0; pinS.relativeY = 40;
         Pin pinG; pinG.name = "G"; pinG.relativeX = -20; pinG.relativeY = 0; pinG.isCtrl = true;
         comp.pins = {pinD, pinS, pinG};
+    } else if (t == "WINDING") {
+        // Electrical pair on the left, magnetic pair on the right.
+        Pin eP; eP.name = "E+"; eP.relativeX = -25; eP.relativeY = -25;
+        Pin eN; eN.name = "E-"; eN.relativeX = -25; eN.relativeY =  25;
+        Pin mP; mP.name = "M+"; mP.relativeX =  25; mP.relativeY = -25;
+        Pin mN; mN.name = "M-"; mN.relativeX =  25; mN.relativeY =  25;
+        comp.pins = {eP, eN, mP, mN};
+    } else if (t == "MAG_PERMEANCE" || t == "LINEAR_CORE" || t == "AIR_GAP" ||
+               t == "LEAKAGE_PATH" || t == "MAG_RESISTANCE" || t == "MMF_SRC") {
+        Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
+        comp.pins = {pinA, pinB};
+    } else if (t == "MMF_SRC_CTRL") {
+        Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;
+        Pin pinB; pinB.name = "B"; pinB.relativeX = 0; pinB.relativeY = 40;
+        Pin pinC; pinC.name = "Ctrl"; pinC.relativeX = -30; pinC.relativeY = 0; pinC.isInput = true; pinC.isCtrl = true;
+        comp.pins = {pinA, pinB, pinC};
     } else if (t == "THYRISTOR" || t == "Thyristor" || t == "SCR" || t == "GTO" || t == "IGCT") {
         // Anode / Cathode / Gate
         Pin pinA; pinA.name = "A"; pinA.relativeX = 0; pinA.relativeY = -40;

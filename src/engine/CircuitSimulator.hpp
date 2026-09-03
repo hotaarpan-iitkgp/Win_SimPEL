@@ -43,6 +43,10 @@ enum class ComponentType {
     IGCT,
     BJT,
     JFET,
+    // Electrical <-> magnetic gyrator interface. All other magnetic blocks reduce to
+    // existing primitives (permeance -> capacitor, magnetic resistance -> resistor,
+    // MMF source -> voltage source), so this is the only new solver element.
+    Winding,
     Breaker,
     DoubleSwitch,
     ElectricalManualSwitch,

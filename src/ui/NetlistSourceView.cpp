@@ -75,6 +75,11 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     physStageObj["voltmeters"] = json::array();
     physStageObj["ammeters"] = json::array();
     physStageObj["custom_eblocks"] = json::array();
+    // Magnetic domain: only the Winding gyrator needs its own category. Permeances,
+    // cores, air gaps, leakage paths, magnetic resistances and MMF sources are emitted
+    // into the existing capacitor / resistor / voltage-source categories, because under
+    // the permeance-capacitance analogy they *are* those elements.
+    physStageObj["windings"] = json::array();
 
     json ctrlLoopsObj;
     ctrlLoopsObj["constants"] = json::array();
@@ -395,6 +400,89 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
             cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
             cObj["src_type"] = (t == "VAR_C") ? "variable" : "static";
             physStageObj["capacitors"].push_back(cObj);
+
+        // ─────────────────────── MAGNETIC DOMAIN BLOCKS ───────────────────────
+        // Permeance-capacitance analogy: MMF <-> node potential, flux rate <-> branch
+        // current, permeance <-> capacitance, magnetic conductance <-> conductance.
+        // This lets the existing MNA solver integrate magnetic states directly, with no
+        // separate magnetic solver and no algebraic loops.
+        } else if (t == "WINDING") {
+            // Electrical <-> magnetic gyrator. nodes = [E+, E-, M+, M-]
+            cObj["type"] = "WINDING";
+            cObj["nodes"] = formattedNodes;
+            double turns = 1.0;
+            if (parsedParams.count("N")) turns = parsedParams["N"];
+            else if (parsedParams.count("turns")) turns = parsedParams["turns"];
+            if (std::abs(turns) < 1e-12) turns = 1.0;
+            cObj["N"] = formatJSStyleDouble(turns);
+            physStageObj["windings"].push_back(cObj);
+
+        } else if (t == "MAG_PERMEANCE" || t == "LINEAR_CORE" || t == "AIR_GAP" || t == "LEAKAGE_PATH") {
+            // All four are a permeance P, which stamps as a capacitance of value P.
+            // Initial MMF maps onto the capacitor's initial voltage.
+            const double MU0 = 4.0 * 3.14159265358979323846e-7;
+            double P = 1e-6;
+            if (t == "LINEAR_CORE") {
+                double A   = parsedParams.count("A") ? parsedParams["A"] : 1e-4;
+                double len = parsedParams.count("l") ? parsedParams["l"] : 0.1;
+                double mur = parsedParams.count("mu_r") ? parsedParams["mu_r"] : 1000.0;
+                if (len <= 0.0) len = 1e-6;
+                P = MU0 * mur * A / len;
+            } else if (t == "AIR_GAP") {
+                double A   = parsedParams.count("A") ? parsedParams["A"] : 1e-4;
+                double len = parsedParams.count("l") ? parsedParams["l"] : 1e-3;
+                if (len <= 0.0) len = 1e-6;
+                P = MU0 * A / len;
+            } else {
+                // MAG_PERMEANCE / LEAKAGE_PATH take the permeance directly.
+                if (parsedParams.count("P")) P = parsedParams["P"];
+                else if (parsedParams.count("permeance")) P = parsedParams["permeance"];
+            }
+            if (P <= 0.0) P = 1e-12;
+
+            cObj["type"] = "Capacitor";
+            cObj["nodes"] = formattedNodes;
+            cObj["C"] = formatJSStyleDouble(P);
+            cObj["esr"] = formatJSStyleDouble(0.0);
+            cObj["vC0"] = formatJSStyleDouble(parsedParams.count("F0") ? parsedParams["F0"] : 0.0);
+            cObj["src_type"] = "static";
+            physStageObj["capacitors"].push_back(cObj);
+
+        } else if (t == "MAG_RESISTANCE") {
+            // PhiDot = G_fe * F, i.e. a resistor of value R_m = 1 / G_fe.
+            double Rm = 1e6;
+            if (parsedParams.count("Rm")) Rm = parsedParams["Rm"];
+            else if (parsedParams.count("R")) Rm = parsedParams["R"];
+            else if (parsedParams.count("Gfe") && parsedParams["Gfe"] > 0.0) Rm = 1.0 / parsedParams["Gfe"];
+            if (Rm <= 0.0) Rm = 1e-6;
+
+            cObj["type"] = "Resistor";
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = formatJSStyleDouble(Rm);
+            cObj["esr"] = formatJSStyleDouble(0.0);
+            cObj["src_type"] = "static";
+            physStageObj["resistors"].push_back(cObj);
+
+        } else if (t == "MMF_SRC") {
+            // Constant MMF across the terminals == a DC voltage source in the analogy.
+            cObj["type"] = "VoltageSource";
+            cObj["nodes"] = formattedNodes;
+            double F = 0.0;
+            if (parsedParams.count("F")) F = parsedParams["F"];
+            else if (parsedParams.count("mmf")) F = parsedParams["mmf"];
+            else if (parsedParams.count("value")) F = parsedParams["value"];
+            cObj["value"] = formatJSStyleDouble(F);
+            cObj["src_type"] = "dc";
+            physStageObj["voltage_sources"].push_back(cObj);
+
+        } else if (t == "MMF_SRC_CTRL") {
+            // Signal-driven MMF == controlled voltage source in the analogy.
+            cObj["type"] = "CTRL_V";
+            cObj["nodes"] = formattedNodes;
+            cObj["value"] = formatJSStyleDouble(parsedParams.count("gain") ? parsedParams["gain"] : 1.0);
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["src_type"] = "controlled";
+            physStageObj["voltage_sources"].push_back(cObj);
         } else if (t == "D" || t == "DIODE") {
             cObj["type"] = "Diode";
             cObj["nodes"] = formattedNodes;
