@@ -1303,6 +1303,13 @@ void SchematicCanvas::drawComponentShape(ImDrawList* drawList, const ComponentIn
                           rotatePt(-6*s,   0,   c.x, c.y, rot),
                           rotatePt(-12*s,  4*s, c.x, c.y, rot) };
         drawList->AddTriangleFilled(jArr[0], jArr[1], jArr[2], color);
+    } else if (t == "LOSS_ANALYZER") {
+        drawList->AddRect(rotatePt(-30*s, -20*s, c.x, c.y, rot), rotatePt(30*s, 20*s, c.x, c.y, rot), IM_COL32(255, 100, 100, 255), 4.0f*s, 0, 2.0f*s);
+        drawList->AddRectFilled(rotatePt(-30*s, -20*s, c.x, c.y, rot), rotatePt(30*s, 20*s, c.x, c.y, rot), IM_COL32(255, 100, 100, 40), 4.0f*s);
+        drawList->AddLine(rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(20*s, 10*s, c.x, c.y, rot), IM_COL32(255, 255, 255, 150), 1.0f*s); // x-axis
+        drawList->AddLine(rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(-20*s, -10*s, c.x, c.y, rot), IM_COL32(255, 255, 255, 150), 1.0f*s); // y-axis
+        ImVec2 p[4] = { rotatePt(-20*s, 10*s, c.x, c.y, rot), rotatePt(-10*s, -5*s, c.x, c.y, rot), rotatePt(0*s, 5*s, c.x, c.y, rot), rotatePt(15*s, -10*s, c.x, c.y, rot) };
+        for (int i=0; i<3; ++i) drawList->AddLine(p[i], p[i+1], IM_COL32(255, 150, 150, 255), 2.0f*s);
     // ───────────────────────── MAGNETIC DOMAIN SYMBOLS ─────────────────────────
     } else if (t == "WINDING") {
         // Coil on the electrical side, core hatching on the magnetic side.

@@ -228,6 +228,9 @@ enum class ComponentType {
     MMFSource,            // MMF_SRC            constant MMF
     MMFSourceControlled,  // MMF_SRC_CTRL       signal-driven MMF
 
+    // Analysis Tools
+    LossAnalyzer,         // LOSS_ANALYZER      Semantic analysis block for loss engine
+
     Unknown
 };
 
@@ -414,11 +417,15 @@ inline ComponentType stringToComponentType(const std::string& typeStr) {
 
     if (typeStr == "Polynomial" || typeStr == "POLYNOMIAL") return ComponentType::Polynomial;
     if (typeStr == "AlgebraicConstraint" || typeStr == "ALGEBRAIC_CONSTRAINT") return ComponentType::AlgebraicConstraint;
+
+    if (typeStr == "LOSS_ANALYZER" || typeStr == "LossAnalyzer") return ComponentType::LossAnalyzer;
+
     return ComponentType::Unknown;
 }
 
 inline std::string componentTypeToString(ComponentType type) {
     switch (type) {
+        case ComponentType::LossAnalyzer: return "LOSS_ANALYZER";
         case ComponentType::Winding: return "WINDING";
         case ComponentType::MagneticPermeance: return "MAG_PERMEANCE";
         case ComponentType::LinearCore: return "LINEAR_CORE";

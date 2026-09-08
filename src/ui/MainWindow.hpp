@@ -6,6 +6,7 @@
 #include "NetlistSourceView.hpp"
 #include "SVGExporter.hpp"
 #include "engine/CircuitSimulator.hpp"
+#include "engine/LossAnalysisEngine.hpp"
 #include "imgui.h"
 #include <nlohmann/json.hpp>
 #include <vector>
@@ -42,6 +43,9 @@ private:
     char simStepSizeBuf[64] = "1u";
     int simSolverIdx = 0;
 
+    bool showLossReportWindow = false;
+    std::vector<CircuitSimEngine::SwitchLossResult> lossResults;
+
     bool showCSCRIPTEditorModal = false;
     std::string editingCSCRIPTCompId = "";
     char cscriptCodeBuf[8192] = "";
@@ -72,6 +76,8 @@ private:
     void renderSimParamsModal();
     void renderCSCRIPTEditorModal();
     void renderExportOptionsModal();
+    void renderLossReportWindow();
+    void calculateLosses(const std::string& compId);
     void openCSCRIPTEditor(const std::string& compId);
 
     void batchSimulateFolder(const std::string& folderPath);

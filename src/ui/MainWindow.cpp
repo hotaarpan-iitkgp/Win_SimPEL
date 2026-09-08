@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <set>
+#include "engine/LossModelLibrary.hpp"
 
 using json = nlohmann::json;
 
@@ -145,6 +146,7 @@ void MainWindow::applyLightTheme() {
 MainWindow::MainWindow() {
     applyDarkTheme();
     loadPresetTemplate("buck_converter");
+    CircuitSimEngine::LossModelLibrary::getInstance().loadAllModels("data/thermal_models");
 }
 
 void MainWindow::startSimulation() {
@@ -997,6 +999,7 @@ void MainWindow::renderComponentPalette() {
 
             { "Active Probe (PROBE)", "Active Probe", "PROBE", ComponentType::Unknown, "PROBE", "general", "Signal Routing", {{"target", ""}, {"selected_signals", ""}}, true },
             { "Oscilloscope (SCOPE)", "Oscilloscope", "SCOPE", ComponentType::Unknown, "SCOPE", "general", "Visualization & Logging", {{"channels", "2"}}, true },
+            { "Loss Analyzer (LOSS_ANALYZER)", "Loss Analyzer", "LOSS_ANALYZER", ComponentType::LossAnalyzer, "LOSS_ANALYZER", "general", "Visualization & Logging", {{"start_time", "0.0"}, {"duration", "0.02"}, {"tj", "125.0"}}, true },
 
             // Control Domain (Sources)
             { "Constant (CONST)", "Constant", "CONST", ComponentType::Constant, "CONST", "control", "Sources", {{"value", "1.0"}}, true },
@@ -2364,6 +2367,36 @@ void MainWindow::renderPropertyInspector() {
         }
     }
 
+    if (t == "LOSS_ANALYZER") {
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Thermal & Loss Analysis Settings:");
+        
+        std::string startTime = comp->parameters.count("start_time") ? comp->parameters.at("start_time") : "0.0";
+        char stBuf[64] = {0};
+        strncpy(stBuf, startTime.c_str(), sizeof(stBuf) - 1);
+        if (ImGui::InputText("Start Time (s)", stBuf, sizeof(stBuf))) {
+            comp->parameters["start_time"] = stBuf;
+        }
+
+        std::string duration = comp->parameters.count("duration") ? comp->parameters.at("duration") : "0.02";
+        char dBuf[64] = {0};
+        strncpy(dBuf, duration.c_str(), sizeof(dBuf) - 1);
+        if (ImGui::InputText("Duration (s)", dBuf, sizeof(dBuf))) {
+            comp->parameters["duration"] = dBuf;
+        }
+
+        std::string tj = comp->parameters.count("tj") ? comp->parameters.at("tj") : "125.0";
+        char tjBuf[64] = {0};
+        strncpy(tjBuf, tj.c_str(), sizeof(tjBuf) - 1);
+        if (ImGui::InputText("Junction Temp Tj (C)", tjBuf, sizeof(tjBuf))) {
+            comp->parameters["tj"] = tjBuf;
+        }
+
+        if (ImGui::Button("Show Loss Report", ImVec2(-1, 28))) {
+            calculateLosses(comp->id);
+            showLossReportWindow = true;
+        }
+    }
+
     if (t == "CSCRIPT") {
         if (ImGui::Button("Open C-Script IDE Editor", ImVec2(-1, 28))) {
             canvas.openCScriptModalForComp(comp->id);
@@ -2401,6 +2434,34 @@ void MainWindow::renderPropertyInspector() {
                     } catch (...) {}
                 }
             }
+        }
+    }
+
+    bool isPowerSwitch = (comp->type == ComponentType::MOSFET || comp->type == ComponentType::IGBT ||
+                          comp->type == ComponentType::IGBTDiode || comp->type == ComponentType::Diode ||
+                          comp->type == ComponentType::Thyristor || comp->type == ComponentType::GTO ||
+                          comp->type == ComponentType::IGCT || comp->type == ComponentType::BJT ||
+                          comp->type == ComponentType::JFET);
+
+    if (isPowerSwitch) {
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Thermal & Loss Model:");
+
+        auto models = CircuitSimEngine::LossModelLibrary::getInstance().getAvailableModels();
+        std::string currentModel = comp->parameters.count("thermal_model") ? comp->parameters.at("thermal_model") : "Ideal (No Loss)";
+        
+        if (ImGui::BeginCombo("##thermal_model", currentModel.c_str())) {
+            bool isIdeal = (currentModel == "Ideal (No Loss)");
+            if (ImGui::Selectable("Ideal (No Loss)", isIdeal)) {
+                comp->parameters["thermal_model"] = "Ideal (No Loss)";
+            }
+            for (const auto& m : models) {
+                bool isSelected = (currentModel == m);
+                if (ImGui::Selectable(m.c_str(), isSelected)) {
+                    comp->parameters["thermal_model"] = m;
+                }
+            }
+            ImGui::EndCombo();
         }
     }
 
@@ -2627,6 +2688,100 @@ void MainWindow::renderPropertyInspector() {
     ImGui::End();
 }
 
+void MainWindow::calculateLosses(const std::string& compId) {
+    if (simRunning.load()) return; // Cannot calculate while running
+
+    // Find the loss analyzer component
+    const ComponentInstance* analyzer = nullptr;
+    for (const auto& c : canvas.getCircuitRef().components) {
+        if (c.id == compId) {
+            analyzer = &c;
+            break;
+        }
+    }
+    if (!analyzer) return;
+
+    double t_start = 0.0, duration = 0.02, tj = 125.0;
+    try { t_start = std::stod(analyzer->parameters.at("start_time")); } catch(...) {}
+    try { duration = std::stod(analyzer->parameters.at("duration")); } catch(...) {}
+    try { tj = std::stod(analyzer->parameters.at("tj")); } catch(...) {}
+
+    lossResults = CircuitSimEngine::LossAnalysisEngine::runAnalysis(
+        simulator, canvas.getCircuitRef(), t_start, duration, tj
+    );
+}
+
+void MainWindow::renderLossReportWindow() {
+    if (!showLossReportWindow) return;
+
+    ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Loss Analysis Report", &showLossReportWindow)) {
+        if (lossResults.empty()) {
+            ImGui::Text("No loss data available. Ensure simulation is run and thermal models are assigned.");
+        } else {
+            if (ImGui::BeginTable("LossTable", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+                ImGui::TableSetupColumn("Component");
+                ImGui::TableSetupColumn("Model");
+                ImGui::TableSetupColumn("P_cond (W)");
+                ImGui::TableSetupColumn("P_sw_on (W)");
+                ImGui::TableSetupColumn("P_sw_off (W)");
+                ImGui::TableSetupColumn("P_total (W)");
+                ImGui::TableSetupColumn("Hard On Count");
+                ImGui::TableSetupColumn("Soft On Count");
+                ImGui::TableHeadersRow();
+
+                for (const auto& res : lossResults) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn(); ImGui::Text("%s", res.componentId.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", res.modelName.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_cond);
+                    ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_sw_on);
+                    ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_sw_off);
+                    ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_total);
+                    ImGui::TableNextColumn(); ImGui::Text("%d", res.num_hard_turn_on);
+                    ImGui::TableNextColumn(); ImGui::Text("%d", res.num_soft_turn_on);
+                }
+                ImGui::EndTable();
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImPlot::BeginPlot("Power Loss Breakdown", ImVec2(-1, 300))) {
+                ImPlot::SetupAxes("Component", "Power (W)", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+                
+                std::vector<double> xs, pcond, psw_on, psw_off;
+                std::vector<const char*> labels;
+                for (size_t i = 0; i < lossResults.size(); ++i) {
+                    xs.push_back((double)i);
+                    pcond.push_back(lossResults[i].P_cond);
+                    psw_on.push_back(lossResults[i].P_sw_on);
+                    psw_off.push_back(lossResults[i].P_sw_off);
+                    labels.push_back(lossResults[i].componentId.c_str());
+                }
+                
+                ImPlot::SetupAxisTicks(ImAxis_X1, xs.data(), (int)xs.size(), labels.data());
+
+                ImPlot::PlotBars("P_cond", xs.data(), pcond.data(), (int)xs.size(), 0.5);
+                
+                // For stacked bars, you technically need to sum them.
+                std::vector<double> p1, p2;
+                for(size_t i=0; i<xs.size(); ++i) {
+                    p1.push_back(pcond[i] + psw_on[i]);
+                    p2.push_back(pcond[i] + psw_on[i] + psw_off[i]);
+                }
+                ImPlot::PlotBars("P_sw_off", xs.data(), p2.data(), (int)xs.size(), 0.5);
+                ImPlot::PlotBars("P_sw_on", xs.data(), p1.data(), (int)xs.size(), 0.5);
+                ImPlot::PlotBars("P_cond", xs.data(), pcond.data(), (int)xs.size(), 0.5);
+
+                ImPlot::EndPlot();
+            }
+        }
+    }
+    ImGui::End();
+}
+
 void MainWindow::renderSimParamsModal() {
     if (showSimParamsModal) {
         ImGui::OpenPopup("Simulation Parameters Modal");
@@ -2705,6 +2860,7 @@ void MainWindow::render() {
 
     renderSimParamsModal();
     renderExportOptionsModal();
+    renderLossReportWindow();
 }
 
 void MainWindow::handleScopeOpenRequest() {

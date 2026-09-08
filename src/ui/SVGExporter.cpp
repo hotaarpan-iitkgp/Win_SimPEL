@@ -699,6 +699,20 @@ bool SVGExporter::exportSchematicToSVGString(const CircuitDesign& design, std::s
             drawLine(svgRotatePt(7, -6, c.x, c.y, rot), svgRotatePt(17, -6, c.x, c.y, rot));
             drawLine(svgRotatePt(12, -6, c.x, c.y, rot), svgRotatePt(12, -15, c.x, c.y, rot));
             drawLine(svgRotatePt(12, -15, c.x, c.y, rot), svgRotatePt(0, -15, c.x, c.y, rot));
+        } else if (t == "LOSS_ANALYZER") {
+            ImVec2 r1 = svgRotatePt(-30, -20, c.x, c.y, rot);
+            ImVec2 r2 = svgRotatePt(30, -20, c.x, c.y, rot);
+            ImVec2 r3 = svgRotatePt(30, 20, c.x, c.y, rot);
+            ImVec2 r4 = svgRotatePt(-30, 20, c.x, c.y, rot);
+            drawLine(r1, r2, 2.0f);
+            drawLine(r2, r3, 2.0f);
+            drawLine(r3, r4, 2.0f);
+            drawLine(r4, r1, 2.0f);
+            drawLine(svgRotatePt(-20, 10, c.x, c.y, rot), svgRotatePt(20, 10, c.x, c.y, rot));
+            drawLine(svgRotatePt(-20, 10, c.x, c.y, rot), svgRotatePt(-20, -10, c.x, c.y, rot));
+            drawLine(svgRotatePt(-20, 10, c.x, c.y, rot), svgRotatePt(-10, -5, c.x, c.y, rot));
+            drawLine(svgRotatePt(-10, -5, c.x, c.y, rot), svgRotatePt(0, 5, c.x, c.y, rot));
+            drawLine(svgRotatePt(0, 5, c.x, c.y, rot), svgRotatePt(15, -10, c.x, c.y, rot));
         // ───────────────────── MAGNETIC DOMAIN SYMBOLS ─────────────────────
         } else if (t == "WINDING") {
             // Electrical leads + coil

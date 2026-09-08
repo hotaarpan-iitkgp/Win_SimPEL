@@ -18,6 +18,9 @@ set(SOURCES
     src/main.cpp
     src/engine/CircuitSimulator.cpp
     src/engine/NetlistParser.cpp
+    src/engine/LossModel.cpp
+    src/engine/LossModelLibrary.cpp
+    src/engine/LossAnalysisEngine.cpp
     src/engine/CScriptEngine.cpp
     src/engine/ExpressionEvaluator.cpp
     src/engine/NetlistBuilder.cpp

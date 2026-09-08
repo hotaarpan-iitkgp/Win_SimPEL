@@ -3639,6 +3639,20 @@ SimulationOutput CircuitSimulator::runTransient() {
                 if (R < 1e-6) R = 1e-6;
                 iComp = vDiff / R;
             }
+            else if (fc.type == ComponentType::MOSFET) {
+                double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
+                double R = (state > 0.5) ? fc.Ron : fc.Roff;
+                if (R < 1e-6) R = 1e-6;
+                double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+                bool isGateOn = (ctrlVal > 0.5);
+                
+                if (!isGateOn && state > 0.5 && vDiff < 0) {
+                    // Body diode conduction
+                    iComp = (vDiff + fc.Vvd) / R;
+                } else {
+                    iComp = vDiff / R;
+                }
+            }
             else if (fc.type == ComponentType::Switch) {
                 double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
                 iComp = vDiff / ((ctrlVal > 0.5) ? fc.Ron : fc.Roff);

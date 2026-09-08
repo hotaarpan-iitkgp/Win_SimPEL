@@ -1,0 +1,1 @@
+{"metadata":{"part_number":"C3M0350120D","type":"Diode","Qg_nC":0.0,"I_leakage_uA":0.0,"V_drv_V":15.0},"turn_on_loss":{"v_axis":[0.0],"i_axis":[0.0],"t_axis":[25.0],"data":[[[0.0]]]},"turn_off_loss":{"v_axis":[0.0],"i_axis":[0.0],"t_axis":[25.0],"data":[[[0.0]]]},"conduction_loss_on":null,"conduction_loss_off":null}
