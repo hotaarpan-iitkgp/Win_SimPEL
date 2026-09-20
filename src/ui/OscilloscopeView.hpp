@@ -54,7 +54,9 @@ private:
 
     // Telemetry cache optimization to avoid 100k-point vector copies every frame
     uint64_t lastTelemetryVer = 0;
+    uint64_t lastTelemetryGen = (uint64_t)-1;  // forces a full sync on first use
     CircuitSimEngine::TelemetryData cachedTelemetry;
+    size_t cachedCount = 0;   // samples already mirrored into cachedTelemetry
 
     // Interactive signal filter selection state
     std::map<std::string, bool> enabledSignals;

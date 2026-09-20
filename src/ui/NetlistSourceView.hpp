@@ -25,6 +25,12 @@ private:
     float traceLineWidth = 2.0f;
     float splitRatio = 0.10f;
 
+    // Cached telemetry, grown incrementally as the solver publishes new samples.
+    CircuitSimEngine::TelemetryData cachedTelemetry;
+    uint64_t lastTelemetryVer = (uint64_t)-1;
+    uint64_t lastTelemetryGen = (uint64_t)-1;  // forces a full sync on first use
+    size_t cachedCount = 0;
+
     std::map<std::string, bool> enabledSignals;
 
     // Per-pane deferred zoom & custom gesture tracking

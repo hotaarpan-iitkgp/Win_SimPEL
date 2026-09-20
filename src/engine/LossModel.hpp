@@ -35,15 +35,23 @@ public:
     LossModel(const std::string& filepath);
     bool isValid() const { return valid; }
 
+    std::string filepath;
     std::string part_number;
     std::string device_type;
     double Qg_nC = 0.0;
     double I_leakage_uA = 0.0;
     double V_drv_V = 15.0;
+    std::map<std::string, std::string> metadataMap;
 
     double getTurnOnEnergy(double v, double i, double t) const;
     double getTurnOffEnergy(double v, double i, double t) const;
     double getConductionVoltageDrop(double i, double t, bool gate_on) const;
+    bool hasConductionTable(bool gate_on) const;
+
+    const Interpolator3D& getTurnOnLUT() const { return turn_on_interp; }
+    const Interpolator3D& getTurnOffLUT() const { return turn_off_interp; }
+    const Interpolator2D& getCondOnLUT() const { return cond_on_interp; }
+    const Interpolator2D& getCondOffLUT() const { return cond_off_interp; }
 
 private:
     bool valid = false;

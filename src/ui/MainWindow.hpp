@@ -46,6 +46,9 @@ private:
     bool showLossReportWindow = false;
     std::vector<CircuitSimEngine::SwitchLossResult> lossResults;
 
+    bool showThermalModelViewer = false;
+    std::string viewingModelKey = "";
+
     bool showCSCRIPTEditorModal = false;
     std::string editingCSCRIPTCompId = "";
     char cscriptCodeBuf[8192] = "";
@@ -77,7 +80,10 @@ private:
     void renderCSCRIPTEditorModal();
     void renderExportOptionsModal();
     void renderLossReportWindow();
+    void renderThermalModelViewerModal();
+    void openThermalModelViewer(const std::string& modelKey);
     void calculateLosses(const std::string& compId);
+    void addLossAnalyzerBlock();
     void openCSCRIPTEditor(const std::string& compId);
 
     void batchSimulateFolder(const std::string& folderPath);

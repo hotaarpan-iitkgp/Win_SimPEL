@@ -146,7 +146,7 @@ void MainWindow::applyLightTheme() {
 MainWindow::MainWindow() {
     applyDarkTheme();
     loadPresetTemplate("buck_converter");
-    CircuitSimEngine::LossModelLibrary::getInstance().loadAllModels("data/thermal_models");
+    CircuitSimEngine::LossModelLibrary::getInstance().loadAllModelsAsync();
 }
 
 void MainWindow::startSimulation() {
@@ -670,6 +670,15 @@ void MainWindow::renderMenuBar() {
             }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Tools")) {
+            if (ImGui::MenuItem("Add Loss Analysis Block to Schematic")) {
+                addLossAnalyzerBlock();
+            }
+            if (ImGui::MenuItem("Loss Thermal Model Inspector...")) {
+                openThermalModelViewer("");
+            }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Templates")) {
             if (ImGui::MenuItem("Buck Converter")) { loadPresetTemplate("buck_converter"); }
             ImGui::EndMenu();
@@ -722,6 +731,16 @@ void MainWindow::renderControlBar() {
             showComponentPalette = !showComponentPalette;
         }
         if (pushedStyle) ImGui::PopStyleColor();
+        ImGui::SameLine(0, 10);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, isDarkMode ? ImVec4(1.0f, 0.65f, 0.35f, 1.0f) : ImVec4(0.85f, 0.35f, 0.05f, 1.0f));
+        if (ImGui::Button("+ Loss Analysis")) {
+            addLossAnalyzerBlock();
+        }
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Directly add a Thermal & Loss Analysis block (LOSS_ANALYZER) to the schematic");
+        }
         ImGui::SameLine(0, 15);
 
         ImGui::TextDisabled("|");
@@ -1068,6 +1087,9 @@ void MainWindow::renderComponentPalette() {
             { "XOR Gate (XOR)", "XOR", "XOR", ComponentType::LogicOp, "XOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
             { "XNOR Gate (XNOR)", "XNOR", "XNOR", ComponentType::LogicOp, "XNOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
             { "Compare To Constant (COMP_CONST)", "Compare", "COMP_CONST", ComponentType::CompareToConstant, "COMP_CONST", "control", "Logical & Bitwise", {{"operator", "=="}, {"const", "0"}}, false },
+            // Compares two live signals (In1 vs In2) rather than a signal against a
+            // fixed constant. Solver reads the comparison from the "operator" param.
+            { "Relational Operator (RELATIONAL_OPERATOR)", "RelOp", "RELOP", ComponentType::RelationalOp, "RELATIONAL_OPERATOR", "control", "Logical & Bitwise", {{"operator", "<"}}, false },
 
             // Modulators sub-library
             { "PWM Generator (PWM)", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
@@ -1186,16 +1208,22 @@ void MainWindow::renderComponentPalette() {
             // Electrical Domain Custom Machine/Load Models sub-library
             { "Generalized Electrical Block (GEN_EBLOCK)", "Gen E-Block", "GEN_EBLOCK", ComponentType::GenEBlock, "GEN_EBLOCK", "electrical", "Custom Machine/Load Models", {{"terminals", "3"}}, true },
 
-            // ── Magnetic sub-library (permeance-capacitance analogy) ──
+            // ═══════════════ MAGNETIC DOMAIN LIBRARY (permeance-capacitance analogy) ═══════════════
             // MMF <-> node potential, flux rate <-> branch current, permeance <-> capacitance.
-            { "Winding (WINDING)", "Winding", "W", ComponentType::Winding, "WINDING", "electrical", "Magnetic", {{"N", "100"}}, false },
-            { "Magnetic Permeance (MAG_PERMEANCE)", "Permeance", "PM", ComponentType::MagneticPermeance, "MAG_PERMEANCE", "electrical", "Magnetic", {{"P", "1u"}, {"F0", "0"}}, false },
-            { "Linear Core (LINEAR_CORE)", "Core", "CORE", ComponentType::LinearCore, "LINEAR_CORE", "electrical", "Magnetic", {{"A", "1e-4"}, {"l", "0.1"}, {"mu_r", "1000"}, {"F0", "0"}}, false },
-            { "Air Gap (AIR_GAP)", "Air Gap", "GAP", ComponentType::AirGap, "AIR_GAP", "electrical", "Magnetic", {{"A", "1e-4"}, {"l", "1m"}, {"F0", "0"}}, false },
-            { "Leakage Flux Path (LEAKAGE_PATH)", "Leakage", "PLK", ComponentType::LeakageFluxPath, "LEAKAGE_PATH", "electrical", "Magnetic", {{"P", "10n"}, {"F0", "0"}}, false },
-            { "Magnetic Resistance (MAG_RESISTANCE)", "Rm", "RM", ComponentType::MagneticResistance, "MAG_RESISTANCE", "electrical", "Magnetic", {{"Rm", "1M"}}, false },
-            { "MMF Source (MMF_SRC)", "MMF", "FS", ComponentType::MMFSource, "MMF_SRC", "electrical", "Magnetic", {{"F", "100"}}, false },
-            { "MMF Source Controlled (MMF_SRC_CTRL)", "MMF Ctrl", "FSC", ComponentType::MMFSourceControlled, "MMF_SRC_CTRL", "electrical", "Magnetic", {{"gain", "1.0"}}, false },
+            // Kept as its own top-level library because the magnetic domain carries
+            // different physical quantities to the electrical one.
+
+            // Magnetic Sources
+            { "MMF Source (MMF_SRC)", "MMF", "FS", ComponentType::MMFSource, "MMF_SRC", "magnetic", "Sources", {{"F", "100"}}, false },
+            { "MMF Source Controlled (MMF_SRC_CTRL)", "MMF Ctrl", "FSC", ComponentType::MMFSourceControlled, "MMF_SRC_CTRL", "magnetic", "Sources", {{"gain", "1.0"}}, false },
+
+            // Magnetic Components
+            { "Winding (WINDING)", "Winding", "W", ComponentType::Winding, "WINDING", "magnetic", "Components", {{"N", "100"}}, false },
+            { "Magnetic Permeance (MAG_PERMEANCE)", "Permeance", "PM", ComponentType::MagneticPermeance, "MAG_PERMEANCE", "magnetic", "Components", {{"P", "1u"}, {"F0", "0"}}, false },
+            { "Linear Core (LINEAR_CORE)", "Core", "CORE", ComponentType::LinearCore, "LINEAR_CORE", "magnetic", "Components", {{"A", "1e-4"}, {"l", "0.1"}, {"mu_r", "1000"}, {"F0", "0"}}, false },
+            { "Air Gap (AIR_GAP)", "Air Gap", "GAP", ComponentType::AirGap, "AIR_GAP", "magnetic", "Components", {{"A", "1e-4"}, {"l", "1m"}, {"F0", "0"}}, false },
+            { "Leakage Flux Path (LEAKAGE_PATH)", "Leakage", "PLK", ComponentType::LeakageFluxPath, "LEAKAGE_PATH", "magnetic", "Components", {{"P", "10n"}, {"F0", "0"}}, false },
+            { "Magnetic Resistance (MAG_RESISTANCE)", "Rm", "RM", ComponentType::MagneticResistance, "MAG_RESISTANCE", "magnetic", "Components", {{"Rm", "1M"}}, false },
         };
 
         // Helper lambda to render a list of components in a responsive 2-column or 1-column grid
@@ -1227,13 +1255,18 @@ void MainWindow::renderComponentPalette() {
                 std::string textLower = item.buttonText;
                 std::string rawLower = item.rawTypeStr;
                 std::string subcatLower = item.subcategory;
+                // Include the library category so e.g. "magnetic" surfaces every block
+                // in the Magnetic library, not just the ones with it in their name.
+                std::string catLower = item.category;
                 std::transform(textLower.begin(), textLower.end(), textLower.begin(), ::tolower);
                 std::transform(rawLower.begin(), rawLower.end(), rawLower.begin(), ::tolower);
                 std::transform(subcatLower.begin(), subcatLower.end(), subcatLower.begin(), ::tolower);
+                std::transform(catLower.begin(), catLower.end(), catLower.begin(), ::tolower);
 
                 if (textLower.find(searchQuery) != std::string::npos ||
                     rawLower.find(searchQuery) != std::string::npos ||
-                    subcatLower.find(searchQuery) != std::string::npos) {
+                    subcatLower.find(searchQuery) != std::string::npos ||
+                    catLower.find(searchQuery) != std::string::npos) {
                     searchResults.push_back(&item);
                 }
             }
@@ -1279,6 +1312,23 @@ void MainWindow::renderComponentPalette() {
                 renderComponentGrid(basicGeneral);
                 ImGui::Unindent(4.0f);
                 ImGui::PopID();
+            }
+
+            // Magnetic blocks are all advanced, so this section stays hidden unless one
+            // is promoted to the basic set. Rendering it conditionally avoids showing an
+            // empty header while still keeping the basic view complete.
+            {
+                std::vector<const ComponentMeta*> basicMagnetic;
+                for (const auto& item : allComponents) {
+                    if (item.isBasic && std::string(item.category) == "magnetic") basicMagnetic.push_back(&item);
+                }
+                if (!basicMagnetic.empty() && ImGui::CollapsingHeader("[MAG] Magnetic")) {
+                    ImGui::PushID("basic_magnetic");
+                    ImGui::Indent(4.0f);
+                    renderComponentGrid(basicMagnetic);
+                    ImGui::Unindent(4.0f);
+                    ImGui::PopID();
+                }
             }
         }
         else {
@@ -1371,7 +1421,7 @@ void MainWindow::renderComponentPalette() {
                 ImGui::PushID("cat_electrical");
                 ImGui::Indent(8.0f);
                 
-                std::vector<const ComponentMeta*> connect, elecSources, meters, passives, semiSwitches, switches, transformers, machines, electronics, ics, customLoads, magnetic;
+                std::vector<const ComponentMeta*> connect, elecSources, meters, passives, semiSwitches, switches, transformers, machines, electronics, ics, customLoads;
                 for (const auto& item : allComponents) {
                     if (std::string(item.category) == "electrical") {
                         std::string sub = item.subcategory;
@@ -1386,7 +1436,6 @@ void MainWindow::renderComponentPalette() {
                         else if (sub == "Electronics") electronics.push_back(&item);
                         else if (sub == "Integrated Circuits (ICs)") ics.push_back(&item);
                         else if (sub == "Custom Machine/Load Models") customLoads.push_back(&item);
-                        else if (sub == "Magnetic") magnetic.push_back(&item);
                     }
                 }
 
@@ -1401,7 +1450,31 @@ void MainWindow::renderComponentPalette() {
                 renderSubheading("Electronics", electronics);
                 renderSubheading("Integrated Circuits (ICs)", ics);
                 renderSubheading("Custom Machine/Load Models", customLoads);
-                renderSubheading("Magnetic", magnetic);
+
+                ImGui::Unindent(8.0f);
+                ImGui::Spacing();
+                ImGui::PopID();
+            }
+
+            // 4. MAGNETIC BLOCKS (Category: magnetic)
+            // Separate top-level library: the magnetic domain uses MMF and flux rate
+            // rather than voltage and current, so its blocks are not interchangeable
+            // with the electrical ones.
+            if (ImGui::CollapsingHeader("[MAG] Magnetic Blocks")) {
+                ImGui::PushID("cat_magnetic");
+                ImGui::Indent(8.0f);
+
+                std::vector<const ComponentMeta*> magSources, magComponents;
+                for (const auto& item : allComponents) {
+                    if (std::string(item.category) == "magnetic") {
+                        std::string sub = item.subcategory;
+                        if (sub == "Sources") magSources.push_back(&item);
+                        else if (sub == "Components") magComponents.push_back(&item);
+                    }
+                }
+
+                renderSubheading("Sources", magSources);
+                renderSubheading("Components", magComponents);
 
                 ImGui::Unindent(8.0f);
                 ImGui::Spacing();
@@ -2232,7 +2305,7 @@ void MainWindow::renderBatchPropertyInspector(const std::vector<ComponentInstanc
         std::vector<std::string> paramKeys;
         for (const auto& pair : selectedComps[0]->parameters) {
             std::string p = pair.first;
-            if (p == "probe_signal" || p == "plotI" || p == "plotV" || p == "target" || p == "selected_signals" || p == "probe_type" || p == "num_inputs" || p == "num_outputs" || p == "timestep" || p == "code") continue;
+            if (p == "probe_signal" || p == "plotI" || p == "plotV" || p == "target" || p == "selected_signals" || p == "probe_type" || p == "num_inputs" || p == "num_outputs" || p == "timestep" || p == "code" || p == "thermal_model") continue;
             paramKeys.push_back(p);
         }
 
@@ -2285,6 +2358,79 @@ void MainWindow::renderBatchPropertyInspector(const std::vector<ComponentInstanc
                         }
                     }
                 }
+            }
+        }
+
+        // ── BATCH THERMAL & LOSS MODEL (FOR POWER SWITCHES) ──
+        bool allPowerSwitches = true;
+        for (const auto* c : selectedComps) {
+            bool isSw = (c->type == ComponentType::MOSFET || c->type == ComponentType::IGBT ||
+                         c->type == ComponentType::IGBTDiode || c->type == ComponentType::Diode ||
+                         c->type == ComponentType::Thyristor || c->type == ComponentType::GTO ||
+                         c->type == ComponentType::IGCT || c->type == ComponentType::BJT ||
+                         c->type == ComponentType::JFET);
+            if (!isSw) {
+                allPowerSwitches = false;
+                break;
+            }
+        }
+
+        if (allPowerSwitches) {
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Thermal & Loss Model (Batch):");
+            ImGui::SameLine();
+            if (CircuitSimEngine::LossModelLibrary::getInstance().isLoading()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "[Loading (%d)...]", (int)CircuitSimEngine::LossModelLibrary::getInstance().getLoadedCount());
+            } else {
+                if (ImGui::SmallButton("Rescan##batch_switch_models")) {
+                    CircuitSimEngine::LossModelLibrary::getInstance().refreshAsync();
+                }
+            }
+
+            // Check if all selected have the same model assigned
+            bool allSameModel = true;
+            std::string firstModel = selectedComps[0]->parameters.count("thermal_model") 
+                                         ? selectedComps[0]->parameters.at("thermal_model") 
+                                         : "Ideal (No Loss)";
+            for (const auto* c : selectedComps) {
+                std::string m = c->parameters.count("thermal_model") 
+                                    ? c->parameters.at("thermal_model") 
+                                    : "Ideal (No Loss)";
+                if (m != firstModel) {
+                    allSameModel = false;
+                    break;
+                }
+            }
+
+            std::string previewText = allSameModel ? firstModel : "--- (Mixed / Multiple Models) ---";
+            auto models = CircuitSimEngine::LossModelLibrary::getInstance().getAvailableModels();
+
+            if (ImGui::BeginCombo("##batch_thermal_model", previewText.c_str())) {
+                bool isIdealSelected = (allSameModel && firstModel == "Ideal (No Loss)");
+                if (ImGui::Selectable("Ideal (No Loss)", isIdealSelected)) {
+                    for (auto* c : selectedComps) {
+                        c->parameters["thermal_model"] = "Ideal (No Loss)";
+                    }
+                }
+                for (const auto& m : models) {
+                    bool isSelected = (allSameModel && firstModel == m);
+                    if (ImGui::Selectable(m.c_str(), isSelected)) {
+                        for (auto* c : selectedComps) {
+                            c->parameters["thermal_model"] = m;
+                        }
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            if (allSameModel && firstModel != "Ideal (No Loss)" && !firstModel.empty()) {
+                if (ImGui::Button("Inspect Loss Model (JSON / Tables)##batch_view_model", ImVec2(-1, 26))) {
+                    openThermalModelViewer(firstModel);
+                }
+            } else if (!allSameModel) {
+                ImGui::TextDisabled("(Select a single model to inspect tables)");
             }
         }
     }
@@ -2370,6 +2516,17 @@ void MainWindow::renderPropertyInspector() {
     if (t == "LOSS_ANALYZER") {
         ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Thermal & Loss Analysis Settings:");
         
+        auto availModels = CircuitSimEngine::LossModelLibrary::getInstance().getAvailableModels();
+        if (CircuitSimEngine::LossModelLibrary::getInstance().isLoading()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Scanning models in background (%d loaded)...", (int)availModels.size());
+        } else {
+            ImGui::TextDisabled("Models detected: %d", (int)availModels.size());
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Rescan Library##loss_analyzer")) {
+                CircuitSimEngine::LossModelLibrary::getInstance().refreshAsync();
+            }
+        }
+        
         std::string startTime = comp->parameters.count("start_time") ? comp->parameters.at("start_time") : "0.0";
         char stBuf[64] = {0};
         strncpy(stBuf, startTime.c_str(), sizeof(stBuf) - 1);
@@ -2446,6 +2603,14 @@ void MainWindow::renderPropertyInspector() {
     if (isPowerSwitch) {
         ImGui::Spacing();
         ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Thermal & Loss Model:");
+        ImGui::SameLine();
+        if (CircuitSimEngine::LossModelLibrary::getInstance().isLoading()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "[Loading (%d)...]", (int)CircuitSimEngine::LossModelLibrary::getInstance().getLoadedCount());
+        } else {
+            if (ImGui::SmallButton("Rescan##switch_models")) {
+                CircuitSimEngine::LossModelLibrary::getInstance().refreshAsync();
+            }
+        }
 
         auto models = CircuitSimEngine::LossModelLibrary::getInstance().getAvailableModels();
         std::string currentModel = comp->parameters.count("thermal_model") ? comp->parameters.at("thermal_model") : "Ideal (No Loss)";
@@ -2462,6 +2627,12 @@ void MainWindow::renderPropertyInspector() {
                 }
             }
             ImGui::EndCombo();
+        }
+
+        if (currentModel != "Ideal (No Loss)" && !currentModel.empty()) {
+            if (ImGui::Button("Inspect Loss Model (JSON / Tables)##btn_view_model", ImVec2(-1, 26))) {
+                openThermalModelViewer(currentModel);
+            }
         }
     }
 
@@ -2711,6 +2882,36 @@ void MainWindow::calculateLosses(const std::string& compId) {
     );
 }
 
+void MainWindow::addLossAnalyzerBlock() {
+    activeWorkspace = WorkspaceMode::SchematicCAD;
+    ComponentInstance comp;
+    const auto& comps = canvas.getCircuitRef().components;
+    int idx = 1;
+    while (true) {
+        std::string cand = "LOSS_ANALYZER" + std::to_string(idx);
+        bool found = false;
+        for (const auto& c : comps) {
+            if (c.id == cand) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            comp.id = cand;
+            break;
+        }
+        idx++;
+    }
+    comp.label = "Loss Analyzer";
+    comp.type = ComponentType::LossAnalyzer;
+    comp.rawTypeStr = "LOSS_ANALYZER";
+    comp.parameters["start_time"] = "0.0";
+    comp.parameters["duration"] = "0.02";
+    comp.parameters["tj"] = "125.0";
+
+    canvas.addComponent(comp);
+}
+
 void MainWindow::renderLossReportWindow() {
     if (!showLossReportWindow) return;
 
@@ -2733,7 +2934,12 @@ void MainWindow::renderLossReportWindow() {
                 for (const auto& res : lossResults) {
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn(); ImGui::Text("%s", res.componentId.c_str());
-                    ImGui::TableNextColumn(); ImGui::Text("%s", res.modelName.c_str());
+                    ImGui::TableNextColumn(); 
+                    ImGui::Text("%s", res.modelName.c_str());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton(("Inspect##" + res.componentId).c_str())) {
+                        openThermalModelViewer(res.modelName);
+                    }
                     ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_cond);
                     ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_sw_on);
                     ImGui::TableNextColumn(); ImGui::Text("%.3f", res.P_sw_off);
@@ -2763,13 +2969,14 @@ void MainWindow::renderLossReportWindow() {
                 
                 ImPlot::SetupAxisTicks(ImAxis_X1, xs.data(), (int)xs.size(), labels.data());
 
-                ImPlot::PlotBars("P_cond", xs.data(), pcond.data(), (int)xs.size(), 0.5);
-                
-                // For stacked bars, you technically need to sum them.
+                // Stacked bars: Plot total (p2), then partial (p1), then base (pcond)
                 std::vector<double> p1, p2;
-                for(size_t i=0; i<xs.size(); ++i) {
-                    p1.push_back(pcond[i] + psw_on[i]);
-                    p2.push_back(pcond[i] + psw_on[i] + psw_off[i]);
+                for (size_t i = 0; i < xs.size(); ++i) {
+                    double pc = std::max(0.0, pcond[i]);
+                    double p_on = std::max(0.0, psw_on[i]);
+                    double p_off = std::max(0.0, psw_off[i]);
+                    p1.push_back(pc + p_on);
+                    p2.push_back(pc + p_on + p_off);
                 }
                 ImPlot::PlotBars("P_sw_off", xs.data(), p2.data(), (int)xs.size(), 0.5);
                 ImPlot::PlotBars("P_sw_on", xs.data(), p1.data(), (int)xs.size(), 0.5);
@@ -2777,6 +2984,228 @@ void MainWindow::renderLossReportWindow() {
 
                 ImPlot::EndPlot();
             }
+        }
+    }
+    ImGui::End();
+}
+
+void MainWindow::openThermalModelViewer(const std::string& modelKey) {
+    if (!modelKey.empty()) {
+        viewingModelKey = modelKey;
+    }
+    showThermalModelViewer = true;
+}
+
+static void renderModelMetadataTab(const CircuitSimEngine::LossModel& model) {
+    ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "Device Specifications & Parameters:");
+    ImGui::Spacing();
+
+    if (ImGui::BeginTable("##MetaTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+        ImGui::TableSetupColumn("Property / Parameter", ImGuiTableColumnFlags_WidthFixed, 220.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+
+        auto addRow = [](const char* prop, const std::string& val) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(prop);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(val.c_str());
+        };
+
+        addRow("Part Number", model.part_number);
+        addRow("Device Type", model.device_type);
+        addRow("Gate Charge Qg", std::to_string(model.Qg_nC) + " nC");
+        addRow("Leakage Current I_leakage", std::to_string(model.I_leakage_uA) + " uA");
+        addRow("Gate Drive Voltage V_drv", std::to_string(model.V_drv_V) + " V");
+        addRow("File Path", model.filepath);
+
+        for (const auto& kv : model.metadataMap) {
+            if (kv.first != "part_number" && kv.first != "type" && 
+                kv.first != "Qg_nC" && kv.first != "I_leakage_uA" && kv.first != "V_drv_V") {
+                addRow(kv.first.c_str(), kv.second);
+            }
+        }
+
+        ImGui::EndTable();
+    }
+}
+
+static void render3DLossTable(const CircuitSimEngine::Interpolator3D& lut, const char* label) {
+    if (!lut.valid || lut.data.empty() || lut.v_axis.empty() || lut.i_axis.empty() || lut.t_axis.empty()) {
+        ImGui::Spacing();
+        ImGui::TextDisabled("No %s data table available in this JSON model.", label);
+        return;
+    }
+
+    static int selectedV = 0;
+    if (selectedV >= (int)lut.v_axis.size()) selectedV = 0;
+
+    ImGui::Text("Voltage Slice (V_ds):");
+    ImGui::SameLine();
+    for (size_t v = 0; v < lut.v_axis.size(); ++v) {
+        char vbuf[32];
+        snprintf(vbuf, sizeof(vbuf), "%.1f V##%s_%zu", lut.v_axis[v], label, v);
+        if (ImGui::RadioButton(vbuf, selectedV == (int)v)) {
+            selectedV = (int)v;
+        }
+        if (v + 1 < lut.v_axis.size()) ImGui::SameLine();
+    }
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("Values displayed in milliJoules (mJ) at V_ds = %.1f V:", lut.v_axis[selectedV]);
+
+    size_t Ni = lut.i_axis.size();
+    size_t Nt = lut.t_axis.size();
+    int totalCols = (int)Nt + 1;
+
+    std::string tableId = std::string("##3DLossTable_") + label;
+    if (ImGui::BeginTable(tableId.c_str(), totalCols, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable, ImVec2(0, 360))) {
+        ImGui::TableSetupColumn("Current I (A)", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        for (size_t t = 0; t < Nt; ++t) {
+            char tHeader[32];
+            snprintf(tHeader, sizeof(tHeader), "%.1f °C", lut.t_axis[t]);
+            ImGui::TableSetupColumn(tHeader, ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        }
+        ImGui::TableHeadersRow();
+
+        for (size_t i = 0; i < Ni; ++i) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f A", lut.i_axis[i]);
+
+            for (size_t t = 0; t < Nt; ++t) {
+                ImGui::TableNextColumn();
+                size_t idx = selectedV * (Ni * Nt) + i * Nt + t;
+                if (idx < lut.data.size()) {
+                    double val_mJ = lut.data[idx] * 1000.0;
+                    ImGui::Text("%.4f mJ", val_mJ);
+                } else {
+                    ImGui::Text("-");
+                }
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
+static void render2DTable(const CircuitSimEngine::Interpolator2D& lut, const char* title) {
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s:", title);
+    if (!lut.valid || lut.data.empty() || lut.i_axis.empty() || lut.t_axis.empty()) {
+        ImGui::TextDisabled("No table data available.");
+        return;
+    }
+
+    size_t Ni = lut.i_axis.size();
+    size_t Nt = lut.t_axis.size();
+    int totalCols = (int)Nt + 1;
+
+    std::string tableId = std::string("##2DCondTable_") + title;
+    if (ImGui::BeginTable(tableId.c_str(), totalCols, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable, ImVec2(0, 200))) {
+        ImGui::TableSetupColumn("Current I (A)", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        for (size_t t = 0; t < Nt; ++t) {
+            char tHeader[32];
+            snprintf(tHeader, sizeof(tHeader), "%.1f °C", lut.t_axis[t]);
+            ImGui::TableSetupColumn(tHeader, ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        }
+        ImGui::TableHeadersRow();
+
+        for (size_t i = 0; i < Ni; ++i) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f A", lut.i_axis[i]);
+
+            for (size_t t = 0; t < Nt; ++t) {
+                ImGui::TableNextColumn();
+                size_t idx = i * Nt + t;
+                if (idx < lut.data.size()) {
+                    ImGui::Text("%.4f V", lut.data[idx]);
+                } else {
+                    ImGui::Text("-");
+                }
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
+void MainWindow::renderThermalModelViewerModal() {
+    if (!showThermalModelViewer) return;
+
+    ImGui::SetNextWindowSize(ImVec2(850, 600), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Thermal & Loss Model Inspector", &showThermalModelViewer)) {
+        auto availModels = CircuitSimEngine::LossModelLibrary::getInstance().getAvailableModels();
+        bool isLoading = CircuitSimEngine::LossModelLibrary::getInstance().isLoading();
+
+        if (viewingModelKey.empty() && !availModels.empty()) {
+            viewingModelKey = availModels[0];
+        }
+
+        ImGui::Text("Selected Model:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(380.0f);
+        if (ImGui::BeginCombo("##inspect_model_combo", viewingModelKey.c_str())) {
+            for (const auto& m : availModels) {
+                bool isSelected = (viewingModelKey == m);
+                if (ImGui::Selectable(m.c_str(), isSelected)) {
+                    viewingModelKey = m;
+                }
+                if (isSelected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::SameLine();
+        if (isLoading) {
+            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "[Loading (%d)...]", (int)availModels.size());
+        } else {
+            if (ImGui::Button("Rescan Library##insp_rescan")) {
+                CircuitSimEngine::LossModelLibrary::getInstance().refreshAsync();
+            }
+        }
+
+        auto model = CircuitSimEngine::LossModelLibrary::getInstance().getModel(viewingModelKey);
+        if (!model) {
+            if (isLoading) {
+                ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Thermal loss models are currently loading in the background...");
+            } else {
+                ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "Model not found or failed to load: %s", viewingModelKey.c_str());
+            }
+            ImGui::End();
+            return;
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::BeginTabBar("##ThermalModelTabs")) {
+            // ── TAB 1: METADATA ──
+            if (ImGui::BeginTabItem("Metadata")) {
+                renderModelMetadataTab(*model);
+                ImGui::EndTabItem();
+            }
+
+            // ── TAB 2: TURN-ON LOSS ──
+            if (ImGui::BeginTabItem("Turn-On Loss (E_on)")) {
+                render3DLossTable(model->getTurnOnLUT(), "E_on");
+                ImGui::EndTabItem();
+            }
+
+            // ── TAB 3: TURN-OFF LOSS ──
+            if (ImGui::BeginTabItem("Turn-Off Loss (E_off)")) {
+                render3DLossTable(model->getTurnOffLUT(), "E_off");
+                ImGui::EndTabItem();
+            }
+
+            // ── TAB 4: CONDUCTION LOSS ──
+            if (ImGui::BeginTabItem("Conduction Losses (V_drop)")) {
+                render2DTable(model->getCondOnLUT(), "Gate ON (Channel Conduction Voltage Drop)");
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+                render2DTable(model->getCondOffLUT(), "Gate OFF (Body Diode Conduction Voltage Drop)");
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
         }
     }
     ImGui::End();
@@ -2861,6 +3290,7 @@ void MainWindow::render() {
     renderSimParamsModal();
     renderExportOptionsModal();
     renderLossReportWindow();
+    renderThermalModelViewerModal();
 }
 
 void MainWindow::handleScopeOpenRequest() {

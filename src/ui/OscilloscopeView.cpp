@@ -156,9 +156,13 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         return;
     }
     
+    // Grow the cache incrementally instead of deep-copying the whole history each
+    // time the solver publishes.
     uint64_t currentVer = simulator.getTelemetryVersion();
-    if (currentVer != lastTelemetryVer || cachedTelemetry.timeHistory.empty()) {
-        cachedTelemetry = simulator.getTelemetryCopy();
+    uint64_t currentGen = simulator.getTelemetryGeneration();
+    if (currentVer != lastTelemetryVer || currentGen != lastTelemetryGen ||
+        cachedTelemetry.timeHistory.empty()) {
+        cachedCount = simulator.syncTelemetryInto(cachedTelemetry, cachedCount, lastTelemetryGen);
         lastTelemetryVer = currentVer;
     }
     const auto& data = cachedTelemetry;
@@ -385,15 +389,83 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
         }
 
         ImGui::SameLine();
+        if (cursorState.lockDeltaPeriod) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
+            char lkBuf[64];
+            snprintf(lkBuf, sizeof(lkBuf), "Lock Δt (%.0fHz)##cur_osc", cursorState.fundamentalFreq);
+            if (ImGui::Button(lkBuf)) cursorState.lockDeltaPeriod = false;
+            ImGui::PopStyleColor();
+        } else {
+            if (ImGui::Button("Lock Δt (f0)##cur_osc")) {
+                cursorState.lockDeltaPeriod = true;
+                double deltaT = (cursorState.fundamentalFreq > 1e-6) ? ((double)cursorState.numPeriods / cursorState.fundamentalFreq) : 0.02;
+                if (!data.timeHistory.empty()) {
+                    double tMin = data.timeHistory.front();
+                    double tMax = data.timeHistory.back();
+                    cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+                    if (cursorState.cursor2Time > tMax) {
+                        cursorState.cursor2Time = tMax;
+                        cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+                    }
+                }
+            }
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Lock cursor delta Δt to the fundamental period (1/f0).\nDragging one cursor moves both together.");
+        }
+
+        ImGui::SameLine();
         if (cursorState.showHarmonicsWindow) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.20f, 0.80f, 1.0f));
             if (ImGui::Button("Spectrum (FFT)##cur_osc")) cursorState.showHarmonicsWindow = false;
             ImGui::PopStyleColor();
         } else {
-            if (ImGui::Button("Spectrum (FFT)##cur_osc")) cursorState.showHarmonicsWindow = true;
+            if (ImGui::Button("Spectrum (FFT)##cur_osc")) {
+                cursorState.showHarmonicsWindow = true;
+                cursorState.showCursors = true;
+                cursorState.lockDeltaPeriod = true;
+                double deltaT = (cursorState.fundamentalFreq > 1e-6) ? ((double)cursorState.numPeriods / cursorState.fundamentalFreq) : 0.02;
+                if (!data.timeHistory.empty()) {
+                    double tMin = data.timeHistory.front();
+                    double tMax = data.timeHistory.back();
+                    if (!cursorState.initialized || cursorState.cursor2Time > tMax || cursorState.cursor1Time < tMin) {
+                        cursorState.cursor2Time = tMax;
+                        cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+                        cursorState.initialized = true;
+                    } else {
+                        cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+                        if (cursorState.cursor2Time > tMax) {
+                            cursorState.cursor2Time = tMax;
+                            cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+                        }
+                    }
+                }
+            }
         }
     } else {
         if (ImGui::Button("Cursors (||)##cur_osc")) cursorState.showCursors = true;
+        ImGui::SameLine();
+        if (ImGui::Button("Spectrum (FFT)##cur_osc_off")) {
+            cursorState.showHarmonicsWindow = true;
+            cursorState.showCursors = true;
+            cursorState.lockDeltaPeriod = true;
+            double deltaT = (cursorState.fundamentalFreq > 1e-6) ? ((double)cursorState.numPeriods / cursorState.fundamentalFreq) : 0.02;
+            if (!data.timeHistory.empty()) {
+                double tMin = data.timeHistory.front();
+                double tMax = data.timeHistory.back();
+                if (!cursorState.initialized || cursorState.cursor2Time > tMax || cursorState.cursor1Time < tMin) {
+                    cursorState.cursor2Time = tMax;
+                    cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+                    cursorState.initialized = true;
+                } else {
+                    cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+                    if (cursorState.cursor2Time > tMax) {
+                        cursorState.cursor2Time = tMax;
+                        cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+                    }
+                }
+            }
+        }
     }
 
     ImGui::SameLine();
@@ -746,12 +818,20 @@ double OscilloscopeView::interpolateSignal(const std::vector<double>& timeHist, 
 void OscilloscopeView::renderCursorOverlay(int paneIdx, const CircuitSimEngine::TelemetryData& data) {
     if (!cursorState.showCursors || data.timeHistory.empty()) return;
 
+    double tMin = data.timeHistory.front();
+    double tMax = data.timeHistory.back();
+    double span = (tMax > tMin) ? (tMax - tMin) : 1.0;
+    double deltaT = (cursorState.fundamentalFreq > 1e-6) ? ((double)cursorState.numPeriods / cursorState.fundamentalFreq) : 0.02;
+    if (cursorState.lockDeltaPeriod && deltaT > span) deltaT = span;
+
     if (!cursorState.initialized) {
-        double tMin = data.timeHistory.front();
-        double tMax = data.timeHistory.back();
-        double span = (tMax > tMin) ? (tMax - tMin) : 1.0;
-        cursorState.cursor1Time = tMin + 0.20 * span;
-        cursorState.cursor2Time = tMin + 0.80 * span;
+        if (cursorState.lockDeltaPeriod) {
+            cursorState.cursor2Time = tMax;
+            cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+        } else {
+            cursorState.cursor1Time = tMin + 0.20 * span;
+            cursorState.cursor2Time = tMin + 0.80 * span;
+        }
         cursorState.initialized = true;
     }
 
@@ -761,29 +841,54 @@ void OscilloscopeView::renderCursorOverlay(int paneIdx, const CircuitSimEngine::
     bool moved1 = ImPlot::DragLineX(2001, &cursorState.cursor1Time, c1Color, 2.0f);
     bool moved2 = ImPlot::DragLineX(2002, &cursorState.cursor2Time, c2Color, 2.0f);
 
-    if (cursorState.lockBoundary) {
-        if (cursorState.cursor1Time > cursorState.cursor2Time) {
-            if (moved1) cursorState.cursor1Time = cursorState.cursor2Time;
-            else if (moved2) cursorState.cursor2Time = cursorState.cursor1Time;
-            else cursorState.cursor1Time = cursorState.cursor2Time;
+    auto snapVal = [&](double& t) {
+        auto it = std::lower_bound(data.timeHistory.begin(), data.timeHistory.end(), t);
+        if (it != data.timeHistory.end()) {
+            if (it != data.timeHistory.begin()) {
+                auto prev = it - 1;
+                if (std::abs(*prev - t) < std::abs(*it - t)) t = *prev;
+                else t = *it;
+            } else {
+                t = *it;
+            }
         }
-    }
+    };
 
-    if (cursorState.snapToSample && (moved1 || moved2)) {
-        auto snapVal = [&](double& t) {
-            auto it = std::lower_bound(data.timeHistory.begin(), data.timeHistory.end(), t);
-            if (it != data.timeHistory.end()) {
-                if (it != data.timeHistory.begin()) {
-                    auto prev = it - 1;
-                    if (std::abs(*prev - t) < std::abs(*it - t)) t = *prev;
-                    else t = *it;
-                } else {
-                    t = *it;
+    if (cursorState.lockDeltaPeriod) {
+        if (moved1 && !moved2) {
+            if (cursorState.snapToSample) snapVal(cursorState.cursor1Time);
+            if (cursorState.cursor1Time < tMin) cursorState.cursor1Time = tMin;
+            if (cursorState.cursor1Time > tMax - deltaT) cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+            cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+        } else if (moved2 && !moved1) {
+            if (cursorState.snapToSample) snapVal(cursorState.cursor2Time);
+            if (cursorState.cursor2Time > tMax) cursorState.cursor2Time = tMax;
+            if (cursorState.cursor2Time < tMin + deltaT) cursorState.cursor2Time = std::min(tMax, tMin + deltaT);
+            cursorState.cursor1Time = cursorState.cursor2Time - deltaT;
+        } else if (moved1 && moved2) {
+            cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+        } else {
+            // Neither dragged this frame: enforce deltaT spacing if out of sync
+            if (std::abs((cursorState.cursor2Time - cursorState.cursor1Time) - deltaT) > 1e-9) {
+                cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+                if (cursorState.cursor2Time > tMax) {
+                    cursorState.cursor2Time = tMax;
+                    cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
                 }
             }
-        };
-        if (moved1) snapVal(cursorState.cursor1Time);
-        if (moved2) snapVal(cursorState.cursor2Time);
+        }
+    } else {
+        if (cursorState.lockBoundary) {
+            if (cursorState.cursor1Time > cursorState.cursor2Time) {
+                if (moved1) cursorState.cursor1Time = cursorState.cursor2Time;
+                else if (moved2) cursorState.cursor2Time = cursorState.cursor1Time;
+                else cursorState.cursor1Time = cursorState.cursor2Time;
+            }
+        }
+        if (cursorState.snapToSample && (moved1 || moved2)) {
+            if (moved1) snapVal(cursorState.cursor1Time);
+            if (moved2) snapVal(cursorState.cursor2Time);
+        }
     }
 
     // Render badge labels "I" and "II"
@@ -843,7 +948,11 @@ void OscilloscopeView::renderDataPanel(const CircuitSimEngine::TelemetryData& da
         ImGui::TableSetColumnIndex(2);
         ImGui::Text("%.6f", t2);
         ImGui::TableSetColumnIndex(3);
-        ImGui::Text("%.6f", dt);
+        if (cursorState.lockDeltaPeriod) {
+            ImGui::Text("%.6f (L)", dt);
+        } else {
+            ImGui::Text("%.6f", dt);
+        }
         ImGui::TableSetColumnIndex(4);
         if (freq > 0.0) {
             if (freq >= 1e6) ImGui::Text("%.3f MHz", freq / 1e6);
@@ -933,17 +1042,80 @@ void OscilloscopeView::renderHarmonicsWindow(const CircuitSimEngine::TelemetryDa
     };
     const auto& palette = isDarkMode ? DARK_MODE_COLORS : LIGHT_MODE_COLORS;
 
-    double f0 = (std::abs(t2 - t1) > 1e-12) ? (1.0 / std::abs(t2 - t1)) : 0.0;
-    ImGui::TextColored(ImVec4(0.00f, 0.90f, 1.00f, 1.00f), "Fundamental-Aligned Fourier Spectrum");
+    ImGui::TextColored(ImVec4(0.00f, 0.90f, 1.00f, 1.00f), "Harmonic Spectrum (FFT / DFT)");
     ImGui::SameLine();
-    ImGui::TextDisabled("| f0 = %.2f Hz (T = %.6fs)", f0, std::abs(t2 - t1));
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    if (ImGui::Checkbox("Lock Δt (Period)##lockDelta_osc", &cursorState.lockDeltaPeriod)) {
+        if (cursorState.lockDeltaPeriod) {
+            cursorState.showCursors = true;
+            double deltaT = (cursorState.fundamentalFreq > 1e-6) ? ((double)cursorState.numPeriods / cursorState.fundamentalFreq) : 0.02;
+            double tMin = data.timeHistory.front();
+            double tMax = data.timeHistory.back();
+            if (cursorState.cursor1Time + deltaT <= tMax) {
+                cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+            } else {
+                cursorState.cursor2Time = tMax;
+                cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+            }
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Lock cursors delta-t strictly to the fundamental period (T = N_cycles / f0).\nDragging either cursor will slide both together.");
+    }
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90.0f);
+    if (ImGui::InputDouble("f0 (Hz)##f0_osc", &cursorState.fundamentalFreq, 1.0, 10.0, "%.2f")) {
+        if (cursorState.fundamentalFreq < 0.001) cursorState.fundamentalFreq = 0.001;
+        if (cursorState.lockDeltaPeriod) {
+            double deltaT = (double)cursorState.numPeriods / cursorState.fundamentalFreq;
+            double tMin = data.timeHistory.front();
+            double tMax = data.timeHistory.back();
+            cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+            if (cursorState.cursor2Time > tMax) {
+                cursorState.cursor2Time = tMax;
+                cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+            }
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Fundamental / Modulation Frequency in Hz (e.g., 50 Hz -> 0.02s, 40 Hz -> 0.025s).\nControls cursor delta-t.");
+    }
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(55.0f);
+    if (ImGui::InputInt("Cycles##numCyc_osc", &cursorState.numPeriods, 1, 1)) {
+        if (cursorState.numPeriods < 1) cursorState.numPeriods = 1;
+        if (cursorState.numPeriods > 100) cursorState.numPeriods = 100;
+        if (cursorState.lockDeltaPeriod) {
+            double deltaT = (double)cursorState.numPeriods / cursorState.fundamentalFreq;
+            double tMin = data.timeHistory.front();
+            double tMax = data.timeHistory.back();
+            cursorState.cursor2Time = cursorState.cursor1Time + deltaT;
+            if (cursorState.cursor2Time > tMax) {
+                cursorState.cursor2Time = tMax;
+                cursorState.cursor1Time = std::max(tMin, tMax - deltaT);
+            }
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Number of fundamental periods between cursors (default: 1)");
+    }
+
+    double currentDt = std::abs(t2 - t1);
+    double actualF0 = (currentDt > 1e-12) ? (1.0 / currentDt) : 0.0;
+
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.4f, 1.0f), "[Δt=%.5gs, f=%.2fHz]", currentDt, actualF0);
 
     ImGui::SameLine();
     ImGui::TextDisabled("|");
     ImGui::SameLine();
 
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputInt("Max Harmonics (N)##maxH_osc", &cursorState.maxHarmonics, 10, 100);
+    ImGui::SetNextItemWidth(90.0f);
+    ImGui::InputInt("Max Order (N)##maxH_osc", &cursorState.maxHarmonics, 10, 100);
     if (cursorState.maxHarmonics < 5) cursorState.maxHarmonics = 5;
     if (cursorState.maxHarmonics > 2000) cursorState.maxHarmonics = 2000;
 

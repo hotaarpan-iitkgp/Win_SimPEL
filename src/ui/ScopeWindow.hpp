@@ -47,6 +47,9 @@ struct ScopeCursorState {
     bool lockBoundary = true;
     bool showHarmonicsWindow = false;
     int maxHarmonics = 50;
+    bool lockDeltaPeriod = false;
+    double fundamentalFreq = 50.0;
+    int numPeriods = 1;
 };
 
 // A standalone PLECS/MATLAB-style scope popup window.
@@ -89,6 +92,12 @@ private:
     // Signal keys and labels for each input channel
     std::vector<std::string> channelSignalKeys;
     std::vector<std::string> channelLabels;
+
+    // Cached telemetry, grown incrementally as the solver publishes new samples.
+    CircuitSimEngine::TelemetryData cachedTelemetry;
+    uint64_t lastTelemetryVer = (uint64_t)-1;
+    uint64_t lastTelemetryGen = (uint64_t)-1;  // forces a full sync on first use
+    size_t cachedCount = 0;
 
     // Current displayed plot time view bounds (for view-bound SVG export)
     double viewTimeMin = -1.0;

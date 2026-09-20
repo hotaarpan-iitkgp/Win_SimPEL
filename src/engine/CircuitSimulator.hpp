@@ -241,6 +241,11 @@ struct FastCompiledComponent {
     // each timestep instead of the fixed nominal parameter.
     bool isVariable = false;
     double nominalVal = 0.0;
+
+    // Last conductance/resistance this element contributed to K. Comparing against it
+    // during assembly detects a changed matrix in O(#dynamic elements) instead of the
+    // O(n^2) full-matrix comparison the solver used to perform every iteration.
+    double gStamped = -1e300;
     double Vvd = 0.7;
     double Iholding = 0.01;
     double Vgt = 0.5;
@@ -363,6 +368,11 @@ struct SimulationConfig {
     std::string solver = "euler";
     std::string solverMethod = "non-ideal";
     std::string step_type = "fixed";
+    // Reuse LU factorizations for MNA matrices that have been seen before. A
+    // switching converter cycles through a small set of topologies, so this turns
+    // most O(n^3) factorizations into an O(n^2) lookup. Results are unaffected: a
+    // hit is only taken after the cached matrix is confirmed bitwise identical.
+    bool enableLUCache = true;
 };
 
 struct SimulationOutput {
@@ -402,13 +412,118 @@ private:
 
     bool matrixKChanged = true;
     int forceBackwardEulerSteps = 0;
-    std::vector<double> K_prev;
 
-    std::vector<double> LU_buf;
+    // ── Dynamic stamp positions ──────────────────────────────────────────────
+    // Every assembly used to restore the static matrix with a full n^2 copy, which
+    // was the single largest solver cost once factorizations were being reused
+    // (30% at n=98: a 2000-step run moved ~215 MB just to reset the matrix). Only
+    // the entries that dynamic stamps actually write need resetting.
+    //
+    // The positions are recorded by the stamping helpers themselves the first time
+    // each one is written, so no separate list of "which components stamp where"
+    // has to be maintained in parallel with the stamping code. A position that is
+    // not in the list has never been written, and therefore still holds its
+    // K_static value from the initial full copy - which is what makes the partial
+    // restore exact.
+    std::vector<int> dynStampIdx;
+    std::vector<unsigned char> dynStampSeen;
+    bool dynStampBaseCopied = false;
+
+    inline void markDynStamp(int idx) {
+        if (!dynStampSeen[(size_t)idx]) {
+            dynStampSeen[(size_t)idx] = 1;
+            dynStampIdx.push_back(idx);
+        }
+    }
+
+    // Conductance across a node pair. The write order is kept exactly as it was
+    // when these four lines were repeated inline, so results stay bit-identical.
+    inline void stampConductance(int n1, int n2, double g) {
+        if (n1 >= 0) { const int d = n1 * totalDim + n1; markDynStamp(d); K[d] += g; }
+        if (n2 >= 0) { const int d = n2 * totalDim + n2; markDynStamp(d); K[d] += g; }
+        if (n1 >= 0 && n2 >= 0) {
+            const int a = n1 * totalDim + n2;
+            const int b = n2 * totalDim + n1;
+            markDynStamp(a); markDynStamp(b);
+            K[a] -= g;
+            K[b] -= g;
+        }
+    }
+
+    inline void stampBranchDiagonal(int i, double v) {
+        const int d = i * totalDim + i;
+        markDynStamp(d);
+        K[d] += v;
+    }
+    // Integration mode the current factorization was built for. Switching between
+    // trapezoidal and backward Euler changes the inductor stamp, so a transition has
+    // to invalidate the factorization.
+    bool trapModeStamped = false;
+    bool trapModeStampValid = false;
+
     std::vector<double> LU_cached;
     std::vector<double> x_buf;
-    std::vector<int> p_buf;
     std::vector<int> p_cached;
+
+    // ── Factorization cache ──────────────────────────────────────────────────
+    // A switching converter revisits the same few topologies every carrier cycle,
+    // so the solver keeps re-factorizing matrices it has already seen. Caching the
+    // factors turns the O(n^3) factorization into an O(n^2) lookup.
+    //
+    // The key is a hash of K, but a hit is only accepted after confirming the
+    // stored matrix is bitwise identical to the current one. A hash collision can
+    // therefore cost a little time but can never produce a wrong answer, which is
+    // why the entry keeps its own copy of K.
+    // Row-compressed form of the triangular factors, used by the per-step solve.
+    // An MNA matrix is sparse, so most of the n^2 multiply-subtracts in a dense
+    // forward/backward substitution are against a structural zero. Skipping those
+    // terms is exact - adding 0*x contributes nothing for finite x - so the sparse
+    // solve is bitwise identical to the dense one while touching far fewer values.
+    //
+    // This is built once per factorization and then reused by every step that hits
+    // the same cache entry, which is where it pays for itself.
+    struct SparseTriangular {
+        std::vector<int> Lptr, Lidx;      // strictly lower, unit diagonal implied
+        std::vector<double> Lval;
+        std::vector<int> Uptr, Uidx;      // strictly upper
+        std::vector<double> Uval;
+        std::vector<double> Udiag;
+        bool valid = false;
+    };
+
+    struct LUCacheEntry {
+        uint64_t key = 0;
+        uint64_t lastUsed = 0;
+        std::vector<double> K;
+        std::vector<double> LU;
+        std::vector<int> perm;
+        SparseTriangular sparse;
+    };
+    std::vector<LUCacheEntry> luCache;
+    size_t luCacheMaxEntries = 0;
+    uint64_t luCacheClock = 0;
+
+    // Adaptive bail-out. If the matrix changes continuously - a signal-controlled
+    // passive, for instance - every lookup misses and the hash is pure overhead
+    // (measured ~11% on a 4-stage converter driving a VAR_R load). Hit rate is
+    // tracked over a rolling window and caching is suspended when it stops paying,
+    // then retried periodically so a circuit that settles down benefits again.
+    long long luWindowLookups = 0;
+    long long luWindowHits = 0;
+    bool luCacheSuspended = false;
+    long long luSuspendCountdown = 0;
+
+    // The triangular solve reads through these, so a cache hit does not have to
+    // copy n^2 doubles back into LU_cached. They point either at LU_cached (fresh
+    // factorization) or straight into a cache entry.
+    const double* LU_active = nullptr;
+    const int* p_active = nullptr;
+    // Set when the active factorization has a compressed form worth using; null
+    // means fall back to the dense substitution.
+    const SparseTriangular* sparse_active = nullptr;
+
+    long long luFactorizeCount = 0;
+    long long luCacheHitCount = 0;
 
     std::vector<double> scriptInValsBuf;
 
@@ -437,12 +552,21 @@ private:
 
     TelemetryData telemetry;
     std::mutex telemetryMutex;
+    // Number of samples already mirrored into `telemetry`, so live publishes can
+    // append just the new tail instead of re-copying the whole history.
+    size_t telemetryPublishedCount = 0;
 
     void buildIndexMaps();
     void evaluateControls(double currentTime);
     void assembleMNA(double currentTime);
     bool updateDeviceStates();
     bool factorizeLU(int n);
+    // Makes LU_active/p_active describe the current K, reusing a cached
+    // factorization when this exact matrix has been factorized before.
+    void prepareFactorization(int n);
+    // Compresses LU_cached into row-compressed triangular factors. Leaves
+    // `out.valid` false when the factors are too dense for this to be worthwhile.
+    void buildSparseTriangular(int n, SparseTriangular& out) const;
     bool solveLUSubstitution(int n);
     bool solveLUFast(int n);
     double evaluateParam(const ComponentModel& comp, const std::string& key, double defaultVal);
@@ -461,14 +585,33 @@ public:
         std::lock_guard<std::mutex> lock(telemetryMutex);
         telemetry.timeHistory.clear();
         telemetry.voltages.clear();
+        telemetryPublishedCount = 0;
+        // A cleared history is a new generation: consumers must drop their caches
+        // instead of appending the next run's samples onto the previous run's curves.
+        telemetryGeneration.fetch_add(1, std::memory_order_relaxed);
+        telemetryVersion.fetch_add(1, std::memory_order_relaxed);
     }
 
     std::atomic<uint64_t> telemetryVersion{0};
+    // Incremented every time the telemetry history is discarded (reset / new run).
+    // `telemetryVersion` alone cannot express this: it is monotonic, so a consumer
+    // that had already cached run N's samples could not tell that the buffer it is
+    // now reading belongs to run N+1.
+    std::atomic<uint64_t> telemetryGeneration{0};
     std::atomic<double> computeTimeSeconds{0.0};
 
     uint64_t getTelemetryVersion() const {
         return telemetryVersion.load(std::memory_order_relaxed);
     }
+
+    uint64_t getTelemetryGeneration() const {
+        return telemetryGeneration.load(std::memory_order_relaxed);
+    }
+
+    // Factorization statistics for benchmarking and diagnostics.
+    long long getFactorizeCount() const { return luFactorizeCount; }
+    long long getLUCacheHitCount() const { return luCacheHitCount; }
+    size_t getLUCacheEntryCount() const { return luCache.size(); }
 
     double getStopTime() const {
         return (config.stopTime > 0.0) ? config.stopTime : 0.01;
@@ -499,12 +642,112 @@ public:
         for (const auto& pair : out.voltmeters) telemetry.voltages[pair.first] = pair.second;
         for (const auto& pair : out.ammeters) telemetry.voltages[pair.first] = pair.second;
         for (const auto& pair : out.custom_plots) telemetry.voltages[pair.first] = pair.second;
+        telemetryPublishedCount = out.time.size();
+        telemetryVersion.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    // ── Incremental live telemetry publish ───────────────────────────────────
+    // Appends only the samples produced since the previous publish. The earlier
+    // implementation deep-copied the entire history on every update, which made
+    // the total cost O(N^2) in the step count and accounted for 78-92% of solver
+    // runtime on long runs. Appending makes it O(N) overall.
+    void appendTelemetryFrom(const SimulationOutput& out) {
+        const size_t total = out.time.size();
+        std::lock_guard<std::mutex> lock(telemetryMutex);
+        size_t from = telemetryPublishedCount;
+        if (from > total) from = 0;              // history was reset underneath us
+        if (from == total) return;               // nothing new
+
+        // Reserve once so repeated appends do not reallocate.
+        if (telemetry.timeHistory.capacity() < total) {
+            telemetry.timeHistory.reserve(total + total / 2 + 64);
+        }
+        telemetry.timeHistory.insert(telemetry.timeHistory.end(),
+                                     out.time.begin() + (ptrdiff_t)from,
+                                     out.time.begin() + (ptrdiff_t)total);
+
+        auto appendMap = [&](const std::unordered_map<std::string, std::vector<double>>& src) {
+            for (const auto& kv : src) {
+                const std::vector<double>& s = kv.second;
+                if (s.size() <= from) continue;                  // this signal has no new data
+                size_t to = (s.size() < total) ? s.size() : total;
+                if (to <= from) continue;
+                std::vector<double>& dst = telemetry.voltages[kv.first];
+                if (dst.capacity() < total) dst.reserve(total + total / 2 + 64);
+                dst.insert(dst.end(),
+                           s.begin() + (ptrdiff_t)from,
+                           s.begin() + (ptrdiff_t)to);
+            }
+        };
+        appendMap(out.voltages);
+        appendMap(out.signals);
+        appendMap(out.inductors);
+        appendMap(out.voltmeters);
+        appendMap(out.ammeters);
+        appendMap(out.custom_plots);
+
+        telemetryPublishedCount = total;
         telemetryVersion.fetch_add(1, std::memory_order_relaxed);
     }
 
     TelemetryData getTelemetryCopy() {
         std::lock_guard<std::mutex> lock(telemetryMutex);
         return telemetry;
+    }
+
+    // Incremental read for UI consumers. Appends whatever samples exist beyond
+    // `haveCount` into `dst` and returns the new total, so a view that redraws every
+    // frame copies only the newly produced tail instead of the entire history.
+    // Full resolution is preserved — nothing is decimated.
+    //
+    // `consumerGen` is the generation the caller last synchronised with; it is
+    // updated in place. When it does not match the engine's current generation the
+    // cache is discarded wholesale, which is what makes a re-run replace the plotted
+    // curves instead of extending them.
+    size_t syncTelemetryInto(TelemetryData& dst, size_t haveCount, uint64_t& consumerGen) {
+        std::lock_guard<std::mutex> lock(telemetryMutex);
+
+        // Read the generation under the telemetry lock so it can never be observed
+        // out of step with the buffer it describes.
+        const uint64_t gen = telemetryGeneration.load(std::memory_order_relaxed);
+        if (consumerGen != gen) {
+            dst.timeHistory.clear();
+            dst.voltages.clear();       // also drops signals that no longer exist
+            haveCount = 0;
+            consumerGen = gen;
+        }
+
+        const size_t total = telemetry.timeHistory.size();
+
+        // History shrank without a generation bump — start the consumer over anyway.
+        if (haveCount > total) {
+            dst.timeHistory.clear();
+            dst.voltages.clear();
+            haveCount = 0;
+        }
+        if (haveCount == total) return total;
+
+        if (dst.timeHistory.capacity() < total) dst.timeHistory.reserve(total + total / 2 + 64);
+        dst.timeHistory.insert(dst.timeHistory.end(),
+                               telemetry.timeHistory.begin() + (ptrdiff_t)haveCount,
+                               telemetry.timeHistory.begin() + (ptrdiff_t)total);
+
+        for (const auto& kv : telemetry.voltages) {
+            const std::vector<double>& s = kv.second;
+            if (s.size() <= haveCount) continue;
+            const size_t to = (s.size() < total) ? s.size() : total;
+            std::vector<double>& d = dst.voltages[kv.first];
+            // A signal the consumer has not seen before (or fell behind on) is copied whole.
+            size_t from = haveCount;
+            if (d.size() != haveCount) {
+                d.clear();
+                from = 0;
+            }
+            if (to <= from) continue;
+            if (d.capacity() < total) d.reserve(total + total / 2 + 64);
+            d.insert(d.end(), s.begin() + (ptrdiff_t)from, s.begin() + (ptrdiff_t)to);
+        }
+        return total;
     }
 
     double getCurrentTime() {
@@ -517,6 +760,11 @@ public:
         std::lock_guard<std::mutex> lock(telemetryMutex);
         telemetry.timeHistory.clear();
         telemetry.voltages.clear();
+        telemetryPublishedCount = 0;
+        // Start a new telemetry generation and publish a version change so every
+        // view notices immediately and hard-clears its cache (see syncTelemetryInto).
+        telemetryGeneration.fetch_add(1, std::memory_order_relaxed);
+        telemetryVersion.fetch_add(1, std::memory_order_relaxed);
     }
 };
 

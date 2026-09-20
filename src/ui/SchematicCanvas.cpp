@@ -1054,8 +1054,16 @@ void SchematicCanvas::addComponent(const ComponentInstance& comp) {
     if (hasLastClickPos) {
         newComp.x = lastCanvasClickWorldPos.x;
         newComp.y = lastCanvasClickWorldPos.y;
+    } else {
+        float cx = (lastRenderedCanvasSize.x * 0.5f) / zoomLevel - panOffset.x;
+        float cy = (lastRenderedCanvasSize.y * 0.5f) / zoomLevel - panOffset.y;
+        newComp.x = std::round(cx / 20.0f) * 20.0f;
+        newComp.y = std::round(cy / 20.0f) * 20.0f;
     }
     
+    selectedComponentIds.clear();
+    selectedComponentIds.insert(newComp.id);
+
     design.components.push_back(newComp);
 }
 

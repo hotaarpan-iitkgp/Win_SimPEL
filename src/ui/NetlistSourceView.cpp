@@ -2275,7 +2275,14 @@ void NetlistSourceView::render(const char* title, CircuitDesign& design, Circuit
 
     ImGui::Spacing();
 
-    CircuitSimEngine::TelemetryData data = simulator.getTelemetryCopy();
+    // Incremental refresh; see ScopeWindow for rationale.
+    uint64_t curTelemetryVer = simulator.getTelemetryVersion();
+    uint64_t curTelemetryGen = simulator.getTelemetryGeneration();
+    if (curTelemetryVer != lastTelemetryVer || curTelemetryGen != lastTelemetryGen) {
+        cachedCount = simulator.syncTelemetryInto(cachedTelemetry, cachedCount, lastTelemetryGen);
+        lastTelemetryVer = curTelemetryVer;
+    }
+    const CircuitSimEngine::TelemetryData& data = cachedTelemetry;
     if (data.timeHistory.empty()) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No simulation telemetry data. Click PLAY or Start Simulation (Ctrl+T) to plot waveforms.");
     } else {

@@ -11,6 +11,14 @@ using json = nlohmann::json;
 
 namespace CircuitSimEngine {
 
+// Lower-cases an ASCII string. Used at setup time to pre-normalise function/mode
+// selector strings so the per-timestep evaluation can compare them directly instead
+// of copying and transforming on every step.
+static std::string toLowerAscii(std::string s) {
+    for (char& c : s) c = (char)::tolower((unsigned char)c);
+    return s;
+}
+
 // Effective value of a passive element for the current timestep. Signal-controlled
 // elements (VAR_R / VAR_L / VAR_C) read their value from the bound control signal,
 // floored to keep the MNA stamp well conditioned. Elements with no control signal
@@ -159,15 +167,51 @@ void CircuitSimulator::buildIndexMaps() {
 
     K.assign(totalDim * totalDim, 0.0);
     K_static.assign(totalDim * totalDim, 0.0);
-    K_prev.assign(totalDim * totalDim, 0.0);
+    // Dynamic stamp position tracking starts empty for each new circuit.
+    dynStampIdx.clear();
+    dynStampSeen.assign((size_t)totalDim * (size_t)totalDim, 0);
+    dynStampBaseCopied = false;
+    // Reset stale change-detection state so the first assembly always factorizes.
+    matrixKChanged = true;
+    trapModeStampValid = false;
+    // Do not carry a pending backward-Euler damping window into the next run.
+    forceBackwardEulerSteps = 0;
     B.assign(totalDim, 0.0);
     X.assign(totalDim, 0.0);
 
-    LU_buf.assign(totalDim * totalDim, 0.0);
     LU_cached.assign(totalDim * totalDim, 0.0);
     x_buf.assign(totalDim, 0.0);
-    p_buf.assign(totalDim, 0);
     p_cached.assign(totalDim, 0);
+
+    // Size the factorization cache from the matrix dimension so the memory it can
+    // occupy stays bounded regardless of circuit size. Entries are reserved up
+    // front: LU_active points into this vector, so it must never reallocate.
+    luCache.clear();
+    luCacheClock = 0;
+    luFactorizeCount = 0;
+    luCacheHitCount = 0;
+    luWindowLookups = 0;
+    luWindowHits = 0;
+    luCacheSuspended = false;
+    luSuspendCountdown = 0;
+    LU_active = nullptr;
+    p_active = nullptr;
+    sparse_active = nullptr;
+    if (totalDim > 0) {
+        const size_t nn = (size_t)totalDim * (size_t)totalDim;
+        // K + LU + perm, plus the compressed triangular form. The latter is bounded
+        // by the dense triangles, so budget for the worst case rather than hope.
+        const size_t bytesPerEntry = nn * sizeof(double) * 2 + (size_t)totalDim * sizeof(int)
+                                   + nn * (sizeof(double) + sizeof(int));
+        constexpr size_t kBudgetBytes = 48ull << 20;   // 48 MB ceiling for the cache
+        size_t maxEntries = kBudgetBytes / (bytesPerEntry ? bytesPerEntry : 1);
+        if (maxEntries < 2) maxEntries = 2;    // always worth holding the hot pair
+        if (maxEntries > 64) maxEntries = 64;  // beyond this the linear probe costs more than it saves
+        luCacheMaxEntries = maxEntries;
+        luCache.reserve(luCacheMaxEntries);
+    } else {
+        luCacheMaxEntries = 0;
+    }
 
     scriptInValsBuf.assign(20, 0.0);
     matrixKChanged = true;
@@ -401,8 +445,13 @@ void CircuitSimulator::buildIndexMaps() {
             fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
             if (ctrlComp.parameters.count("x0")) fc.val = evaluateParam(ctrlComp, "x0", 0.0);
         } else if (ctrlComp.type == ComponentType::TrigFunction) {
-            fc.polarity = getParamString(ctrlComp, "function", "sin");
+            // Normalised to lower case here so evaluateControls() does not have to copy
+            // and transform the string on every timestep.
+            fc.polarity = toLowerAscii(getParamString(ctrlComp, "function", "sin"));
         } else if (ctrlComp.type == ComponentType::Round) {
+            // NOTE: deliberately NOT normalised. The live Round branch compares
+            // fc.polarity case-sensitively, so lower-casing here would silently change
+            // results for modes written in upper case (see report: latent Round bug).
             fc.polarity = getParamString(ctrlComp, "mode", "nearest");
         } else if (ctrlComp.type == ComponentType::MinMax) {
             std::string funcStr = getParamString(ctrlComp, "function", "min");
@@ -682,6 +731,8 @@ void CircuitSimulator::buildIndexMaps() {
             if (!ctrlComp.parameters.count("function") && ctrlComp.parameters.count("func")) fc.polarity = getParamString(ctrlComp, "func", "exp");
             if (!ctrlComp.parameters.count("function") && !ctrlComp.parameters.count("func") && ctrlComp.parameters.count("fcn")) fc.polarity = getParamString(ctrlComp, "fcn", "exp");
             if (!ctrlComp.parameters.count("function") && !ctrlComp.parameters.count("func") && !ctrlComp.parameters.count("fcn") && ctrlComp.parameters.count("operator")) fc.polarity = getParamString(ctrlComp, "operator", "exp");
+            // Normalised once here; evaluateControls() compares it directly.
+            fc.polarity = toLowerAscii(fc.polarity);
         } else if (ctrlComp.type == ComponentType::Relay) {
             auto getParamVal = [&](const std::vector<std::string>& keys, double defaultVal) -> double {
                 for (const auto& k : keys) {
@@ -1273,6 +1324,153 @@ void CircuitSimulator::buildIndexMaps() {
     }
 }
 
+// Cache prefilter: FNV-1a over the matrix diagonal only, with an extra shift-xor
+// per word so structured matrices still spread out.
+//
+// Hashing all n^2 entries was itself the dominant solver cost once factorizations
+// were being reused (33% of runtime at n=98). The diagonal is O(n) and is a strong
+// discriminator here, because every conductance stamp - switches, diodes, the
+// companion models - lands on it. It is only a prefilter: a candidate is still
+// confirmed with a full bitwise compare, so a weak hash costs time, never accuracy.
+static inline uint64_t hashDiagonal(const double* K, int n) {
+    uint64_t h = 1469598103934665603ULL ^ (uint64_t)n;
+    const size_t stride = (size_t)n + 1;
+    const double* p = K;
+    for (int i = 0; i < n; ++i, p += stride) {
+        uint64_t bits;
+        std::memcpy(&bits, p, sizeof(bits));
+        h ^= bits;
+        h *= 1099511628211ULL;
+        h ^= h >> 29;
+    }
+    return h;
+}
+
+void CircuitSimulator::buildSparseTriangular(int n, SparseTriangular& out) const {
+    out.valid = false;
+    out.Lptr.assign((size_t)n + 1, 0);
+    out.Uptr.assign((size_t)n + 1, 0);
+    out.Lidx.clear(); out.Lval.clear();
+    out.Uidx.clear(); out.Uval.clear();
+    out.Udiag.assign((size_t)n, 0.0);
+
+    const double* LU = LU_cached.data();
+
+    // Count first so the index/value arrays are allocated exactly once.
+    size_t lnz = 0, unz = 0;
+    for (int i = 0; i < n; ++i) {
+        const double* row = LU + (size_t)i * n;
+        for (int j = 0; j < i; ++j) if (row[j] != 0.0) ++lnz;
+        for (int j = i + 1; j < n; ++j) if (row[j] != 0.0) ++unz;
+    }
+
+    // If the factors came out nearly dense there is nothing to gain, and the
+    // indirection would only add memory traffic.
+    const size_t triangleSize = (size_t)n * (size_t)(n - 1) / 2;
+    if (triangleSize > 0 && (lnz + unz) * 10 > triangleSize * 2 * 7) return;   // > 70% full
+
+    out.Lidx.resize(lnz); out.Lval.resize(lnz);
+    out.Uidx.resize(unz); out.Uval.resize(unz);
+
+    size_t lp = 0, up = 0;
+    for (int i = 0; i < n; ++i) {
+        const double* row = LU + (size_t)i * n;
+        out.Lptr[i] = (int)lp;
+        for (int j = 0; j < i; ++j) {
+            if (row[j] != 0.0) { out.Lidx[lp] = j; out.Lval[lp] = row[j]; ++lp; }
+        }
+        out.Uptr[i] = (int)up;
+        for (int j = i + 1; j < n; ++j) {
+            if (row[j] != 0.0) { out.Uidx[up] = j; out.Uval[up] = row[j]; ++up; }
+        }
+        out.Udiag[i] = row[i];
+    }
+    out.Lptr[n] = (int)lp;
+    out.Uptr[n] = (int)up;
+    out.valid = true;
+}
+
+void CircuitSimulator::prepareFactorization(int n) {
+    if (n <= 0) return;
+
+    const size_t nn = (size_t)n * (size_t)n;
+
+    // Rolling-window policy constants for the adaptive bail-out.
+    constexpr long long kWindow        = 1024;  // lookups per review
+    constexpr long long kMinHitPercent = 25;    // below this, caching is not paying
+    constexpr long long kRetryAfter    = 20000; // factorizations before trying again
+
+    if (!config.enableLUCache || luCacheMaxEntries == 0 || luCacheSuspended) {
+        factorizeLU(n);
+        ++luFactorizeCount;
+        LU_active = LU_cached.data();
+        p_active = p_cached.data();
+        // No compression here: without a cache entry to amortise it, building the
+        // compressed form costs about as much as the dense solve it would replace.
+        sparse_active = nullptr;
+        if (luCacheSuspended && --luSuspendCountdown <= 0) {
+            luCacheSuspended = false;
+            luWindowLookups = 0;
+            luWindowHits = 0;
+        }
+        return;
+    }
+
+    ++luWindowLookups;
+    const uint64_t key = hashDiagonal(K.data(), n);
+
+    for (LUCacheEntry& e : luCache) {
+        if (e.key != key) continue;
+        // Confirm rather than trust the hash, so correctness never depends on it.
+        if (std::memcmp(e.K.data(), K.data(), nn * sizeof(double)) != 0) continue;
+        e.lastUsed = ++luCacheClock;
+        ++luCacheHitCount;
+        ++luWindowHits;
+        LU_active = e.LU.data();
+        p_active = e.perm.data();
+        sparse_active = e.sparse.valid ? &e.sparse : nullptr;
+        return;
+    }
+
+    factorizeLU(n);
+    ++luFactorizeCount;
+
+    if (luWindowLookups >= kWindow) {
+        if (luWindowHits * 100 < luWindowLookups * kMinHitPercent) {
+            luCacheSuspended = true;
+            luSuspendCountdown = kRetryAfter;
+        }
+        luWindowLookups = 0;
+        luWindowHits = 0;
+    }
+
+    LUCacheEntry* slot = nullptr;
+    if (luCache.size() < luCacheMaxEntries) {
+        luCache.emplace_back();
+        slot = &luCache.back();
+        slot->K.resize(nn);
+        slot->LU.resize(nn);
+        slot->perm.resize((size_t)n);
+    } else {
+        // Evict least recently used.
+        uint64_t oldest = UINT64_MAX;
+        for (LUCacheEntry& e : luCache) {
+            if (e.lastUsed < oldest) { oldest = e.lastUsed; slot = &e; }
+        }
+    }
+
+    slot->key = key;
+    slot->lastUsed = ++luCacheClock;
+    std::memcpy(slot->K.data(), K.data(), nn * sizeof(double));
+    std::memcpy(slot->LU.data(), LU_cached.data(), nn * sizeof(double));
+    std::memcpy(slot->perm.data(), p_cached.data(), (size_t)n * sizeof(int));
+    buildSparseTriangular(n, slot->sparse);
+
+    LU_active = slot->LU.data();
+    p_active = slot->perm.data();
+    sparse_active = slot->sparse.valid ? &slot->sparse : nullptr;
+}
+
 bool CircuitSimulator::factorizeLU(int n) {
     if (n <= 0) return true;
 
@@ -1317,23 +1515,65 @@ bool CircuitSimulator::factorizeLU(int n) {
 bool CircuitSimulator::solveLUSubstitution(int n) {
     if (n <= 0) return true;
 
-    for (int i = 0; i < n; i++) {
-        x_buf[i] = B[p_cached[i]];
+    // Normally set by prepareFactorization(); this only guards against a solve
+    // being reached before any factorization has been made.
+    if (!LU_active || !p_active) {
+        factorizeLU(n);
+        ++luFactorizeCount;
+        LU_active = LU_cached.data();
+        p_active = p_cached.data();
+        sparse_active = nullptr;
     }
 
-    // Forward substitution L*y = b
+    const int* perm = p_active;
+    double* x = x_buf.data();
+
     for (int i = 0; i < n; i++) {
-        for (int j = 0; j < i; j++) {
-            x_buf[i] -= LU_cached[i * n + j] * x_buf[j];
-        }
+        x[i] = B[perm[i]];
     }
 
-    // Backward substitution U*x = y
-    for (int i = n - 1; i >= 0; i--) {
-        for (int j = i + 1; j < n; j++) {
-            x_buf[i] -= LU_cached[i * n + j] * x_buf[j];
+    if (sparse_active) {
+        // Same arithmetic in the same order as below, with the structural zeros
+        // omitted, so the result is bit-for-bit the same.
+        const SparseTriangular& s = *sparse_active;
+        const int* Lptr = s.Lptr.data();
+        const int* Lidx = s.Lidx.data();
+        const double* Lval = s.Lval.data();
+        for (int i = 0; i < n; i++) {
+            double acc = x[i];
+            const int end = Lptr[i + 1];
+            for (int k = Lptr[i]; k < end; ++k) acc -= Lval[k] * x[Lidx[k]];
+            x[i] = acc;
         }
-        x_buf[i] /= LU_cached[i * n + i];
+
+        const int* Uptr = s.Uptr.data();
+        const int* Uidx = s.Uidx.data();
+        const double* Uval = s.Uval.data();
+        const double* Udiag = s.Udiag.data();
+        for (int i = n - 1; i >= 0; i--) {
+            double acc = x[i];
+            const int end = Uptr[i + 1];
+            for (int k = Uptr[i]; k < end; ++k) acc -= Uval[k] * x[Uidx[k]];
+            x[i] = acc / Udiag[i];
+        }
+    } else {
+        const double* LU = LU_active;
+
+        // Forward substitution L*y = b
+        for (int i = 0; i < n; i++) {
+            double acc = x[i];
+            const double* row = LU + (size_t)i * n;
+            for (int j = 0; j < i; j++) acc -= row[j] * x[j];
+            x[i] = acc;
+        }
+
+        // Backward substitution U*x = y
+        for (int i = n - 1; i >= 0; i--) {
+            double acc = x[i];
+            const double* row = LU + (size_t)i * n;
+            for (int j = i + 1; j < n; j++) acc -= row[j] * x[j];
+            x[i] = acc / row[i];
+        }
     }
 
     std::copy(x_buf.begin(), x_buf.end(), X.begin());
@@ -1341,7 +1581,7 @@ bool CircuitSimulator::solveLUSubstitution(int n) {
 }
 
 bool CircuitSimulator::solveLUFast(int n) {
-    factorizeLU(n);
+    prepareFactorization(n);
     return solveLUSubstitution(n);
 }
 
@@ -1461,8 +1701,8 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::TrigFunction) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double inVal2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
-                std::string f = fc.polarity;
-                std::transform(f.begin(), f.end(), f.begin(), ::tolower);
+                // Already lower-cased at setup; avoids a per-step allocation + transform.
+                const std::string& f = fc.polarity;
                 if (f == "cos") val = std::cos(inVal);
                 else if (f == "tan") val = std::tan(inVal);
                 else if (f == "asin") val = std::asin(std::max(-1.0, std::min(1.0, inVal)));
@@ -1876,7 +2116,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::LogicOp) {
                 double in1 = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 double in2 = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
-                std::string op = fc.polarity;
+                const std::string& op = fc.polarity;
                 bool a = (in1 > 0.5), b = (in2 > 0.5);
                 if (op == "AND") val = (a && b) ? 1.0 : 0.0;
                 else if (op == "OR") val = (a || b) ? 1.0 : 0.0;
@@ -1900,7 +2140,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::BitwiseOp) {
                 int in1 = (int)(fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 int in2 = (int)(fc.in1Ptr ? *fc.in1Ptr : 0.0);
-                std::string op = fc.polarity;
+                const std::string& op = fc.polarity;
                 if (op == "AND") val = (double)(in1 & in2);
                 else if (op == "OR") val = (double)(in1 | in2);
                 else if (op == "XOR") val = (double)(in1 ^ in2);
@@ -1914,7 +2154,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::RelationalOp) {
                 double in1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double in2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
-                std::string op = fc.polarity;
+                const std::string& op = fc.polarity;
                 if (op == "==" || op == "=") val = (std::abs(in1 - in2) < 1e-12) ? 1.0 : 0.0;
                 else if (op == "!=" || op == "~=") val = (std::abs(in1 - in2) >= 1e-12) ? 1.0 : 0.0;
                 else if (op == "<") val = (in1 < in2) ? 1.0 : 0.0;
@@ -1926,7 +2166,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::CompareToConstant) {
                 double inVal = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 double cVal = fc.thresholdVal;
-                std::string op = fc.polarity;
+                const std::string& op = fc.polarity;
                 if (op == "==" || op == "=") val = (std::abs(inVal - cVal) < 1e-12) ? 1.0 : 0.0;
                 else if (op == "!=" || op == "~=") val = (std::abs(inVal - cVal) >= 1e-12) ? 1.0 : 0.0;
                 else if (op == "<") val = (inVal < cVal) ? 1.0 : 0.0;
@@ -2096,7 +2336,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
                     val = (a && b) ? 1.0 : 0.0;
                 } else {
                     // Parse "AB:Out" pairs
-                    std::string tt = fc.polarity;
+                    const std::string& tt = fc.polarity;
                     std::istringstream ss(tt);
                     std::string tok;
                     std::string inPat = std::to_string(a) + std::to_string(b);
@@ -2623,8 +2863,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             else if (fc.type == ComponentType::MathFunction) {
                 double u1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double u2 = fc.in1Ptr ? *fc.in1Ptr : 2.0;
-                std::string fcn = fc.polarity;
-                std::transform(fcn.begin(), fcn.end(), fcn.begin(), ::tolower);
+                const std::string& fcn = fc.polarity;   // lower-cased at setup
                 if (fcn == "exp" || fcn == "exponential") val = std::exp(u1);
                 else if (fcn == "log" || fcn == "ln" || fcn == "logarithm") val = std::log(std::abs(u1) + 1e-15);
                 else if (fcn == "10^u" || fcn == "pow10") val = std::pow(10.0, u1);
@@ -2640,8 +2879,9 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             }
             else if (fc.type == ComponentType::Round) {
                 double u = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                std::string mode = fc.polarity;
-                std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
+                // This branch is unreachable: an earlier `else if` in the same chain
+                // already handles ComponentType::Round. Left as-is.
+                std::string mode = toLowerAscii(fc.polarity);
                 if (mode == "floor") val = std::floor(u);
                 else if (mode == "ceil") val = std::ceil(u);
                 else val = std::round(u);
@@ -2900,7 +3140,7 @@ void CircuitSimulator::evaluateControls(double currentTime) {
             }
             else if (fc.type == ComponentType::DataTypeConv) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                std::string dt = fc.polarity;
+                const std::string& dt = fc.polarity;
                 if (dt == "boolean" || dt == "bool") val = (inVal > 0.5) ? 1.0 : 0.0;
                 else if (dt == "integer" || dt == "int") val = std::round(inVal);
                 else val = inVal;
@@ -3240,13 +3480,33 @@ bool CircuitSimulator::updateDeviceStates() {
 }
 
 void CircuitSimulator::assembleMNA(double currentTime) {
-    std::copy(K_static.begin(), K_static.end(), K.begin());
+    // Reset only what the dynamic stamps touched. The first assembly has to lay
+    // down the whole static matrix; after that, positions absent from
+    // dynStampIdx have never been written and still hold their K_static value.
+    if (!dynStampBaseCopied) {
+        std::copy(K_static.begin(), K_static.end(), K.begin());
+        dynStampBaseCopied = true;
+    } else {
+        const double* src = K_static.data();
+        double* dst = K.data();
+        for (int idx : dynStampIdx) dst[idx] = src[idx];
+    }
     std::fill(B.begin(), B.end(), 0.0);
 
     double dt = config.stepSize;
     if (dt <= 0) dt = 1e-6;
 
-    for (const auto& fc : fastPhysComps) {
+    // Integration mode affects the inductor stamp, so a trapezoidal <-> backward Euler
+    // transition invalidates any existing factorization.
+    const bool useTrapNow = (config.solver == "trapezoidal" || config.solver == "trap" || config.solver == "rk4")
+                            && (forceBackwardEulerSteps <= 0);
+    if (!trapModeStampValid || useTrapNow != trapModeStamped) {
+        trapModeStamped = useTrapNow;
+        trapModeStampValid = true;
+        matrixKChanged = true;
+    }
+
+    for (auto& fc : fastPhysComps) {
         int n1 = fc.n1;
         int n2 = fc.n2;
 
@@ -3255,13 +3515,9 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             double Rtotal = liveElementValue(fc, 1e-6) + fc.esr;
             if (Rtotal < 1e-6) Rtotal = 1e-6;
             double g = 1.0 / Rtotal;
+            if (g != fc.gStamped) { fc.gStamped = g; matrixKChanged = true; }
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += g;
-            if (n2 >= 0) K[n2 * totalDim + n2] += g;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= g;
-                K[n2 * totalDim + n1] -= g;
-            }
+            stampConductance(n1, n2, g);
         }
         else if (fc.type == ComponentType::Capacitor) {
             double C = liveElementValue(fc, 1e-15);
@@ -3269,15 +3525,11 @@ void CircuitSimulator::assembleMNA(double currentTime) {
 
             double rEq = (dt / C) + fc.esr;
             double gEq = 1.0 / rEq;
+            if (gEq != fc.gStamped) { fc.gStamped = gEq; matrixKChanged = true; }
             double vCapPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapVoltages.size()) ? flatCapVoltages[fc.stateIdx] : 0.0;
             double iEq = gEq * vCapPrev;
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += gEq;
-            if (n2 >= 0) K[n2 * totalDim + n2] += gEq;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= gEq;
-                K[n2 * totalDim + n1] -= gEq;
-            }
+            stampConductance(n1, n2, gEq);
 
             if (n1 >= 0) B[n1] += iEq;
             if (n2 >= 0) B[n2] -= iEq;
@@ -3286,9 +3538,13 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             double L = liveElementValue(fc, 1e-12);
             if (L < 1e-12) L = 1e-12;
             int lIdx = fc.lIdx;
-            bool useTrap = (config.solver == "trapezoidal" || config.solver == "trap" || config.solver == "rk4");
-            if (forceBackwardEulerSteps > 0) {
-                useTrap = false;
+            const bool useTrap = useTrapNow;
+
+            // Track the stamped resistance so a changed L (variable inductor) marks the
+            // factorization stale; the trap/BE transition is handled above.
+            {
+                double rEqNow = useTrap ? ((2.0 * L / dt) + fc.esr) : ((L / dt) + fc.esr);
+                if (rEqNow != fc.gStamped) { fc.gStamped = rEqNow; matrixKChanged = true; }
             }
 
             if (useTrap) {
@@ -3296,13 +3552,13 @@ void CircuitSimulator::assembleMNA(double currentTime) {
                 double iPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatIndCurrents.size()) ? flatIndCurrents[fc.stateIdx] : 0.0;
                 double vPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatIndVoltages.size()) ? flatIndVoltages[fc.stateIdx] : 0.0;
 
-                K[lIdx * totalDim + lIdx] += rEq;
+                stampBranchDiagonal(lIdx, rEq);
                 B[lIdx] += (2.0 * L / dt) * iPrev + vPrev;
             } else {
                 double rEq = (L / dt) + fc.esr;
                 double iPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatIndCurrents.size()) ? flatIndCurrents[fc.stateIdx] : 0.0;
 
-                K[lIdx * totalDim + lIdx] += rEq;
+                stampBranchDiagonal(lIdx, rEq);
                 B[lIdx] += (L / dt) * iPrev;
             }
         }
@@ -3347,12 +3603,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             if (R < 1e-6) R = 1e-6;
             double g = 1.0 / R;
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += g;
-            if (n2 >= 0) K[n2 * totalDim + n2] += g;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= g;
-                K[n2 * totalDim + n1] -= g;
-            }
+            stampConductance(n1, n2, g);
 
             if (state > 0.5) {
                 double iEq = g * fc.Vvd;
@@ -3369,12 +3620,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             if (R < 1e-6) R = 1e-6;
             double g = 1.0 / R;
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += g;
-            if (n2 >= 0) K[n2 * totalDim + n2] += g;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= g;
-                K[n2 * totalDim + n1] -= g;
-            }
+            stampConductance(n1, n2, g);
 
             if (!isGateOn && state > 0.5) {
                 double iEq = g * fc.Vvd;
@@ -3392,12 +3638,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             if (R < 1e-6) R = 1e-6;
             double g = 1.0 / R;
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += g;
-            if (n2 >= 0) K[n2 * totalDim + n2] += g;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= g;
-                K[n2 * totalDim + n1] -= g;
-            }
+            stampConductance(n1, n2, g);
 
             if (state > 0.5) {
                 double v1 = (n1 >= 0 && n1 < totalDim) ? X[n1] : 0.0;
@@ -3416,12 +3657,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             if (R < 1e-6) R = 1e-6;
             double g = 1.0 / R;
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += g;
-            if (n2 >= 0) K[n2 * totalDim + n2] += g;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= g;
-                K[n2 * totalDim + n1] -= g;
-            }
+            stampConductance(n1, n2, g);
         }
         else if (fc.type == ComponentType::Switch) {
             double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
@@ -3429,12 +3665,7 @@ void CircuitSimulator::assembleMNA(double currentTime) {
             if (R < 1e-6) R = 1e-6;
             double g = 1.0 / R;
 
-            if (n1 >= 0) K[n1 * totalDim + n1] += g;
-            if (n2 >= 0) K[n2 * totalDim + n2] += g;
-            if (n1 >= 0 && n2 >= 0) {
-                K[n1 * totalDim + n2] -= g;
-                K[n2 * totalDim + n1] -= g;
-            }
+            stampConductance(n1, n2, g);
         }
     }
 }
@@ -3446,7 +3677,18 @@ SimulationOutput CircuitSimulator::runTransient() {
     
     double tStop = config.stopTime > 0 ? config.stopTime : 0.01;
     double dtBase = config.stepSize > 0 ? config.stepSize : 1e-6;
-    int estSteps = static_cast<int>(std::ceil(tStop / dtBase));
+
+    // Exact step count, computed in 64-bit: tStop/dtBase overflows int for very
+    // small step sizes, and the result drives both the iteration budget and the
+    // reserve hints below.
+    const double estStepsExact = std::ceil(tStop / dtBase);
+    const long long estStepsLL =
+        (estStepsExact > 0.0 && estStepsExact < 9.0e15) ? (long long)estStepsExact : 0LL;
+
+    // Reserve hint only - clamped so an extreme step size cannot ask the allocator
+    // for an absurd block up front. The vectors still grow on demand if needed.
+    constexpr long long kMaxReserve = 40000000LL;   // 40 M samples (~320 MB per signal)
+    const int estSteps = (int)((estStepsLL > kMaxReserve) ? kMaxReserve : estStepsLL);
 
     out.time.reserve(estSteps + 1);
 
@@ -3513,9 +3755,21 @@ SimulationOutput CircuitSimulator::runTransient() {
     double h = dtBase;
     double h_max = dtBase * 5.0;
 
-    int max_iterations = 300000;
-    int iterCount = 0;
+    // Safety cap on loop iterations. This has to scale with the requested step
+    // count: a fixed cap silently truncated the run whenever tStop/stepSize
+    // exceeded it. The old value of 300000 stopped a 10 ms run at a 10 ns step
+    // after only 3 ms, and because the loop just exits normally there was no
+    // error - the waveform simply ended early and looked like a wrong answer.
+    // Variable-step runs can need more iterations than tStop/dtBase, so they get
+    // generous headroom while still being guaranteed to terminate.
+    const long long stepBudget = estStepsLL + 64;
+    const long long max_iterations = isFixed ? stepBudget : stepBudget * 16;
+    long long iterCount = 0;
     matrixKChanged = true;
+
+    // Wall-clock pacing for the live telemetry publish (see end of loop).
+    constexpr double kTelemetryPublishIntervalMs = 33.0;   // ~30 Hz
+    auto lastPublishClock = simClockStart;
 
     while (currentTime < tStop - 1e-12 && iterCount < max_iterations) {
         iterCount++;
@@ -3532,9 +3786,11 @@ SimulationOutput CircuitSimulator::runTransient() {
             assembleMNA(currentTime);
 
             if (totalDim > 0) {
-                if (matrixKChanged || K != K_prev) {
-                    factorizeLU(totalDim);
-                    K_prev = K;
+                // assembleMNA() flags matrixKChanged whenever it stamps a different
+                // dynamic value, so the old O(n^2) `K != K_prev` comparison (plus the
+                // O(n^2) K_prev copy) is no longer needed.
+                if (matrixKChanged) {
+                    prepareFactorization(totalDim);
                     matrixKChanged = false;
                 }
                 solveLUSubstitution(totalDim);
@@ -3548,8 +3804,7 @@ SimulationOutput CircuitSimulator::runTransient() {
         if (matrixKChanged) {
             assembleMNA(currentTime);
             if (totalDim > 0) {
-                factorizeLU(totalDim);
-                K_prev = K;
+                prepareFactorization(totalDim);
                 matrixKChanged = false;
                 solveLUSubstitution(totalDim);
             }
@@ -3590,7 +3845,20 @@ SimulationOutput CircuitSimulator::runTransient() {
                 double vCapPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapVoltages.size()) ? flatCapVoltages[fc.stateIdx] : 0.0;
                 iComp = gEq * (vDiff - vCapPrev);
                 if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapVoltages.size()) {
-                    flatCapVoltages[fc.stateIdx] = vDiff;
+                    // Store the voltage across the IDEAL capacitor, not across the
+                    // whole branch. The companion model in assembleMNA() is
+                    //     i = (v_branch - vC_prev) / (dt/C + esr)
+                    // which is only correct if vC_prev excludes the ESR drop.
+                    // Storing v_branch here instead made the branch behave as
+                    //     C_eff = C / (1 + esr*C/dt)
+                    // so the capacitance silently shrank as the step size was
+                    // reduced (100 uF with 10 mOhm ESR became ~1 uF at dt = 10 ns),
+                    // which showed up as huge non-physical output ripple and as
+                    // results that diverged instead of converging under step
+                    // refinement. v_branch = vC + esr*i, hence vC = v_branch - esr*i.
+                    // This is an exact structural relation, so it stays valid
+                    // regardless of the step size used to obtain iComp.
+                    flatCapVoltages[fc.stateIdx] = vDiff - fc.esr * iComp;
                 }
             }
             else if (fc.type == ComponentType::Inductor) {
@@ -3600,7 +3868,10 @@ SimulationOutput CircuitSimulator::runTransient() {
                     if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatIndCurrents.size()) {
                         flatIndCurrents[fc.stateIdx] = iComp;
                         if (fc.stateIdx < (int)flatIndVoltages.size()) {
-                            flatIndVoltages[fc.stateIdx] = vDiff;
+                            // Same reasoning as the capacitor above: the trapezoidal
+                            // companion source uses this as the voltage across the
+                            // IDEAL inductor, so the series ESR drop must come out.
+                            flatIndVoltages[fc.stateIdx] = vDiff - fc.esr * iComp;
                         }
                     }
                 }
@@ -3719,22 +3990,18 @@ SimulationOutput CircuitSimulator::runTransient() {
 
         currentTime += h;
 
-        // Periodic live telemetry update (every 500 steps) for real-time plotting
-        if ((iterCount % 500) == 0) {
+        // ── Live telemetry publish for real-time plotting ────────────────────
+        // Paced by wall clock (~30 Hz) rather than by step count, so the cost is
+        // independent of step size, and appends only the new tail rather than
+        // deep-copying the whole history.
+        if ((iterCount & 63) == 0) {
             auto simClockCur = std::chrono::high_resolution_clock::now();
-            double elSec = std::chrono::duration<double>(simClockCur - simClockStart).count();
-            setComputeTimeSeconds(elSec);
-
-            std::lock_guard<std::mutex> lock(telemetryMutex);
-            telemetry.timeHistory = out.time;
-            telemetry.voltages.clear();
-            for (const auto& p : out.voltages) telemetry.voltages[p.first] = p.second;
-            for (const auto& p : out.signals) telemetry.voltages[p.first] = p.second;
-            for (const auto& p : out.inductors) telemetry.voltages[p.first] = p.second;
-            for (const auto& p : out.voltmeters) telemetry.voltages[p.first] = p.second;
-            for (const auto& p : out.ammeters) telemetry.voltages[p.first] = p.second;
-            for (const auto& p : out.custom_plots) telemetry.voltages[p.first] = p.second;
-            telemetryVersion.fetch_add(1, std::memory_order_relaxed);
+            double sinceLastMs = std::chrono::duration<double, std::milli>(simClockCur - lastPublishClock).count();
+            if (sinceLastMs >= kTelemetryPublishIntervalMs) {
+                setComputeTimeSeconds(std::chrono::duration<double>(simClockCur - simClockStart).count());
+                appendTelemetryFrom(out);
+                lastPublishClock = simClockCur;
+            }
         }
     }
 

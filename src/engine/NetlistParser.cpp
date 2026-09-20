@@ -461,6 +461,15 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
             if (simParams.contains("step_type") && simParams["step_type"].is_string()) {
                 outConfig.step_type = simParams["step_type"].get<std::string>();
             }
+            // The UI has always written this flag into the netlist; wire it through so
+            // the LU factorization cache can actually be turned off from the settings.
+            if (simParams.contains("enable_lu_cache")) {
+                const auto& v = simParams["enable_lu_cache"];
+                if (v.is_boolean())      outConfig.enableLUCache = v.get<bool>();
+                else if (v.is_number())  outConfig.enableLUCache = (v.get<double>() != 0.0);
+                else if (v.is_string())  outConfig.enableLUCache = (v.get<std::string>() != "false" &&
+                                                                    v.get<std::string>() != "0");
+            }
         }
 
         bool hasPreExtractedStage = false;
