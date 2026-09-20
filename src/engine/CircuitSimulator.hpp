@@ -390,6 +390,10 @@ struct SimulationConfig {
     double hMin = 0.0;
     double hMax = 0.0;
 
+    // Decimation interval for output storage. If > 0, outputs are only stored
+    // at this time interval, drastically reducing memory overhead on adaptive runs.
+    double outputDecimation = 0.0;
+
     // Test hooks, not for production use. Each must leave results unchanged.
     //   debugRejectEveryNthStep - forces every Nth attempted step to be rejected once
     //     and retried at the same h, exercising the rollback path.
@@ -423,6 +427,7 @@ private:
 
     std::vector<FastCompiledComponent> fastPhysComps;
     std::vector<FastCompiledComponent> fastCtrlComps;
+    std::vector<FastCompiledComponent*> fastGateCtrlComps;
 
     int numNodes = 0;
     int totalDim = 0;
@@ -636,6 +641,7 @@ private:
     // consistent with the last committed step, which matches the Stage 1 model of
     // holding control signals constant across a step.
     void evaluateControls(double currentTime, double dtStep, bool commit = true);
+    void evaluateGateControls(double currentTime, double dtStep);
     void assembleMNA(double currentTime, double dtStep);
     // Solves the network at `t` for a step of `hStep`, iterating the piecewise-linear
     // switch/diode states to convergence. Returns whether a device state was still

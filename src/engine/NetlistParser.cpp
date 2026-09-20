@@ -452,6 +452,14 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                 if (simParams["stepSize"].is_number()) outConfig.stepSize = simParams["stepSize"].get<double>();
                 else if (simParams["stepSize"].is_string()) outConfig.stepSize = ExpressionEvaluator::parseScientific(simParams["stepSize"].get<std::string>());
             }
+            if (simParams.contains("outputDecimation")) {
+                if (simParams["outputDecimation"].is_number()) outConfig.outputDecimation = simParams["outputDecimation"].get<double>();
+                else if (simParams["outputDecimation"].is_string()) outConfig.outputDecimation = ExpressionEvaluator::parseScientific(simParams["outputDecimation"].get<std::string>());
+            }
+            if (simParams.contains("printStep")) {
+                if (simParams["printStep"].is_number()) outConfig.outputDecimation = simParams["printStep"].get<double>();
+                else if (simParams["printStep"].is_string()) outConfig.outputDecimation = ExpressionEvaluator::parseScientific(simParams["printStep"].get<std::string>());
+            }
             if (simParams.contains("solver") && simParams["solver"].is_string()) {
                 outConfig.solver = simParams["solver"].get<std::string>();
             }

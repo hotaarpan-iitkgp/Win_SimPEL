@@ -1186,12 +1186,25 @@ void CircuitSimulator::buildIndexMaps() {
         if (fc.ctrlSigSignalIdx >= 0 && fc.ctrlSigSignalIdx < (int)flatControlSignals.size()) fc.ctrlSigPtr = &flatControlSignals[fc.ctrlSigSignalIdx];
     }
 
+    fastGateCtrlComps.clear();
     for (auto& fc : fastCtrlComps) {
         if (fc.in0SignalIdx >= 0 && fc.in0SignalIdx < (int)flatControlSignals.size()) fc.in0Ptr = &flatControlSignals[fc.in0SignalIdx];
         if (fc.in1SignalIdx >= 0 && fc.in1SignalIdx < (int)flatControlSignals.size()) fc.in1Ptr = &flatControlSignals[fc.in1SignalIdx];
         if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) fc.outPtr = &flatControlSignals[fc.outSignalIdx];
         if (fc.ctrlSigSignalIdx >= 0 && fc.ctrlSigSignalIdx < (int)flatControlSignals.size()) fc.ctrlSigPtr = &flatControlSignals[fc.ctrlSigSignalIdx];
         if (fc.targetSignalIdx >= 0 && fc.targetSignalIdx < (int)flatControlSignals.size()) fc.targetPtr = &flatControlSignals[fc.targetSignalIdx];
+
+        if (fc.type == ComponentType::Triangle_Carrier ||
+            fc.type == ComponentType::PWM_Generator ||
+            fc.type == ComponentType::PWM_MASTER ||
+            fc.type == ComponentType::PWM_3PH ||
+            fc.type == ComponentType::SVPWM ||
+            fc.type == ComponentType::PulseGenerator ||
+            fc.type == ComponentType::Comparator ||
+            fc.type == ComponentType::Relay ||
+            fc.type == ComponentType::HitCrossing) {
+            fastGateCtrlComps.push_back(&fc);
+        }
     }
 
     // Pre-stamp Static Conductance Matrix K_static
@@ -1584,6 +1597,323 @@ bool CircuitSimulator::solveLUFast(int n) {
     prepareFactorization(n);
     return solveLUSubstitution(n);
 }
+
+void CircuitSimulator::evaluateGateControls(double currentTime, double dtStep) {
+    // Gate for every write to per-block state. Always false when probing gates.
+    const bool commitState = false;
+    const double dtNow = (dtStep > 0.0) ? dtStep : ((config.stepSize > 0.0) ? config.stepSize : 1e-5);
+
+    for (int pass = 0; pass < 2; ++pass) {
+        for (auto* fcPtr : fastGateCtrlComps) {
+            auto& fc = *fcPtr;
+            double val = 0.0;
+
+            if (fc.type == ComponentType::Triangle_Carrier) {
+                bool extPhase = (fc.polarity == "external");
+                bool extFreq = (fc.vPlotKey == "external");
+
+                double phase_deg = extPhase ? (fc.in1Ptr ? *fc.in1Ptr : 0.0) : fc.delay;
+                double freq = extFreq ? (fc.in0Ptr ? *fc.in0Ptr : (fc.freq > 0 ? fc.freq : 10000.0)) : (fc.freq > 0 ? fc.freq : 10000.0);
+
+                double min = fc.minVal;
+                double max = fc.maxVal;
+
+                double t_norm = std::fmod(currentTime * freq + phase_deg / 360.0, 1.0);
+                if (t_norm < 0.0) t_norm += 1.0;
+
+                val = (t_norm < 0.5) ? min + (max - min) * (t_norm / 0.5) : max - (max - min) * ((t_norm - 0.5) / 0.5);
+            }
+            else if (fc.type == ComponentType::PWM_Generator) {
+                double vMod = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double minVal = fc.minVal;
+                double maxVal = fc.maxVal;
+                if (maxVal <= minVal) maxVal = minVal + 1.0;
+                double deadTime = fc.delayDuration;
+                double Tc = 1.0 / fcHz;
+
+                double tLocal = std::fmod(currentTime, Tc);
+                if (tLocal < 0.0) tLocal += Tc;
+
+                double triVal = (tLocal < Tc / 2.0) 
+                                ? minVal + (maxVal - minVal) * (tLocal / (Tc / 2.0))
+                                : maxVal - (maxVal - minVal) * ((tLocal - Tc / 2.0) / (Tc / 2.0));
+
+                int targetDirect = (vMod >= triVal) ? 1 : 0;
+
+                if (deadTime > 0.0) {
+                    int targetCompl = (targetDirect == 0) ? 1 : 0;
+                    if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                        if (fc.pwmMasterLastTargetDirect.empty()) {
+                            fc.pwmMasterLastTargetDirect.assign(1, 0);
+                            fc.pwmMasterLastTargetCompl.assign(1, 0);
+                            fc.pwmMasterLastTransDirect.assign(1, 0.0);
+                            fc.pwmMasterLastTransCompl.assign(1, 0.0);
+                        }
+                        if (targetDirect == 1 && fc.pwmMasterLastTargetDirect[0] == 0) {
+                            fc.pwmMasterLastTransDirect[0] = currentTime;
+                        }
+                        if (targetCompl == 1 && fc.pwmMasterLastTargetCompl[0] == 0) {
+                            fc.pwmMasterLastTransCompl[0] = currentTime;
+                        }
+                        fc.pwmMasterLastTargetDirect[0] = targetDirect;
+                        fc.pwmMasterLastTargetCompl[0] = targetCompl;
+                        fc.lastTime = currentTime;
+                    }
+                    double transT = (!fc.pwmMasterLastTransDirect.empty()) ? fc.pwmMasterLastTransDirect[0] : 0.0;
+                    val = (targetDirect == 1 && (currentTime - transT >= deadTime - 1e-12)) ? 1.0 : 0.0;
+                } else {
+                    val = (targetDirect == 1) ? 1.0 : 0.0;
+                }
+            }
+            else if (fc.type == ComponentType::PWM_MASTER) {
+                int N = fc.numInputs;
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double deadTime = fc.delayDuration;
+                double Tc = 1.0 / fcHz;
+
+                for (int i = 0; i < N; ++i) {
+                    double vMod = (fc.pwmMasterInIndices[i] >= 0 && fc.pwmMasterInIndices[i] < (int)flatControlSignals.size()) 
+                                  ? flatControlSignals[fc.pwmMasterInIndices[i]] : 0.0;
+
+                    double phaseDeg = fc.pwmMasterPhaseDeg[i];
+                    if (fc.pwmMasterPhaseExt[i] && fc.pwmMasterExtPhaseIndices[i] >= 0 && fc.pwmMasterExtPhaseIndices[i] < (int)flatControlSignals.size()) {
+                        phaseDeg = flatControlSignals[fc.pwmMasterExtPhaseIndices[i]];
+                    }
+
+                    double lOffset = fc.pwmMasterLevelOffset[i];
+                    double tOffset = (phaseDeg / 360.0) * Tc;
+                    double tLocal = std::fmod(currentTime - tOffset, Tc);
+                    if (tLocal < 0.0) tLocal += Tc;
+
+                    double triVal = (tLocal < Tc / 2.0) 
+                                    ? (tLocal / (Tc / 2.0)) 
+                                    : (1.0 - (tLocal - Tc / 2.0) / (Tc / 2.0));
+                    double vCarrier = triVal + lOffset;
+
+                    int targetDirect = (vMod >= vCarrier) ? 1 : 0;
+                    int targetCompl = (targetDirect == 0) ? 1 : 0;
+
+                    if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                        if (targetDirect == 1 && fc.pwmMasterLastTargetDirect[i] == 0) {
+                            fc.pwmMasterLastTransDirect[i] = currentTime;
+                        }
+                        if (targetCompl == 1 && fc.pwmMasterLastTargetCompl[i] == 0) {
+                            fc.pwmMasterLastTransCompl[i] = currentTime;
+                        }
+                        fc.pwmMasterLastTargetDirect[i] = targetDirect;
+                        fc.pwmMasterLastTargetCompl[i] = targetCompl;
+                    }
+
+                    double outD = (targetDirect == 1 && (currentTime - fc.pwmMasterLastTransDirect[i] >= deadTime - 1e-12)) ? 1.0 : 0.0;
+                    double outC = (targetCompl == 1 && (currentTime - fc.pwmMasterLastTransCompl[i] >= deadTime - 1e-12)) ? 1.0 : 0.0;
+
+                    int dIdx = fc.pwmMasterOutDirectIndices[i];
+                    int cIdx = fc.pwmMasterOutComplIndices[i];
+                    if (dIdx >= 0 && dIdx < (int)flatControlSignals.size()) flatControlSignals[dIdx] = outD;
+                    if (cIdx >= 0 && cIdx < (int)flatControlSignals.size()) flatControlSignals[cIdx] = outC;
+
+                    int chIdx = i + 1;
+                    auto itD2 = signalKeyToIdx.find(fc.id + ".OutDirect" + std::to_string(chIdx));
+                    if (itD2 != signalKeyToIdx.end() && itD2->second < (int)flatControlSignals.size()) flatControlSignals[itD2->second] = outD;
+                    auto itC2 = signalKeyToIdx.find(fc.id + ".OutCompl" + std::to_string(chIdx));
+                    if (itC2 != signalKeyToIdx.end() && itC2->second < (int)flatControlSignals.size()) flatControlSignals[itC2->second] = outC;
+                    auto itD3 = signalKeyToIdx.find(fc.id + ".Out" + std::to_string(chIdx));
+                    if (itD3 != signalKeyToIdx.end() && itD3->second < (int)flatControlSignals.size()) flatControlSignals[itD3->second] = outD;
+                }
+                if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                    fc.lastTime = currentTime;
+                }
+                val = (N > 0 && fc.pwmMasterOutDirectIndices[0] >= 0 && fc.pwmMasterOutDirectIndices[0] < (int)flatControlSignals.size()) 
+                      ? flatControlSignals[fc.pwmMasterOutDirectIndices[0]] : 0.0;
+            }
+            else if (fc.type == ComponentType::PWM_3PH) {
+                double freq = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double period = 1.0 / freq;
+                double phaseIn = std::fmod(currentTime, period) / period;
+                if (phaseIn < 0.0) phaseIn += 1.0;
+                double v_car = (phaseIn < 0.5) ? (4.0 * phaseIn - 1.0) : (3.0 - 4.0 * phaseIn); // -1 to +1 triangle wave
+
+                double va = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : (fc.in0Ptr ? *fc.in0Ptr : 0.0);
+                double vb = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : (fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                double vc = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double outA = (va > v_car) ? 1.0 : 0.0;
+                double outB = (vb > v_car) ? 1.0 : 0.0;
+                double outC = (vc > v_car) ? 1.0 : 0.0;
+
+                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = outA;
+                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
+                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
+                val = outA;
+            }
+            else if (fc.type == ComponentType::SVPWM) {
+                double fcHz = (fc.freq > 0.0) ? fc.freq : 10000.0;
+                double deadTime = fc.delayDuration;
+                double minVal = (fc.minVal != 0.0) ? fc.minVal : -1.0;
+                double maxVal = (fc.maxVal != 0.0) ? fc.maxVal : 1.0;
+                double Tc = 1.0 / fcHz;
+
+                double in1 = (fc.inputSigIndices.size() > 0 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[0] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[0]] : 0.0;
+                double in2 = (fc.inputSigIndices.size() > 1 && fc.inputSigIndices[1] >= 0 && fc.inputSigIndices[1] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[1]] : 0.0;
+                double in3 = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
+
+                double vA = 0.0, vB = 0.0, vC = 0.0;
+                if (fc.inputSigIndices.size() >= 2 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[1] >= 0) {
+                    double valpha = in1;
+                    double vbeta = in2;
+                    vA = valpha;
+                    vB = -0.5 * valpha + (std::sqrt(3.0) / 2.0) * vbeta;
+                    vC = -0.5 * valpha - (std::sqrt(3.0) / 2.0) * vbeta;
+                } else {
+                    vA = in1;
+                    vB = in2;
+                    vC = in3;
+                }
+
+                double v_max = std::max(vA, std::max(vB, vC));
+                double v_min = std::min(vA, std::min(vB, vC));
+                double v_offset = -0.5 * (v_max + v_min);
+
+                double v_refA = vA + v_offset;
+                double v_refB = vB + v_offset;
+                double v_refC = vC + v_offset;
+
+                double tLocal = std::fmod(currentTime, Tc);
+                if (tLocal < 0.0) tLocal += Tc;
+                double triVal = (tLocal < Tc / 2.0) 
+                                ? minVal + (maxVal - minVal) * (tLocal / (Tc / 2.0))
+                                : maxVal - (maxVal - minVal) * ((tLocal - Tc / 2.0) / (Tc / 2.0));
+
+                double raw_gA1 = (v_refA > triVal) ? 1.0 : 0.0;
+                double raw_gA2 = (v_refA <= triVal) ? 1.0 : 0.0;
+                double raw_gB1 = (v_refB > triVal) ? 1.0 : 0.0;
+                double raw_gB2 = (v_refB <= triVal) ? 1.0 : 0.0;
+                double raw_gC1 = (v_refC > triVal) ? 1.0 : 0.0;
+                double raw_gC2 = (v_refC <= triVal) ? 1.0 : 0.0;
+
+                if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                    if (fc.pwmMasterLastTransDirect.size() < 6) {
+                        fc.pwmMasterLastTransDirect.assign(6, -1.0);
+                        fc.pwmMasterLastTargetDirect.assign(6, 0);
+                    }
+                    if (fc.pwmMasterLastTargetDirect[0] > 0 && raw_gA1 <= 0.5) fc.pwmMasterLastTransDirect[0] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[1] > 0 && raw_gA2 <= 0.5) fc.pwmMasterLastTransDirect[1] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[2] > 0 && raw_gB1 <= 0.5) fc.pwmMasterLastTransDirect[2] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[3] > 0 && raw_gB2 <= 0.5) fc.pwmMasterLastTransDirect[3] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[4] > 0 && raw_gC1 <= 0.5) fc.pwmMasterLastTransDirect[4] = currentTime;
+                    if (fc.pwmMasterLastTargetDirect[5] > 0 && raw_gC2 <= 0.5) fc.pwmMasterLastTransDirect[5] = currentTime;
+
+                    fc.pwmMasterLastTargetDirect[0] = (raw_gA1 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[1] = (raw_gA2 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[2] = (raw_gB1 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[3] = (raw_gB2 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[4] = (raw_gC1 > 0.5) ? 1 : 0;
+                    fc.pwmMasterLastTargetDirect[5] = (raw_gC2 > 0.5) ? 1 : 0;
+                    fc.lastTime = currentTime;
+                }
+
+                double gA1 = raw_gA1;
+                if (gA1 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[1] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[1]) < deadTime) gA1 = 0.0;
+                double gA2 = raw_gA2;
+                if (gA2 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[0] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[0]) < deadTime) gA2 = 0.0;
+
+                double gB1 = raw_gB1;
+                if (gB1 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[3] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[3]) < deadTime) gB1 = 0.0;
+                double gB2 = raw_gB2;
+                if (gB2 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[2] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[2]) < deadTime) gB2 = 0.0;
+
+                double gC1 = raw_gC1;
+                if (gC1 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[5] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[5]) < deadTime) gC1 = 0.0;
+                double gC2 = raw_gC2;
+                if (gC2 > 0.5 && deadTime > 0 && fc.pwmMasterLastTransDirect.size() >= 6 && fc.pwmMasterLastTransDirect[4] >= 0 && (currentTime - fc.pwmMasterLastTransDirect[4]) < deadTime) gC2 = 0.0;
+
+                std::vector<std::pair<std::string, double>> outputs = {
+                    {"G1", gA1}, {"G2", gA2}, {"G3", gB1}, {"G4", gB2}, {"G5", gC1}, {"G6", gC2},
+                    {"OutA", gA1}, {"OutB", gB1}, {"OutC", gC1},
+                    {"gA1", gA1}, {"gA2", gA2}, {"gB1", gB1}, {"gB2", gB2}, {"gC1", gC1}, {"gC2", gC2},
+                    {"Out1", gA1}, {"Out2", gB1}, {"Out3", gC1}
+                };
+
+                for (const auto& p : outputs) {
+                    auto it = signalKeyToIdx.find(fc.id + "." + p.first);
+                    if (it != signalKeyToIdx.end() && it->second >= 0 && it->second < (int)flatControlSignals.size()) {
+                        flatControlSignals[it->second] = p.second;
+                    }
+                }
+                val = gA1;
+            }
+            else if (fc.type == ComponentType::PulseGenerator) {
+                double p = (fc.period > 0.0) ? fc.period : 0.0001;
+                double w = (fc.width > 0.0 && fc.width <= 1.0) ? fc.width : 0.5;
+                double d = fc.delay;
+                double amp = (fc.amplitude != 0.0) ? fc.amplitude : 1.0;
+
+                double tRel = currentTime - d;
+                if (tRel < 0.0) {
+                    val = 0.0;
+                } else {
+                    double phase = std::fmod(tRel, p);
+                    if (phase < 0.0) phase += p;
+                    val = (phase < p * w) ? amp : 0.0;
+                }
+            }
+            else if (fc.type == ComponentType::Comparator) {
+                double inA = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double inB = fc.in1Ptr ? *fc.in1Ptr : 0.0;
+                val = (inA > inB) ? 1.0 : 0.0;
+            }
+            else if (fc.type == ComponentType::Relay) {
+                double inVal = (fc.inputSigIndices.empty() || fc.inputSigIndices[0] < 0) ? (fc.in0Ptr ? *fc.in0Ptr : 0.0) : flatControlSignals[fc.inputSigIndices[0]];
+                if (commitState) {
+                    if (inVal >= fc.onThresh) fc.relayState = 1;
+                    else if (inVal <= fc.offThresh) fc.relayState = 0;
+                }
+                val = (fc.relayState == 1) ? fc.outValOn : fc.outValOff;
+            }
+            else if (fc.type == ComponentType::HitCrossing) {
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double offset = fc.thresholdVal;
+                double hit = 0.0;
+
+                if (currentTime <= 0.0) {
+                    val = 0.0;
+                    fc.stateVal = inVal;
+                    fc.nextStateVal = inVal;
+                    fc.lastTime = 0.0;
+                } else {
+                    if (commitState && currentTime > fc.lastTime) {
+                        fc.stateVal = fc.nextStateVal;
+                        fc.lastTime = currentTime;
+                    }
+                    double prev = fc.stateVal;
+                    if (fc.polarity == "rising") {
+                        if (prev < offset && inVal >= offset) hit = 1.0;
+                    } else if (fc.polarity == "falling") {
+                        if (prev > offset && inVal <= offset) hit = 1.0;
+                    } else {
+                        if ((prev < offset && inVal >= offset) || (prev > offset && inVal <= offset)) hit = 1.0;
+                    }
+                    if (pass == 0 && commitState) {
+                        fc.nextStateVal = inVal;
+                    }
+                    val = hit;
+                }
+            }
+
+            if (fc.iPlotSignalIdx >= 0 && fc.iPlotSignalIdx < (int)flatControlSignals.size()) {
+                flatControlSignals[fc.iPlotSignalIdx] = val;
+            }
+            if (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) {
+                flatControlSignals[fc.outSignalIdx] = val;
+            }
+            if (fc.compSelfSignalIdx >= 0 && fc.compSelfSignalIdx < (int)flatControlSignals.size()) {
+                flatControlSignals[fc.compSelfSignalIdx] = val;
+            }
+        }
+    }
+}
+
 
 void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool commit) {
     // Gate for every write to per-block state. When false this call is a pure
@@ -3787,6 +4117,7 @@ bool CircuitSimulator::solveNetworkStep(double t, double hStep) {
 }
 
 SimulationOutput CircuitSimulator::runTransient() {
+    double nextOutputTime = 0.0;
     auto simClockStart = std::chrono::high_resolution_clock::now();
     setComputeTimeSeconds(0.0);
     SimulationOutput out;
@@ -4168,7 +4499,7 @@ SimulationOutput CircuitSimulator::runTransient() {
     // Evaluates the control chain at `tProbe` without advancing any block state, and
     // reports whether any monitored gate has flipped relative to the step start.
     auto gatesDifferAt = [&](double tProbe, double hRef) -> bool {
-        evaluateControls(tProbe, hRef, /*commit=*/false);
+        evaluateGateControls(tProbe, hRef);
         sampleGates(gateProbe);
         for (size_t i = 0; i < gateProbe.size(); ++i) {
             if (gateProbe[i] != gateAtStart[i]) return true;
@@ -4402,6 +4733,7 @@ SimulationOutput CircuitSimulator::runTransient() {
         if (forceBackwardEulerSteps > 0) forceBackwardEulerSteps--;
 
         // Store time step
+        if (config.outputDecimation <= 0.0 || sampleTime >= nextOutputTime - 1e-12) {
         out.time.push_back(sampleTime);
 
         // Store node voltages (Zero map lookups)
@@ -4571,6 +4903,9 @@ SimulationOutput CircuitSimulator::runTransient() {
         // control blocks kept using the nominal step, growing h changed only the time
         // axis. It is removed rather than ported; adaptive stepping is handled by the
         // error-controlled attempt loop above.
+            nextOutputTime = sampleTime + config.outputDecimation;
+        }
+
         (void)statesChanged;
 
         if (isFixed) {
