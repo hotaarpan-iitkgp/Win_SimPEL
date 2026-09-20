@@ -373,6 +373,31 @@ struct SimulationConfig {
     // most O(n^3) factorizations into an O(n^2) lookup. Results are unaffected: a
     // hit is only taken after the cached matrix is confirmed bitwise identical.
     bool enableLUCache = true;
+
+    // ── Adaptive stepping (step_type == "variable" or "adaptive") ────────────
+    // Local error is measured on the reactive states - capacitor voltages and
+    // inductor currents - against `relTol * |state| + absTol`. Separate absolute
+    // floors for voltage and current because a single one cannot be dimensionally
+    // meaningful for both, and a floor that is too tight forces needlessly small
+    // steps whenever a state passes through zero.
+    double relTol = 1e-3;
+    double absTolV = 1e-3;    // 1 mV
+    double absTolI = 1e-6;    // 1 uA
+    // Step bounds. Zero means "derive from stepSize": hMax = stepSize and
+    // hMin = stepSize / 1e6, so `stepSize` keeps its meaning as the largest step
+    // the user is willing to accept and an existing netlist cannot become coarser
+    // than it is today just by switching step_type.
+    double hMin = 0.0;
+    double hMax = 0.0;
+
+    // Test hooks, not for production use. Each must leave results unchanged.
+    //   debugRejectEveryNthStep - forces every Nth attempted step to be rejected once
+    //     and retried at the same h, exercising the rollback path.
+    //   debugExtraControlProbes - performs N extra non-committing control evaluations
+    //     per step at scattered times, proving that probing really is side-effect free.
+    // Zero disables either.
+    int debugRejectEveryNthStep = 0;
+    int debugExtraControlProbes = 0;
 };
 
 struct SimulationOutput {
@@ -412,6 +437,37 @@ private:
 
     bool matrixKChanged = true;
     int forceBackwardEulerSteps = 0;
+
+    // ── Step rollback ────────────────────────────────────────────────────────
+    // The adaptive controller has to be able to abandon a step, either because the
+    // local error came out too large or because a switching event turned out to lie
+    // inside it. Everything an electrical step advances therefore has to be
+    // restorable.
+    //
+    // Control-block state is deliberately NOT part of this. evaluateControls() is
+    // called exactly once per ACCEPTED step, so a rejected step never advances an
+    // integrator, latch, flip-flop, delay history or script engine - which is what
+    // avoids having to copy the ~40 mutable per-block fields and the script engines
+    // on every attempt.
+    //
+    // The LU cache needs no rollback either: entries are keyed on the matrix
+    // contents, so a factorization produced during an abandoned step is still a
+    // valid factorization of that matrix. dynStampIdx/dynStampSeen only ever grow,
+    // and every assembly restores those positions from K_static, so they are safe
+    // to leave alone as well.
+    struct SolverSnapshot {
+        std::vector<double> X;
+        std::vector<double> capV, indI, indV;
+        std::vector<double> diodeStates, switchStates;
+        std::vector<double> gStamped;
+        bool trapModeStamped = false;
+        bool trapModeStampValid = false;
+        int forceBackwardEulerSteps = 0;
+        bool valid = false;
+    };
+    SolverSnapshot stepSnapshot;
+    void saveSolverState(SolverSnapshot& s) const;
+    void restoreSolverState(const SolverSnapshot& s);
 
     // ── Dynamic stamp positions ──────────────────────────────────────────────
     // Every assembly used to restore the static matrix with a full n^2 copy, which
@@ -525,6 +581,16 @@ private:
     long long luFactorizeCount = 0;
     long long luCacheHitCount = 0;
 
+    // Adaptive-stepping diagnostics, for benchmarking and for understanding why the
+    // controller chose the steps it did.
+    long long adaptiveAccepted = 0;
+    long long adaptiveRejected = 0;
+    long long adaptiveEventRetries = 0;
+    long long adaptiveGateCuts = 0;
+    long long adaptiveErrChecked = 0;   // steps where the error estimate was usable
+    double adaptiveHMinUsed = 0.0;
+    double adaptiveHMaxUsed = 0.0;
+
     std::vector<double> scriptInValsBuf;
 
     std::vector<double> flatCapVoltages;
@@ -557,9 +623,28 @@ private:
     size_t telemetryPublishedCount = 0;
 
     void buildIndexMaps();
-    void evaluateControls(double currentTime);
-    void assembleMNA(double currentTime);
+    // `dtStep` is the step actually being taken, which under variable-step control is
+    // not config.stepSize. Every integration, differentiation, phase-accumulation and
+    // noise-scaling term must use it; see evaluateControls() for the four measurement
+    // blocks that still size their windows from the nominal step.
+    //
+    // `commit` selects whether block state is allowed to advance. With commit = false
+    // the outputs in flatControlSignals are produced for the requested time but no
+    // integrator, latch, flip-flop, delay history or script engine is stepped, which
+    // is what lets the adaptive controller probe a trial time - to find the instant a
+    // gate changes - without corrupting anything. Stateful blocks then report outputs
+    // consistent with the last committed step, which matches the Stage 1 model of
+    // holding control signals constant across a step.
+    void evaluateControls(double currentTime, double dtStep, bool commit = true);
+    void assembleMNA(double currentTime, double dtStep);
+    // Solves the network at `t` for a step of `hStep`, iterating the piecewise-linear
+    // switch/diode states to convergence. Returns whether a device state was still
+    // changing when the iteration stopped. Factored out of the step loop so the
+    // adaptive controller can attempt the same step more than once.
+    bool solveNetworkStep(double t, double hStep);
     bool updateDeviceStates();
+
+
     bool factorizeLU(int n);
     // Makes LU_active/p_active describe the current K, reusing a cached
     // factorization when this exact matrix has been factorized before.
@@ -612,6 +697,15 @@ public:
     long long getFactorizeCount() const { return luFactorizeCount; }
     long long getLUCacheHitCount() const { return luCacheHitCount; }
     size_t getLUCacheEntryCount() const { return luCache.size(); }
+
+    long long getAdaptiveAccepted() const { return adaptiveAccepted; }
+    long long getAdaptiveRejected() const { return adaptiveRejected; }
+    long long getAdaptiveEventRetries() const { return adaptiveEventRetries; }
+
+    long long getAdaptiveGateCuts() const { return adaptiveGateCuts; }
+    long long getAdaptiveErrChecked() const { return adaptiveErrChecked; }
+    double getAdaptiveHMin() const { return adaptiveHMinUsed; }
+    double getAdaptiveHMax() const { return adaptiveHMaxUsed; }
 
     double getStopTime() const {
         return (config.stopTime > 0.0) ? config.stopTime : 0.01;

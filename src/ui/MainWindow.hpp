@@ -42,6 +42,13 @@ private:
     char simStopTimeBuf[64] = "0.02";
     char simStepSizeBuf[64] = "1u";
     int simSolverIdx = 0;
+    // Adaptive stepping controls. 0 = fixed, 1 = variable.
+    int simStepTypeIdx = 0;
+    char simRelTolBuf[64] = "1e-3";
+    char simAbsTolVBuf[64] = "1e-3";
+    char simAbsTolIBuf[64] = "1e-6";
+    char simHMaxBuf[64] = "0";
+    char simHMinBuf[64] = "0";
 
     bool showLossReportWindow = false;
     std::vector<CircuitSimEngine::SwitchLossResult> lossResults;

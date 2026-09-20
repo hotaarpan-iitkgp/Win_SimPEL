@@ -2023,10 +2023,26 @@ std::string NetlistSourceView::generateNetlistJson(const CircuitDesign& design) 
     simParamsObj["step_size"] = formatJSStyleDouble(rawStepSize);
 
     simParamsObj["solver"] = tempDesign.settings.solverType.empty() ? "euler" : tempDesign.settings.solverType;
-    simParamsObj["step_type"] = tempDesign.settings.stepType.empty() ? "fixed" : tempDesign.settings.stepType;
+    const std::string stepTypeOut =
+        tempDesign.settings.stepType.empty() ? "fixed" : tempDesign.settings.stepType;
+    simParamsObj["step_type"] = stepTypeOut;
     simParamsObj["solverMethod"] = "non-ideal";
     simParamsObj["engine"] = "auto";
-    simParamsObj["enable_lu_cache"] = true;
+    simParamsObj["enable_lu_cache"] = tempDesign.settings.enableLUCache;
+
+    // Adaptive-stepping controls. Emitted only for variable stepping so a fixed-step
+    // netlist stays exactly as it was and keeps diffing cleanly against older files.
+    if (stepTypeOut == "variable" || stepTypeOut == "adaptive") {
+        simParamsObj["rel_tol"] = formatJSStyleDouble(
+            (tempDesign.settings.relTol > 0.0) ? tempDesign.settings.relTol : 1e-3);
+        simParamsObj["abs_tol_v"] = formatJSStyleDouble(
+            (tempDesign.settings.absTolV > 0.0) ? tempDesign.settings.absTolV : 1e-3);
+        simParamsObj["abs_tol_i"] = formatJSStyleDouble(
+            (tempDesign.settings.absTolI > 0.0) ? tempDesign.settings.absTolI : 1e-6);
+        // Zero means "derive automatically" and is passed through as such.
+        simParamsObj["h_min"] = formatJSStyleDouble(tempDesign.settings.hMin);
+        simParamsObj["h_max"] = formatJSStyleDouble(tempDesign.settings.hMax);
+    }
 
     // ─── Component-Aware Wanted Variables Generation (with Series Current & CScript Output Pruning) ───
     struct CompNodes { std::string id; std::string t; std::string n1; std::string n2; };

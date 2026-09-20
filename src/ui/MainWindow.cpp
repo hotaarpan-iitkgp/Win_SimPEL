@@ -561,6 +561,34 @@ void MainWindow::renderMenuBar() {
                                 if (sp["step_size"].is_number()) cd.settings.stepSize = sp["step_size"].get<double>();
                                 else if (sp["step_size"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["step_size"].get<std::string>());
                             }
+                            // Solver selection and adaptive-stepping controls. These were
+                            // previously not restored at all, so the solver and step type
+                            // silently reverted to the defaults every time a design was
+                            // reopened.
+                            if (sp.contains("solver") && sp["solver"].is_string()) {
+                                cd.settings.solverType = sp["solver"].get<std::string>();
+                            }
+                            if (sp.contains("step_type") && sp["step_type"].is_string()) {
+                                cd.settings.stepType = sp["step_type"].get<std::string>();
+                            }
+                            if (sp.contains("enable_lu_cache")) {
+                                const auto& v = sp["enable_lu_cache"];
+                                if (v.is_boolean()) cd.settings.enableLUCache = v.get<bool>();
+                                else if (v.is_number()) cd.settings.enableLUCache = (v.get<double>() != 0.0);
+                            }
+                            {
+                                auto loadNum = [&](const char* key, double& dst) {
+                                    if (!sp.contains(key)) return;
+                                    const auto& v = sp[key];
+                                    if (v.is_number()) dst = v.get<double>();
+                                    else if (v.is_string()) dst = CircuitSimEngine::ExpressionEvaluator::parseScientific(v.get<std::string>());
+                                };
+                                loadNum("rel_tol",   cd.settings.relTol);
+                                loadNum("abs_tol_v", cd.settings.absTolV);
+                                loadNum("abs_tol_i", cd.settings.absTolI);
+                                loadNum("h_min",     cd.settings.hMin);
+                                loadNum("h_max",     cd.settings.hMax);
+                            }
                         }
                         canvas.setCircuit(cd);
                         simulator.loadCircuit(cd);
@@ -1559,6 +1587,33 @@ void MainWindow::loadSchematicFromJson(const json& j) {
         if (sp.contains("step_size")) {
             if (sp["step_size"].is_number()) cd.settings.stepSize = sp["step_size"].get<double>();
             else if (sp["step_size"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["step_size"].get<std::string>());
+        }
+        // Solver selection and adaptive-stepping controls; see the note at the other
+        // load site. Without these the solver and step type reverted to defaults on
+        // every reopen.
+        if (sp.contains("solver") && sp["solver"].is_string()) {
+            cd.settings.solverType = sp["solver"].get<std::string>();
+        }
+        if (sp.contains("step_type") && sp["step_type"].is_string()) {
+            cd.settings.stepType = sp["step_type"].get<std::string>();
+        }
+        if (sp.contains("enable_lu_cache")) {
+            const auto& v = sp["enable_lu_cache"];
+            if (v.is_boolean()) cd.settings.enableLUCache = v.get<bool>();
+            else if (v.is_number()) cd.settings.enableLUCache = (v.get<double>() != 0.0);
+        }
+        {
+            auto loadNum = [&](const char* key, double& dst) {
+                if (!sp.contains(key)) return;
+                const auto& v = sp[key];
+                if (v.is_number()) dst = v.get<double>();
+                else if (v.is_string()) dst = CircuitSimEngine::ExpressionEvaluator::parseScientific(v.get<std::string>());
+            };
+            loadNum("rel_tol",   cd.settings.relTol);
+            loadNum("abs_tol_v", cd.settings.absTolV);
+            loadNum("abs_tol_i", cd.settings.absTolI);
+            loadNum("h_min",     cd.settings.hMin);
+            loadNum("h_max",     cd.settings.hMax);
         }
     }
 
@@ -3222,6 +3277,13 @@ void MainWindow::renderSimParamsModal() {
                 if (cd.settings.solverType == "trapezoidal") simSolverIdx = 1;
                 else if (cd.settings.solverType == "rk4") simSolverIdx = 2;
                 else simSolverIdx = 0;
+                simStepTypeIdx = (cd.settings.stepType == "variable" ||
+                                  cd.settings.stepType == "adaptive") ? 1 : 0;
+                std::snprintf(simRelTolBuf,  sizeof(simRelTolBuf),  "%.17g", cd.settings.relTol);
+                std::snprintf(simAbsTolVBuf, sizeof(simAbsTolVBuf), "%.17g", cd.settings.absTolV);
+                std::snprintf(simAbsTolIBuf, sizeof(simAbsTolIBuf), "%.17g", cd.settings.absTolI);
+                std::snprintf(simHMaxBuf,    sizeof(simHMaxBuf),    "%.17g", cd.settings.hMax);
+                std::snprintf(simHMinBuf,    sizeof(simHMinBuf),    "%.17g", cd.settings.hMin);
             }
 
             ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Solver & Simulation Configuration");
@@ -3234,6 +3296,30 @@ void MainWindow::renderSimParamsModal() {
             const char* solverItems[] = { "Euler (Fixed Step)", "Trapezoidal (Gear/BE)", "Runge-Kutta 4th Order (RK4)" };
             ImGui::Combo("Solver Method", &simSolverIdx, solverItems, IM_ARRAYSIZE(solverItems));
 
+            const char* stepTypeItems[] = { "Fixed step", "Variable step (error controlled)" };
+            ImGui::Combo("Step Type", &simStepTypeIdx, stepTypeItems, IM_ARRAYSIZE(stepTypeItems));
+
+            if (simStepTypeIdx == 1) {
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Variable Step Tolerances");
+                ImGui::Separator();
+                ImGui::TextWrapped(
+                    "Step size is chosen from the local error in the capacitor voltages and "
+                    "inductor currents, and every switching edge is landed on exactly so duty "
+                    "cycle stays accurate no matter how large the step grows. Here 'Step Size' "
+                    "above is the starting step, not a limit.");
+                ImGui::Spacing();
+                ImGui::InputText("Relative tolerance", simRelTolBuf, sizeof(simRelTolBuf));
+                ImGui::InputText("Absolute tolerance - voltage (V)", simAbsTolVBuf, sizeof(simAbsTolVBuf));
+                ImGui::InputText("Absolute tolerance - current (A)", simAbsTolIBuf, sizeof(simAbsTolIBuf));
+                ImGui::InputText("Max step (s, 0 = auto)", simHMaxBuf, sizeof(simHMaxBuf));
+                ImGui::InputText("Min step (s, 0 = auto)", simHMinBuf, sizeof(simHMinBuf));
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Auto caps the largest step at a quarter of the shortest "
+                                      "carrier period in the circuit.");
+                }
+            }
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -3243,6 +3329,21 @@ void MainWindow::renderSimParamsModal() {
                 try { cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(simStopTimeBuf); } catch (...) {}
                 try { cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(simStepSizeBuf); } catch (...) {}
                 cd.settings.solverType = (simSolverIdx == 0) ? "euler" : ((simSolverIdx == 1) ? "trapezoidal" : "rk4");
+                cd.settings.stepType = (simStepTypeIdx == 1) ? "variable" : "fixed";
+                if (simStepTypeIdx == 1) {
+                    auto readField = [](const char* buf, double& dst, double fallback) {
+                        try {
+                            const double v = CircuitSimEngine::ExpressionEvaluator::parseScientific(buf);
+                            dst = (v >= 0.0) ? v : fallback;
+                        } catch (...) { dst = fallback; }
+                    };
+                    readField(simRelTolBuf,  cd.settings.relTol,  1e-3);
+                    readField(simAbsTolVBuf, cd.settings.absTolV, 1e-3);
+                    readField(simAbsTolIBuf, cd.settings.absTolI, 1e-6);
+                    readField(simHMaxBuf,    cd.settings.hMax,    0.0);
+                    readField(simHMinBuf,    cd.settings.hMin,    0.0);
+                    if (cd.settings.relTol <= 0.0) cd.settings.relTol = 1e-3;
+                }
                 
                 showSimParamsModal = false;
                 ImGui::CloseCurrentPopup();

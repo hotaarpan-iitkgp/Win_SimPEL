@@ -719,10 +719,20 @@ struct WireInstance {
 struct SolverSettings {
     double stopTime = 0.05;
     double stepSize = 1e-5;
-    std::string solverType = "euler"; // euler, rk4, adaptive
-    std::string stepType = "fixed";
+    std::string solverType = "euler"; // euler, trapezoidal
+    std::string stepType = "fixed";   // fixed, variable
     std::string diodeModel = "non-ideal"; // non-ideal, ideal-pwl
     bool enableLUCache = true;
+
+    // Adaptive stepping (stepType == "variable"). With fixed stepping these are
+    // ignored. `stepSize` then acts as the reference/initial step rather than a
+    // ceiling; hMax/hMin of 0 mean "derive automatically", which also caps the largest
+    // step at a quarter of the shortest carrier period found in the circuit.
+    double relTol = 1e-3;
+    double absTolV = 1e-3;   // volts
+    double absTolI = 1e-6;   // amps
+    double hMin = 0.0;       // 0 = auto
+    double hMax = 0.0;       // 0 = auto
 };
 
 struct PlotChannelConfig {

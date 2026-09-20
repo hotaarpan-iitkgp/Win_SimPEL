@@ -470,6 +470,20 @@ bool NetlistParser::parseJsonString(const std::string& jsonContent,
                 else if (v.is_string())  outConfig.enableLUCache = (v.get<std::string>() != "false" &&
                                                                     v.get<std::string>() != "0");
             }
+
+            // Adaptive-stepping tolerances and step bounds. Only meaningful when
+            // step_type selects variable stepping; harmless otherwise.
+            auto readNumber = [&](const char* key, double& dst) {
+                if (!simParams.contains(key)) return;
+                const auto& v = simParams[key];
+                if (v.is_number()) dst = v.get<double>();
+                else if (v.is_string()) dst = ExpressionEvaluator::parseScientific(v.get<std::string>());
+            };
+            readNumber("rel_tol",   outConfig.relTol);
+            readNumber("abs_tol_v", outConfig.absTolV);
+            readNumber("abs_tol_i", outConfig.absTolI);
+            readNumber("h_min",     outConfig.hMin);
+            readNumber("h_max",     outConfig.hMax);
         }
 
         bool hasPreExtractedStage = false;
