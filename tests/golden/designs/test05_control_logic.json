@@ -1,0 +1,200 @@
+{
+  "components": [
+    {
+      "id": "STEP1",
+      "type": "STEP",
+      "x": 100,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "initial_value": "0",
+        "final_value": "1",
+        "step_time": "0.005"
+      }
+    },
+    {
+      "id": "STEP2",
+      "type": "STEP",
+      "x": 100,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "initial_value": "0",
+        "final_value": "1",
+        "step_time": "0.002"
+      }
+    },
+    {
+      "id": "AND1",
+      "type": "AND",
+      "x": 250,
+      "y": 150,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CONST1",
+      "type": "CONST",
+      "x": 250,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "MATH1",
+      "type": "PROD",
+      "x": 400,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "INT1",
+      "type": "INTEGRATOR",
+      "x": 550,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "initial_condition": "0"
+      }
+    },
+    {
+      "id": "DERIV1",
+      "type": "DERIVATIVE",
+      "x": 700,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 850,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "STEP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AND1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "STEP2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AND1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "AND1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MATH1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "CONST1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MATH1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "MATH1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "INT1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "INT1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "DERIV1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "INT1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "DERIV1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    }
+  ],
+  "simulationSettings": {
+    "stopTime": "0.05",
+    "stepSize": "1e-5"
+  }
+}

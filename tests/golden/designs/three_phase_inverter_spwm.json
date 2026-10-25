@@ -1,0 +1,308 @@
+{
+  "components": [
+    {
+      "id": "V1",
+      "type": "V",
+      "x": -400,
+      "y": -680,
+      "rotation": 0,
+      "parameters": {
+        "value": "400"
+      }
+    },
+    {
+      "id": "MOSFET1",
+      "type": "MOSFET",
+      "x": -200,
+      "y": -800,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET2",
+      "type": "MOSFET",
+      "x": -200,
+      "y": -560,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET3",
+      "type": "MOSFET",
+      "x": -60,
+      "y": -800,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET4",
+      "type": "MOSFET",
+      "x": -60,
+      "y": -560,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET5",
+      "type": "MOSFET",
+      "x": 80,
+      "y": -800,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET6",
+      "type": "MOSFET",
+      "x": 80,
+      "y": -560,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 220,
+      "y": -740,
+      "rotation": 90,
+      "parameters": {
+        "L": "10m",
+        "esr": "50m",
+        "iL0": "0"
+      }
+    },
+    {
+      "id": "L2",
+      "type": "L",
+      "x": 220,
+      "y": -680,
+      "rotation": 90,
+      "parameters": {
+        "L": "10m",
+        "esr": "50m",
+        "iL0": "0"
+      }
+    },
+    {
+      "id": "L3",
+      "type": "L",
+      "x": 220,
+      "y": -620,
+      "rotation": 90,
+      "parameters": {
+        "L": "10m",
+        "esr": "50m",
+        "iL0": "0"
+      }
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 360,
+      "y": -740,
+      "rotation": 90,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      }
+    },
+    {
+      "id": "R2",
+      "type": "R",
+      "x": 360,
+      "y": -680,
+      "rotation": 90,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      }
+    },
+    {
+      "id": "R3",
+      "type": "R",
+      "x": 360,
+      "y": -620,
+      "rotation": 90,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      }
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": -440,
+      "y": -280,
+      "rotation": 0,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "",
+        "code": "// ─── THREE-PHASE SPWM CONTROLLER ───\nconst double M = 0.85;        // Modulation index (0.0 to 1.0)\nconst double fm = 50.0;       // Fundamental frequency (Hz)\nconst double fc = 5000.0;     // Carrier frequency (Hz)\nconst double dt = 1e-6;       // Time step\n\n// ─── State Variables ───\ndouble ramp = 0.0;\n\nvoid step() {\n    // Triangular carrier (-1.0 to +1.0)\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? next_ramp - 1.0 : next_ramp;\n    double v_car = (ramp < 0.5) ? (4.0 * ramp - 1.0) : (3.0 - 4.0 * ramp);\n\n    // 120-degree phase shifts\n    double phase_B_offset = 2.0 * PI / 3.0;\n    double phase_C_offset = 4.0 * PI / 3.0;\n\n    // Reference sinusoidal signals\n    double v_refA = M * sin(2.0 * PI * fm * time);\n    double v_refB = M * sin(2.0 * PI * fm * time - phase_B_offset);\n    double v_refC = M * sin(2.0 * PI * fm * time - phase_C_offset);\n\n    // Leg A Gate Signals\n    outputs[0] = (v_refA > v_car) ? 1.0 : 0.0; // Phase A Top Gate (MOSFET1)\n    outputs[1] = (outputs[0] > 0.5) ? 0.0 : 1.0; // Phase A Bottom Gate (MOSFET2)\n\n    // Leg B Gate Signals\n    outputs[2] = (v_refB > v_car) ? 1.0 : 0.0; // Phase B Top Gate (MOSFET3)\n    outputs[3] = (outputs[2] > 0.5) ? 0.0 : 1.0; // Phase B Bottom Gate (MOSFET4)\n\n    // Leg C Gate Signals\n    outputs[4] = (v_refC > v_car) ? 1.0 : 0.0; // Phase C Top Gate (MOSFET5)\n    outputs[5] = (outputs[4] > 0.5) ? 0.0 : 1.0; // Phase C Bottom Gate (MOSFET6)\n}",
+        "M": "0.85",
+        "fm": "50.0",
+        "fc": "5000.0",
+        "dt": "1e-6"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": { "type": "pin", "compId": "V1", "terminal": "A" },
+      "to": { "type": "pin", "compId": "MOSFET1", "terminal": "D" }
+    },
+    {
+      "id": "W2",
+      "from": { "type": "pin", "compId": "MOSFET3", "terminal": "D" },
+      "to": { "type": "pin", "compId": "MOSFET1", "terminal": "D" }
+    },
+    {
+      "id": "W3",
+      "from": { "type": "pin", "compId": "MOSFET5", "terminal": "D" },
+      "to": { "type": "pin", "compId": "MOSFET3", "terminal": "D" }
+    },
+    {
+      "id": "W4",
+      "from": { "type": "pin", "compId": "V1", "terminal": "B" },
+      "to": { "type": "pin", "compId": "MOSFET2", "terminal": "S" }
+    },
+    {
+      "id": "W5",
+      "from": { "type": "pin", "compId": "MOSFET4", "terminal": "S" },
+      "to": { "type": "pin", "compId": "MOSFET2", "terminal": "S" }
+    },
+    {
+      "id": "W6",
+      "from": { "type": "pin", "compId": "MOSFET6", "terminal": "S" },
+      "to": { "type": "pin", "compId": "MOSFET4", "terminal": "S" }
+    },
+    {
+      "id": "W7",
+      "from": { "type": "pin", "compId": "MOSFET1", "terminal": "S" },
+      "to": { "type": "pin", "compId": "MOSFET2", "terminal": "D" }
+    },
+    {
+      "id": "W8",
+      "from": { "type": "pin", "compId": "MOSFET3", "terminal": "S" },
+      "to": { "type": "pin", "compId": "MOSFET4", "terminal": "D" }
+    },
+    {
+      "id": "W9",
+      "from": { "type": "pin", "compId": "MOSFET5", "terminal": "S" },
+      "to": { "type": "pin", "compId": "MOSFET6", "terminal": "D" }
+    },
+    {
+      "id": "W10",
+      "from": { "type": "pin", "compId": "L1", "terminal": "B" },
+      "to": { "type": "pin", "compId": "MOSFET1", "terminal": "S" }
+    },
+    {
+      "id": "W11",
+      "from": { "type": "pin", "compId": "L2", "terminal": "B" },
+      "to": { "type": "pin", "compId": "MOSFET3", "terminal": "S" }
+    },
+    {
+      "id": "W12",
+      "from": { "type": "pin", "compId": "L3", "terminal": "B" },
+      "to": { "type": "pin", "compId": "MOSFET5", "terminal": "S" }
+    },
+    {
+      "id": "W13",
+      "from": { "type": "pin", "compId": "L1", "terminal": "A" },
+      "to": { "type": "pin", "compId": "R1", "terminal": "B" }
+    },
+    {
+      "id": "W14",
+      "from": { "type": "pin", "compId": "L2", "terminal": "A" },
+      "to": { "type": "pin", "compId": "R2", "terminal": "B" }
+    },
+    {
+      "id": "W15",
+      "from": { "type": "pin", "compId": "L3", "terminal": "A" },
+      "to": { "type": "pin", "compId": "R3", "terminal": "B" }
+    },
+    {
+      "id": "W16",
+      "from": { "type": "pin", "compId": "R1", "terminal": "A" },
+      "to": { "type": "pin", "compId": "R2", "terminal": "A" }
+    },
+    {
+      "id": "W17",
+      "from": { "type": "pin", "compId": "R2", "terminal": "A" },
+      "to": { "type": "pin", "compId": "R3", "terminal": "A" }
+    },
+    {
+      "id": "W18",
+      "from": { "type": "pin", "compId": "CSCRIPT1", "terminal": "Out1" },
+      "to": { "type": "pin", "compId": "MOSFET1", "terminal": "G" }
+    },
+    {
+      "id": "W19",
+      "from": { "type": "pin", "compId": "CSCRIPT1", "terminal": "Out2" },
+      "to": { "type": "pin", "compId": "MOSFET2", "terminal": "G" }
+    },
+    {
+      "id": "W20",
+      "from": { "type": "pin", "compId": "CSCRIPT1", "terminal": "Out3" },
+      "to": { "type": "pin", "compId": "MOSFET3", "terminal": "G" }
+    },
+    {
+      "id": "W21",
+      "from": { "type": "pin", "compId": "CSCRIPT1", "terminal": "Out4" },
+      "to": { "type": "pin", "compId": "MOSFET4", "terminal": "G" }
+    },
+    {
+      "id": "W22",
+      "from": { "type": "pin", "compId": "CSCRIPT1", "terminal": "Out5" },
+      "to": { "type": "pin", "compId": "MOSFET5", "terminal": "G" }
+    },
+    {
+      "id": "W23",
+      "from": { "type": "pin", "compId": "CSCRIPT1", "terminal": "Out6" },
+      "to": { "type": "pin", "compId": "MOSFET6", "terminal": "G" }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Three-Phase Output Load Currents",
+        "variables": [
+          "I_L1",
+          "I_L2",
+          "I_L3"
+        ]
+      },
+      {
+        "title": "SPWM Gate Signals (Leg A, B, C)",
+        "variables": [
+          "CSCRIPT1.Out1",
+          "CSCRIPT1.Out3",
+          "CSCRIPT1.Out5"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.04",
+    "stepSize": "1e-6",
+    "stepType": "fixed",
+    "solver": "euler"
+  }
+}

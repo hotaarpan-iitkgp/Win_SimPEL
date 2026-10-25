@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <iostream>
 #include <algorithm>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -39,7 +40,7 @@ void LossModelLibrary::scanDirectoryInternal(const std::string& dirPath) {
             loaded_dirs.push_back(canonicalPath);
         }
 
-        std::cout << "[LossModelLibrary] Scanning (background): " << canonicalPath << std::endl;
+        if (verbose.load()) std::cout << "[LossModelLibrary] Scanning (background): " << canonicalPath << std::endl;
 
         for (const auto& entry : fs::recursive_directory_iterator(dirPath, fs::directory_options::skip_permission_denied, ec)) {
             if (ec) break;
@@ -76,6 +77,19 @@ void LossModelLibrary::loadAllModelsInternal(const std::string& custom_dir) {
     std::string exeDir = getExecutableDir();
     std::vector<std::string> candidateDirs;
 
+    // 0. Directories named by the environment (';'-separated), e.g. for the Python API.
+    if (const char* env = std::getenv("SIMPEL_LOSS_MODELS_DIR")) {
+        std::string list = env;
+        size_t start = 0;
+        while (start <= list.size()) {
+            size_t sep = list.find(';', start);
+            std::string d = list.substr(start, sep == std::string::npos ? std::string::npos : sep - start);
+            if (!d.empty()) candidateDirs.push_back(d);
+            if (sep == std::string::npos) break;
+            start = sep + 1;
+        }
+    }
+
     // 1. Inside simulation tool executable directory: folder named 'loss_models'
     candidateDirs.push_back((fs::path(exeDir) / "loss_models").string());
     candidateDirs.push_back((fs::path(exeDir) / "data" / "thermal_models").string());
@@ -102,8 +116,27 @@ void LossModelLibrary::loadAllModelsInternal(const std::string& custom_dir) {
         model_names.erase(std::unique(model_names.begin(), model_names.end()), model_names.end());
     }
 
-    std::cout << "[LossModelLibrary] Background loading complete. Total models: " 
-              << getLoadedCount() << std::endl;
+    if (verbose.load())
+        std::cout << "[LossModelLibrary] Background loading complete. Total models: "
+                  << getLoadedCount() << std::endl;
+    loading = false;
+}
+
+void LossModelLibrary::loadFromDirectories(const std::vector<std::string>& dirs) {
+    if (workerThread.joinable()) workerThread.join();
+    {
+        std::lock_guard<std::mutex> lock(libraryMutex);
+        models.clear();
+        model_names.clear();
+        loaded_dirs.clear();
+    }
+    loading = true;
+    for (const auto& d : dirs) scanDirectoryInternal(d);
+    {
+        std::lock_guard<std::mutex> lock(libraryMutex);
+        std::sort(model_names.begin(), model_names.end());
+        model_names.erase(std::unique(model_names.begin(), model_names.end()), model_names.end());
+    }
     loading = false;
 }
 

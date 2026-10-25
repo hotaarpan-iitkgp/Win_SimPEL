@@ -1,0 +1,783 @@
+{
+  "components": [
+    {
+      "id": "AC_V1",
+      "type": "AC_V",
+      "x": 80,
+      "y": -100,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "220",
+        "frequency": "50",
+        "phase": "0"
+      },
+      "lastClickTime": 1788083596312
+    },
+    {
+      "id": "THYRISTOR1",
+      "type": "THYRISTOR",
+      "x": 260,
+      "y": -200,
+      "rotation": 180,
+      "parameters": {
+        "Vd": "0.8",
+        "Ron": "1m",
+        "Roff": "1M",
+        "Iholding": "0",
+        "Vgt": "0.5"
+      },
+      "lastClickTime": 1788083524262
+    },
+    {
+      "id": "THYRISTOR2",
+      "type": "THYRISTOR",
+      "x": 440,
+      "y": -200,
+      "rotation": 180,
+      "parameters": {
+        "Vd": "0.8",
+        "Ron": "1m",
+        "Roff": "1M",
+        "Iholding": "0",
+        "Vgt": "0.5"
+      },
+      "lastClickTime": 1788083527484
+    },
+    {
+      "id": "THYRISTOR3",
+      "type": "THYRISTOR",
+      "x": 260,
+      "y": 20,
+      "rotation": 180,
+      "parameters": {
+        "Vd": "0.8",
+        "Ron": "1m",
+        "Roff": "1M",
+        "Iholding": "0",
+        "Vgt": "0.5"
+      },
+      "lastClickTime": 1785842621557
+    },
+    {
+      "id": "THYRISTOR4",
+      "type": "THYRISTOR",
+      "x": 440,
+      "y": 20,
+      "rotation": 180,
+      "parameters": {
+        "Vd": "0.8",
+        "Ron": "1m",
+        "Roff": "1M",
+        "Iholding": "0",
+        "Vgt": "0.5"
+      },
+      "lastClickTime": 1785842622712
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 700,
+      "y": 20,
+      "rotation": 0,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      },
+      "lastClickTime": 1785844424288
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": 460,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "tag": "A"
+      },
+      "lastClickTime": 1785842910316
+    },
+    {
+      "id": "FROM_SIG1",
+      "type": "FROM_SIG",
+      "x": 520,
+      "y": -220,
+      "rotation": 180,
+      "parameters": {
+        "tag": "C"
+      },
+      "lastClickTime": 1788083528747
+    },
+    {
+      "id": "FROM_SIG2",
+      "type": "FROM_SIG",
+      "x": 500,
+      "y": 0,
+      "rotation": 180,
+      "parameters": {
+        "tag": "D"
+      },
+      "lastClickTime": 1785842942395
+    },
+    {
+      "id": "FROM_SIG3",
+      "type": "FROM_SIG",
+      "x": 320,
+      "y": 0,
+      "rotation": 180,
+      "parameters": {
+        "tag": "B"
+      },
+      "lastClickTime": 1785842929330
+    },
+    {
+      "id": "FROM_SIG4",
+      "type": "FROM_SIG",
+      "x": 340,
+      "y": -220,
+      "rotation": 180,
+      "parameters": {
+        "tag": "A"
+      },
+      "lastClickTime": 1788083525824
+    },
+    {
+      "id": "PULSE_GEN1",
+      "type": "PULSE_GEN",
+      "x": 360,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "5",
+        "period": "0.02",
+        "width": "0.001",
+        "delay": "0.00333"
+      },
+      "lastClickTime": 1785843689271
+    },
+    {
+      "id": "GOTO_SIG4",
+      "type": "GOTO_SIG",
+      "x": 680,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "tag": "C"
+      },
+      "lastClickTime": 1785842916556
+    },
+    {
+      "id": "PULSE_GEN4",
+      "type": "PULSE_GEN",
+      "x": 580,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "5",
+        "period": "0.02",
+        "width": "0.001",
+        "delay": "0.01333"
+      },
+      "lastClickTime": 1785843696282
+    },
+    {
+      "id": "GOTO_SIG2",
+      "type": "GOTO_SIG",
+      "x": 460,
+      "y": 320,
+      "rotation": 0,
+      "parameters": {
+        "tag": "B"
+      },
+      "lastClickTime": 1785842912784
+    },
+    {
+      "id": "PULSE_GEN2",
+      "type": "PULSE_GEN",
+      "x": 360,
+      "y": 320,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "5",
+        "period": "0.02",
+        "width": "0.001",
+        "delay": "0.01333"
+      },
+      "lastClickTime": 1785843694398
+    },
+    {
+      "id": "GOTO_SIG3",
+      "type": "GOTO_SIG",
+      "x": 680,
+      "y": 320,
+      "rotation": 0,
+      "parameters": {
+        "tag": "D"
+      },
+      "lastClickTime": 1785842919443
+    },
+    {
+      "id": "PULSE_GEN3",
+      "type": "PULSE_GEN",
+      "x": 580,
+      "y": 320,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "5",
+        "period": "0.02",
+        "width": "0.001",
+        "delay": "0.00333"
+      },
+      "lastClickTime": 1785843691450
+    },
+    {
+      "id": "PROBE1",
+      "type": "PROBE",
+      "x": 600,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "target": "R1",
+        "selected_signals": "I_R1,V_R1"
+      },
+      "lastClickTime": 1785843219820
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 700,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      },
+      "lastClickTime": 1788083561395
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 700,
+      "y": -80,
+      "rotation": 0,
+      "parameters": {
+        "L": "10m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1788083490221
+    },
+    {
+      "id": "PROBE2",
+      "type": "PROBE",
+      "x": 300,
+      "y": 420,
+      "rotation": 0,
+      "parameters": {
+        "target": "L1",
+        "selected_signals": "I_L1,V_L1"
+      },
+      "lastClickTime": 1785844497772
+    },
+    {
+      "id": "SCOPE2",
+      "type": "SCOPE",
+      "x": 400,
+      "y": 420,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      },
+      "lastClickTime": 0
+    },
+    {
+      "id": "VM1",
+      "type": "VM",
+      "x": 860,
+      "y": -60,
+      "rotation": 0,
+      "parameters": {},
+      "lastClickTime": 1788083483915
+    },
+    {
+      "id": "AM1",
+      "type": "AM",
+      "x": 700,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {},
+      "lastClickTime": 1788083505296
+    },
+    {
+      "id": "SCOPE3",
+      "type": "SCOPE",
+      "x": 1060,
+      "y": -160,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      },
+      "lastClickTime": 0
+    },
+    {
+      "id": "C_SNUB",
+      "type": "C",
+      "x": 760,
+      "y": -80,
+      "rotation": 0,
+      "parameters": {
+        "C": "1u",
+        "esr": "10",
+        "vC0": "0"
+      },
+      "lastClickTime": 0
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR3",
+        "terminal": "K"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR2",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR4",
+        "terminal": "K"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "AC_V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W2",
+        "x": 440,
+        "y": -60
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR3",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR4",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W5",
+        "x": 260,
+        "y": 80
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG4",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR2",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG3",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR3",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR4",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE_GEN1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W16",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE_GEN4",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG4",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE_GEN2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG2",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W15",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE_GEN3",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG3",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W17",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE1",
+        "terminal": "I_R1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W18",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE1",
+        "terminal": "V_R1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W19",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W20",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE2",
+        "terminal": "I_L1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE2",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W21",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE2",
+        "terminal": "V_L1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE2",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W23",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W5",
+        "x": 700,
+        "y": 80
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "K"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR2",
+        "terminal": "K"
+      },
+      "manualPath": [
+        {
+          "x": 260,
+          "y": -230
+        },
+        {
+          "x": 260,
+          "y": -260
+        },
+        {
+          "x": 440,
+          "y": -260
+        },
+        {
+          "x": 440,
+          "y": -230
+        }
+      ]
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "AM1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W22",
+      "from": {
+        "type": "pin",
+        "compId": "AM1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W7",
+        "x": 440,
+        "y": -220
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W24",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W22",
+        "x": 700,
+        "y": -260
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "AC_V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W25",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE3",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W26",
+      "from": {
+        "type": "pin",
+        "compId": "AM1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE3",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W_SNUB1",
+      "from": {
+        "type": "pin",
+        "compId": "C_SNUB",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W_SNUB2",
+      "from": {
+        "type": "pin",
+        "compId": "C_SNUB",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "CSCRIPT1.Out1",
+          "CSCRIPT1.Out2",
+          "CSCRIPT1.Out3",
+          "CSCRIPT1.Out4",
+          "I_C1",
+          "V_V_3PH1_A",
+          "V_V_3PH1_B",
+          "V_V_3PH1_C",
+          "INDUCTION_MOTOR1.isb",
+          "INDUCTION_MOTOR1.isc",
+          "INDUCTION_MOTOR1.isa",
+          "AC_V3.V",
+          "D1.I",
+          "D2.I",
+          "AC_V2.I",
+          "AC_V1.V",
+          "R1.I"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.06",
+    "stepSize": "10u",
+    "solver": "euler",
+    "stepType": "fixed",
+    "simulationMode": "regular",
+    "solverMethod": "non-ideal",
+    "enableLuCache": true
+  }
+}

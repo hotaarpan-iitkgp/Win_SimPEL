@@ -1,0 +1,786 @@
+{
+  "components": [
+    {
+      "id": "V1",
+      "type": "V",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "400"
+      }
+    },
+    {
+      "id": "IGBT1",
+      "type": "IGBT",
+      "x": 350,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "FROM_SIG1",
+      "type": "FROM_SIG",
+      "x": 280,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G1"
+      }
+    },
+    {
+      "id": "IGBT2",
+      "type": "IGBT",
+      "x": 350,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "FROM_SIG2",
+      "type": "FROM_SIG",
+      "x": 280,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G2"
+      }
+    },
+    {
+      "id": "IGBT3",
+      "type": "IGBT",
+      "x": 500,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "FROM_SIG3",
+      "type": "FROM_SIG",
+      "x": 430,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G3"
+      }
+    },
+    {
+      "id": "IGBT4",
+      "type": "IGBT",
+      "x": 500,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "FROM_SIG4",
+      "type": "FROM_SIG",
+      "x": 430,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G4"
+      }
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 600,
+      "y": 200,
+      "rotation": 270,
+      "parameters": {
+        "L": "5m"
+      }
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 680,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {
+        "C": "10u"
+      }
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 760,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {
+        "value": "20"
+      }
+    },
+    {
+      "id": "GND1",
+      "type": "GND",
+      "x": 200,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "VM1",
+      "type": "VM",
+      "x": 840,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": 900,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {
+        "tag": "Vout"
+      }
+    },
+    {
+      "id": "SINE1",
+      "type": "SINE_WAVE",
+      "x": 100,
+      "y": 500,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "1",
+        "frequency": "50"
+      }
+    },
+    {
+      "id": "TRI1",
+      "type": "TRI",
+      "x": 100,
+      "y": 560,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "1",
+        "frequency": "5000"
+      }
+    },
+    {
+      "id": "COMP1",
+      "type": "COMP",
+      "x": 250,
+      "y": 500,
+      "rotation": 0,
+      "parameters": {
+        "hysteresis": "0"
+      }
+    },
+    {
+      "id": "COMP2",
+      "type": "COMP",
+      "x": 250,
+      "y": 560,
+      "rotation": 0,
+      "parameters": {
+        "hysteresis": "0"
+      }
+    },
+    {
+      "id": "NOT1",
+      "type": "NOT",
+      "x": 350,
+      "y": 500,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "NOT2",
+      "type": "NOT",
+      "x": 350,
+      "y": 560,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GOTO_G1",
+      "type": "GOTO_SIG",
+      "x": 450,
+      "y": 480,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G1"
+      }
+    },
+    {
+      "id": "GOTO_G2",
+      "type": "GOTO_SIG",
+      "x": 450,
+      "y": 520,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G2"
+      }
+    },
+    {
+      "id": "GOTO_G3",
+      "type": "GOTO_SIG",
+      "x": 450,
+      "y": 540,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G3"
+      }
+    },
+    {
+      "id": "GOTO_G4",
+      "type": "GOTO_SIG",
+      "x": 450,
+      "y": 580,
+      "rotation": 0,
+      "parameters": {
+        "tag": "G4"
+      }
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 550,
+      "y": 530,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      }
+    },
+    {
+      "id": "MATH1",
+      "type": "PROD",
+      "x": 180,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CONST_NEG",
+      "type": "CONST",
+      "x": 100,
+      "y": 620,
+      "rotation": 0,
+      "parameters": {
+        "value": "-1"
+      }
+    },
+    {
+      "id": "FROM_SIG_VOUT",
+      "type": "FROM_SIG",
+      "x": 470,
+      "y": 550,
+      "rotation": 0,
+      "parameters": {
+        "tag": "Vout"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT2",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG3",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT3",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG4",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT4",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT3",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT2",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT4",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT2",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT3",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT4",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT3",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT4",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT2",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W15",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT3",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W16",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W17",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W18",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND1",
+        "terminal": "1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W19",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W20",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W21",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W22",
+      "from": {
+        "type": "pin",
+        "compId": "SINE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Plus"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W23",
+      "from": {
+        "type": "pin",
+        "compId": "TRI1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Minus"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W24",
+      "from": {
+        "type": "pin",
+        "compId": "TRI1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "COMP2",
+        "terminal": "Minus"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W25",
+      "from": {
+        "type": "pin",
+        "compId": "SINE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MATH1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W26",
+      "from": {
+        "type": "pin",
+        "compId": "CONST_NEG",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MATH1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W27",
+      "from": {
+        "type": "pin",
+        "compId": "MATH1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "COMP2",
+        "terminal": "Plus"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W28",
+      "from": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_G1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W29",
+      "from": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "NOT1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W30",
+      "from": {
+        "type": "pin",
+        "compId": "NOT1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_G2",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W31",
+      "from": {
+        "type": "pin",
+        "compId": "COMP2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_G4",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W32",
+      "from": {
+        "type": "pin",
+        "compId": "COMP2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "NOT2",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W33",
+      "from": {
+        "type": "pin",
+        "compId": "NOT2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_G3",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W34",
+      "from": {
+        "type": "pin",
+        "compId": "SINE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W35",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG_VOUT",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    }
+  ],
+  "simulationSettings": {
+    "stopTime": "0.05",
+    "stepSize": "1e-5"
+  }
+}

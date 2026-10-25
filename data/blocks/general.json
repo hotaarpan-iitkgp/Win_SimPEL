@@ -1,0 +1,471 @@
+{
+  "schema": 1,
+  "category": "general",
+  "description": "Ports, subsystems, signal routing and visualisation blocks.",
+  "blocks": [
+    {
+      "type": "SUBSYSTEM",
+      "name": "Subsystem Block",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "Subsystem",
+      "aliases": [
+        "Subsystem"
+      ],
+      "role": "structural",
+      "params": [],
+      "palette": [
+        {
+          "order": 0,
+          "text": "Subsystem Block",
+          "label": "Subsystem",
+          "prefix": "SUBSYSTEM",
+          "ui_type": "Subsystem",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INPORT",
+      "name": "Inport",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "Inport",
+      "aliases": [
+        "Inport",
+        "IN"
+      ],
+      "params": [
+        {
+          "name": "port_number",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 1,
+          "text": "Inport (INPORT)",
+          "label": "Inport",
+          "prefix": "INPORT",
+          "ui_type": "Inport",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "port_number",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "OUTPORT",
+      "name": "Outport",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "Outport",
+      "aliases": [
+        "Outport",
+        "OUT"
+      ],
+      "params": [
+        {
+          "name": "port_number",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 2,
+          "text": "Outport (OUTPORT)",
+          "label": "Outport",
+          "prefix": "OUTPORT",
+          "ui_type": "Outport",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "port_number",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PIN",
+      "name": "Physical Inport",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "PhysicalInport",
+      "aliases": [
+        "PhysicalInport",
+        "PHYSICAL_INPORT"
+      ],
+      "role": "structural",
+      "params": [
+        {
+          "name": "port_number",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 3,
+          "text": "Physical Inport (PIN)",
+          "label": "Phys Inport",
+          "prefix": "PIN",
+          "ui_type": "PhysicalInport",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "port_number",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "POUT",
+      "name": "Physical Outport",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "PhysicalOutport",
+      "aliases": [
+        "PhysicalOutport",
+        "PHYSICAL_OUTPORT"
+      ],
+      "role": "structural",
+      "params": [
+        {
+          "name": "port_number",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 4,
+          "text": "Physical Outport (POUT)",
+          "label": "Phys Outport",
+          "prefix": "POUT",
+          "ui_type": "PhysicalOutport",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "port_number",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ENABLE_PORT",
+      "name": "Enable Port",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "EnablePort",
+      "aliases": [
+        "EnablePort"
+      ],
+      "role": "structural",
+      "params": [
+        {
+          "name": "states_when_disabled",
+          "default": "held"
+        }
+      ],
+      "palette": [
+        {
+          "order": 5,
+          "text": "Enable Port (ENABLE_PORT)",
+          "label": "Enable",
+          "prefix": "ENABLE_PORT",
+          "ui_type": "EnablePort",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "states_when_disabled",
+              "held"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "TRIGGER_PORT",
+      "name": "Trigger Port",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "TriggerPort",
+      "aliases": [
+        "TriggerPort"
+      ],
+      "role": "structural",
+      "params": [
+        {
+          "name": "trigger_type",
+          "default": "rising"
+        }
+      ],
+      "palette": [
+        {
+          "order": 6,
+          "text": "Trigger Port (TRIGGER_PORT)",
+          "label": "Trigger",
+          "prefix": "TRIGGER_PORT",
+          "ui_type": "TriggerPort",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "trigger_type",
+              "rising"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "BUS_CREATOR",
+      "name": "Bus Creator",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "BusCreator",
+      "aliases": [
+        "BusCreator"
+      ],
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 7,
+          "text": "Bus Creator (BUS_CREATOR)",
+          "label": "Bus Creator",
+          "prefix": "BUS_CREATOR",
+          "ui_type": "BusCreator",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "BUS_SELECTOR",
+      "name": "Bus Selector",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "BusSelector",
+      "aliases": [
+        "BusSelector"
+      ],
+      "params": [
+        {
+          "name": "signals",
+          "default": "signal1,signal2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 8,
+          "text": "Bus Selector (BUS_SELECTOR)",
+          "label": "Bus Selector",
+          "prefix": "BUS_SELECTOR",
+          "ui_type": "BusSelector",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": [
+            [
+              "signals",
+              "signal1,signal2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "TERMINATOR",
+      "name": "Terminator",
+      "subcategory": "Ports and Subsystems",
+      "ui_type": "Terminator",
+      "aliases": [
+        "Terminator"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.terminators",
+        "fields": {
+          "original_type": "TERMINATOR",
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 9,
+          "text": "Terminator (TERMINATOR)",
+          "label": "Terminator",
+          "prefix": "TERMINATOR",
+          "ui_type": "Terminator",
+          "subcategory": "Ports and Subsystems",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "PROBE",
+      "name": "Active Probe",
+      "subcategory": "Signal Routing",
+      "ui_type": "UnifiedProbe",
+      "aliases": [
+        "UnifiedProbe"
+      ],
+      "role": "observer",
+      "params": [
+        {
+          "name": "target",
+          "default": ""
+        },
+        {
+          "name": "selected_signals",
+          "default": ""
+        }
+      ],
+      "palette": [
+        {
+          "order": 10,
+          "text": "Active Probe (PROBE)",
+          "label": "Active Probe",
+          "prefix": "PROBE",
+          "ui_type": "Unknown",
+          "subcategory": "Signal Routing",
+          "basic": true,
+          "params": [
+            [
+              "target",
+              ""
+            ],
+            [
+              "selected_signals",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SCOPE",
+      "name": "Oscilloscope",
+      "subcategory": "Visualization & Logging",
+      "ui_type": "Oscilloscope",
+      "aliases": [
+        "Oscilloscope"
+      ],
+      "role": "observer",
+      "params": [
+        {
+          "name": "channels",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 11,
+          "text": "Oscilloscope (SCOPE)",
+          "label": "Oscilloscope",
+          "prefix": "SCOPE",
+          "ui_type": "Unknown",
+          "subcategory": "Visualization & Logging",
+          "basic": true,
+          "params": [
+            [
+              "channels",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "LOSS_ANALYZER",
+      "name": "Loss Analyzer",
+      "subcategory": "Visualization & Logging",
+      "ui_type": "LossAnalyzer",
+      "aliases": [
+        "LossAnalyzer"
+      ],
+      "role": "observer",
+      "params": [
+        {
+          "name": "start_time",
+          "default": "0.0"
+        },
+        {
+          "name": "duration",
+          "default": "0.02"
+        },
+        {
+          "name": "tj",
+          "default": "125.0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 12,
+          "text": "Loss Analyzer (LOSS_ANALYZER)",
+          "label": "Loss Analyzer",
+          "prefix": "LOSS_ANALYZER",
+          "ui_type": "LossAnalyzer",
+          "subcategory": "Visualization & Logging",
+          "basic": true,
+          "params": [
+            [
+              "start_time",
+              "0.0"
+            ],
+            [
+              "duration",
+              "0.02"
+            ],
+            [
+              "tj",
+              "125.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DISPLAY_VAL",
+      "name": "Display",
+      "subcategory": "Visualization & Logging",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "INTERNAL_VAR",
+      "name": "Internal Variable",
+      "subcategory": "Signal Routing",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "probe_target",
+          "default": "V_R1"
+        }
+      ],
+      "palette": []
+    }
+  ]
+}

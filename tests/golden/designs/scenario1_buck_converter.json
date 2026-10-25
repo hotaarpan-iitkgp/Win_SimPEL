@@ -1,0 +1,288 @@
+{
+  "components": [
+    {
+      "id": "STEP1",
+      "label": "Voltage Reference (Vref)",
+      "parameters": {
+        "final_value": "5.0",
+        "initial_value": "0.0",
+        "step_time": "0.1"
+      },
+      "rotation": 0,
+      "type": "STEP",
+      "x": 80.0,
+      "y": 140.0
+    },
+    {
+      "id": "SUM1",
+      "label": "Voltage Error Sum",
+      "parameters": {
+        "signs": "+-"
+      },
+      "rotation": 0,
+      "type": "SUBTRACT",
+      "x": 240.0,
+      "y": 140.0
+    },
+    {
+      "id": "PID1",
+      "label": "Voltage Controller PID",
+      "parameters": {
+        "Kd": "0.0001",
+        "Ki": "100.0",
+        "Kp": "0.5",
+        "Tf": "0.001"
+      },
+      "rotation": 0,
+      "type": "CONT_PID",
+      "x": 400.0,
+      "y": 140.0
+    },
+    {
+      "id": "SAT1",
+      "label": "Duty Cycle Saturation",
+      "parameters": {
+        "max": "0.95",
+        "min": "0.0"
+      },
+      "rotation": 0,
+      "type": "SATURATION",
+      "x": 560.0,
+      "y": 140.0
+    },
+    {
+      "id": "TRI1",
+      "label": "Triangle Carrier Wave",
+      "parameters": {
+        "frequency": "10000.0",
+        "max": "1.0",
+        "min": "0.0"
+      },
+      "rotation": 0,
+      "type": "TRI_GEN",
+      "x": 560.0,
+      "y": 280.0
+    },
+    {
+      "id": "COMP1",
+      "label": "PWM Comparator",
+      "parameters": {},
+      "rotation": 0,
+      "type": "COMP",
+      "x": 720.0,
+      "y": 200.0
+    },
+    {
+      "id": "CONV1",
+      "label": "Data Type Converter",
+      "parameters": {
+        "datatype": "double"
+      },
+      "rotation": 0,
+      "type": "DATATYPE_CONV",
+      "x": 880.0,
+      "y": 200.0
+    },
+    {
+      "id": "V_DC",
+      "label": "DC Supply Voltage (12V)",
+      "parameters": {
+        "value": "12.0"
+      },
+      "rotation": 0,
+      "type": "CONST",
+      "x": 880.0,
+      "y": 340.0
+    },
+    {
+      "id": "PROD1",
+      "label": "Chopped Voltage Product",
+      "parameters": {
+        "operators": "**"
+      },
+      "rotation": 0,
+      "type": "PROD",
+      "x": 1040.0,
+      "y": 260.0
+    },
+    {
+      "id": "PLANT_LC",
+      "label": "LC Filter Transfer Function",
+      "parameters": {
+        "den": "[1, 1000, 100000000]",
+        "num": "[100000000]"
+      },
+      "rotation": 0,
+      "type": "TRANSFER_FCN",
+      "x": 1200.0,
+      "y": 260.0
+    },
+    {
+      "id": "PROBE1",
+      "label": "System Signals Probe",
+      "parameters": {
+        "selected_signals": "STEP1.Out,SAT1.Out,COMP1.Out,PLANT_LC.Out",
+        "target": "STEP1"
+      },
+      "rotation": 0,
+      "type": "PROBE",
+      "x": 1380.0,
+      "y": 200.0
+    },
+    {
+      "id": "SCOPE1",
+      "label": "Multichannel Oscilloscope",
+      "parameters": {
+        "channels": "4"
+      },
+      "rotation": 0,
+      "type": "SCOPE",
+      "x": 1540.0,
+      "y": 200.0
+    }
+  ],
+  "wires": [
+    {
+      "from": {
+        "compId": "STEP1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w1",
+      "to": {
+        "compId": "SUM1",
+        "terminal": "In1",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "SUM1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w2",
+      "to": {
+        "compId": "PID1",
+        "terminal": "In",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "PID1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w3",
+      "to": {
+        "compId": "SAT1",
+        "terminal": "In",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "SAT1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w4",
+      "to": {
+        "compId": "COMP1",
+        "terminal": "In1",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "TRI1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w5",
+      "to": {
+        "compId": "COMP1",
+        "terminal": "In2",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "COMP1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w6",
+      "to": {
+        "compId": "CONV1",
+        "terminal": "In",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "CONV1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w7",
+      "to": {
+        "compId": "PROD1",
+        "terminal": "In1",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "V_DC",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w8",
+      "to": {
+        "compId": "PROD1",
+        "terminal": "In2",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "PROD1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w9",
+      "to": {
+        "compId": "PLANT_LC",
+        "terminal": "In",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "PLANT_LC",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w10",
+      "to": {
+        "compId": "SUM1",
+        "terminal": "In2",
+        "type": "pin"
+      }
+    }
+  ],
+  "simulation_parameters": {
+    "atol": 1e-06,
+    "enable_lu_cache": true,
+    "engine": "auto",
+    "max_step_size": 0.0001,
+    "rtol": 0.001,
+    "solver": "euler",
+    "solverMethod": "non-ideal",
+    "step_size": 1e-05,
+    "step_type": "fixed",
+    "stop_time": 0.25
+  }
+}

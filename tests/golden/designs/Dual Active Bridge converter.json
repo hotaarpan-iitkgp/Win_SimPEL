@@ -1,0 +1,632 @@
+{
+  "components": [
+    {
+      "id": "vgFET1",
+      "type": "vg-FET",
+      "x": -120,
+      "y": -40,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S1"
+      },
+      "lastClickTime": 1783166058542
+    },
+    {
+      "id": "vgFET2",
+      "type": "vg-FET",
+      "x": -120,
+      "y": 140,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S2"
+      },
+      "lastClickTime": 1783166065734
+    },
+    {
+      "id": "vgFET3",
+      "type": "vg-FET",
+      "x": 0,
+      "y": -40,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S3"
+      },
+      "lastClickTime": 1783166073784
+    },
+    {
+      "id": "vgFET4",
+      "type": "vg-FET",
+      "x": 0,
+      "y": 140,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S4"
+      },
+      "lastClickTime": 1783166065734
+    },
+    {
+      "id": "V1",
+      "type": "V",
+      "x": -300,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      },
+      "lastClickTime": 1783166918128
+    },
+    {
+      "id": "vgFET5",
+      "type": "vg-FET",
+      "x": 360,
+      "y": -40,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S5"
+      },
+      "lastClickTime": 1783166173450
+    },
+    {
+      "id": "vgFET6",
+      "type": "vg-FET",
+      "x": 360,
+      "y": 140,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S6"
+      },
+      "lastClickTime": 1783166065734
+    },
+    {
+      "id": "vgFET7",
+      "type": "vg-FET",
+      "x": 480,
+      "y": -40,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S7"
+      },
+      "lastClickTime": 1783166073784
+    },
+    {
+      "id": "vgFET8",
+      "type": "vg-FET",
+      "x": 480,
+      "y": 140,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S8"
+      },
+      "lastClickTime": 1783166065734
+    },
+    {
+      "id": "V2",
+      "type": "V",
+      "x": 680,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      },
+      "lastClickTime": 1783166177758
+    },
+    {
+      "id": "XFMR1",
+      "type": "XFMR",
+      "x": 200,
+      "y": 40,
+      "rotation": 0,
+      "parameters": {
+        "primary_turns": "[100]",
+        "secondary_turns": "[100]"
+      },
+      "lastClickTime": 1783166910660
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 100,
+      "y": 20,
+      "rotation": 270,
+      "parameters": {
+        "L": "100u",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1783166206931
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": -260,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "",
+        "code": "// ─── ZONE 1: Parameters (editable in properties panel) ───\nconst double fs = 10000.0;   // Switching frequency (100 kHz)\nconst double phi = 0.2;       // Phase shift angle normalized (-0.5 to 0.5)\nconst double dt = 1e-6;       // Simulation time step (0.1 µs)\n\n// ─── ZONE 2: State Variables (persistent across time steps) ───\ndouble ramp_prim = 0.0;       // Primary carrier accumulator\n\n// ─── ZONE 3: Step Function (runs every time step) ───\nvoid step() {\n    // 1. Advance Primary Sawtooth Carrier Ramp (0.0 to 1.0)\n    double next_ramp_prim = ramp_prim + fs * dt;\n    ramp_prim = (next_ramp_prim >= 1.0) ? next_ramp_prim - 1.0 : next_ramp_prim;\n\n    // 2. Generate Secondary Sawtooth Carrier Ramp shifted by phi\n    double ramp_sec = ramp_prim - phi;\n    \n    // Handle wrap-around boundaries for the shifted carrier\n    if (ramp_sec < 0.0) {\n        ramp_sec += 1.0;\n    } else if (ramp_sec >= 1.0) {\n        ramp_sec -= 1.0;\n    }\n\n    // 3. Primary Bridge Comparator Logic (50% Duty Cycle)\n    // Leg A (S1 / S2)\n    double g1 = (ramp_prim < 0.5) ? 1.0 : 0.0;\n    double g2 = (g1 > 0.5) ? 0.0 : 1.0;\n    // Leg B (S3 / S4) - Diagonal phase shift for full-bridge square wave\n    double g3 = (ramp_prim >= 0.5) ? 1.0 : 0.0;\n    double g4 = (g3 > 0.5) ? 0.0 : 1.0;\n\n    // 4. Secondary Bridge Comparator Logic (50% Duty Cycle, shifted by phi)\n    // Leg C (S5 / S6)\n    double g5 = (ramp_sec < 0.5) ? 1.0 : 0.0;\n    double g6 = (g5 > 0.5) ? 0.0 : 1.0;\n    // Leg D (S7 / S8)\n    double g7 = (ramp_sec >= 0.5) ? 1.0 : 0.0;\n    double g8 = (g7 > 0.5) ? 0.0 : 1.0;\n\n    // 5. Output Vector Mapping\n    outputs[0] = g1; // vgFET1 (S1)\n    outputs[1] = g2; // vgFET2 (S2)\n    outputs[2] = g3; // vgFET3 (S3)\n    outputs[3] = g4; // vgFET4 (S4)\n    outputs[4] = g5; // vgFET5 (S5)\n    outputs[5] = g6; // vgFET6 (S6)\n    outputs[6] = g7; // vgFET7 (S7)\n    outputs[7] = g8; // vgFET8 (S8)\n}",
+        "fs": "10000.0",
+        "phi": "0.2",
+        "dt": "1e-6",
+        "plot_disabled_pins": "",
+        "ramp_prim": "0.0"
+      },
+      "lastClickTime": 0
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 260,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S1"
+      }
+    },
+    {
+      "id": "GOTO_SIG2",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S2"
+      }
+    },
+    {
+      "id": "GOTO_SIG3",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 340,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S3"
+      }
+    },
+    {
+      "id": "GOTO_SIG4",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S4"
+      }
+    },
+    {
+      "id": "GOTO_SIG5",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 420,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S5"
+      }
+    },
+    {
+      "id": "GOTO_SIG6",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 460,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S6"
+      }
+    },
+    {
+      "id": "GOTO_SIG7",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 500,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S7"
+      }
+    },
+    {
+      "id": "GOTO_SIG8",
+      "type": "GOTO_SIG",
+      "x": -120,
+      "y": 540,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S8"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET2",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET1",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET4",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET3",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET3",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET4",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W3",
+        "x": -120,
+        "y": -100
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET2",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W4",
+        "x": -120,
+        "y": 200
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET6",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET5",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET8",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET7",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "V2",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET7",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "V2",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vgFET8",
+        "terminal": "S"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET5",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W9",
+        "x": 480,
+        "y": -100
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET6",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W10",
+        "x": 480,
+        "y": 200
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "P1A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W1",
+        "x": -120,
+        "y": 20
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W15",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "P1B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W2",
+        "x": 0,
+        "y": 60
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W16",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "S1A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W7",
+        "x": 360,
+        "y": 20
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W17",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "S1B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W8",
+        "x": 480,
+        "y": 60
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W18",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W19",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG2",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W20",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out3"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG3",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W21",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out4"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG4",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W22",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out5"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG5",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W23",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out6"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG6",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W24",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out7"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG7",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W25",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out8"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG8",
+        "terminal": "In"
+      },
+      "manualPath": null
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "INTERNAL_VAR1.Out",
+          "V_R1",
+          "I_L1"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.02",
+    "stepSize": "1e-6",
+    "stepType": "fixed",
+    "solver": "euler",
+    "simulationMode": "regular"
+  }
+}

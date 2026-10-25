@@ -21,6 +21,10 @@
 #include <unordered_map>
 #include <set>
 #include "engine/LossModelLibrary.hpp"
+#include "engine/DesignIO.hpp"
+#include "engine/BlockRegistry.hpp"
+#include "engine/NetlistGenerator.hpp"
+#include "engine/ResultsFile.hpp"
 
 using json = nlohmann::json;
 
@@ -182,6 +186,82 @@ void MainWindow::startSimulation() {
     });
 }
 
+bool MainWindow::openResultsFile(const std::string& path, std::string* error) {
+    if (simRunning.load()) {
+        if (error) *error = "A simulation is running; stop it first.";
+        return false;
+    }
+    try {
+        ResultsFileData data = readResultsFile(path);
+        DesignIO::LoadOptions lo;
+        lo.normaliseWires = false;   // SchematicCanvas::setCircuit applies it
+        CircuitDesign cd = DesignIO::loadDesign(data.design, lo);
+        NetlistBuilder::buildNodesForCircuit(cd);
+        canvas.setCircuit(cd);
+        simulator.loadCircuit(cd);
+        canvas.fitToScreen();
+
+        CircuitSimEngine::SimulationOutput out;
+        out.time = std::move(data.time);
+        for (auto& [name, values] : data.signals) out.voltages[name] = std::move(values);
+        const double stopTime = data.settings.value("t_stop", out.time.empty() ? 0.0 : out.time.back());
+        simulator.presentResults(out, stopTime, data.meta.value("wall_seconds", 0.0));
+        scopeView.triggerAutoFit();
+        netlistSourceView.triggerAutoFit();
+        currentLoadedJsonName = path;
+        return true;
+    } catch (const std::exception& e) {
+        if (error) *error = e.what();
+        return false;
+    }
+}
+
+bool MainWindow::openSchematicFile(const std::string& path, std::string* error) {
+    try {
+        std::ifstream f(path);
+        if (!f.is_open()) throw std::runtime_error("cannot open " + path);
+        json j = json::parse(f);
+        loadSchematicFromJson(j);
+        currentLoadedJsonName = path;
+        return true;
+    } catch (const std::exception& e) {
+        if (error) *error = e.what();
+        return false;
+    }
+}
+
+bool MainWindow::saveResultsFile(const std::string& path, std::string* error) {
+    if (simRunning.load()) {
+        if (error) *error = "A simulation is running; wait for it to finish.";
+        return false;
+    }
+    try {
+        CircuitDesign cd = canvas.getCircuit();
+        NetlistBuilder::buildNodesForCircuit(cd);
+        const std::string netlist = generateNetlistJson(cd);
+        auto tel = simulator.getTelemetryCopy();
+        if (tel.timeHistory.empty()) {
+            if (error) *error = "There are no results yet: run a simulation first.";
+            return false;
+        }
+        std::vector<std::string> names;
+        for (const auto& kv : tel.voltages) names.push_back(kv.first);
+        std::sort(names.begin(), names.end());
+        std::vector<ResultsSignalView> views;
+        for (const auto& n : names) views.push_back({n, tel.voltages[n].data(), tel.voltages[n].size()});
+        const auto& st = cd.settings;
+        json settings = {{"t_stop", st.stopTime}, {"dt", st.stepSize}, {"solver", st.solverType},
+                         {"step", st.stepType == "variable" ? std::string("adaptive") : st.stepType}};
+        json meta = {{"wall_seconds", simulator.getComputeTimeSeconds()}, {"source", "gui"}, {"cancelled", false}};
+        writeResultsFile(path, DesignIO::saveDesign(canvas.getCircuit()), netlist, settings, meta,
+                         tel.timeHistory.data(), tel.timeHistory.size(), views);
+        return true;
+    } catch (const std::exception& e) {
+        if (error) *error = e.what();
+        return false;
+    }
+}
+
 void MainWindow::loadPresetTemplate(const std::string& name) {
     CircuitDesign cd;
     cd.settings.stopTime = 0.01;
@@ -295,6 +375,24 @@ static std::string saveFileDialog() {
     return "";
 }
 
+static std::string resultsFileDialog(bool save) {
+    char szFile[260] = {0};
+    OPENFILENAMEA ofn = {0};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.lpstrFilter = "SimPEL Results (*.simres)\0*.simres\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    if (save) {
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+        if (!GetSaveFileNameA(&ofn)) return "";
+        std::string res(szFile);
+        if (res.size() < 7 || res.substr(res.size() - 7) != ".simres") res += ".simres";
+        return res;
+    }
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    return GetOpenFileNameA(&ofn) ? std::string(szFile) : std::string();
+}
+
 static std::string openFolderDialog() {
     char szDir[MAX_PATH] = { 0 };
     BROWSEINFOA bi = { 0 };
@@ -311,189 +409,16 @@ static std::string openFolderDialog() {
     return "";
 }
 
-static void parseWireEndpointJSON(
-    const json& epObj,
-    WireEndpoint& ep,
-    const std::function<std::string(const std::string&, const std::string&)>& resolveTerm = nullptr
-) {
-    if (!epObj.is_object()) return;
-
-    std::string compId = epObj.value("compId", epObj.value("componentId", ""));
-    std::string wireId = epObj.value("wireId", epObj.value("targetWireId", ""));
-    std::string epType = epObj.value("type", "");
-    std::string terminal = epObj.value("terminal", epObj.value("terminalName", ""));
-
-    std::string targetW = !wireId.empty() ? wireId : compId;
-
-    bool isJunction = (epType == "wire" || epType == "junction" || epObj.value("isWireJunction", false));
-    if (!isJunction && !targetW.empty()) {
-        if ((targetW[0] == 'w' || targetW[0] == 'W') && targetW.find('.') == std::string::npos) {
-            isJunction = true;
-        }
-    }
-
-    if (isJunction) {
-        ep.isWireJunction = true;
-        ep.targetWireId = targetW;
-        ep.junctionX = epObj.value("x", epObj.value("junctionX", 0.0f));
-        ep.junctionY = epObj.value("y", epObj.value("junctionY", 0.0f));
-        ep.compId = "";
-        ep.terminal = "";
-    } else {
-        ep.isWireJunction = false;
-        ep.compId = compId;
-        ep.terminal = resolveTerm ? resolveTerm(compId, terminal) : terminal;
-        ep.targetWireId = "";
-        ep.junctionX = 0.0f;
-        ep.junctionY = 0.0f;
-    }
-}
-
-static json serializeWireEndpointJSON(const WireEndpoint& ep) {
-    json obj;
-    bool isJunc = ep.isWireJunction || (!ep.targetWireId.empty() && ep.compId.empty()) ||
-                  (!ep.compId.empty() && (ep.compId[0] == 'w' || ep.compId[0] == 'W') && ep.compId.find('.') == std::string::npos);
-
-    if (isJunc) {
-        std::string targetId = !ep.targetWireId.empty() ? ep.targetWireId : ep.compId;
-        obj["type"] = "junction";
-        obj["compId"] = targetId;
-        obj["terminal"] = "";
-        obj["x"] = ep.junctionX;
-        obj["y"] = ep.junctionY;
-    } else {
-        obj["type"] = "pin";
-        obj["compId"] = ep.compId;
-        obj["terminal"] = ep.terminal;
-    }
-    return obj;
-}
-
-static void sanitizeCircuitWires(CircuitDesign& cd) {
-    // 1. Remove invalid, dangling, or incomplete wire entries
-    std::vector<WireInstance> cleanWires;
-    std::unordered_map<std::string, const ComponentInstance*> compMap;
-    for (const auto& c : cd.components) compMap[c.id] = &c;
-
-    for (const auto& w : cd.wires) {
-        bool fromValid = w.from.isWireJunction ? !w.from.targetWireId.empty() : !w.from.compId.empty();
-        bool toValid   = w.to.isWireJunction   ? !w.to.targetWireId.empty()   : !w.to.compId.empty();
-
-        if (!fromValid || !toValid) continue;
-
-        if (!w.from.isWireJunction && !compMap.count(w.from.compId)) continue;
-        if (!w.to.isWireJunction && !compMap.count(w.to.compId)) continue;
-
-        if (!w.from.isWireJunction && !w.to.isWireJunction && w.from.compId == w.to.compId && w.from.terminal == w.to.terminal) {
-            continue;
-        }
-
-        cleanWires.push_back(w);
-    }
-    cd.wires = cleanWires;
-
-    // 2. Remove duplicate or reverse-parallel wire segments connecting the exact same endpoints
-    std::vector<WireInstance> dedupedWires;
-    std::unordered_set<std::string> seenEndpoints;
-
-    for (const auto& w : cd.wires) {
-        std::string ep1 = w.from.isWireJunction ? ("j:" + w.from.targetWireId) : ("p:" + w.from.compId + "." + w.from.terminal);
-        std::string ep2 = w.to.isWireJunction   ? ("j:" + w.to.targetWireId)   : ("p:" + w.to.compId + "." + w.to.terminal);
-
-        std::string forwardKey = ep1 + "<->" + ep2;
-        std::string reverseKey = ep2 + "<->" + ep1;
-
-        if (seenEndpoints.count(forwardKey) || seenEndpoints.count(reverseKey)) {
-            continue;
-        }
-        seenEndpoints.insert(forwardKey);
-        seenEndpoints.insert(reverseKey);
-        dedupedWires.push_back(w);
-    }
-    cd.wires = dedupedWires;
-
-    // 3. Fix uninitialized junction coordinates (0, 0)
-    std::unordered_map<std::string, const WireInstance*> wireLookup;
-    for (const auto& w : cd.wires) wireLookup[w.id] = &w;
-
-    auto resolvePinPos = [&](const std::string& compId, const std::string& termName, float& outX, float& outY) -> bool {
-        auto it = compMap.find(compId);
-        if (it == compMap.end()) return false;
-        const auto* comp = it->second;
-        for (const auto& pin : comp->pins) {
-            if (pin.name == termName) {
-                outX = comp->x + pin.relativeX;
-                outY = comp->y + pin.relativeY;
-                return true;
-            }
-        }
-        outX = comp->x; outY = comp->y;
-        return true;
-    };
-
-    for (auto& w : cd.wires) {
-        if (w.from.isWireJunction && w.from.junctionX == 0.0f && w.from.junctionY == 0.0f) {
-            auto it = wireLookup.find(w.from.targetWireId);
-            if (it != wireLookup.end()) {
-                float fx = 0, fy = 0, tx = 0, ty = 0;
-                bool fOk = resolvePinPos(it->second->from.compId, it->second->from.terminal, fx, fy);
-                bool tOk = resolvePinPos(it->second->to.compId, it->second->to.terminal, tx, ty);
-                if (fOk && tOk) {
-                    w.from.junctionX = (fx + tx) * 0.5f;
-                    w.from.junctionY = (fy + ty) * 0.5f;
-                } else if (fOk) {
-                    w.from.junctionX = fx; w.from.junctionY = fy;
-                } else if (tOk) {
-                    w.from.junctionX = tx; w.from.junctionY = ty;
-                }
-            }
-        }
-        if (w.to.isWireJunction && w.to.junctionX == 0.0f && w.to.junctionY == 0.0f) {
-            auto it = wireLookup.find(w.to.targetWireId);
-            if (it != wireLookup.end()) {
-                float fx = 0, fy = 0, tx = 0, ty = 0;
-                bool fOk = resolvePinPos(it->second->from.compId, it->second->from.terminal, fx, fy);
-                bool tOk = resolvePinPos(it->second->to.compId, it->second->to.terminal, tx, ty);
-                if (fOk && tOk) {
-                    w.to.junctionX = (fx + tx) * 0.5f;
-                    w.to.junctionY = (fy + ty) * 0.5f;
-                } else if (fOk) {
-                    w.to.junctionX = fx; w.to.junctionY = fy;
-                } else if (tOk) {
-                    w.to.junctionX = tx; w.to.junctionY = ty;
-                }
-            }
-        }
-    }
+// Design file I/O lives in engine/DesignIO. The GUI loads without wire normalisation
+// because SchematicCanvas::setCircuit applies it.
+static DesignIO::LoadOptions guiLoadOptions() {
+    DesignIO::LoadOptions o;
+    o.normaliseWires = false;
+    return o;
 }
 
 static std::string buildSchematicJsonString(const CircuitDesign& cd) {
-    json j;
-    json compArray = json::array();
-    for (const auto& comp : cd.components) {
-        json cObj;
-        cObj["id"] = comp.id;
-        cObj["type"] = comp.rawTypeStr;
-        cObj["label"] = comp.label;
-        cObj["x"] = comp.x;
-        cObj["y"] = comp.y;
-        cObj["rotation"] = comp.rotation;
-        json pObj = json::object();
-        for (const auto& [k, v] : comp.parameters) pObj[k] = v;
-        cObj["parameters"] = pObj;
-        compArray.push_back(cObj);
-    }
-    j["components"] = compArray;
-    json wireArray = json::array();
-    for (const auto& wire : cd.wires) {
-        json wObj;
-        wObj["id"] = wire.id;
-        wObj["from"] = serializeWireEndpointJSON(wire.from);
-        wObj["to"] = serializeWireEndpointJSON(wire.to);
-        wireArray.push_back(wObj);
-    }
-    j["wires"] = wireArray;
-    return j.dump(2);
+    return DesignIO::saveDesignString(cd);
 }
 
 void MainWindow::renderMenuBar() {
@@ -507,89 +432,7 @@ void MainWindow::renderMenuBar() {
                     std::ifstream f(path);
                     if (f.is_open()) {
                         json j = json::parse(f);
-                        CircuitDesign cd;
-                        if (j.contains("components") && j["components"].is_array()) {
-                            for (const auto& cItem : j["components"]) {
-                                ComponentInstance comp;
-                                comp.id = cItem.value("id", "");
-                                comp.rawTypeStr = cItem.value("type", "R");
-                                comp.type = stringToComponentType(comp.rawTypeStr);
-                                comp.label = cItem.value("label", comp.id);
-                                comp.x = cItem.value("x", 0.0f);
-                                comp.y = cItem.value("y", 0.0f);
-                                comp.rotation = cItem.value("rotation", 0);
-                                if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
-                                    for (auto& [k, v] : cItem["parameters"].items()) {
-                                        if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-                                        else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
-                                        else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
-                                    }
-                                }
-                                setupComponentPins(comp);
-                                cd.components.push_back(comp);
-                            }
-                        }
-                        if (j.contains("wires") && j["wires"].is_array()) {
-                            for (const auto& wItem : j["wires"]) {
-                                WireInstance wire;
-                                wire.id = wItem.value("id", "");
-                                if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from);
-                                if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to);
-                                cd.wires.push_back(wire);
-                            }
-
-                            sanitizeCircuitWires(cd);
-                        }
-                        if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
-                            const auto& ss = j["simulationSettings"];
-                            if (ss.contains("stopTime")) {
-                                if (ss["stopTime"].is_number()) cd.settings.stopTime = ss["stopTime"].get<double>();
-                                else if (ss["stopTime"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stopTime"].get<std::string>());
-                            }
-                            if (ss.contains("stepSize")) {
-                                if (ss["stepSize"].is_number()) cd.settings.stepSize = ss["stepSize"].get<double>();
-                                else if (ss["stepSize"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stepSize"].get<std::string>());
-                            }
-                        }
-                        if (j.contains("simulation_parameters") && j["simulation_parameters"].is_object()) {
-                            const auto& sp = j["simulation_parameters"];
-                            if (sp.contains("stop_time")) {
-                                if (sp["stop_time"].is_number()) cd.settings.stopTime = sp["stop_time"].get<double>();
-                                else if (sp["stop_time"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["stop_time"].get<std::string>());
-                            }
-                            if (sp.contains("step_size")) {
-                                if (sp["step_size"].is_number()) cd.settings.stepSize = sp["step_size"].get<double>();
-                                else if (sp["step_size"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["step_size"].get<std::string>());
-                            }
-                            // Solver selection and adaptive-stepping controls. These were
-                            // previously not restored at all, so the solver and step type
-                            // silently reverted to the defaults every time a design was
-                            // reopened.
-                            if (sp.contains("solver") && sp["solver"].is_string()) {
-                                cd.settings.solverType = sp["solver"].get<std::string>();
-                            }
-                            if (sp.contains("step_type") && sp["step_type"].is_string()) {
-                                cd.settings.stepType = sp["step_type"].get<std::string>();
-                            }
-                            if (sp.contains("enable_lu_cache")) {
-                                const auto& v = sp["enable_lu_cache"];
-                                if (v.is_boolean()) cd.settings.enableLUCache = v.get<bool>();
-                                else if (v.is_number()) cd.settings.enableLUCache = (v.get<double>() != 0.0);
-                            }
-                            {
-                                auto loadNum = [&](const char* key, double& dst) {
-                                    if (!sp.contains(key)) return;
-                                    const auto& v = sp[key];
-                                    if (v.is_number()) dst = v.get<double>();
-                                    else if (v.is_string()) dst = CircuitSimEngine::ExpressionEvaluator::parseScientific(v.get<std::string>());
-                                };
-                                loadNum("rel_tol",   cd.settings.relTol);
-                                loadNum("abs_tol_v", cd.settings.absTolV);
-                                loadNum("abs_tol_i", cd.settings.absTolI);
-                                loadNum("h_min",     cd.settings.hMin);
-                                loadNum("h_max",     cd.settings.hMax);
-                            }
-                        }
+                        CircuitDesign cd = DesignIO::loadDesign(j, guiLoadOptions());
                         canvas.setCircuit(cd);
                         simulator.loadCircuit(cd);
                         canvas.fitToScreen();
@@ -605,9 +448,22 @@ void MainWindow::renderMenuBar() {
                     if (out.is_open()) out << jsonStr;
                 }
             }
+            if (ImGui::MenuItem("Open Results (.simres)...")) {
+                std::string path = resultsFileDialog(false);
+                std::string err;
+                if (!path.empty() && !openResultsFile(path, &err))
+                    MessageBoxA(NULL, err.c_str(), "Open Results", MB_OK | MB_ICONERROR);
+            }
+            if (ImGui::MenuItem("Save Results (.simres)...", nullptr, false, !simRunning.load())) {
+                std::string path = resultsFileDialog(true);
+                std::string err;
+                if (!path.empty() && !saveResultsFile(path, &err))
+                    MessageBoxA(NULL, err.c_str(), "Save Results", MB_OK | MB_ICONERROR);
+            }
+            ImGui::Separator();
             if (ImGui::MenuItem("Export Schematic as SVG (.svg)")) {
                 std::string defaultName = getProjectBaseName() + "_schematic.svg";
-                std::string path = SVGExporter::saveSVGFileDialog("Export Schematic as SVG", defaultName);
+                std::string path = FileDialogs::saveSVGFileDialog("Export Schematic as SVG", defaultName);
                 if (!path.empty()) {
                     SVGExporter::exportSchematicToSVG(canvas.getCircuit(), path, canvas.isDarkModeActive());
                 }
@@ -690,7 +546,7 @@ void MainWindow::renderMenuBar() {
             if (ImGui::MenuItem("Start", "Ctrl+T")) {
                 startSimulation();
             }
-            if (ImGui::MenuItem("Pause", "Space")) {
+            if (ImGui::MenuItem("Stop")) {
                 simulator.pause();
             }
             if (ImGui::MenuItem("Simulation parameters...", "Ctrl+E")) {
@@ -779,7 +635,7 @@ void MainWindow::renderControlBar() {
         }
         ImGui::SameLine(0, 15);
 
-        if (ImGui::Button("Pause")) {
+        if (ImGui::Button("Stop")) {
             simulator.pause();
         }
         ImGui::SameLine(0, 15);
@@ -1030,229 +886,17 @@ void MainWindow::renderComponentPalette() {
             bool isBasic = false;       // Only original basic library blocks are true
         };
 
-        static const std::vector<ComponentMeta> allComponents = {
-            // General Domain
-            // General Domain - Ports and Subsystems
-            { "Subsystem Block", "Subsystem", "SUBSYSTEM", ComponentType::Subsystem, "SUBSYSTEM", "general", "Ports and Subsystems", {}, true },
-            { "Inport (INPORT)", "Inport", "INPORT", ComponentType::Inport, "INPORT", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
-            { "Outport (OUTPORT)", "Outport", "OUTPORT", ComponentType::Outport, "OUTPORT", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
-            { "Physical Inport (PIN)", "Phys Inport", "PIN", ComponentType::PhysicalInport, "PIN", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
-            { "Physical Outport (POUT)", "Phys Outport", "POUT", ComponentType::PhysicalOutport, "POUT", "general", "Ports and Subsystems", {{"port_number", "1"}}, true },
-            { "Enable Port (ENABLE_PORT)", "Enable", "ENABLE_PORT", ComponentType::EnablePort, "ENABLE_PORT", "general", "Ports and Subsystems", {{"states_when_disabled", "held"}}, true },
-            { "Trigger Port (TRIGGER_PORT)", "Trigger", "TRIGGER_PORT", ComponentType::TriggerPort, "TRIGGER_PORT", "general", "Ports and Subsystems", {{"trigger_type", "rising"}}, true },
-            { "Bus Creator (BUS_CREATOR)", "Bus Creator", "BUS_CREATOR", ComponentType::BusCreator, "BUS_CREATOR", "general", "Ports and Subsystems", {{"inputs", "2"}}, true },
-            { "Bus Selector (BUS_SELECTOR)", "Bus Selector", "BUS_SELECTOR", ComponentType::BusSelector, "BUS_SELECTOR", "general", "Ports and Subsystems", {{"signals", "signal1,signal2"}}, true },
-            { "Terminator (TERMINATOR)", "Terminator", "TERMINATOR", ComponentType::Terminator, "TERMINATOR", "general", "Ports and Subsystems", {}, true },
-
-            { "Active Probe (PROBE)", "Active Probe", "PROBE", ComponentType::Unknown, "PROBE", "general", "Signal Routing", {{"target", ""}, {"selected_signals", ""}}, true },
-            { "Oscilloscope (SCOPE)", "Oscilloscope", "SCOPE", ComponentType::Unknown, "SCOPE", "general", "Visualization & Logging", {{"channels", "2"}}, true },
-            { "Loss Analyzer (LOSS_ANALYZER)", "Loss Analyzer", "LOSS_ANALYZER", ComponentType::LossAnalyzer, "LOSS_ANALYZER", "general", "Visualization & Logging", {{"start_time", "0.0"}, {"duration", "0.02"}, {"tj", "125.0"}}, true },
-
-            // Control Domain (Sources)
-            { "Constant (CONST)", "Constant", "CONST", ComponentType::Constant, "CONST", "control", "Sources", {{"value", "1.0"}}, true },
-            { "Clock (CLOCK)", "Clock", "CLOCK", ComponentType::Clock, "CLOCK", "control", "Sources", {}, false },
-            { "Initial Condition (INIT_COND)", "Initial Condition", "INIT_COND", ComponentType::InitialCondition, "INIT_COND", "control", "Sources", {{"initial_value", "0"}}, false },
-            { "Pulse Generator (PULSE_GEN)", "Pulse Gen", "PULSE_GEN", ComponentType::PulseGenerator, "PULSE_GEN", "control", "Sources", {{"amplitude", "1"}, {"period", "1"}, {"width", "0.5"}, {"delay", "0"}}, true },
-            { "Ramp (RAMP)", "Ramp", "RAMP", ComponentType::Ramp, "RAMP", "control", "Sources", {{"slope", "1"}, {"start_time", "0"}, {"initial_output", "0"}}, false },
-            { "Random Numbers (RANDOM_NUM)", "Random Numbers", "RANDOM_NUM", ComponentType::RandomNumbers, "RANDOM_NUM", "control", "Sources", {{"mean", "0"}, {"std", "1"}}, false },
-            { "Sine Wave (SINE_WAVE)", "Sine Wave", "SINE_WAVE", ComponentType::SineWave, "SINE_WAVE", "control", "Sources", {{"amplitude", "1"}, {"frequency", "50"}, {"phase", "0"}}, false },
-            { "Step (STEP)", "Step", "STEP", ComponentType::Step, "STEP", "control", "Sources", {{"step_time", "1"}, {"initial_value", "0"}, {"final_value", "1"}}, false },
-            { "Triangular Wave Generator (TRI_GEN)", "Triangle", "TRI", ComponentType::Triangle_Carrier, "TRI_GEN", "control", "Sources", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
-            { "White Noise (WHITE_NOISE)", "White Noise", "WHITE_NOISE", ComponentType::WhiteNoise, "WHITE_NOISE", "control", "Sources", {{"psd", "0.1"}}, false },
-
-            // Functions & Tables
-            { "Gain Scalar (GAIN)", "Gain", "GAIN", ComponentType::Gain, "GAIN", "control", "Functions & Tables", {{"K", "2.5"}}, true },
-            { "Sum (SUM_RECT)", "Sum", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Functions & Tables", {{"inputs", "++"}}, true },
-            { "Product (PROD)", "Product", "PROD", ComponentType::Product, "PRODUCT_RECT", "control", "Functions & Tables", {{"operators", "*/"}}, true },
-            { "Trigonometric Function (TRIG_FCN)", "Trig", "TRIG_FCN", ComponentType::TrigFunction, "TRIG_FCN", "control", "Functions & Tables", {{"function", "sin"}}, false },
-            { "Math Function (MATH_FCN)", "Math Function", "MATH_FCN", ComponentType::MathFunction, "MATH_FCN", "control", "Functions & Tables", {{"function", "exp"}}, true },
-            { "Abs (ABS)", "Abs", "ABS", ComponentType::Abs, "ABS", "control", "Functions & Tables", {}, false },
-            { "Sign (SIGN)", "Sign", "SIGN", ComponentType::Sign, "SIGN", "control", "Functions & Tables", {}, false },
-            { "Round (ROUND)", "Round", "ROUND", ComponentType::Round, "ROUND", "control", "Functions & Tables", {{"mode", "nearest"}}, false },
-            { "Min/Max (MIN_MAX)", "MinMax", "MIN_MAX", ComponentType::MinMax, "MIN_MAX", "control", "Functions & Tables", {{"function", "min"}, {"num_inputs", "2"}}, false },
-            { "Polynomial (POLYNOMIAL)", "Polynomial", "POLYNOMIAL", ComponentType::Polynomial, "POLYNOMIAL", "control", "Functions & Tables", {{"coefficients", "[1, 0]"}}, true },
-            { "1D Look-Up Table (LUT_1D)", "LUT 1D", "LUT_1D", ComponentType::LUT_1D, "LUT_1D", "control", "Functions & Tables", {{"x_data", "[0, 1, 2]"}, {"y_data", "[0, 2, 4]"}}, false },
-            { "2D Look-Up Table (LUT_2D)", "LUT 2D", "LUT_2D", ComponentType::LUT_2D, "LUT_2D", "control", "Functions & Tables", {{"x_data", "[0, 1]"}, {"y_data", "[0, 1]"}, {"z_data", "[[0, 1], [1, 2]]"}}, false },
-            { "3D Look-Up Table (LUT_3D)", "LUT 3D", "LUT_3D", ComponentType::LUT_3D, "LUT_3D", "control", "Functions & Tables", {}, false },
-            { "C-Script (CSCRIPT)", "C-Script", "CSCRIPT", ComponentType::CustomScript, "CSCRIPT", "control", "Functions & Tables", {{"code", "// Step code\noutputs[0] = inputs[0] * 2.0;\n"}}, true },
-            { "Algebraic Constraint (ALGEBRAIC_CONSTRAINT)", "Alg Constraint", "ALGEBRAIC_CONSTRAINT", ComponentType::AlgebraicConstraint, "ALGEBRAIC_CONSTRAINT", "control", "Functions & Tables", {{"initial_guess", "0.0"}}, true },
-            { "DLL (DLL)", "DLL", "DLL", ComponentType::DLL, "DLL", "control", "Functions & Tables", {}, false },
-            { "FMU (FMU)", "FMU", "FMU", ComponentType::FMU, "FMU", "control", "Functions & Tables", {}, false },
-            { "Fourier Series (FOURIER_SERIES)", "Fourier", "FOURIER_SERIES", ComponentType::FourierSeries, "FOURIER_SERIES", "control", "Functions & Tables", {}, false },
-
-            // Continuous
-            { "Integrator (INTEGRATOR)", "1/s", "INTEGRATOR", ComponentType::Integrator, "INTEGRATOR", "control", "Continuous", {{"initial_condition", "0"}}, false },
-            { "Derivative (DERIVATIVE)", "s", "DERIVATIVE", ComponentType::Derivative, "DERIVATIVE", "control", "Continuous", {}, false },
-            { "Transfer Function (TRANSFER_FCN)", "G(s)", "TRANSFER_FCN", ComponentType::TransferFunction, "TRANSFER_FCN", "control", "Continuous", {{"num", "[1]"}, {"den", "[1, 1]"}}, false },
-            { "State Space (STATE_SPACE)", "State Space", "STATE_SPACE", ComponentType::StateSpace, "STATE_SPACE", "control", "Continuous", {{"A", "[-1]"}, {"B", "[1]"}, {"C", "[1]"}, {"D", "[0]"}, {"x0", "0"}}, false },
-            { "PI Controller (PID)", "PID", "PID", ComponentType::PI_Controller, "PID", "control", "Continuous", {{"Kp", "2.5"}, {"Ki", "50.0"}, {"Kd", "0"}}, true },
-            { "Continuous PID Controller (CONT_PID)", "PID(s)", "CONT_PID", ComponentType::ContinuousPID, "CONT_PID", "control", "Continuous", {{"Kp", "1.0"}, {"Ki", "0.0"}, {"Kd", "0.0"}, {"Tf", "0.01"}}, false },
-            { "Single-Phase PLL (PLL_1PH)", "PLL 1Ph", "PLL_1PH", ComponentType::PLL_1PH, "PLL_1PH", "control", "Continuous", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
-            // Delays
-            { "Delay (DELAY)", "Delay", "DELAY", ComponentType::Delay, "DELAY", "control", "Delays", {{"delay", "0.1"}}, false },
-            { "Transport Delay (TRANSPORT_DELAY)", "e^-sT", "TRANSPORT_DELAY", ComponentType::TransportDelay, "TRANSPORT_DELAY", "control", "Delays", {{"delay", "0.1"}}, false },
-            { "Turn-on Delay (TURN_ON_DELAY)", "Ton", "TURN_ON_DELAY", ComponentType::TurnOnDelay, "TURN_ON_DELAY", "control", "Delays", {{"delay", "0.05"}}, false },
-            { "Memory (MEMORY_BLOCK)", "Mem", "MEMORY_BLOCK", ComponentType::MemoryBlock, "MEMORY_BLOCK", "control", "Delays", {{"initial_value", "0.0"}}, false },
-
-            // Discontinuous
-            { "Quantizer (QUANTIZER)", "Quantize", "QUANTIZER", ComponentType::Quantizer, "QUANTIZER", "control", "Discontinuous", {{"step_size", "0.5"}, {"mode", "round"}}, false },
-            { "Signal Switch (SIGNAL_SWITCH)", "Switch", "SIGNAL_SWITCH", ComponentType::SignalSwitch, "SIGNAL_SWITCH", "control", "Discontinuous", {{"threshold", "0.5"}, {"criteria", "u2 >= threshold"}}, false },
-            { "Manual Signal Switch (MANUAL_SWITCH)", "Manual Sw", "MANUAL_SWITCH", ComponentType::ManualSwitch, "MANUAL_SWITCH", "control", "Discontinuous", {{"state", "Input 1"}}, false },
-            { "Multiport Signal Switch (MULTIPORT_SWITCH)", "Multiport Sw", "MULTIPORT_SWITCH", ComponentType::MultiportSwitch, "MULTIPORT_SWITCH", "control", "Discontinuous", {{"inputs", "3"}, {"indexing", "1-based"}}, false },
-            { "Hit Crossing (HIT_CROSSING)", "Hit Cross", "HIT_CROSSING", ComponentType::HitCrossing, "HIT_CROSSING", "control", "Discontinuous", {{"offset", "0.0"}, {"direction", "either"}}, false },
-            { "Saturation (SATURATION)", "Sat", "SATURATION", ComponentType::Saturation, "SATURATION", "control", "Discontinuous", {{"min", "-10"}, {"max", "10"}}, false },
-            { "Dead Zone (DEAD_ZONE)", "Dead", "DEAD_ZONE", ComponentType::DeadZone, "DEAD_ZONE", "control", "Discontinuous", {{"start", "-0.5"}, {"end", "0.5"}}, false },
-            { "Rate Limiter (RATE_LIMITER)", "Rate", "RATE_LIMITER", ComponentType::RateLimiter, "RATE_LIMITER", "control", "Discontinuous", {{"up", "10"}, {"down", "-10"}}, false },
-            { "Relay (RELAY)", "Relay", "RELAY", ComponentType::Relay, "RELAY", "control", "Discontinuous", {{"on_threshold", "1"}, {"off_threshold", "-1"}}, false },
-            { "Comparator (COMP)", "COMP", "COMP", ComponentType::Comparator, "COMP", "control", "Discontinuous", {}, true },
-
-            // Logical & Bitwise sub-library
-            { "AND Gate (AND)", "AND", "AND", ComponentType::AND_Gate, "AND", "control", "Logical & Bitwise", {{"inputs", "2"}}, true },
-            { "OR Gate (OR)", "OR", "OR", ComponentType::OR_Gate, "OR", "control", "Logical & Bitwise", {{"inputs", "2"}}, true },
-            { "NOT Gate (NOT)", "NOT", "NOT", ComponentType::NOT_Gate, "NOT", "control", "Logical & Bitwise", {}, true },
-            { "NAND Gate (NAND)", "NAND", "NAND", ComponentType::AND_Gate, "NAND", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
-            { "NOR Gate (NOR)", "NOR", "NOR", ComponentType::OR_Gate, "NOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
-            { "XOR Gate (XOR)", "XOR", "XOR", ComponentType::LogicOp, "XOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
-            { "XNOR Gate (XNOR)", "XNOR", "XNOR", ComponentType::LogicOp, "XNOR", "control", "Logical & Bitwise", {{"inputs", "2"}}, false },
-            { "Compare To Constant (COMP_CONST)", "Compare", "COMP_CONST", ComponentType::CompareToConstant, "COMP_CONST", "control", "Logical & Bitwise", {{"operator", "=="}, {"const", "0"}}, false },
-            // Compares two live signals (In1 vs In2) rather than a signal against a
-            // fixed constant. Solver reads the comparison from the "operator" param.
-            { "Relational Operator (RELATIONAL_OPERATOR)", "RelOp", "RELOP", ComponentType::RelationalOp, "RELATIONAL_OPERATOR", "control", "Logical & Bitwise", {{"operator", "<"}}, false },
-
-            // Modulators sub-library
-            { "PWM Generator (PWM)", "PWM", "PWM", ComponentType::PWM_Generator, "PWM", "control", "Modulators", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
-            { "Master PWM (PWM_MASTER)", "Master PWM", "PWM_MASTER", ComponentType::MasterPWM, "PWM_MASTER", "control", "Modulators", {{"frequency", "10k"}, {"min", "0"}, {"max", "1"}}, true },
-            { "Edge Detector (EDGE_DETECT)", "Edge", "EDGE_DETECT", ComponentType::EdgeDetect, "EDGE_DETECT", "control", "Modulators", {{"edge_type", "rising"}}, true },
-
-            // Signal Transforms sub-library
-            { "ABC to dq Transform (PARK_TRANSFORM)", "αβ-dq", "PARK_TRANSFORM", ComponentType::Park, "PARK_TRANSFORM", "control", "Signal Transforms", {}, false },
-            { "dq to ABC Transform (INV_PARK_TRANSFORM)", "dq-αβ", "INV_PARK_TRANSFORM", ComponentType::InvPark, "INV_PARK_TRANSFORM", "control", "Signal Transforms", {}, false },
-            { "Clarke Transform (CLARKE_TRANSFORM)", "abc-αβ", "CLARKE_TRANSFORM", ComponentType::Clarke, "CLARKE_TRANSFORM", "control", "Signal Transforms", {}, false },
-            { "Inverse Clarke Transform (INV_CLARKE)", "αβ-abc", "INV_CLARKE", ComponentType::InvClarke, "INV_CLARKE", "control", "Signal Transforms", {}, false },
-            { "Park Transform (PARK)", "abc-dq", "PARK", ComponentType::Park, "PARK", "control", "Signal Transforms", {}, false },
-            { "Inverse Park Transform (INV_PARK)", "dq-αβ", "INV_PARK", ComponentType::InvPark, "INV_PARK", "control", "Signal Transforms", {}, false },
-
-            // Filters & Measurements sub-library
-            { "Periodic Average (PER_AVG)", "Avg T", "PER_AVG", ComponentType::PerAvg, "PER_AVG", "control", "Filters & Measurements", {{"period", "0.02"}}, false },
-            { "Periodic Impulse Average (PERIODIC_IMP_AVG)", "Imp Avg", "PERIODIC_IMP_AVG", ComponentType::PeriodicImpAvg, "PERIODIC_IMP_AVG", "control", "Filters & Measurements", {{"initial_value", "0.0"}}, false },
-            { "Fourier Transform (FOURIER_TRANS)", "Fourier", "FOURIER_TRANS", ComponentType::FourierTrans, "FOURIER_TRANS", "control", "Filters & Measurements", {{"f", "50.0"}, {"harmonic", "1"}, {"ts", "100u"}}, false },
-            { "Moving Average (MOV_AVG)", "MovAvg", "MOV_AVG", ComponentType::MovAvg, "MOV_AVG", "control", "Filters & Measurements", {{"window", "10"}}, false },
-            { "First-Order Filter (FILTER_1ST)", "Filt1st", "FILTER_1ST", ComponentType::Filter1st, "FILTER_1ST", "control", "Filters & Measurements", {{"type", "Lowpass"}, {"fc", "1k"}}, false },
-            { "Second-Order Filter (FILTER_2ND)", "Filt2nd", "FILTER_2ND", ComponentType::Filter2nd, "FILTER_2ND", "control", "Filters & Measurements", {{"type", "Lowpass"}, {"fc", "1k"}, {"Q", "0.707"}}, false },
-            { "Fourier Analysis (FOURIER_ANALYSIS)", "Fourier", "FOURIER_ANALYSIS", ComponentType::FourierAnalysis, "FOURIER_ANALYSIS", "control", "Filters & Measurements", {{"f", "50.0"}}, false },
-            { "RMS (RMS_VAL)", "RMS", "RMS_VAL", ComponentType::RmsVal, "RMS_VAL", "control", "Filters & Measurements", {{"frequency", "50"}}, false },
-            { "THD (THD_VAL)", "THD", "THD_VAL", ComponentType::ThdVal, "THD_VAL", "control", "Filters & Measurements", {{"frequency", "50"}}, false },
-            { "PLL (Phase-Locked Loop) (PLL_LOOP)", "PLL", "PLL_LOOP", ComponentType::PllLoop, "PLL_LOOP", "control", "Filters & Measurements", {{"fn", "50.0"}, {"Kp", "20.0"}, {"Ki", "1000.0"}}, false },
-
-            // State Machines sub-library
-            { "State Machine (STATE_MACHINE)", "State", "STATE_MACHINE", ComponentType::StateMachine, "STATE_MACHINE", "control", "State Machines", {}, false },
-
-            // Math sub-library
-            { "Offset (OFFSET)", "OFFSET", "OFFSET", ComponentType::Offset, "OFFSET", "control", "Math", {{"offset", "0.0"}}, false },
-            { "Summing Block (SUM)", "SUM", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {{"signs", "++"}}, false },
-            { "Sum (round) (SUM_ROUND)", "SUM", "SUM_ROUND", ComponentType::SummingJunction, "SUM_ROUND", "control", "Math", {{"inputs", "2"}, {"signs", "++"}}, true },
-            { "Sum (rectangular) (SUM_RECT)", "SUM", "SUM_RECT", ComponentType::SummingJunction, "SUM_RECT", "control", "Math", {{"inputs", "2"}, {"signs", "++"}}, true },
-            { "Subtract (SUBTRACT)", "SUB", "SUBTRACT", ComponentType::SummingJunction, "SUBTRACT", "control", "Math", {{"signs", "+-"}}, false },
-            { "Product (rectangular) (PRODUCT_RECT)", "PROD", "PRODUCT_RECT", ComponentType::Product, "PRODUCT_RECT", "control", "Math", {{"inputs", "2"}, {"operators", "**"}}, true },
-            { "Signum (SIGNUM)", "sgn", "SIGNUM", ComponentType::Signum, "SIGNUM", "control", "Math", {}, false },
-            { "Divide (DIVIDE)", "DIV", "DIVIDE", ComponentType::Divide, "DIVIDE", "control", "Math", {{"operators", "*/"}}, false },
-            { "Data Type Conversion (DATATYPE_CONV)", "Cast", "DATATYPE_CONV", ComponentType::DataTypeConv, "DATATYPE_CONV", "control", "Math", {{"datatype", "boolean"}}, false },
-
-            // Electrical Domain Connectivity sub-library
-            { "Electrical Port (E_PORT)", "E-Port", "E_PORT", ComponentType::ElectricalPort, "E_PORT", "electrical", "Connectivity", {}, false },
-            { "Electrical Label (E_LABEL)", "E-Tag", "E_LABEL", ComponentType::ElectricalLabel, "E_LABEL", "electrical", "Connectivity", {{"label", "A"}}, false },
-            { "Ground (GND)", "GND", "GND", ComponentType::Unknown, "GND", "electrical", "Connectivity", {}, true },
-
-            // Electrical Domain Sources sub-library
-            { "DC Voltage Source (V)", "DC_V", "V", ComponentType::VoltageSource, "V", "electrical", "Sources", {{"value", "24"}}, true },
-            { "DC Current Source (I)", "DC_I", "I", ComponentType::CurrentSource, "I", "electrical", "Sources", {{"value", "1"}}, true },
-            { "AC Voltage Source (AC_V)", "AC_V", "AC_V", ComponentType::ACVoltageSource, "AC_V", "electrical", "Sources", {{"amplitude", "12"}, {"frequency", "50"}, {"phase", "0"}}, true },
-            { "AC Current Source (AC_I)", "AC_I", "AC_I", ComponentType::ACCurrentSource, "AC_I", "electrical", "Sources", {{"amplitude", "1"}, {"frequency", "50"}, {"phase", "0"}}, false },
-            { "Controlled Voltage Source (CTRL_V)", "Src V", "CTRL_V", ComponentType::ControlledVoltageSource, "CTRL_V", "electrical", "Sources", {}, false },
-            { "Controlled Current Source (CTRL_I)", "Src I", "CTRL_I", ComponentType::ControlledCurrentSource, "CTRL_I", "electrical", "Sources", {}, false },
-            { "3-Phase Voltage Source (V_3PH)", "3Ph V", "V3PH", ComponentType::ThreePhaseSource, "V_3PH", "electrical", "Sources", {{"magnitude", "230"}, {"frequency", "50"}, {"phase", "0"}, {"connection", "Y"}}, true },
-            { "3-Phase Current Source (I_3PH)", "3Ph I", "I3PH", ComponentType::ThreePhaseCurrentSource, "I_3PH", "electrical", "Sources", {}, false },
-
-            // Electrical Domain Meters (Sensors) sub-library
-            { "Voltmeter (VM)", "VM", "VM", ComponentType::Voltmeter, "VM", "electrical", "Meters (Sensors)", {}, true },
-            { "Ammeter (AM)", "AM", "AM", ComponentType::Ammeter, "AM", "electrical", "Meters (Sensors)", {}, true },
-            { "Voltage Meter (3-Phase) (VM_3PH)", "3VM", "VM_3PH", ComponentType::Voltmeter3Ph, "VM_3PH", "electrical", "Meters (Sensors)", {}, false },
-            { "Current Meter (3-Phase) (AM_3PH)", "3AM", "AM_3PH", ComponentType::Ammeter3Ph, "AM_3PH", "electrical", "Meters (Sensors)", {}, false },
-
-            // Electrical Domain Passive Components sub-library
-            { "Resistor (R)", "R", "R", ComponentType::Resistor, "R", "electrical", "Passive Components", {{"value", "10"}}, true },
-            { "Inductor (L)", "L", "L", ComponentType::Inductor, "L", "electrical", "Passive Components", {{"L", "10m"}, {"esr", "0"}, {"iL0", "0"}}, true },
-            { "Capacitor (C)", "C", "C", ComponentType::Capacitor, "C", "electrical", "Passive Components", {{"C", "100u"}, {"esr", "0"}, {"vC0", "0"}}, true },
-            { "Variable Resistor (VAR_R)", "var R", "VAR_R", ComponentType::VariableResistor, "VAR_R", "electrical", "Passive Components", {{"value", "10"}}, false },
-            { "Variable Inductor (VAR_L)", "var L", "VAR_L", ComponentType::VariableInductor, "VAR_L", "electrical", "Passive Components", {{"L", "10m"}, {"iL0", "0"}}, false },
-            { "Variable Capacitor (VAR_C)", "var C", "VAR_C", ComponentType::VariableCapacitor, "VAR_C", "electrical", "Passive Components", {{"C", "100u"}, {"vC0", "0"}}, false },
-            { "Saturable Inductor (SAT_L)", "sat L", "SAT_L", ComponentType::SaturableInductor, "SAT_L", "electrical", "Passive Components", {{"L", "10m"}, {"iL0", "0"}}, false },
-            { "Saturable Capacitor (SAT_C)", "sat C", "SAT_C", ComponentType::SaturableCapacitor, "SAT_C", "electrical", "Passive Components", {{"C", "100u"}, {"vC0", "0"}}, false },
-            { "Pi-Section Line (PI_SECTION)", "Pi Line", "PI_SECTION", ComponentType::PiSectionLine, "PI_SECTION", "electrical", "Passive Components", {}, false },
-            { "Transmission Line (3ph) (LINE_3PH)", "3Ph Line", "LINE_3PH", ComponentType::TransmissionLine3Ph, "LINE_3PH", "electrical", "Passive Components", {}, false },
-            { "Piece-wise Linear Resistor (PWL_R)", "pwl R", "PWL_R", ComponentType::PWLResistor, "PWL_R", "electrical", "Passive Components", {{"value", "10"}}, false },
-            { "Electrical Algebraic Component (E_ALGEBRAIC)", "E-Alg", "E_ALGEBRAIC", ComponentType::ElectricalAlgebraic, "E_ALGEBRAIC", "electrical", "Passive Components", {}, false },
-
-            // Signals Routing sub-library
-            { "Signal Goto (GOTO_SIG)", "Goto", "GOTO_SIG", ComponentType::GotoSignal, "GOTO_SIG", "control", "Signals Routing", {{"tag", "S1"}}, false },
-            { "Signal From (FROM_SIG)", "From", "FROM_SIG", ComponentType::FromSignal, "FROM_SIG", "control", "Signals Routing", {{"tag", "S1"}}, false },
-
-            // Electrical Domain Power Semiconductors (Ideal Behavioral Switches) sub-library
-            { "Diode (D)", "D", "D", ComponentType::Diode, "D", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.7"}, {"Ron", "1m"}, {"Roff", "1M"}}, true },
-            { "Thyristor (THYRISTOR)", "SCR", "THYRISTOR", ComponentType::Thyristor, "THYRISTOR", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.8"}, {"Ron", "1m"}, {"Roff", "1M"}, {"Iholding", "10m"}, {"Vgt", "0.5"}}, true },
-            { "GTO (Gate Turn-Off) (GTO)", "GTO", "GTO", ComponentType::GTO, "GTO", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.8"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
-            { "IGBT (IGBT)", "IGBT", "IGBT", ComponentType::Switch, "IGBT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
-            { "IGBT with Diode (IGBT_DIODE)", "IGBT+D", "IGBT_DIODE", ComponentType::IGBTDiode, "IGBT_DIODE", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "IGCT (IGCT)", "IGCT", "IGCT", ComponentType::IGCT, "IGCT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.8"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
-            { "MOSFET (MOSFET)", "MOSFET", "MOSFET", ComponentType::MOSFET, "MOSFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
-            { "Voltage-Gated FET (vg-FET)", "vg-FET", "vg-FET", ComponentType::VGFET, "vg-FET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Gate_Signal_Label", "S1"}, {"Ron", "10m"}, {"Roff", "1M"}}, true },
-            { "BJT (BJT)", "BJT", "BJT", ComponentType::BJT, "BJT", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Vd", "0.7"}, {"Ron", "1m"}, {"Roff", "1M"}}, false },
-            { "JFET (JFET)", "JFET", "JFET", ComponentType::JFET, "JFET", "electrical", "Power Semiconductors (Ideal Behavioral Switches)", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-
-            // Electrical Domain Switches sub-library
-            { "Switch (S)", "S", "S", ComponentType::Switch, "S", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, true },
-            { "Breaker (BREAKER)", "Breaker", "BREAKER", ComponentType::Breaker, "BREAKER", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "Double Switch (DBL_SWITCH)", "2-Way", "DBL_SWITCH", ComponentType::DoubleSwitch, "DBL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "Manual Switch (MAN_SWITCH)", "Man Sw", "MAN_SWITCH", ComponentType::ElectricalManualSwitch, "MAN_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "Manual Double Switch (MAN_DBL_SWITCH)", "Man 2Sw", "MAN_DBL_SWITCH", ComponentType::ManualDoubleSwitch, "MAN_DBL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "Manual Triple Switch (MAN_TRPL_SWITCH)", "Man 3Sw", "MAN_TRPL_SWITCH", ComponentType::ManualTripleSwitch, "MAN_TRPL_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            { "Set/Reset Switch (SR_SWITCH)", "SR Sw", "SR_SWITCH", ComponentType::SRSwitch, "SR_SWITCH", "electrical", "Switches", {{"Ron", "10m"}, {"Roff", "1M"}}, false },
-            // Electrical Domain Transformers sub-library
-            { "Ideal Transformer (IDEAL_XFMR)", "Ideal XFMR", "IDEAL_XFMR", ComponentType::IdealTransformer, "IDEAL_XFMR", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
-            { "Linear Transformer (2-Winding) (XFMR_2W)", "XFMR 2W", "XFMR_2W", ComponentType::Transformer2W, "XFMR_2W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, true },
-            { "Linear Transformer (3-Winding) (XFMR_3W)", "XFMR 3W", "XFMR_3W", ComponentType::Transformer3W, "XFMR_3W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100, 100"}}, false },
-            { "Mutual Inductor (2-Winding) (MUTUAL_2W)", "Mut 2W", "MUTUAL_2W", ComponentType::MutualInductor2W, "MUTUAL_2W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
-            { "Mutual Inductor (3-Winding) (MUTUAL_3W)", "Mut 3W", "MUTUAL_3W", ComponentType::MutualInductor3W, "MUTUAL_3W", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100, 100"}}, false },
-            { "Saturable Transformer (SAT_XFMR)", "Sat XFMR", "SAT_XFMR", ComponentType::SaturableTransformer, "SAT_XFMR", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
-            { "Transformers (3-Phase 2-Winding) (XFMR_3PH_2W)", "3Ph 2W XFMR", "XFMR_3PH_2W", ComponentType::Transformer3Ph2W, "XFMR_3PH_2W", "electrical", "Transformers", {}, false },
-            // Electrical Domain Electrical Machines sub-library
-            { "Induction Motor (1-Phase/3-Phase) (INDUCTION_MOTOR)", "Ind Motor 1Ph/3Ph", "INDUCTION_MOTOR", ComponentType::InductionMotor, "INDUCTION_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}}, false },
-            { "Induction Motor (IND_MOTOR)", "Ind Motor", "IND_MOTOR", ComponentType::InductionMotor, "IND_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}}, false },
-
-            // Electrical Domain Electronics sub-library
-            { "Operational Amplifier (OPAMP)", "OpAmp", "OPAMP", ComponentType::OpAmp, "OPAMP", "electrical", "Electronics", {{"gain", "1e5"}}, false },
-            { "Comparator (Electrical) (E_COMP)", "E-Comp", "E_COMP", ComponentType::EComp, "E_COMP", "electrical", "Electronics", {{"gain", "1e5"}}, false },
-
-            // Electrical Domain Custom Machine/Load Models sub-library
-            { "Generalized Electrical Block (GEN_EBLOCK)", "Gen E-Block", "GEN_EBLOCK", ComponentType::GenEBlock, "GEN_EBLOCK", "electrical", "Custom Machine/Load Models", {{"terminals", "3"}}, true },
-
-            // ═══════════════ MAGNETIC DOMAIN LIBRARY (permeance-capacitance analogy) ═══════════════
-            // MMF <-> node potential, flux rate <-> branch current, permeance <-> capacitance.
-            // Kept as its own top-level library because the magnetic domain carries
-            // different physical quantities to the electrical one.
-
-            // Magnetic Sources
-            { "MMF Source (MMF_SRC)", "MMF", "FS", ComponentType::MMFSource, "MMF_SRC", "magnetic", "Sources", {{"F", "100"}}, false },
-            { "MMF Source Controlled (MMF_SRC_CTRL)", "MMF Ctrl", "FSC", ComponentType::MMFSourceControlled, "MMF_SRC_CTRL", "magnetic", "Sources", {{"gain", "1.0"}}, false },
-
-            // Magnetic Components
-            { "Winding (WINDING)", "Winding", "W", ComponentType::Winding, "WINDING", "magnetic", "Components", {{"N", "100"}}, false },
-            { "Magnetic Permeance (MAG_PERMEANCE)", "Permeance", "PM", ComponentType::MagneticPermeance, "MAG_PERMEANCE", "magnetic", "Components", {{"P", "1u"}, {"F0", "0"}}, false },
-            { "Linear Core (LINEAR_CORE)", "Core", "CORE", ComponentType::LinearCore, "LINEAR_CORE", "magnetic", "Components", {{"A", "1e-4"}, {"l", "0.1"}, {"mu_r", "1000"}, {"F0", "0"}}, false },
-            { "Air Gap (AIR_GAP)", "Air Gap", "GAP", ComponentType::AirGap, "AIR_GAP", "magnetic", "Components", {{"A", "1e-4"}, {"l", "1m"}, {"F0", "0"}}, false },
-            { "Leakage Flux Path (LEAKAGE_PATH)", "Leakage", "PLK", ComponentType::LeakageFluxPath, "LEAKAGE_PATH", "magnetic", "Components", {{"P", "10n"}, {"F0", "0"}}, false },
-            { "Magnetic Resistance (MAG_RESISTANCE)", "Rm", "RM", ComponentType::MagneticResistance, "MAG_RESISTANCE", "magnetic", "Components", {{"Rm", "1M"}}, false },
-        };
+        // The palette comes from the block registry (data/blocks/*.json, "palette"
+        // entries), in their "order". The registry outlives this static, so the
+        // c_str() pointers stay valid.
+        static const std::vector<ComponentMeta> allComponents = []() {
+            std::vector<ComponentMeta> v;
+            for (const auto& e : BlockRegistry::instance().palette()) {
+                v.push_back({ e.text.c_str(), e.label.c_str(), e.prefix.c_str(), e.uiType, e.type.c_str(),
+                              e.category.c_str(), e.subcategory.c_str(), e.params, e.basic });
+            }
+            return v;
+        }();
 
         // Helper lambda to render a list of components in a responsive 2-column or 1-column grid
         auto renderComponentGrid = [&](const std::vector<const ComponentMeta*>& compList) {
@@ -1514,108 +1158,7 @@ void MainWindow::renderComponentPalette() {
 }
 
 void MainWindow::loadSchematicFromJson(const json& j) {
-    CircuitDesign cd;
-    if (j.contains("components") && j["components"].is_array()) {
-        for (const auto& cItem : j["components"]) {
-            ComponentInstance comp;
-            comp.id = cItem.value("id", "");
-            comp.rawTypeStr = cItem.value("type", "R");
-            comp.type = stringToComponentType(comp.rawTypeStr);
-            comp.label = cItem.value("label", comp.id);
-            comp.x = cItem.value("x", 0.0f);
-            comp.y = cItem.value("y", 0.0f);
-            comp.rotation = cItem.value("rotation", 0);
-            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
-                for (auto& [k, v] : cItem["parameters"].items()) {
-                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
-                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
-                }
-            }
-            setupComponentPins(comp);
-            cd.components.push_back(comp);
-        }
-    }
-        std::unordered_map<std::string, std::string> compTypeMap;
-        for (const auto& c : cd.components) {
-            compTypeMap[c.id] = c.rawTypeStr;
-        }
-
-        auto resolveTerminalName = [&](const std::string& compId, const std::string& term) -> std::string {
-            auto it = compTypeMap.find(compId);
-            if (it != compTypeMap.end()) {
-                std::string t = it->second;
-                if (t == "SCOPE" || t == "Oscilloscope") {
-                    std::string lowerTerm = term;
-                    std::transform(lowerTerm.begin(), lowerTerm.end(), lowerTerm.begin(), ::tolower);
-                    if (lowerTerm.rfind("ch", 0) == 0 && lowerTerm.length() > 2) {
-                        return "In" + lowerTerm.substr(2);
-                    }
-                    if (lowerTerm.rfind("in", 0) == 0 && lowerTerm.length() > 2) {
-                        return "In" + lowerTerm.substr(2);
-                    }
-                }
-            }
-            return term;
-        };
-
-        for (const auto& wItem : j["wires"]) {
-            WireInstance wire;
-            wire.id = wItem.value("id", "");
-            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
-            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
-            cd.wires.push_back(wire);
-        }
-        sanitizeCircuitWires(cd);
-    if (j.contains("simulationSettings") && j["simulationSettings"].is_object()) {
-        const auto& ss = j["simulationSettings"];
-        if (ss.contains("stopTime")) {
-            if (ss["stopTime"].is_number()) cd.settings.stopTime = ss["stopTime"].get<double>();
-            else if (ss["stopTime"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stopTime"].get<std::string>());
-        }
-        if (ss.contains("stepSize")) {
-            if (ss["stepSize"].is_number()) cd.settings.stepSize = ss["stepSize"].get<double>();
-            else if (ss["stepSize"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(ss["stepSize"].get<std::string>());
-        }
-    }
-    if (j.contains("simulation_parameters") && j["simulation_parameters"].is_object()) {
-        const auto& sp = j["simulation_parameters"];
-        if (sp.contains("stop_time")) {
-            if (sp["stop_time"].is_number()) cd.settings.stopTime = sp["stop_time"].get<double>();
-            else if (sp["stop_time"].is_string()) cd.settings.stopTime = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["stop_time"].get<std::string>());
-        }
-        if (sp.contains("step_size")) {
-            if (sp["step_size"].is_number()) cd.settings.stepSize = sp["step_size"].get<double>();
-            else if (sp["step_size"].is_string()) cd.settings.stepSize = CircuitSimEngine::ExpressionEvaluator::parseScientific(sp["step_size"].get<std::string>());
-        }
-        // Solver selection and adaptive-stepping controls; see the note at the other
-        // load site. Without these the solver and step type reverted to defaults on
-        // every reopen.
-        if (sp.contains("solver") && sp["solver"].is_string()) {
-            cd.settings.solverType = sp["solver"].get<std::string>();
-        }
-        if (sp.contains("step_type") && sp["step_type"].is_string()) {
-            cd.settings.stepType = sp["step_type"].get<std::string>();
-        }
-        if (sp.contains("enable_lu_cache")) {
-            const auto& v = sp["enable_lu_cache"];
-            if (v.is_boolean()) cd.settings.enableLUCache = v.get<bool>();
-            else if (v.is_number()) cd.settings.enableLUCache = (v.get<double>() != 0.0);
-        }
-        {
-            auto loadNum = [&](const char* key, double& dst) {
-                if (!sp.contains(key)) return;
-                const auto& v = sp[key];
-                if (v.is_number()) dst = v.get<double>();
-                else if (v.is_string()) dst = CircuitSimEngine::ExpressionEvaluator::parseScientific(v.get<std::string>());
-            };
-            loadNum("rel_tol",   cd.settings.relTol);
-            loadNum("abs_tol_v", cd.settings.absTolV);
-            loadNum("abs_tol_i", cd.settings.absTolI);
-            loadNum("h_min",     cd.settings.hMin);
-            loadNum("h_max",     cd.settings.hMax);
-        }
-    }
+    CircuitDesign cd = DesignIO::loadDesign(j, guiLoadOptions());
 
     NetlistBuilder::buildNodesForCircuit(cd);
     canvas.setCircuit(cd);
@@ -1635,38 +1178,7 @@ void MainWindow::batchSimulateFolder(const std::string& folderPath) {
                 if (!f.is_open()) continue;
                 try {
                     json j = json::parse(f);
-                    CircuitDesign cd;
-                    if (j.contains("components") && j["components"].is_array()) {
-                        for (const auto& cItem : j["components"]) {
-                            ComponentInstance comp;
-                            comp.id = cItem.value("id", "");
-                            comp.rawTypeStr = cItem.value("type", "R");
-                            comp.type = stringToComponentType(comp.rawTypeStr);
-                            comp.label = cItem.value("label", comp.id);
-                            comp.x = cItem.value("x", 0.0f);
-                            comp.y = cItem.value("y", 0.0f);
-                            comp.rotation = cItem.value("rotation", 0);
-                            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
-                                for (auto& [k, v] : cItem["parameters"].items()) {
-                                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-                                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
-                                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
-                                }
-                            }
-                            setupComponentPins(comp);
-                            cd.components.push_back(comp);
-                        }
-                    }
-                    if (j.contains("wires") && j["wires"].is_array()) {
-                        for (const auto& wItem : j["wires"]) {
-                            WireInstance wire;
-                            wire.id = wItem.value("id", "");
-                            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from);
-                            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to);
-                            cd.wires.push_back(wire);
-                        }
-                        sanitizeCircuitWires(cd);
-                    }
+                    CircuitDesign cd = DesignIO::loadDesign(j);
                     NetlistBuilder::buildNodesForCircuit(cd);
                     std::string jsonNetlist = NetlistSourceView::generateNetlistJson(cd);
                     std::vector<CircuitSimEngine::ComponentModel> physComps;
@@ -1712,55 +1224,7 @@ void MainWindow::executeBatchExportWithOptions(const std::string& folderPath, co
                 if (!f.is_open()) continue;
                 try {
                     json j = json::parse(f);
-                    CircuitDesign cd;
-                    if (j.contains("components") && j["components"].is_array()) {
-                        for (const auto& cItem : j["components"]) {
-                            ComponentInstance comp;
-                            comp.id = cItem.value("id", "");
-                            comp.rawTypeStr = cItem.value("type", "R");
-                            comp.type = stringToComponentType(comp.rawTypeStr);
-                            comp.label = cItem.value("label", comp.id);
-                            comp.x = cItem.value("x", 0.0f);
-                            comp.y = cItem.value("y", 0.0f);
-                            comp.rotation = cItem.value("rotation", 0);
-                            if (cItem.contains("parameters") && cItem["parameters"].is_object()) {
-                                for (auto& [k, v] : cItem["parameters"].items()) {
-                                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-                                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
-                                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
-                                }
-                            }
-                            setupComponentPins(comp);
-                            cd.components.push_back(comp);
-                        }
-                    }
-                    std::unordered_map<std::string, std::string> compTypeMap;
-                    for (const auto& c : cd.components) compTypeMap[c.id] = c.rawTypeStr;
-
-                    auto resolveTerminalName = [&](const std::string& compId, const std::string& term) -> std::string {
-                        auto it = compTypeMap.find(compId);
-                        if (it != compTypeMap.end()) {
-                            std::string t = it->second;
-                            if (t == "SCOPE" || t == "Oscilloscope") {
-                                std::string lowerTerm = term;
-                                std::transform(lowerTerm.begin(), lowerTerm.end(), lowerTerm.begin(), ::tolower);
-                                if (lowerTerm.rfind("ch", 0) == 0 && lowerTerm.length() > 2) return "In" + lowerTerm.substr(2);
-                                if (lowerTerm.rfind("in", 0) == 0 && lowerTerm.length() > 2) return "In" + lowerTerm.substr(2);
-                            }
-                        }
-                        return term;
-                    };
-
-                    if (j.contains("wires") && j["wires"].is_array()) {
-                        for (const auto& wItem : j["wires"]) {
-                            WireInstance wire;
-                            wire.id = wItem.value("id", "");
-                            if (wItem.contains("from")) parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
-                            if (wItem.contains("to")) parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
-                            cd.wires.push_back(wire);
-                        }
-                        sanitizeCircuitWires(cd);
-                    }
+                    CircuitDesign cd = DesignIO::loadDesign(j);
                     NetlistBuilder::buildNodesForCircuit(cd);
                     std::string jsonNetlist = NetlistSourceView::generateNetlistJson(cd);
                     std::vector<CircuitSimEngine::ComponentModel> physComps;
@@ -1835,7 +1299,7 @@ void MainWindow::executeBatchExportWithOptions(const std::string& folderPath, co
 
 void MainWindow::executeSingleExportWithOptions(const SVGExporter::ReportExportOptions& options) {
     std::string defaultName = getProjectBaseName() + "_report.html";
-    std::string path = SVGExporter::saveHTMLFileDialog("Export Report", defaultName);
+    std::string path = FileDialogs::saveHTMLFileDialog("Export Report", defaultName);
     if (path.empty()) return;
 
     NetlistBuilder::buildNodesForCircuit(canvas.getCircuitRef());
@@ -2745,6 +2209,7 @@ void MainWindow::renderPropertyInspector() {
         for (const auto& dp : discParams) handledCScriptParams.insert(dp.name);
     }
 
+    const BlockDef* inspectorBlock = BlockRegistry::instance().resolve(comp->rawTypeStr);
     for (auto& pair : comp->parameters) {
         if (pair.first == "probe_signal" || pair.first == "plotI" || pair.first == "plotV" || pair.first == "target" || pair.first == "selected_signals" || pair.first == "probe_type" || pair.first == "num_inputs" || pair.first == "num_outputs" || pair.first == "timestep") continue;
         if (handledCScriptParams.count(pair.first)) continue;
@@ -2763,45 +2228,9 @@ void MainWindow::renderPropertyInspector() {
         std::transform(pKey.begin(), pKey.end(), pKey.begin(), ::tolower);
 
         std::vector<std::string> comboChoices;
-
-        if (pKey == "function" || pKey == "func" || pKey == "fcn" || pKey == "expression") {
-            if (t == "ROUND") {
-                comboChoices = {"round", "floor", "ceil", "fix"};
-            } else if (t == "MIN_MAX" || t == "MIN" || t == "MAX") {
-                comboChoices = {"min", "max"};
-            } else if (t == "TRIG_FCN" || t == "TRIG" || t == "FCN" || t == "MATH_FCN" || t == "MATH_FUNC" || t == "MATH") {
-                comboChoices = {"sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "log", "log10", "sqrt", "abs", "square", "pow", "reciprocal"};
-            } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
-                comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
-            }
-        } else if (pKey == "operator" || pKey == "op" || pKey == "relop" || pKey == "relational_operator" || pKey == "condition" || pKey == "comparison") {
-            if (t == "RELATIONAL_OPERATOR" || t == "COMP" || t == "COMPARE" || t == "COMP_CONST" || t == "COMPARE_TO_CONSTANT" || t == "COMPARE_TO_ZERO" || t == "Comparator" || t == "CompareToConstant" || t == "CompareToZero") {
-                comboChoices = {"==", "~=", "!=", "<", "<=", ">", ">="};
-            } else if (t == "BITWISE_OP") {
-                comboChoices = {"AND", "OR", "XOR", "NOT", "SHIFT_LEFT", "SHIFT_RIGHT"};
-            } else if (t == "LOGIC_OP" || t == "COMB_LOGIC") {
-                comboChoices = {"AND", "OR", "NAND", "NOR", "XOR", "NXOR", "NOT"};
-            }
-        } else if (pKey == "edgetype" || pKey == "edge" || pKey == "edge_type" || pKey == "direction" || pKey == "hit_direction" || pKey == "dir" || pKey == "detection_mode" || pKey == "type" || pKey == "mode") {
-            if (t == "EDGE_DETECT") {
-                comboChoices = {"rising", "falling", "either"};
-            } else if (t == "HIT_CROSSING") {
-                comboChoices = {"either", "rising", "falling"};
-            }
-        } else if (pKey == "datatype" || pKey == "output_type") {
-            if (t == "DATATYPE_CONV") {
-                comboChoices = {"double", "float", "int32", "int16", "int8", "uint32", "uint16", "uint8", "boolean"};
-            }
-        } else if (pKey == "filter_type" || (pKey == "type" && (t == "FILTER_1ST" || t == "FILTER_2ND"))) {
-            comboChoices = {"lowpass", "highpass", "bandpass", "bandstop"};
-        } else if (pKey == "alignment" || pKey == "mode" || pKey == "rounding_mode") {
-            if (t == "ROUND") {
-                comboChoices = {"nearest", "floor", "ceil", "fix"};
-            } else if (t == "PWM" || t == "PWM_3PH" || t == "SVPWM") {
-                comboChoices = {"edge", "center", "symmetric", "asymmetric"};
-            } else if (t == "FOURIER_ANALYSIS" || t == "FOURIER_TRANS") {
-                comboChoices = {"magnitude_phase", "real_imag", "harmonic_series"};
-            }
+        // Allowed values come from the block registry ("choices" in data/blocks).
+        if (inspectorBlock) {
+            if (const auto* ch = inspectorBlock->choicesFor(pKey)) comboChoices = *ch;
         }
 
         if (!comboChoices.empty()) {

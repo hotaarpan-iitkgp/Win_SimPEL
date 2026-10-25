@@ -1,0 +1,196 @@
+{
+  "components": [
+    {
+      "id": "SRC_IGBT_DIODE1",
+      "type": "V",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_IGBT_DIODE1",
+      "type": "GND",
+      "x": 400,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IGBT_DIODE1",
+      "type": "IGBT_DIODE",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_IGBT_DIODE",
+      "type": "CONST",
+      "x": 100,
+      "y": -50,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_IC_LM78051",
+      "type": "V",
+      "x": 0,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_IC_LM78051",
+      "type": "GND",
+      "x": 400,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_LM78051",
+      "type": "IC_LM7805",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_IC_LM78051",
+      "type": "R",
+      "x": 300,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "SRC_IC_LM3171",
+      "type": "V",
+      "x": 0,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_IC_LM3171",
+      "type": "GND",
+      "x": 400,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_LM3171",
+      "type": "IC_LM317",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_IC_LM3171",
+      "type": "R",
+      "x": 300,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "SRC_IC_PC8171",
+      "type": "V",
+      "x": 0,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_IC_PC8171",
+      "type": "GND",
+      "x": 400,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_PC8171",
+      "type": "IC_PC817",
+      "x": 200,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IGBT_DIODE1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT_DIODE1",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT_DIODE1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IGBT_DIODE1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IGBT_DIODE1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IGBT_DIODE1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_IGBT_DIODE",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT_DIODE1",
+        "terminal": "G"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": []
+  },
+  "description": "Test Missing ICs and IGBT Diode"
+}

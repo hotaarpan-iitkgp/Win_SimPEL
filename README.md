@@ -42,3 +42,18 @@ The compiled binary will be generated at:
 
 ## Repository
 - **GitHub**: [https://github.com/hotaarpan-iitkgp/Win_SimPEL.git](https://github.com/hotaarpan-iitkgp/Win_SimPEL.git)
+
+## Python API, command line and tests
+
+The engine is also a static library (`simpel_core`) used by a headless command line
+(`simpel_cli`) and a Python package (`python/`, module `simpel`): build circuits in
+code, simulate (fixed or adaptive step, progress, cancel), analyse (stats, Fourier,
+losses), sweep parameters in parallel, export (CSV, SVG, HTML, `.simres`) and open
+the results or the circuit in this application.
+
+- Quick start: `python/README.md`; reference: `docs/python-api.md`
+- Adding blocks: `docs/adding-a-block.md`; stability rules: `docs/api-stability.md`
+- Build everything and run the tests: `cmake -S . -B build && cmake --build build && cd build && ctest`
+- Python wheel: `powershell -File python\build_mingw.ps1 -Python <venv>\Scripts\python.exe`
+- The application opens `--results <file.simres>` and `--open <file.json>` from the
+  command line, and File > Open / Save Results.

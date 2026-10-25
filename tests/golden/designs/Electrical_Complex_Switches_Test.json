@@ -1,0 +1,1067 @@
+{
+  "components": [
+    {
+      "id": "DBL_SWITCH1",
+      "type": "DBL_SWITCH",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_DBL_SWITCH1",
+      "type": "V",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_DBL_SWITCH1",
+      "type": "GND",
+      "x": 400,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_A_DBL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": -20,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_B_DBL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 20,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "MAN_SWITCH1",
+      "type": "MAN_SWITCH",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_MAN_SWITCH1",
+      "type": "V",
+      "x": 0,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_MAN_SWITCH1",
+      "type": "GND",
+      "x": 400,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_A_MAN_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_B_MAN_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 220,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "MAN_DBL_SWITCH1",
+      "type": "MAN_DBL_SWITCH",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_MAN_DBL_SWITCH1",
+      "type": "V",
+      "x": 0,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_MAN_DBL_SWITCH1",
+      "type": "GND",
+      "x": 400,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_A_MAN_DBL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_B_MAN_DBL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 420,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "MAN_TRPL_SWITCH1",
+      "type": "MAN_TRPL_SWITCH",
+      "x": 200,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_MAN_TRPL_SWITCH1",
+      "type": "V",
+      "x": 0,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_MAN_TRPL_SWITCH1",
+      "type": "GND",
+      "x": 400,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_A_MAN_TRPL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 580,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_B_MAN_TRPL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_C_MAN_TRPL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 620,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "SR_SWITCH1",
+      "type": "SR_SWITCH",
+      "x": 200,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_SR_SWITCH1",
+      "type": "V",
+      "x": 0,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_SR_SWITCH1",
+      "type": "GND",
+      "x": 400,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_SR_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "TRPL_SWITCH1",
+      "type": "TRPL_SWITCH",
+      "x": 200,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_TRPL_SWITCH1",
+      "type": "V",
+      "x": 0,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_TRPL_SWITCH1",
+      "type": "GND",
+      "x": 400,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_A_TRPL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 980,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_B_TRPL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD_C_TRPL_SWITCH1",
+      "type": "R",
+      "x": 300,
+      "y": 1020,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "CTRL_TRPL_SWITCH1",
+      "type": "CONST",
+      "x": 100,
+      "y": 950,
+      "rotation": 0,
+      "parameters": {
+        "value": "1.0"
+      }
+    },
+    {
+      "id": "VM_3PH1",
+      "type": "VM_3PH",
+      "x": 200,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_VM_3PH1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "230"
+      }
+    },
+    {
+      "id": "GND_VM_3PH1",
+      "type": "GND",
+      "x": 400,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "AM_3PH1",
+      "type": "AM_3PH",
+      "x": 200,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_AM_3PH1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "230"
+      }
+    },
+    {
+      "id": "GND_AM_3PH1",
+      "type": "GND",
+      "x": 400,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOADA_AM_3PH1",
+      "type": "R",
+      "x": 300,
+      "y": 1380,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADB_AM_3PH1",
+      "type": "R",
+      "x": 300,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_DBL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "DBL_SWITCH1",
+        "terminal": "Common"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "DBL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_A_DBL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_B_DBL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_A_DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_DBL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w5",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_B_DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_DBL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w6",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_DBL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w7",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MAN_SWITCH1",
+        "terminal": "Common"
+      }
+    },
+    {
+      "id": "w8",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_A_MAN_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w9",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_B_MAN_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w10",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_A_MAN_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w11",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_B_MAN_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w12",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w13",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_DBL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MAN_DBL_SWITCH1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w14",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_DBL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w15",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_DBL_SWITCH1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_A_MAN_DBL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w16",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_A_MAN_DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_DBL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w17",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_DBL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MAN_DBL_SWITCH1",
+        "terminal": "B1"
+      }
+    },
+    {
+      "id": "w18",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_DBL_SWITCH1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_B_MAN_DBL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w19",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_B_MAN_DBL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_DBL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w20",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_TRPL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MAN_TRPL_SWITCH1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w21",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w22",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_TRPL_SWITCH1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_A_MAN_TRPL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w23",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_A_MAN_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w24",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_TRPL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MAN_TRPL_SWITCH1",
+        "terminal": "B1"
+      }
+    },
+    {
+      "id": "w25",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MAN_TRPL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MAN_TRPL_SWITCH1",
+        "terminal": "C1"
+      }
+    },
+    {
+      "id": "w26",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_TRPL_SWITCH1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_B_MAN_TRPL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w27",
+      "from": {
+        "type": "pin",
+        "compId": "MAN_TRPL_SWITCH1",
+        "terminal": "C2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_C_MAN_TRPL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w28",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_B_MAN_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w29",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_C_MAN_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MAN_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w30",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_SR_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SR_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w31",
+      "from": {
+        "type": "pin",
+        "compId": "SR_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_SR_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w32",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_SR_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_SR_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w33",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_SR_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_SR_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w34",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_TRPL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w35",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w36",
+      "from": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_A_TRPL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w37",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_A_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w38",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_TRPL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "B1"
+      }
+    },
+    {
+      "id": "w39",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_TRPL_SWITCH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "C1"
+      }
+    },
+    {
+      "id": "w40",
+      "from": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_B_TRPL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w41",
+      "from": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "C2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_C_TRPL_SWITCH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w42",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_B_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w43",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_C_TRPL_SWITCH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_TRPL_SWITCH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w44",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_TRPL_SWITCH1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TRPL_SWITCH1",
+        "terminal": "Ctrl"
+      }
+    },
+    {
+      "id": "w45",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_VM_3PH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "VM_3PH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w46",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_VM_3PH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "VM_3PH1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w47",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_VM_3PH1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_VM_3PH1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w48",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_AM_3PH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_3PH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w49",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_AM_3PH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_3PH1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w50",
+      "from": {
+        "type": "pin",
+        "compId": "AM_3PH1",
+        "terminal": "C"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADA_AM_3PH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w51",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_AM_3PH1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_3PH1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w52",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_AM_3PH1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_3PH1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w53",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_AM_3PH1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_AM_3PH1",
+        "terminal": "Gnd"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": []
+  },
+  "description": "Test Complex Switches"
+}

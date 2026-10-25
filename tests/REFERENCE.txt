@@ -1,0 +1,27 @@
+# Stage 1 reference digests (fixed-step behaviour).
+# Captured after S1.1/S1.2. The four dt=1e-7 entries changed from the pre-S1.1
+# values by exactly one sample out of 20000 - the final, clamped step, which now
+# stamps the step it actually integrates. Magnitude 1.3e-12 absolute (2.6e-14 rel).
+# Pre-S1.1 values were eef83f2b9c462507 / 03c95ed98b47514f / ef658b877027e1c6 / e1f715d3b6665469.
+#
+# dump lines: SHA-256 of the raw stdout bytes of `dump_buck <solver> 5e-3 <circuit>`
+# (cmd.exe redirect, no re-encoding), as checked by tests/run_engine_suites.ps1.
+# Re-baselined at the start of the API work: the previous dump hashes were taken
+# with an unrecorded capture method and could not be reproduced, while the solver
+# sources (CircuitSimulator/ExpressionEvaluator/CScriptEngine) were unchanged from
+# origin/main 53f456b and the bitwise esr digests below still matched.
+
+dump buck     euler        C5FAA23A7D9F294EB6DEABC11DD97F40F43A5E87EF4F8148371253BFFBC4D09C
+dump buck     trapezoidal  D49268F9852C3973929AD65C89869774C9FC4E5551F38B328EEB24CC2EBAFB18
+dump buck     rk4          E78C59C7C20491B2657DE7E025A0502ABF2CEA0D5560B976923DA6B3E5A67F61
+dump mathmix  euler        0BEBBAC6E6485465284B20B86A09CBC36770C4A2751B914919D384A856D19697
+dump mathmix  trapezoidal  7540F91C77EB0F2B1C9EFB3EF213977006A6E0F967DB035E735DB1F1A5558EAB
+dump mathmix  rk4          2B6396106E5EA3EC82E99D9EB35267CB4C1FFF3298166A019861CC0141D6F62B
+esr=0      dt=1e-06    solver=euler        digest=5fe668ee919df245 samples=2000
+esr=0      dt=1e-06    solver=trapezoidal  digest=2fa5e46095f8f6a7 samples=2000
+esr=0      dt=1e-07    solver=euler        digest=f7dbd46f35c43943 samples=20000
+esr=0      dt=1e-07    solver=trapezoidal  digest=84829df38a9920a9 samples=20000
+esr=0.01   dt=1e-06    solver=euler        digest=6f62510ac5129054 samples=2000
+esr=0.01   dt=1e-06    solver=trapezoidal  digest=1e56584c39cf5a96 samples=2000
+esr=0.01   dt=1e-07    solver=euler        digest=861cfc56e2bccf52 samples=20000
+esr=0.01   dt=1e-07    solver=trapezoidal  digest=6f9a8de2dbe12df8 samples=20000

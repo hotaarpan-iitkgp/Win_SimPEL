@@ -1,0 +1,14 @@
+design pwm_test_comparator.json
+netlist_cli b1a6654d63aaf3ed 1945
+netlist_gui dc7f07ba3af090dc 1961
+roundtrip same
+config tstop=0.040000000000000001 dt=9.9999999999999991e-06 solver=euler step=fixed phys=0 ctrl=4
+time 4000 163af2f67260df69 0.039990000000001573
+sig COMP1 4000 aaba281d78ca3603 1
+sig COMP1.Out 4000 aaba281d78ca3603 1
+sig SCOPE1 4000 ce7bf42fcf17df83 0
+sig SCOPE1.Out 4000 ce7bf42fcf17df83 0
+sig SINE1 4000 0d65969b27eac35b -0.003141587485386033
+sig SINE1.Out 4000 0d65969b27eac35b -0.003141587485386033
+sig TRI1 4000 734e3fe6c4a210cc -0.96000000000628916
+sig TRI1.Out 4000 734e3fe6c4a210cc -0.96000000000628916

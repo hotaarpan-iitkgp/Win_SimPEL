@@ -26,6 +26,16 @@ struct SwitchLossResult {
 class LossAnalysisEngine {
 public:
     // Run post-processing on the entire circuit telemetry for the specified window
+    // Same analysis on telemetry already taken out of a simulator (headless runs and
+    // the Python API keep results, not simulators).
+    static std::vector<SwitchLossResult> runAnalysis(
+        const TelemetryData& telemetry,
+        const CircuitSim::CircuitDesign& design,
+        double t_start,
+        double duration,
+        double global_tj
+    );
+
     static std::vector<SwitchLossResult> runAnalysis(
         const CircuitSimulator& sim,
         const CircuitSim::CircuitDesign& design,

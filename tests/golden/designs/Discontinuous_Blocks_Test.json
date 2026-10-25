@@ -1,0 +1,303 @@
+{
+  "components": [
+    {
+      "id": "RAMP1",
+      "type": "RAMP",
+      "x": -400,
+      "y": -300,
+      "rotation": 0,
+      "parameters": {
+        "slope": "2.0",
+        "start_time": "0.0",
+        "initial_output": "0.0"
+      }
+    },
+    {
+      "id": "QUANTIZER1",
+      "type": "QUANTIZER",
+      "x": -200,
+      "y": -300,
+      "rotation": 0,
+      "parameters": {
+        "step_size": "0.5",
+        "mode": "round"
+      }
+    },
+    {
+      "id": "CONST_POS",
+      "type": "CONST",
+      "x": -400,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "value": "1.0"
+      }
+    },
+    {
+      "id": "CONST_NEG",
+      "type": "CONST",
+      "x": -400,
+      "y": -150,
+      "rotation": 0,
+      "parameters": {
+        "value": "-1.0"
+      }
+    },
+    {
+      "id": "SIG_SWITCH1",
+      "type": "SIGNAL_SWITCH",
+      "x": -200,
+      "y": -175,
+      "rotation": 0,
+      "parameters": {
+        "threshold": "1.0",
+        "criteria": "u2 >= threshold"
+      }
+    },
+    {
+      "id": "MANUAL_SWITCH1",
+      "type": "MANUAL_SWITCH",
+      "x": -200,
+      "y": -50,
+      "rotation": 0,
+      "parameters": {
+        "state": "Input 2"
+      }
+    },
+    {
+      "id": "STEP_CTRL",
+      "type": "STEP",
+      "x": -400,
+      "y": 50,
+      "rotation": 0,
+      "parameters": {
+        "step_time": "0.5",
+        "initial_value": "1.0",
+        "final_value": "2.0"
+      }
+    },
+    {
+      "id": "CONST_ZERO",
+      "type": "CONST",
+      "x": -400,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "value": "0.0"
+      }
+    },
+    {
+      "id": "MULTI_SWITCH1",
+      "type": "MULTIPORT_SWITCH",
+      "x": -200,
+      "y": 75,
+      "rotation": 0,
+      "parameters": {
+        "inputs": "3",
+        "indexing": "1-based"
+      }
+    },
+    {
+      "id": "SINE1",
+      "type": "SINE_WAVE",
+      "x": -400,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "2.0",
+        "frequency": "1.0",
+        "phase": "0.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "HIT1",
+      "type": "HIT_CROSSING",
+      "x": -200,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {
+        "offset": "1.0",
+        "direction": "rising"
+      }
+    },
+    {
+      "id": "SAT1",
+      "type": "SATURATION",
+      "x": -200,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {
+        "min": "-1.0",
+        "max": "1.0"
+      }
+    },
+    {
+      "id": "DEAD1",
+      "type": "DEAD_ZONE",
+      "x": -200,
+      "y": 450,
+      "rotation": 0,
+      "parameters": {
+        "start": "-0.5",
+        "end": "0.5"
+      }
+    },
+    {
+      "id": "STEP_RATE",
+      "type": "STEP",
+      "x": -400,
+      "y": 550,
+      "rotation": 0,
+      "parameters": {
+        "step_time": "0.1",
+        "initial_value": "0.0",
+        "final_value": "1.0"
+      }
+    },
+    {
+      "id": "RATE1",
+      "type": "RATE_LIMITER",
+      "x": -200,
+      "y": 550,
+      "rotation": 0,
+      "parameters": {
+        "up": "2.0",
+        "down": "-2.0"
+      }
+    },
+    {
+      "id": "RELAY1",
+      "type": "RELAY",
+      "x": -200,
+      "y": 650,
+      "rotation": 0,
+      "parameters": {
+        "on_threshold": "1.0",
+        "off_threshold": "-1.0"
+      }
+    },
+    {
+      "id": "COMP1",
+      "type": "COMPARE_TO_CONSTANT",
+      "x": -200,
+      "y": 750,
+      "rotation": 0,
+      "parameters": {
+        "operator": ">=",
+        "constant": "1.0"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": { "type": "pin", "compId": "RAMP1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "QUANTIZER1", "terminal": "In" }
+    },
+    {
+      "id": "w2a",
+      "from": { "type": "pin", "compId": "CONST_POS", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SIG_SWITCH1", "terminal": "In1" }
+    },
+    {
+      "id": "w2b",
+      "from": { "type": "pin", "compId": "RAMP1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SIG_SWITCH1", "terminal": "Ctrl" }
+    },
+    {
+      "id": "w2c",
+      "from": { "type": "pin", "compId": "CONST_NEG", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SIG_SWITCH1", "terminal": "In2" }
+    },
+    {
+      "id": "w3a",
+      "from": { "type": "pin", "compId": "CONST_POS", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "MANUAL_SWITCH1", "terminal": "In1" }
+    },
+    {
+      "id": "w3b",
+      "from": { "type": "pin", "compId": "CONST_NEG", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "MANUAL_SWITCH1", "terminal": "In2" }
+    },
+    {
+      "id": "w4a",
+      "from": { "type": "pin", "compId": "STEP_CTRL", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "MULTI_SWITCH1", "terminal": "Ctrl" }
+    },
+    {
+      "id": "w4b",
+      "from": { "type": "pin", "compId": "CONST_POS", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "MULTI_SWITCH1", "terminal": "In1" }
+    },
+    {
+      "id": "w4c",
+      "from": { "type": "pin", "compId": "CONST_NEG", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "MULTI_SWITCH1", "terminal": "In2" }
+    },
+    {
+      "id": "w4d",
+      "from": { "type": "pin", "compId": "CONST_ZERO", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "MULTI_SWITCH1", "terminal": "In3" }
+    },
+    {
+      "id": "w5",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "HIT1", "terminal": "In" }
+    },
+    {
+      "id": "w6",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SAT1", "terminal": "In" }
+    },
+    {
+      "id": "w7",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "DEAD1", "terminal": "In" }
+    },
+    {
+      "id": "w8",
+      "from": { "type": "pin", "compId": "STEP_RATE", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "RATE1", "terminal": "In" }
+    },
+    {
+      "id": "w9",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "RELAY1", "terminal": "In" }
+    },
+    {
+      "id": "w10",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "COMP1", "terminal": "In" }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Discontinuous Blocks Outputs",
+        "variables": [
+          "RAMP1.Out",
+          "QUANTIZER1.Out",
+          "SIG_SWITCH1.Out",
+          "MANUAL_SWITCH1.Out",
+          "MULTI_SWITCH1.Out",
+          "SINE1.Out",
+          "HIT1.Out",
+          "SAT1.Out",
+          "DEAD1.Out",
+          "STEP_RATE.Out",
+          "RATE1.Out",
+          "RELAY1.Out",
+          "COMP1.Out"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "1.0",
+    "h": "0.001",
+    "solver": "euler",
+    "step_type": "fixed"
+  },
+  "description": "Test of Discontinuous Blocks"
+}

@@ -1,0 +1,319 @@
+{
+  "schema": 1,
+  "category": "magnetic",
+  "description": "Magnetic-domain blocks (permeance-capacitance analogy).",
+  "blocks": [
+    {
+      "type": "MMF_SRC",
+      "name": "MMF Source",
+      "subcategory": "Sources",
+      "ui_type": "MMFSource",
+      "aliases": [
+        "MMFSource"
+      ],
+      "params": [
+        {
+          "name": "F",
+          "default": "100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 158,
+          "text": "MMF Source (MMF_SRC)",
+          "label": "MMF",
+          "prefix": "FS",
+          "ui_type": "MMFSource",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "F",
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MMF_SRC_CTRL",
+      "name": "MMF Source Controlled",
+      "subcategory": "Sources",
+      "ui_type": "MMFSourceControlled",
+      "aliases": [
+        "MMFSourceControlled"
+      ],
+      "params": [
+        {
+          "name": "gain",
+          "default": "1.0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 159,
+          "text": "MMF Source Controlled (MMF_SRC_CTRL)",
+          "label": "MMF Ctrl",
+          "prefix": "FSC",
+          "ui_type": "MMFSourceControlled",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "gain",
+              "1.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "WINDING",
+      "name": "Winding",
+      "subcategory": "Components",
+      "ui_type": "Winding",
+      "aliases": [
+        "Winding"
+      ],
+      "params": [
+        {
+          "name": "N",
+          "default": "100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 160,
+          "text": "Winding (WINDING)",
+          "label": "Winding",
+          "prefix": "W",
+          "ui_type": "Winding",
+          "subcategory": "Components",
+          "basic": false,
+          "params": [
+            [
+              "N",
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MAG_PERMEANCE",
+      "name": "Magnetic Permeance",
+      "subcategory": "Components",
+      "ui_type": "MagneticPermeance",
+      "aliases": [
+        "MagneticPermeance"
+      ],
+      "params": [
+        {
+          "name": "P",
+          "default": "1u"
+        },
+        {
+          "name": "F0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 161,
+          "text": "Magnetic Permeance (MAG_PERMEANCE)",
+          "label": "Permeance",
+          "prefix": "PM",
+          "ui_type": "MagneticPermeance",
+          "subcategory": "Components",
+          "basic": false,
+          "params": [
+            [
+              "P",
+              "1u"
+            ],
+            [
+              "F0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "LINEAR_CORE",
+      "name": "Linear Core",
+      "subcategory": "Components",
+      "ui_type": "LinearCore",
+      "aliases": [
+        "LinearCore"
+      ],
+      "params": [
+        {
+          "name": "A",
+          "default": "1e-4"
+        },
+        {
+          "name": "l",
+          "default": "0.1"
+        },
+        {
+          "name": "mu_r",
+          "default": "1000"
+        },
+        {
+          "name": "F0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 162,
+          "text": "Linear Core (LINEAR_CORE)",
+          "label": "Core",
+          "prefix": "CORE",
+          "ui_type": "LinearCore",
+          "subcategory": "Components",
+          "basic": false,
+          "params": [
+            [
+              "A",
+              "1e-4"
+            ],
+            [
+              "l",
+              "0.1"
+            ],
+            [
+              "mu_r",
+              "1000"
+            ],
+            [
+              "F0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "AIR_GAP",
+      "name": "Air Gap",
+      "subcategory": "Components",
+      "ui_type": "AirGap",
+      "aliases": [
+        "AirGap"
+      ],
+      "params": [
+        {
+          "name": "A",
+          "default": "1e-4"
+        },
+        {
+          "name": "l",
+          "default": "1m"
+        },
+        {
+          "name": "F0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 163,
+          "text": "Air Gap (AIR_GAP)",
+          "label": "Air Gap",
+          "prefix": "GAP",
+          "ui_type": "AirGap",
+          "subcategory": "Components",
+          "basic": false,
+          "params": [
+            [
+              "A",
+              "1e-4"
+            ],
+            [
+              "l",
+              "1m"
+            ],
+            [
+              "F0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "LEAKAGE_PATH",
+      "name": "Leakage Flux Path",
+      "subcategory": "Components",
+      "ui_type": "LeakageFluxPath",
+      "aliases": [
+        "LeakageFluxPath"
+      ],
+      "params": [
+        {
+          "name": "P",
+          "default": "10n"
+        },
+        {
+          "name": "F0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 164,
+          "text": "Leakage Flux Path (LEAKAGE_PATH)",
+          "label": "Leakage",
+          "prefix": "PLK",
+          "ui_type": "LeakageFluxPath",
+          "subcategory": "Components",
+          "basic": false,
+          "params": [
+            [
+              "P",
+              "10n"
+            ],
+            [
+              "F0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MAG_RESISTANCE",
+      "name": "Magnetic Resistance",
+      "subcategory": "Components",
+      "ui_type": "MagneticResistance",
+      "aliases": [
+        "MagneticResistance"
+      ],
+      "params": [
+        {
+          "name": "Rm",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 165,
+          "text": "Magnetic Resistance (MAG_RESISTANCE)",
+          "label": "Rm",
+          "prefix": "RM",
+          "ui_type": "MagneticResistance",
+          "subcategory": "Components",
+          "basic": false,
+          "params": [
+            [
+              "Rm",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

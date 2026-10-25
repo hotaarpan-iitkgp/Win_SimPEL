@@ -1,0 +1,425 @@
+{
+  "components": [
+    {
+      "id": "V1",
+      "type": "V",
+      "x": -220,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      },
+      "lastClickTime": 1783147574385
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": -100,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      },
+      "lastClickTime": 1782747358045
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": -40,
+      "y": -120,
+      "rotation": 90,
+      "parameters": {
+        "L": "1m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1782747340263
+    },
+    {
+      "id": "C2",
+      "type": "C",
+      "x": 160,
+      "y": -120,
+      "rotation": 90,
+      "parameters": {
+        "C": "10u",
+        "esr": "10m",
+        "vC0": "0"
+      },
+      "lastClickTime": 1782747388994
+    },
+    {
+      "id": "L2",
+      "type": "L",
+      "x": 260,
+      "y": 0,
+      "rotation": 180,
+      "parameters": {
+        "L": "1m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1782747343181
+    },
+    {
+      "id": "C3",
+      "type": "C",
+      "x": 420,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      },
+      "lastClickTime": 1783147724581
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 520,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      },
+      "lastClickTime": 1783147725316
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 340,
+      "y": -120,
+      "rotation": 270,
+      "parameters": {
+        "Vd": "0.7",
+        "Ron": "1m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": 100,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "",
+        "code": "// ─── ZONE 1: Parameters (editable in properties panel) ───\nconst double V_ref = 12.0;    // Target output voltage (V)\nconst double Kp = 0.05;       // Proportional gain\nconst double Ki = 30.0;      // Integral gain\nconst double Kd = 0.00001;    // Derivative gain\nconst double fc = 10000.0;   // Switching frequency (Hz)\nconst double dt = 1e-6;       // Simulation step size (s)\nconst double D_max = 0.85;     // Maximum allowed duty cycle\nconst double D_min = 0.05;     // Minimum allowed duty cycle\n\n// ─── ZONE 2: State Variables (persistent across time steps) ───\ndouble integrator = 0.0;      // Persistent integrator state\ndouble prev_error = 0.0;      // Persistent error tracking state\ndouble ramp = 0.0;            // Carrier ramp accumulator\n\n// ─── ZONE 3: Step Function (runs every time step) ───\nvoid step() {\n    // 1. Read Sensed Output Voltage V_C3 from Input Pin 0\n    double v_out = inputs[0]; \n    \n    // 2. Compute Voltage Tracking Error\n    double error = V_ref - v_out;\n\n    // 3. Compute PID Controller Outputs\n    double P = Kp * error;\n    double new_integrator = integrator + Ki * error * dt;\n    double D_term = Kd * (error - prev_error) / dt;\n\n    // Total raw control signal (ideal duty cycle)\n    double duty = P + new_integrator + D_term;\n\n    // 4. Clamping and Anti-Windup Logic\n    if (duty > D_max) {\n        duty = D_max;\n        if (error < 0.0) { // Only update integrator if it helps clear saturation\n            integrator = new_integrator;\n        }\n    } else if (duty < D_min) {\n        duty = D_min;\n        if (error > 0.0) {\n            integrator = new_integrator;\n        }\n    } else {\n        integrator = new_integrator;\n    }\n    \n    // Save current error for the next step's derivative action\n    prev_error = error;\n\n    // 5. Sawtooth Carrier Generator\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? next_ramp - 1.0 : next_ramp;\n\n    // 6. Generate PWM Modulation\n    double gate = (ramp < duty) ? 1.0 : 0.0;\n\n    // 7. Drive MOSFET1 Control Signal\n    outputs[0] = gate;\n}",
+        "fc": "10000.0",
+        "dt": "1e-6",
+        "ramp": "0.0",
+        "plot_disabled_pins": "",
+        "V_ref": "12.0",
+        "Kp": "0.05",
+        "Ki": "30.0",
+        "Kd": "0.00001",
+        "D_max": "0.85",
+        "D_min": "0.05",
+        "integrator": "0.0",
+        "prev_error": "0.0"
+      },
+      "lastClickTime": 1783147877621
+    },
+    {
+      "id": "VM1",
+      "type": "VM",
+      "x": 660,
+      "y": -40,
+      "rotation": 0,
+      "parameters": {},
+      "lastClickTime": 1782747167067
+    },
+    {
+      "id": "vgFET1",
+      "type": "vg-FET",
+      "x": 80,
+      "y": -20,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S1"
+      },
+      "lastClickTime": 1783147507181
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": 240,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S1"
+      },
+      "lastClickTime": 1783147664980
+    },
+    {
+      "id": "INTERNAL_VAR1",
+      "type": "INTERNAL_VAR",
+      "x": -40,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "probe_target": "V_R1"
+      },
+      "lastClickTime": 1783148519692
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "C2",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "L2",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C2",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "C3",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L2",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C3",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C2",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "C3",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W15",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W15",
+        "x": 520,
+        "y": -120
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W16",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W12",
+        "x": 520,
+        "y": 60
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W4",
+        "x": 80,
+        "y": -120
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W8",
+        "x": -100,
+        "y": 60
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "L2",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W6",
+        "x": 80,
+        "y": 60
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W17",
+      "from": {
+        "type": "pin",
+        "compId": "INTERNAL_VAR1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "INTERNAL_VAR1.Out"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.02",
+    "stepSize": "1e-6",
+    "stepType": "fixed",
+    "solver": "euler",
+    "simulationMode": "regular"
+  }
+}

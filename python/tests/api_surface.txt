@@ -1,0 +1,84 @@
+class BlockInfo(type: str, name: str, category: str, subcategory: str, description: str, role: str, legacy: bool, aliases: tuple[str, ...], params: tuple[ParamInfo, ...], pins: tuple[PinInfo, ...], in_palette: bool, choices: dict)
+  BlockInfo.param(self, name: 'str') -> 'ParamInfo'
+  BlockInfo.pin(self, name: 'str') -> 'PinInfo'
+  BlockInfo.simulated [property]
+class Circuit(self, name: 'str' = 'circuit', *, _core_circuit: "'_core.Circuit | None'" = None)
+  Circuit.__contains__(self, id: 'object') -> 'bool'
+  Circuit.__getitem__(self, id: 'str') -> 'Component'
+  Circuit.__iter__(self) -> 'Iterator[Component]'
+  Circuit.__len__(self) -> 'int'
+  Circuit.add(self, type: 'str', id: 'str | None' = None, **params: 'object') -> 'Component'
+  Circuit.components [property]
+  Circuit.connect(self, *pins: 'PinLike') -> 'None'
+  Circuit.ground(self, *pins: 'PinLike') -> 'None'
+  Circuit.load(cls, path: 'str | os.PathLike', name: 'str | None' = None) -> "'Circuit'" [classmethod]
+  Circuit.name [property]
+  Circuit.remove(self, component: 'Component | str') -> 'None'
+  Circuit.save(self, path: 'str | os.PathLike', layout: 'str | None' = None) -> 'None'
+  Circuit.settings [property]
+  Circuit.to_json(self, layout: 'str | None' = None) -> 'str'
+  Circuit.validate(self, *, raise_on_error: 'bool' = False) -> 'list[Issue]'
+class CircuitError
+class Component(self, circuit: "'Circuit'", id: 'str')
+  Component.__getitem__(self, name: 'str') -> 'str'
+  Component.id [property]
+  Component.params [property]
+  Component.pin(self, name: 'str') -> 'Pin'
+  Component.pins [property]
+  Component.type [property]
+class FourierResult(f0: float, dc: float, fundamental: float, thd: float, orders: np.ndarray, magnitudes: np.ndarray, phases: np.ndarray, t1: float, t2: float)
+  FourierResult.harmonic(self, n: 'int') -> 'float'
+  FourierResult.thd_percent [property]
+class Issue(severity: str, code: str, message: str, component: str, pin: str)
+class LossReport(t_start: float, duration: float, tj: float, devices: tuple[LossResult, ...])
+  LossReport.__getitem__(self, component: 'str') -> 'LossResult'
+  LossReport.to_pandas(self)
+  LossReport.total [property]
+class LossResult(component: str, model: str, conduction: float, turn_on: float, turn_off: float, total: float, hard_turn_ons: int, soft_turn_ons: int, turn_offs: int)
+class ParamInfo(name: str, default: str, unit: str, description: str, choices: tuple[str, ...])
+class ParameterWarning
+class Pin(component: str, name: str, kind: str)
+class PinInfo(name: str, kind: str, x: float, y: float)
+class Results(self, raw: 'dict', settings: 'dict')
+  Results.__contains__(self, name: 'object') -> 'bool'
+  Results.__getitem__(self, name: 'str') -> 'np.ndarray'
+  Results.__len__(self) -> 'int'
+  Results.export_csv(self, path: 'str | os.PathLike', names: 'Iterable[str] | None' = None, *, precision: 'int' = 12) -> 'None'
+  Results.export_html(self, path: 'str | os.PathLike', plots: 'Iterable[Iterable[str]] | None' = None, *, pdf: 'bool' = False) -> 'None'
+  Results.export_svg(self, path: 'str | os.PathLike', names: 'Iterable[str] | None' = None, **kwargs) -> 'None'
+  Results.fourier(self, name: 'str', f0: 'float | None' = None, *, cycles: 'int' = 1, t1: 'float | None' = None, t2: 'float | None' = None, max_harmonic: 'int' = 50) -> 'FourierResult'
+  Results.losses(self, t_start: 'float | None' = None, duration: 'float | None' = None, *, tj: 'float' = 125.0, models: 'Mapping[str, str] | None' = None) -> 'LossReport'
+  Results.names [property]
+  Results.plot(self, names: 'Iterable[str] | str | None' = None, *, t1: 'float | None' = None, t2: 'float | None' = None, ax=None, max_points: 'int' = 4000, separate: 'bool' = False, **line_kwargs)
+  Results.save_for_gui(self, path: 'str | os.PathLike') -> 'None'
+  Results.schematic_svg(self, *, dark: 'bool' = False) -> 'str'
+  Results.signals [property]
+  Results.stats(self, name: 'str', t1: 'float | None' = None, t2: 'float | None' = None) -> 'SignalStats'
+  Results.svg(self, names: 'Iterable[str] | None' = None, *, title: 'str' = '', t1: 'float | None' = None, t2: 'float | None' = None, panes: 'int | None' = None, dark: 'bool' = False) -> 'str'
+  Results.to_dict(self, names: 'Iterable[str] | None' = None) -> 'dict[str, np.ndarray]'
+  Results.to_pandas(self, names: 'Iterable[str] | None' = None)
+class SignalStats(mean: float, rms: float, min: float, max: float, abs_max: float, pk2pk: float, t1: float, t2: float)
+class Simulation(self, circuit: 'Union[Circuit, str, os.PathLike]', *, t_stop: 'float | None' = None, dt: 'float | None' = None, step: 'str | None' = None, solver: 'str | None' = None, rel_tol: 'float | None' = None, abs_tol_v: 'float | None' = None, abs_tol_i: 'float | None' = None, h_min: 'float | None' = None, h_max: 'float | None' = None, lu_cache: 'bool | None' = None, diode_model: 'str | None' = None)
+  Simulation.cancel(self) -> 'None'
+  Simulation.run(self, progress: 'ProgressFn | bool | None' = None, *, check: 'bool' = True) -> 'Results'
+class SweepPoint(index: int, params: dict, results: Results | None, error: str | None)
+  SweepPoint.ok [property]
+class SweepResults(self, points: 'list[SweepPoint]', names: 'list[str]', wall_seconds: 'float')
+  SweepResults.__getitem__(self, i)
+  SweepResults.__iter__(self) -> 'Iterator[SweepPoint]'
+  SweepResults.__len__(self) -> 'int'
+  SweepResults.failed [property]
+  SweepResults.table(self, **metrics: 'Callable[[Results], Any]')
+class ValidationWarning
+__version__ = str
+def block_info(type: 'str') -> 'BlockInfo'
+def blocks(category: 'str | None' = None, *, role: 'str | None' = None, include_legacy: 'bool' = False) -> 'list[str]'
+def categories() -> 'list[str]'
+def core_version() -> 'str'
+def find_gui() -> 'str | None'
+def load_results(path: 'str | os.PathLike') -> "'Results'"
+def loss_models() -> 'list[str]'
+def open_in_gui(what: 'Union[Results, Circuit, str, os.PathLike]', *, gui: 'str | os.PathLike | None' = None, wait: 'bool' = False) -> 'subprocess.Popen'
+def run_design_file(path: 'str | os.PathLike', *, t_stop: 'float | None' = None, dt: 'float | None' = None, step: 'str | None' = None, solver: 'str | None' = None, params: 'Mapping[str, object] | None' = None) -> 'dict'
+def set_loss_model_dir(*dirs: 'str | os.PathLike') -> 'int'
+def sweep(circuit: 'Circuit | str', params: 'Mapping[str, Iterable[Any]] | Iterable[Mapping[str, Any]]', *, settings: 'Mapping[str, Any] | None' = None, workers: 'int | None' = None, mode: 'str' = 'grid', signals: 'Iterable[str] | None' = None, progress: 'Callable[[int, int], object] | bool | None' = None, **sim_kwargs) -> 'SweepResults'

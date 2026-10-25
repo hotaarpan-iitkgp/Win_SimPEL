@@ -1,0 +1,338 @@
+{
+  "components": [
+    {
+      "id": "V_in",
+      "type": "V",
+      "x": 160,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {
+        "value": "24.0"
+      },
+      "label": "Input DC (24V)"
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 280,
+      "y": 300,
+      "rotation": 270,
+      "parameters": {
+        "L": "330u",
+        "esr": "0.02",
+        "plotI": "1"
+      },
+      "label": "Boost Inductor"
+    },
+    {
+      "id": "Q1",
+      "type": "MOSFET",
+      "x": 380,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "1m",
+        "Roff": "1e5"
+      },
+      "label": "Boost MOSFET"
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 480,
+      "y": 300,
+      "rotation": 270,
+      "parameters": {
+        "Ron": "1m",
+        "Roff": "1e5"
+      },
+      "label": "Boost Diode"
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 580,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "vC0": "0.0",
+        "plotV": "1"
+      },
+      "label": "Output Filter Cap"
+    },
+    {
+      "id": "R_load",
+      "type": "R",
+      "x": 700,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {
+        "value": "20.0",
+        "plotV": "1",
+        "plotI": "1"
+      },
+      "label": "System Load"
+    },
+    {
+      "id": "V_out_meter",
+      "type": "VM",
+      "x": 820,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {},
+      "label": "Output Voltage Sensor"
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": 420,
+      "y": 560,
+      "rotation": 180,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "ramp,i_ref,control_out",
+        "code": "// ─── ZONE 1: Parameters (Editable in Properties Panel) ───\n// Outer Voltage Loop PI Gains (Adjusted for Boost Phase Lag)\nconst double Kp_v = 0.5;\nconst double Ki_v = 200.0;\n\n// Inner Current Loop PI Gains\nconst double Kp_i = 0.1;\nconst double Ki_i = 300.0;\n\n// PWM Carrier Parameters\nconst double fc = 50000.0;    // Switching frequency (50 kHz)\nconst double dt = 1e-6;       // Controller time-step / simulation step (1 µs)\n\n// Physical limits for protection/saturation\nconst double I_max = 15.0;     // Maximum allowable inductor current reference (A)\nconst double D_max = 0.90;     // Maximum Duty Cycle limit\nconst double D_min = 0.02;     // Minimum Duty Cycle limit\n\n// ─── ZONE 2: State Variables (Persistent across steps) ───\ndouble v_integral = 0.0;      // Voltage loop integrator state\ndouble i_integral = 0.0;      // Current loop integrator state\ndouble ramp = 0.0;            // Internal PWM carrier sawtooth ramp\n\n// ─── ZONE 3: Step Function (Runs every time step) ───\nvoid step() {\n    // 1. Read Feedback Sensed Values\n    double v_ref = inputs[0];\n    double v_out = inputs[1];\n    double i_L   = inputs[2];\n\n    // 2. Outer Voltage Control Loop (Generates Current Reference)\n    double v_error = v_ref - v_out;\n    double new_v_integral = v_integral + v_error * dt;\n    \n    double i_ref = Kp_v * v_error + Ki_v * new_v_integral;\n    \n    // Anti-windup clamping for Outer Loop\n    if (i_ref > I_max) {\n        i_ref = I_max;\n    } else if (i_ref < 0.0) {\n        i_ref = 0.0; \n    } else {\n        v_integral = new_v_integral;\n    }\n\n    // 3. Inner Current Control Loop (Generates Control Voltage / Duty Cycle)\n    double i_error = i_ref - i_L;\n    double new_i_integral = i_integral + i_error * dt;\n    \n    double control_action = Kp_i * i_error + Ki_i * new_i_integral;\n    \n    // Anti-windup clamping for Inner Loop (Duty Cycle limits)\n    double duty = control_action;\n    if (duty > D_max) {\n        duty = D_max;\n    } else if (duty < D_min) {\n        duty = D_min;\n    } else {\n        i_integral = new_i_integral;\n    }\n\n    // 4. Internal PWM Carrier Generation (0.0 to 1.0 Sawtooth)\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? next_ramp - 1.0 : next_ramp;\n\n    // 5. PWM Comparator Logic\n    double gate_signal = (duty > ramp) ? 1.0 : 0.0;\n\n    // 6. Drive Output Pin\n    outputs[0] = gate_signal;\n}",
+        "dt": "1e-6",
+        "ramp": "0.0",
+        "plot_disabled_pins": "",
+        "fc": "50000.0",
+        "i_ref": "0.0",
+        "Kp_v": "0.5",
+        "Ki_v": "200.0",
+        "Kp_i": "0.1",
+        "Ki_i": "300.0",
+        "I_max": "15.0",
+        "D_max": "0.90",
+        "D_min": "0.02",
+        "v_integral": "0.0",
+        "i_integral": "0.0"
+      }
+    },
+    {
+      "id": "CONST1",
+      "type": "CONST",
+      "x": 540,
+      "y": 680,
+      "rotation": 0,
+      "parameters": {
+        "value": "36.0"
+      }
+    },
+    {
+      "id": "PROBE1",
+      "type": "PROBE",
+      "x": 580,
+      "y": 460,
+      "rotation": 0,
+      "parameters": {
+        "target": "L1",
+        "selected_signals": "I_L1"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W_boost_1",
+      "from": {
+        "type": "pin",
+        "compId": "V_in",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W_boost_2",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "Q1",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W_boost_3",
+      "from": {
+        "type": "pin",
+        "compId": "Q1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W_boost_4",
+      "from": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W_boost_5",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W_boost_6",
+      "from": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V_out_meter",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W_boost_7",
+      "from": {
+        "type": "pin",
+        "compId": "V_in",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "Q1",
+        "terminal": "S"
+      }
+    },
+    {
+      "id": "W_boost_8",
+      "from": {
+        "type": "pin",
+        "compId": "Q1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W_boost_9",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W_boost_10",
+      "from": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V_out_meter",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W_ctrl_1",
+      "from": {
+        "type": "pin",
+        "compId": "CONST1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In1"
+      }
+    },
+    {
+      "id": "W_ctrl_2",
+      "from": {
+        "type": "pin",
+        "compId": "V_out_meter",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In2"
+      }
+    },
+    {
+      "id": "W_ctrl_3",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE1",
+        "terminal": "I_L1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In3"
+      }
+    },
+    {
+      "id": "W_ctrl_4",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "Q1",
+        "terminal": "G"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Output Voltage & Control Variables",
+        "variables": [
+          "CSCRIPT1.In1",
+          "CSCRIPT1.In2",
+          "CSCRIPT1.In3",
+          "CSCRIPT1.i_ref",
+          "CSCRIPT1.ramp"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.02",
+    "stepSize": "1u",
+    "solver": "euler",
+    "stepType": "fixed"
+  }
+}

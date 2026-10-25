@@ -1,0 +1,1151 @@
+{
+  "components": [
+    {
+      "id": "SRC_D1",
+      "type": "V",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_D1",
+      "type": "AM",
+      "x": 100,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_D1",
+      "type": "GND",
+      "x": 300,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_THYRISTOR1",
+      "type": "V",
+      "x": 0,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_THYRISTOR1",
+      "type": "AM",
+      "x": 100,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "THYRISTOR1",
+      "type": "THYRISTOR",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_THYRISTOR1",
+      "type": "GND",
+      "x": 300,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_THYRISTOR1",
+      "type": "CONST",
+      "x": 200,
+      "y": 150,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_GTO1",
+      "type": "V",
+      "x": 0,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_GTO1",
+      "type": "AM",
+      "x": 100,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GTO1",
+      "type": "GTO",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_GTO1",
+      "type": "GND",
+      "x": 300,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_GTO1",
+      "type": "CONST",
+      "x": 200,
+      "y": 350,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_IGBT1",
+      "type": "V",
+      "x": 0,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_IGBT1",
+      "type": "AM",
+      "x": 100,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IGBT1",
+      "type": "IGBT",
+      "x": 200,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_IGBT1",
+      "type": "GND",
+      "x": 300,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_IGBT1",
+      "type": "CONST",
+      "x": 200,
+      "y": 550,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_IGCT1",
+      "type": "V",
+      "x": 0,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_IGCT1",
+      "type": "AM",
+      "x": 100,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IGCT1",
+      "type": "IGCT",
+      "x": 200,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_IGCT1",
+      "type": "GND",
+      "x": 300,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_IGCT1",
+      "type": "CONST",
+      "x": 200,
+      "y": 750,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_MOSFET1",
+      "type": "V",
+      "x": 0,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_MOSFET1",
+      "type": "AM",
+      "x": 100,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "MOSFET1",
+      "type": "MOSFET",
+      "x": 200,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_MOSFET1",
+      "type": "GND",
+      "x": 300,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_MOSFET1",
+      "type": "CONST",
+      "x": 200,
+      "y": 950,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_BJT1",
+      "type": "V",
+      "x": 0,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_BJT1",
+      "type": "AM",
+      "x": 100,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "BJT1",
+      "type": "BJT",
+      "x": 200,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_BJT1",
+      "type": "GND",
+      "x": 300,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_BJT1",
+      "type": "CONST",
+      "x": 200,
+      "y": 1150,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_JFET1",
+      "type": "V",
+      "x": 0,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_JFET1",
+      "type": "AM",
+      "x": 100,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "JFET1",
+      "type": "JFET",
+      "x": 200,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_JFET1",
+      "type": "GND",
+      "x": 300,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_JFET1",
+      "type": "CONST",
+      "x": 200,
+      "y": 1350,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_vg-FET1",
+      "type": "V",
+      "x": 0,
+      "y": 1600,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_vg-FET1",
+      "type": "AM",
+      "x": 100,
+      "y": 1600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "vg-FET1",
+      "type": "vg-FET",
+      "x": 200,
+      "y": 1600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_vg-FET1",
+      "type": "GND",
+      "x": 300,
+      "y": 1600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_S1",
+      "type": "V",
+      "x": 0,
+      "y": 1800,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_S1",
+      "type": "AM",
+      "x": 100,
+      "y": 1800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "S1",
+      "type": "S",
+      "x": 200,
+      "y": 1800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_S1",
+      "type": "GND",
+      "x": 300,
+      "y": 1800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_S1",
+      "type": "CONST",
+      "x": 200,
+      "y": 1750,
+      "rotation": 0,
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "SRC_BREAKER1",
+      "type": "V",
+      "x": 0,
+      "y": 2000,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "AM_BREAKER1",
+      "type": "AM",
+      "x": 100,
+      "y": 2000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "BREAKER1",
+      "type": "BREAKER",
+      "x": 200,
+      "y": 2000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND_BREAKER1",
+      "type": "GND",
+      "x": 300,
+      "y": 2000,
+      "rotation": 0,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_D1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_D1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "AM_D1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_D1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_D1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_D1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w5",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_THYRISTOR1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_THYRISTOR1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w6",
+      "from": {
+        "type": "pin",
+        "compId": "AM_THYRISTOR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w7",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "K"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_THYRISTOR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w8",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_THYRISTOR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_THYRISTOR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w9",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_THYRISTOR1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "w10",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_GTO1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_GTO1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w11",
+      "from": {
+        "type": "pin",
+        "compId": "AM_GTO1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GTO1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w12",
+      "from": {
+        "type": "pin",
+        "compId": "GTO1",
+        "terminal": "K"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_GTO1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w13",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_GTO1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_GTO1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w14",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_GTO1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GTO1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "w15",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IGBT1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_IGBT1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w16",
+      "from": {
+        "type": "pin",
+        "compId": "AM_IGBT1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "w17",
+      "from": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IGBT1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w18",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IGBT1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IGBT1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w19",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_IGBT1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGBT1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "w20",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IGCT1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_IGCT1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w21",
+      "from": {
+        "type": "pin",
+        "compId": "AM_IGCT1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGCT1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w22",
+      "from": {
+        "type": "pin",
+        "compId": "IGCT1",
+        "terminal": "K"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IGCT1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w23",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IGCT1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IGCT1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w24",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_IGCT1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IGCT1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "w25",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MOSFET1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_MOSFET1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w26",
+      "from": {
+        "type": "pin",
+        "compId": "AM_MOSFET1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "w27",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MOSFET1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w28",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MOSFET1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MOSFET1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w29",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_MOSFET1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "w30",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_BJT1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_BJT1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w31",
+      "from": {
+        "type": "pin",
+        "compId": "AM_BJT1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "BJT1",
+        "terminal": "C"
+      }
+    },
+    {
+      "id": "w32",
+      "from": {
+        "type": "pin",
+        "compId": "BJT1",
+        "terminal": "E"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_BJT1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w33",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_BJT1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_BJT1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w34",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_BJT1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "BJT1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w35",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_JFET1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_JFET1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w36",
+      "from": {
+        "type": "pin",
+        "compId": "AM_JFET1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "JFET1",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "w37",
+      "from": {
+        "type": "pin",
+        "compId": "JFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_JFET1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w38",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_JFET1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_JFET1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w39",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_JFET1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "JFET1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "w40",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_vg-FET1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_vg-FET1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w41",
+      "from": {
+        "type": "pin",
+        "compId": "AM_vg-FET1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "vg-FET1",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "w42",
+      "from": {
+        "type": "pin",
+        "compId": "vg-FET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_vg-FET1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w43",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_vg-FET1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_vg-FET1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w44",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_S1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_S1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w45",
+      "from": {
+        "type": "pin",
+        "compId": "AM_S1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "S1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w46",
+      "from": {
+        "type": "pin",
+        "compId": "S1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_S1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w47",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_S1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_S1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w48",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_S1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "S1",
+        "terminal": "Ctrl"
+      }
+    },
+    {
+      "id": "w49",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_BREAKER1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AM_BREAKER1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w50",
+      "from": {
+        "type": "pin",
+        "compId": "AM_BREAKER1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "BREAKER1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w51",
+      "from": {
+        "type": "pin",
+        "compId": "BREAKER1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_BREAKER1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w52",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_BREAKER1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_BREAKER1",
+        "terminal": "Gnd"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": []
+  },
+  "description": "Test Power Semiconductors"
+}

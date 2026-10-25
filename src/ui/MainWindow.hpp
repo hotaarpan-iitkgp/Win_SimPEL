@@ -107,6 +107,13 @@ public:
     ~MainWindow() { if (simThread.joinable()) simThread.join(); }
 
     void startSimulation();
+    // .simres results: open shows the stored design and waveforms without
+    // simulating; save writes the current design and the last run's waveforms.
+    // Both return false and set *error on failure.
+    bool openResultsFile(const std::string& path, std::string* error = nullptr);
+    bool saveResultsFile(const std::string& path, std::string* error = nullptr);
+    // Opens a schematic .json as File > Open does.
+    bool openSchematicFile(const std::string& path, std::string* error = nullptr);
     void loadPresetTemplate(const std::string& name);
     std::string getProjectBaseName() const;
     void render();

@@ -1,0 +1,22 @@
+# Fails if any file in the headless core (src/engine) includes UI code.
+# Usage: cmake -DSRC_DIR=<src/engine> -P check_core_deps.cmake
+if(NOT SRC_DIR)
+    message(FATAL_ERROR "SRC_DIR not set")
+endif()
+file(GLOB_RECURSE files "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.hpp" "${SRC_DIR}/*.h")
+set(bad "")
+foreach(f IN LISTS files)
+    file(STRINGS "${f}" lines REGEX "^[ \t]*#[ \t]*include")
+    foreach(l IN LISTS lines)
+        # SVGExporter moved into the core; the UI's file dialogs are in ui/SVGExporter.
+        if(l MATCHES "imgui|implot|ui/|SchematicCanvas|MainWindow|NetlistSourceView|OscilloscopeView|ScopeWindow|TracePlotter|commdlg|shlobj")
+            list(APPEND bad "${f}: ${l}")
+        endif()
+    endforeach()
+endforeach()
+if(bad)
+    string(REPLACE ";" "\n" msg "${bad}")
+    message(FATAL_ERROR "UI dependencies found in the core:\n${msg}")
+endif()
+list(LENGTH files n)
+message(STATUS "core_no_ui_deps: ${n} files clean")

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/Decimate.hpp"
+
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -24,13 +26,6 @@ void buildHybridVertices(const std::vector<double>& rawT,
                          std::vector<double>& outY,
                          double jumpRelThreshold = 0.025);
 
-// Min-Max Decimation / LOD Downsampling to cap rendered points at maxPoints (e.g. 2000)
-// Preserves all local min/max peaks, switching spikes, and extreme values while reducing render load
-void decimateMinMax(const double* rawT,
-                    const double* rawY,
-                    size_t count,
-                    size_t maxPoints,
-                    std::vector<double>& outT,
-                    std::vector<double>& outY);
+// decimateMinMax() now lives in the core: engine/Decimate.hpp
 
 } // namespace CircuitSim

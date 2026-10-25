@@ -6,6 +6,8 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <functional>
+#include <random>
 #include "ExpressionEvaluator.hpp"
 #include "CScriptEngine.hpp"
 
@@ -733,6 +735,15 @@ public:
         computeTimeSeconds.store(s, std::memory_order_relaxed);
     }
 
+    // Shows a stored result (e.g. a .simres file) as if this simulator had just
+    // produced it: telemetry, the run's stop time (for progress) and its wall time.
+    void presentResults(const SimulationOutput& out, double stopTime, double computeSeconds) {
+        reset();
+        if (stopTime > 0.0) config.stopTime = stopTime;
+        setTelemetryOutput(out);
+        setComputeTimeSeconds(computeSeconds);
+    }
+
     void setTelemetryOutput(const SimulationOutput& out) {
         std::lock_guard<std::mutex> lock(telemetryMutex);
         telemetry.timeHistory = out.time;
@@ -855,7 +866,19 @@ public:
         return telemetry.timeHistory.empty() ? 0.0 : telemetry.timeHistory.back();
     }
 
-    void pause() {}
+    // ── Cancellation and progress ──────────────────────────────────────────
+    // requestCancel() may be called from any thread. A running runTransient()
+    // stops at the start of its next step and returns the samples produced so
+    // far; wasCancelled() then reports true. Results up to that point are
+    // unaffected: the check does not touch the numerics.
+    void requestCancel() { cancelRequested_.store(true, std::memory_order_relaxed); }
+    bool wasCancelled() const { return cancelled_; }
+    // Called on the simulating thread with (current time, stop time) at most every
+    // ~33 ms of wall time and once when the run ends. Keep it cheap; it may call
+    // requestCancel().
+    void setProgressCallback(std::function<void(double, double)> cb) { progressCb_ = std::move(cb); }
+    // Kept for the GUI's Simulation menu: stops the run (there is no resume).
+    void pause() { requestCancel(); }
     void reset() {
         std::lock_guard<std::mutex> lock(telemetryMutex);
         telemetry.timeHistory.clear();
@@ -866,6 +889,18 @@ public:
         telemetryGeneration.fetch_add(1, std::memory_order_relaxed);
         telemetryVersion.fetch_add(1, std::memory_order_relaxed);
     }
+
+private:
+    // Random sources. These used to be thread_local, so a run's noise depended on
+    // what had run on the same thread before it (and, in a thread pool, on
+    // scheduling). They are now per simulator and re-seeded by every
+    // runTransient(), with the same seeds, so the first run on a thread is
+    // unchanged and every run is reproducible.
+    std::mt19937 rngRandomNumbers_{12345};
+    std::mt19937 rngWhiteNoise_{54321};
+    std::atomic<bool> cancelRequested_{false};
+    bool cancelled_ = false;
+    std::function<void(double, double)> progressCb_;
 };
 
 } // namespace CircuitSimEngine

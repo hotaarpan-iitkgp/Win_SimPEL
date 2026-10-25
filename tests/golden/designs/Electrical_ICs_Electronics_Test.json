@@ -1,0 +1,466 @@
+{
+  "components": [
+    {
+      "id": "OPAMP1",
+      "type": "OPAMP",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_OPAMP1",
+      "type": "V",
+      "x": 0,
+      "y": -20,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "SRC2_OPAMP",
+      "type": "V",
+      "x": 0,
+      "y": 20,
+      "rotation": 0,
+      "parameters": {
+        "value": "2"
+      }
+    },
+    {
+      "id": "GND_OPAMP1",
+      "type": "GND",
+      "x": 400,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_OPAMP1",
+      "type": "R",
+      "x": 300,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "100"
+      }
+    },
+    {
+      "id": "E_COMP1",
+      "type": "E_COMP",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_E_COMP1",
+      "type": "V",
+      "x": 0,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "SRC2_E_COMP",
+      "type": "V",
+      "x": 0,
+      "y": 220,
+      "rotation": 0,
+      "parameters": {
+        "value": "2"
+      }
+    },
+    {
+      "id": "GND_E_COMP1",
+      "type": "GND",
+      "x": 400,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_E_COMP1",
+      "type": "R",
+      "x": 300,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "100"
+      }
+    },
+    {
+      "id": "GEN_EBLOCK1",
+      "type": "GEN_EBLOCK",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_GEN_EBLOCK1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "24"
+      }
+    },
+    {
+      "id": "GND_GEN_EBLOCK1",
+      "type": "GND",
+      "x": 400,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_5551",
+      "type": "IC_555",
+      "x": 200,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_IC_5551",
+      "type": "V",
+      "x": 0,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "GND_IC_5551",
+      "type": "GND",
+      "x": 400,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_74001",
+      "type": "IC_7400",
+      "x": 200,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_IC_74001",
+      "type": "V",
+      "x": 0,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "GND_IC_74001",
+      "type": "GND",
+      "x": 400,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_74081",
+      "type": "IC_7408",
+      "x": 200,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_IC_74081",
+      "type": "V",
+      "x": 0,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "GND_IC_74081",
+      "type": "GND",
+      "x": 400,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_74321",
+      "type": "IC_7432",
+      "x": 200,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_IC_74321",
+      "type": "V",
+      "x": 0,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "GND_IC_74321",
+      "type": "GND",
+      "x": 400,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "IC_74041",
+      "type": "IC_7404",
+      "x": 200,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_IC_74041",
+      "type": "V",
+      "x": 0,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "GND_IC_74041",
+      "type": "GND",
+      "x": 400,
+      "y": 1400,
+      "rotation": 0,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_OPAMP1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "OPAMP1",
+        "terminal": "Plus"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "SRC2_OPAMP",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "OPAMP1",
+        "terminal": "Minus"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "OPAMP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_OPAMP1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_OPAMP1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_OPAMP1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w5",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_OPAMP1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_OPAMP1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w6",
+      "from": {
+        "type": "pin",
+        "compId": "SRC2_OPAMP",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_OPAMP1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w7",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_E_COMP1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "E_COMP1",
+        "terminal": "Plus"
+      }
+    },
+    {
+      "id": "w8",
+      "from": {
+        "type": "pin",
+        "compId": "SRC2_E_COMP",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "E_COMP1",
+        "terminal": "Minus"
+      }
+    },
+    {
+      "id": "w9",
+      "from": {
+        "type": "pin",
+        "compId": "E_COMP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_E_COMP1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w10",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_E_COMP1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_E_COMP1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w11",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_E_COMP1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_E_COMP1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w12",
+      "from": {
+        "type": "pin",
+        "compId": "SRC2_E_COMP",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_E_COMP1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w13",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_GEN_EBLOCK1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GEN_EBLOCK1",
+        "terminal": "T1"
+      }
+    },
+    {
+      "id": "w14",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_GEN_EBLOCK1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GEN_EBLOCK1",
+        "terminal": "T2"
+      }
+    },
+    {
+      "id": "w15",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_GEN_EBLOCK1",
+        "terminal": "C"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GEN_EBLOCK1",
+        "terminal": "T3"
+      }
+    },
+    {
+      "id": "w16",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_GEN_EBLOCK1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_GEN_EBLOCK1",
+        "terminal": "Gnd"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": []
+  },
+  "description": "Test ICs and OpAmps"
+}

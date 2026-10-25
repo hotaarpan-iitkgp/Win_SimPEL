@@ -1,0 +1,580 @@
+{
+  "components": [
+    {
+      "id": "V1",
+      "type": "V",
+      "x": -400,
+      "y": -600,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      },
+      "label": "DC Source H-Bridge 1"
+    },
+    {
+      "id": "V2",
+      "type": "V",
+      "x": -400,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      },
+      "label": "DC Source H-Bridge 2"
+    },
+    {
+      "id": "MOSFET1",
+      "type": "MOSFET",
+      "x": -160,
+      "y": -700,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H1_S1"
+    },
+    {
+      "id": "MOSFET2",
+      "type": "MOSFET",
+      "x": -160,
+      "y": -500,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H1_S2"
+    },
+    {
+      "id": "MOSFET3",
+      "type": "MOSFET",
+      "x": -40,
+      "y": -700,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H1_S3"
+    },
+    {
+      "id": "MOSFET4",
+      "type": "MOSFET",
+      "x": -40,
+      "y": -500,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H1_S4"
+    },
+    {
+      "id": "MOSFET5",
+      "type": "MOSFET",
+      "x": -160,
+      "y": -300,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H2_S5"
+    },
+    {
+      "id": "MOSFET6",
+      "type": "MOSFET",
+      "x": -160,
+      "y": -100,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H2_S6"
+    },
+    {
+      "id": "MOSFET7",
+      "type": "MOSFET",
+      "x": -40,
+      "y": -300,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H2_S7"
+    },
+    {
+      "id": "MOSFET8",
+      "type": "MOSFET",
+      "x": -40,
+      "y": -100,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "label": "H2_S8"
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 160,
+      "y": -400,
+      "rotation": 270,
+      "parameters": {
+        "L": "10m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "label": "Filter Inductor"
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 260,
+      "y": -340,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      },
+      "label": "Filter Capacitor"
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 380,
+      "y": -340,
+      "rotation": 0,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      },
+      "label": "Load Resistor"
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": -600,
+      "y": -400,
+      "rotation": 0,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "",
+        "code": "// 1. Parameters editable in properties panel\nconst double M = 0.85;        // Modulation Index\nconst double fm = 50.0;       // Modulating Frequency (Hz)\nconst double fc = 2500.0;     // Carrier Frequency (Hz)\nconst double dt = 1e-5;       // Simulation Step Size\n\n// 2. Persistent State Variables\ndouble ramp = 0.0;            // Base carrier ramp accumulator\n\n// 3. Dynamic execution step\nvoid step() {\n    // Advance base triangular carrier ramp (0.0 to 1.0)\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? (next_ramp - 1.0) : next_ramp;\n    \n    // Create symmetric Triangular Carrier 1 [-1.0 to 1.0]\n    double v_car1 = (ramp < 0.5) ? (4.0 * ramp - 1.0) : (3.0 - 4.0 * ramp);\n    \n    // Generate Phase-Shifted Ramp for Carrier 2 (Shifted by 90 degrees -> 0.25 normalized displacement)\n    double ramp2 = ramp + 0.25;\n    double next_ramp2 = (ramp2 >= 1.0) ? (ramp2 - 1.0) : ramp2;\n    double v_car2 = (next_ramp2 < 0.5) ? (4.0 * next_ramp2 - 1.0) : (3.0 - 4.0 * next_ramp2);\n    \n    // Fundamental Modulating Reference Waveform\n    double pi = 3.141592653589793;\n    double v_ref = M * sin(2.0 * pi * fm * time);\n    \n    // H-Bridge 1 Comparator Logic (Compared with Carrier 1)\n    double g1 = (v_ref > v_car1) ? 1.0 : 0.0;\n    double g2 = (g1 > 0.5) ? 0.0 : 1.0;\n    double g3 = (-v_ref > v_car1) ? 1.0 : 0.0;\n    double g4 = (g3 > 0.5) ? 0.0 : 1.0;\n    \n    // H-Bridge 2 Comparator Logic (Compared with Phase-Shifted Carrier 2)\n    double g5 = (v_ref > v_car2) ? 1.0 : 0.0;\n    double g6 = (g5 > 0.5) ? 0.0 : 1.0;\n    double g7 = (-v_ref > v_car2) ? 1.0 : 0.0;\n    double g8 = (g7 > 0.5) ? 0.0 : 1.0;\n    \n    // 4. Map Gate Signals to Terminal Outputs\n    outputs[0] = g1; // H1 Leg A Top\n    outputs[1] = g2; // H1 Leg A Bottom\n    outputs[2] = g3; // H1 Leg B Top\n    outputs[3] = g4; // H1 Leg B Bottom\n    outputs[4] = g5; // H2 Leg C Top\n    outputs[5] = g6; // H2 Leg C Bottom\n    outputs[6] = g7; // H2 Leg D Top\n    outputs[7] = g8; // H2 Leg D Bottom\n}",
+        "M": "0.85",
+        "fm": "50.0",
+        "fc": "2500.0",
+        "dt": "1e-5",
+        "ramp": "0.0",
+        "pi": "3.141592653589793"
+      },
+      "lastClickTime": 1783226089878
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "S"
+      }
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "V2",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET5",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET5",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET7",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET5",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET6",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET7",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET8",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET6",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET8",
+        "terminal": "S"
+      }
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET8",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V2",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W_CASC_MID",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET5",
+        "terminal": "S"
+      },
+      "manualPath": [
+        {
+          "x": -40,
+          "y": -660
+        },
+        {
+          "x": -220,
+          "y": -660
+        },
+        {
+          "x": -220,
+          "y": -260
+        },
+        {
+          "x": -160,
+          "y": -260
+        }
+      ]
+    },
+    {
+      "id": "W_OUT_A",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "manualPath": [
+        {
+          "x": -160,
+          "y": -660
+        },
+        {
+          "x": 120,
+          "y": -660
+        },
+        {
+          "x": 120,
+          "y": -400
+        }
+      ]
+    },
+    {
+      "id": "W_OUT_B",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET7",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W_LOAD_RET",
+        "x": 260,
+        "y": -280
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W_LOAD_RET",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W_DRIVE1",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE2",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE3",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out3"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE4",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out4"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE5",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out5"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET5",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE6",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out6"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET6",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE7",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out7"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET7",
+        "terminal": "G"
+      }
+    },
+    {
+      "id": "W_DRIVE8",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out8"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET8",
+        "terminal": "G"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "CSCRIPT1.Out1",
+          "CSCRIPT1.Out2",
+          "CSCRIPT1.Out3",
+          "CSCRIPT1.Out4",
+          "I_L1"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.04",
+    "stepSize": "1e-5",
+    "stepType": "fixed",
+    "solver": "euler",
+    "simulationMode": "regular"
+  }
+}

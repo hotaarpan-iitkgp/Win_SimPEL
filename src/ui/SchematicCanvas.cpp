@@ -1,6 +1,7 @@
 #include "SchematicCanvas.hpp"
 #include "imgui_internal.h"
 #include "../engine/CScriptEngine.hpp"
+#include "../engine/DesignNormalize.hpp"
 #include <nlohmann/json.hpp>
 #include <windows.h>
 #include <commdlg.h>
@@ -119,379 +120,6 @@ static int parseMathBlockPins(const ComponentInstance& comp, std::vector<std::st
     }
 
     return std::max(1, nPins);
-}
-
-std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
-    const std::string& t = comp.rawTypeStr;
-    
-    if (t == "R" || t == "L" || t == "C" || t == "V" || t == "DC_V" || t == "DC_V1" || t == "VoltageSource" ||
-        t == "I" || t == "DC_I" || t == "DC_I1" || t == "CurrentSource" ||
-        t == "D" || t == "Diode" || t == "AC_V" || t == "AC_I" ||
-        t == "SAT_L" || t == "SAT_C" || t == "PWL_R") {
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}};
-    }
-    if (t == "VAR_R" || t == "VariableResistor" ||
-        t == "VAR_L" || t == "VariableInductor" ||
-        t == "VAR_C" || t == "VariableCapacitor") {
-        // Third pin is the signal input that drives the element value.
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Ctrl", -30, 0, -1, 0, true}};
-    }
-    if (t == "VM" || t == "AM") {
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "MOSFET" || t == "vg-FET") {
-        return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
-    }
-    if (t == "CTRL_V" || t == "ControlledVoltageSource" || t == "CTRL_I" || t == "ControlledCurrentSource") {
-        // Without this entry getTerminals() returned {} for controlled sources, so
-        // NetlistBuilder assigned them no nodes at all and they were stamped nowhere.
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Ctrl", -30, 0, -1, 0, true}};
-    }
-    if (t == "S") {
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"Ctrl", -20, 0, -1, 0, true}};
-    }
-    if (t == "GND") {
-        return {{"Gnd", 0, -20, 0, -1, false}};
-    }
-    if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" || t == "RANDOM_NUM" || t == "WHITE_NOISE") {
-        return {{"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "MATH_FCN" || t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT" || t == "NOT" || t == "INIT_COND" ||
-        t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES" ||
-        t == "INTEGRATOR" || t == "DERIVATIVE" || t == "TRANSFER_FCN" || t == "STATE_SPACE" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "PLL_1PH" ||
-        t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" ||
-        t == "QUANTIZER" || t == "HIT_CROSSING" || t == "SATURATION" || t == "DEAD_ZONE" || t == "RATE_LIMITER" || t == "RELAY") {
-        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "SIGNAL_SWITCH") {
-        return {{"In1", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "MANUAL_SWITCH") {
-        return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "MULTIPORT_SWITCH") {
-        return {{"Ctrl", 0, -20, 0, -1, true}, {"In1", -20, -10, -1, 0, true}, {"In2", -20, 0, -1, 0, true}, {"In3", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "PLL_3PH") {
-        return {{"A", -20, -10, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 10, -1, 0, true}, {"Theta", 20, -10, 1, 0, true}, {"Freq", 20, 10, 1, 0, true}};
-    }
-    if (t == "SUM" || t == "SUM_ROUND" || t == "SUM_RECT" || t == "SUBTRACT" || t == "SUB" ||
-        t == "PROD" || t == "PRODUCT_RECT" || t == "MIN_MAX" || t == "MIN" || t == "MAX") {
-        std::vector<std::string> signs;
-        int nInputs = parseMathBlockPins(comp, signs);
-
-        float spacing = 18.0f;
-        float totalH = std::max(40.0f, (nInputs - 1) * spacing + 20.0f);
-        float halfH = totalH * 0.5f;
-
-        std::vector<TerminalDef> terms;
-        for (int i = 0; i < nInputs; ++i) {
-            float relY = -halfH + 10.0f + i * spacing;
-            std::string pName = "In" + std::to_string(i + 1);
-            terms.push_back({pName, -25.0f, relY, -1, 0, true});
-        }
-
-        terms.push_back({"Out", 25.0f, 0.0f, 1, 0, true});
-
-        return terms;
-    }
-    if (t == "COMP" || t == "AND" || t == "OR" || t == "NAND" || t == "NOR" || t == "XOR" || t == "XNOR" ||
-        t == "LOGIC_OP" || t == "BITWISE_OP" || t == "COMB_LOGIC" || t == "RELATIONAL_OPERATOR") {
-        return {{"In1", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "EDGE_DETECT" || t == "MONOSTABLE" || t == "MONOFLOP" || t == "COMP_CONST" || t == "COMPARE_TO_CONSTANT") {
-        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "D_FLIP_FLOP") {
-        return {{"D", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Q", 20, -10, 1, 0, true}, {"Q_bar", 20, 10, 1, 0, true}};
-    }
-    if (t == "JK_FLIP_FLOP") {
-        return {{"J", -20, -15, -1, 0, true}, {"K", -20, 0, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Q", 20, -10, 1, 0, true}, {"Q_bar", 20, 10, 1, 0, true}};
-    }
-    if (t == "SHIFT_REG") {
-        return {{"D", -20, -10, -1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "CLARKE") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"Alpha", 20, -10, 1, 0, true}, {"Beta", 20, 10, 1, 0, true}};
-    }
-    if (t == "INV_CLARKE") {
-        return {{"Alpha", -20, -10, -1, 0, true}, {"Beta", -20, 10, -1, 0, true}, {"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}};
-    }
-    if (t == "PARK") {
-        return {{"Alpha", -20, -15, -1, 0, true}, {"Beta", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"d", 20, -10, 1, 0, true}, {"q", 20, 10, 1, 0, true}};
-    }
-    if (t == "INV_PARK") {
-        return {{"d", -20, -15, -1, 0, true}, {"q", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"Alpha", 20, -10, 1, 0, true}, {"Beta", 20, 10, 1, 0, true}};
-    }
-    if (t == "DQ_TO_ABC" || t == "DQ_ABC" || t == "INV_PARK_3PH") {
-        return {{"d", -20, -15, -1, 0, true}, {"q", -20, 0, -1, 0, true}, {"Theta", -20, 15, -1, 0, true}, {"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}};
-    }
-    if (t == "ABC_TO_DQ" || t == "ABC_DQ" || t == "PARK_3PH") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"Theta", -20, 30, -1, 0, true}, {"d", 20, -10, 1, 0, true}, {"q", 20, 10, 1, 0, true}};
-    }
-    if (t == "PWM_3PH" || t == "SVPWM") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"OutA", 20, -15, 1, 0, true}, {"OutB", 20, 0, 1, 0, true}, {"OutC", 20, 15, 1, 0, true}};
-    }
-    if (t == "PER_AVG" || t == "MOV_AVG" || t == "FILTER_1ST" || t == "FILTER_2ND" || t == "RMS_VAL" || t == "THD_VAL" || t == "OFFSET" || t == "SIGNUM" || t == "DATATYPE_CONV" || t == "STATE_MACHINE") {
-        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "DIVIDE") {
-        return {{"Num", -20, -10, -1, 0, true}, {"Den", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "PERIODIC_IMP_AVG") {
-        return {{"In", -20, -10, -1, 0, true}, {"Trig", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "FOURIER_TRANS" || t == "FOURIER_ANALYSIS") {
-        return {{"In", -20, 0, -1, 0, true}, {"Mag", 20, -10, 1, 0, true}, {"Phase", 20, 10, 1, 0, true}};
-    }
-    if (t == "PLL_LOOP") {
-        return {{"In", -20, 0, -1, 0, true}, {"Theta", 20, -15, 1, 0, true}, {"Freq", 20, -5, 1, 0, true}, {"Cos", 20, 5, 1, 0, true}, {"Sin", 20, 15, 1, 0, true}};
-    }
-    if (t == "E_PORT" || t == "E_LABEL") {
-        return {{"A", 0, 0, 0, 0, true}};
-    }
-    if (t == "CTRL_V" || t == "CTRL_I") {
-        return {{"A", 0, -20, 0, -1, true}, {"B", 0, 20, 0, 1, true}, {"Ctrl", -20, 0, -1, 0, true}};
-    }
-    if (t == "V_3PH") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"N", 20, 0, 1, 0, true}};
-    }
-    if (t == "I_3PH") {
-        return {{"A", 20, -15, 1, 0, true}, {"B", 20, 0, 1, 0, true}, {"C", 20, 15, 1, 0, true}, {"Ctrl", -20, 0, -1, 0, true}};
-    }
-    if (t == "VM" || t == "AM") {
-        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Out", 0, -20, 0, -1, true}};
-    }
-    if (t == "VM_3PH") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"N", 20, 0, 1, 0, true}, {"Out", 0, -20, 0, -1, true}};
-    }
-    if (t == "AM_3PH") {
-        return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}, {"Out", 0, -20, 0, -1, true}};
-    }
-    if (t == "VAR_R" || t == "VAR_L" || t == "VAR_C" || t == "SAT_L" || t == "SAT_C") {
-        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
-    }
-    if (t == "PI_SECTION" || t == "PWL_R" || t == "E_ALGEBRAIC") {
-        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}};
-    }
-    if (t == "LINE_3PH") {
-        return {{"A_in", -20, -15, -1, 0, true}, {"B_in", -20, 0, -1, 0, true}, {"C_in", -20, 15, -1, 0, true}, {"A_out", 20, -15, 1, 0, true}, {"B_out", 20, 0, 1, 0, true}, {"C_out", 20, 15, 1, 0, true}};
-    }
-    // ── Magnetic domain blocks ──
-    // Winding bridges the two domains: E+/E- are electrical, M+/M- are magnetic.
-    if (t == "WINDING") {
-        return {{"E+", -25, -25, -1, 0, false}, {"E-", -25, 25, -1, 0, false},
-                {"M+",  25, -25,  1, 0, false}, {"M-",  25, 25,  1, 0, false}};
-    }
-    // Two-terminal magnetic elements.
-    if (t == "MAG_PERMEANCE" || t == "LINEAR_CORE" || t == "AIR_GAP" ||
-        t == "LEAKAGE_PATH" || t == "MAG_RESISTANCE" || t == "MMF_SRC") {
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}};
-    }
-    if (t == "MMF_SRC_CTRL") {
-        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false},
-                {"Ctrl", -30, 0, -1, 0, true}};
-    }
-
-    // Power semiconductors. The two power terminals must be electrical (isControl =
-    // false) — only the gate/base is a control-domain pin. Marking the power terminals
-    // as control broke domain isolation and coloured power wires as signal lines.
-    // Geometry matches the +/-40 body span used by the other two-terminal devices.
-    if (t == "THYRISTOR" || t == "SCR" || t == "GTO" || t == "IGCT") {
-        return {{"A", 0, -40, 0, -1, false}, {"K", 0, 40, 0, 1, false}, {"G", -20, 10, -1, 0, true}};
-    }
-    if (t == "BJT") {
-        return {{"C", 0, -40, 0, -1, false}, {"E", 0, 40, 0, 1, false}, {"B", -20, 0, -1, 0, true}};
-    }
-    if (t == "JFET" || t == "IGBT" || t == "IGBT_DIODE") {
-        return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
-    }
-    if (t == "BREAKER" || t == "SR_SWITCH") {
-        return {{"A", -20, 0, -1, 0, true}, {"B", 20, 0, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
-    }
-    if (t == "DBL_SWITCH" || t == "MAN_SWITCH") {
-        return {{"Common", -20, 0, -1, 0, true}, {"A", 20, -10, 1, 0, true}, {"B", 20, 10, 1, 0, true}};
-    }
-    if (t == "MAN_DBL_SWITCH") {
-        return {{"A1", -20, -10, -1, 0, true}, {"A2", -20, 10, -1, 0, true}, {"B1", 20, -10, 1, 0, true}, {"B2", 20, 10, 1, 0, true}};
-    }
-    if (t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
-        return {{"A1", -20, -15, -1, 0, true}, {"A2", -20, 0, -1, 0, true}, {"A3", -20, 15, -1, 0, true}, {"B1", 20, -15, 1, 0, true}, {"B2", 20, 0, 1, 0, true}, {"B3", 20, 15, 1, 0, true}, {"Ctrl", 0, -20, 0, -1, true}};
-    }
-
-    if (t == "IDEAL_XFMR" || t == "XFMR_2W" || t == "MUTUAL_2W" || t == "SAT_XFMR" || t == "Transformer" || t == "IDEAL_TRANSFORMER" || t == "TRANSFORMER" || t == "XFMR") {
-        std::string pStr = comp.parameters.count("primary_turns") ? comp.parameters.at("primary_turns") : "[100]";
-        std::string sStr = comp.parameters.count("secondary_turns") ? comp.parameters.at("secondary_turns") : "[100]";
-        auto pTurns = parseTurnsArrayStr(pStr);
-        auto sTurns = parseTurnsArrayStr(sStr);
-
-        int np = (int)pTurns.size();
-        int ns = (int)sTurns.size();
-
-        std::vector<TerminalDef> terms;
-
-        // Primary terminals (Left side, x = -25)
-        for (int i = 0; i < np; ++i) {
-            float yCenter = (np > 1) ? (-25.0f * (np - 1) + 50.0f * i) : 0.0f;
-            std::string nameA = (np == 1) ? "P1A" : ("P" + std::to_string(i + 1) + "A");
-            std::string nameB = (np == 1) ? "P1B" : ("P" + std::to_string(i + 1) + "B");
-            terms.push_back({nameA, -25.0f, yCenter - 14.0f, -1.0f, 0.0f, true});
-            terms.push_back({nameB, -25.0f, yCenter + 14.0f, -1.0f, 0.0f, true});
-        }
-
-        // Secondary terminals (Right side, x = +25)
-        for (int j = 0; j < ns; ++j) {
-            float yCenter = (ns > 1) ? (-25.0f * (ns - 1) + 50.0f * j) : 0.0f;
-            std::string nameA = (ns == 1) ? "S1A" : ("S" + std::to_string(j + 1) + "A");
-            std::string nameB = (ns == 1) ? "S1B" : ("S" + std::to_string(j + 1) + "B");
-            terms.push_back({nameA, 25.0f, yCenter - 14.0f, 1.0f, 0.0f, true});
-            terms.push_back({nameB, 25.0f, yCenter + 14.0f, 1.0f, 0.0f, true});
-        }
-
-        return terms;
-    }
-    if (t == "XFMR_3W" || t == "MUTUAL_3W") {
-        return {{"P1", -20, -10, -1, 0, true}, {"P2", -20, 10, -1, 0, true}, {"S1_1", 20, -15, 1, 0, true}, {"S1_2", 20, -5, 1, 0, true}, {"S2_1", 20, 5, 1, 0, true}, {"S2_2", 20, 15, 1, 0, true}};
-    }
-    if (t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"a", 20, -15, 1, 0, true}, {"b", 20, 0, 1, 0, true}, {"c", 20, 15, 1, 0, true}};
-    }
-    if (t == "OPAMP" || t == "E_COMP") {
-        return {{"Plus", -20, -10, -1, 0, true}, {"Minus", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "GOTO_SIG" || t == "GOTO") {
-        return {{"In", -15, 0, -1, 0, true}};
-    }
-    if (t == "FROM_SIG" || t == "FROM") {
-        return {{"Out", 15, 0, 1, 0, true}};
-    }
-    if (t == "VGFET") {
-        // "vg-FET" is handled alongside MOSFET near the top of this function; this entry
-        // covers the alternate spelling and must stay identical to it.
-        return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
-    }
-    if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"TL", -20, 30, -1, 0, true}, {"Speed", 20, 0, 1, 0, true}};
-    }
-    if (t == "GEN_EBLOCK") {
-        int n = 3;
-        if (comp.parameters.count("terminals")) {
-            try { n = std::stoi(comp.parameters.at("terminals")); } catch (...) {}
-        }
-        if (n < 1) n = 1;
-        if (n > 8) n = 8;
-        std::vector<TerminalDef> terms;
-        for (int i = 0; i < n; ++i) {
-            float yOff = (n > 1) ? (-15.0f * (n - 1) + 30.0f * i) : 0.0f;
-            terms.push_back({"T" + std::to_string(i + 1), -30.0f, yOff, -1.0f, 0.0f, true});
-        }
-        return terms;
-    }
-    if (t == "SCOPE") {
-        int numCh = 2;
-        if (comp.parameters.count("channels")) {
-            try { numCh = std::stoi(comp.parameters.at("channels")); } catch (...) {}
-        }
-        if (numCh < 1) numCh = 1;
-        if (numCh > 8) numCh = 8;
-
-        std::vector<TerminalDef> terms;
-        for (int i = 0; i < numCh; ++i) {
-            float yOff = (numCh > 1) ? (-10.0f * (numCh - 1) + 20.0f * i) : 0.0f;
-            std::string termName = "In" + std::to_string(i + 1);
-            terms.push_back({termName, -16.0f, yOff, -1.0f, 0.0f, true});
-        }
-        return terms;
-    }
-    if (t == "PROBE") {
-        std::string sigStr = comp.parameters.count("selected_signals") ? comp.parameters.at("selected_signals") : "";
-        std::vector<std::string> sigs;
-        std::stringstream ss(sigStr);
-        std::string item;
-        while (std::getline(ss, item, ',')) { if (!item.empty()) sigs.push_back(item); }
-
-        std::vector<TerminalDef> terms;
-        if (sigs.empty()) {
-            terms.push_back({"Out", 30.0f, 0.0f, 1.0f, 0.0f, true});
-        } else {
-            int n = (int)sigs.size();
-            for (int i = 0; i < n; ++i) {
-                float yOff = (n > 1) ? (-10.0f * (n - 1) + 20.0f * i) : 0.0f;
-                terms.push_back({sigs[i], 30.0f, yOff, 1.0f, 0.0f, true});
-            }
-        }
-        return terms;
-    }
-    if (t == "MUX") {
-        return {{"In1", -20, -12, -1, 0, true}, {"In2", -20, 12, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "INPORT" || t == "IN") {
-        return {{"Out", 20, 0, 1, 0, true}};
-    }
-    if (t == "OUTPORT" || t == "OUT") {
-        return {{"In", -20, 0, -1, 0, true}};
-    }
-    if (t == "PHYSICAL_INPORT" || t == "PIN") {
-        return {{"A", 20, 0, 1, 0, true}};
-    }
-    if (t == "PHYSICAL_OUTPORT" || t == "POUT") {
-        return {{"A", -20, 0, -1, 0, true}};
-    }
-    if (t == "ENABLE_PORT") {
-        return {{"Enable", 0, -20, 0, -1, true}};
-    }
-    if (t == "TRIGGER_PORT") {
-        return {{"Trigger", 0, -20, 0, -1, true}};
-    }
-    if (t == "BUS_CREATOR") {
-        int n = 2;
-        if (comp.parameters.count("inputs")) {
-            try { n = std::stoi(comp.parameters.at("inputs")); } catch (...) {}
-        }
-        if (n < 1) n = 1; if (n > 8) n = 8;
-        std::vector<TerminalDef> terms;
-        for (int i = 0; i < n; ++i) {
-            float yOff = (n > 1) ? (-15.0f * (n - 1) / 2.0f + 15.0f * i) : 0.0f;
-            terms.push_back({"In" + std::to_string(i + 1), -20.0f, yOff, -1.0f, 0.0f, true});
-        }
-        terms.push_back({"Bus", 20.0f, 0.0f, 1.0f, 0.0f, true});
-        return terms;
-    }
-    if (t == "BUS_SELECTOR") {
-        std::vector<TerminalDef> terms;
-        terms.push_back({"Bus", -20.0f, 0.0f, -1.0f, 0.0f, true});
-        terms.push_back({"Out1", 20.0f, -10.0f, 1.0f, 0.0f, true});
-        terms.push_back({"Out2", 20.0f, 10.0f, 1.0f, 0.0f, true});
-        return terms;
-    }
-    if (t == "TERMINATOR") {
-        return {{"In", -15, 0, -1, 0, true}};
-    }
-    if (t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT") {
-        return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
-    }
-
-    if (t == "CSCRIPT" || t == "CUSTOMSCRIPT") {
-        std::vector<CircuitSimEngine::CScriptPort> inPorts, outPorts;
-        getCSCRIPTPorts(comp, inPorts, outPorts);
-
-        int numIn = (int)inPorts.size();
-        int numOut = (int)outPorts.size();
-
-        float hw = 45.0f;
-        std::vector<TerminalDef> terms;
-
-        for (int i = 0; i < numIn; ++i) {
-            float yOff = (numIn > 1) ? (-18.0f * (numIn - 1) / 2.0f + 18.0f * i) : 0.0f;
-            terms.push_back({inPorts[i].name, -hw, yOff, -1.0f, 0.0f, true});
-        }
-        for (int j = 0; j < numOut; ++j) {
-            float yOff = (numOut > 1) ? (-18.0f * (numOut - 1) / 2.0f + 18.0f * j) : 0.0f;
-            terms.push_back({outPorts[j].name, hw, yOff, 1.0f, 0.0f, true});
-        }
-        return terms;
-    }
-    return {};
 }
 
 static bool isTerminalMatch(const std::string& compTypeStr, const std::string& termA, const std::string& termB) {
@@ -2498,7 +2126,9 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
     hoveredWireId.clear();
     float minWireDist = 1e9f;
 
-    std::map<std::string, std::tuple<ImVec2, ImVec2, ImVec2, ImVec2>> wirePointsMap;
+    // Screen-space polyline of every wire from its first stub to its last (for a
+    // routed wire: its whole stored route), used to place junctions onto wires.
+    std::map<std::string, std::vector<ImVec2>> wirePointsMap;
 
     std::unordered_map<std::string, DomainType> wireDomainMap;
     buildAllWireDomains(design, wireDomainMap);
@@ -2508,7 +2138,7 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 
     // Lowercase index of already-resolved wire geometry, so junction targets resolve
     // by hash lookup rather than a lowercase-transforming linear scan per wire.
-    std::unordered_map<std::string, const std::tuple<ImVec2, ImVec2, ImVec2, ImVec2>*> wirePointsLower;
+    std::unordered_map<std::string, const std::vector<ImVec2>*> wirePointsLower;
     wirePointsLower.reserve(design.wires.size() * 2);
     auto lowerOf = [](const std::string& s) {
         std::string r; r.reserve(s.size());
@@ -2542,19 +2172,16 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             if (itT != wirePointsLower.end()) {
                 {
                     const auto& v = *(itT->second);
-                    ImVec2 tp1 = std::get<0>(v);
-                    ImVec2 tmid = std::get<1>(v);
-                    ImVec2 tmid2 = std::get<2>(v);
-                    ImVec2 tp2 = std::get<3>(v);
-
                     ImVec2 jScreen = worldToScreen(wire.to.junctionX, wire.to.junctionY, canvasPos);
-                    float d1=0, d2=0, d3=0;
-                    ImVec2 q1 = getClosestPointOnSegment(jScreen, tp1, tmid, d1);
-                    ImVec2 q2 = getClosestPointOnSegment(jScreen, tmid, tmid2, d2);
-                    ImVec2 q3 = getClosestPointOnSegment(jScreen, tmid2, tp2, d3);
-
-                    float minD = std::min({d1, d2, d3});
-                    p2 = (minD == d1) ? q1 : ((minD == d2) ? q2 : q3);
+                    float minD = 1e30f;
+                    ImVec2 bestQ = jScreen;
+                    for (size_t si = 0; si + 1 < v.size(); ++si) {
+                        float dd = 0;
+                        ImVec2 q = getClosestPointOnSegment(jScreen, v[si], v[si + 1], dd);
+                        if (dd < minD) { minD = dd; bestQ = q; }
+                    }
+                    if (v.size() == 1) bestQ = v[0];
+                    p2 = bestQ;
                     p2_stub = p2;
                     foundTo = true;
                     foundTarget = true;
@@ -2579,8 +2206,26 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
         if (foundFrom && foundTo) {
             // ALWAYS PRESERVE PORT STUB (never collapse p1_stub = p1 so wire doesn't turn right at pin)
 
+            // A stored route (2+ points, written by the auto-router) is drawn as is
+            // while its ends still meet the wire's endpoints; once a block moves it
+            // no longer does and the wire falls back to automatic routing.
+            std::vector<ImVec2> routePts;
+            if (wire.manualPath.size() >= 2 && !(isDraggingWireSegment && draggingWireId == wire.id)) {
+                ImVec2 ra = worldToScreen(wire.manualPath.front().x, wire.manualPath.front().y, canvasPos);
+                ImVec2 rb = worldToScreen(wire.manualPath.back().x, wire.manualPath.back().y, canvasPos);
+                const float tol = std::max(1.0f, 1.5f * zoomLevel);
+                if (std::abs(ra.x - p1.x) <= tol && std::abs(ra.y - p1.y) <= tol &&
+                    std::abs(rb.x - p2.x) <= tol && std::abs(rb.y - p2.y) <= tol) {
+                    routePts.reserve(wire.manualPath.size());
+                    for (const auto& rp : wire.manualPath) routePts.push_back(worldToScreen(rp.x, rp.y, canvasPos));
+                    routePts.front() = p1;
+                    routePts.back() = p2;
+                }
+            }
+            const bool routed = !routePts.empty();
+
             ImVec2 c1(0, 0), c2(0, 0);
-            bool hasCustomOffset = !wire.manualPath.empty();
+            bool hasCustomOffset = wire.manualPath.size() == 1;
 
             if (hasCustomOffset) {
                 if (isDraggingSegmentHorizontal) {
@@ -2655,18 +2300,25 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             }
 
             auto& stored = wirePointsMap[wire.id];
-            stored = {p1_stub, c1, c2, p2_stub};
+            if (routed) stored = routePts;
+            else stored = {p1_stub, c1, c2, p2_stub};
             wirePointsLower[lowerOf(wire.id)] = &stored;
 
             // Cull wires wholly outside the viewport. Geometry above is still recorded
             // so junction targets on off-screen wires continue to resolve correctly.
             {
                 float m = 24.0f * zoomLevel;
-                bool visible = isSegmentVisible(p1, p1_stub, m) ||
-                               isSegmentVisible(p1_stub, c1, m) ||
-                               isSegmentVisible(c1, c2, m) ||
-                               isSegmentVisible(c2, p2_stub, m) ||
-                               isSegmentVisible(p2_stub, p2, m);
+                bool visible = false;
+                if (routed) {
+                    for (size_t si = 0; si + 1 < routePts.size() && !visible; ++si)
+                        visible = isSegmentVisible(routePts[si], routePts[si + 1], m);
+                } else {
+                    visible = isSegmentVisible(p1, p1_stub, m) ||
+                              isSegmentVisible(p1_stub, c1, m) ||
+                              isSegmentVisible(c1, c2, m) ||
+                              isSegmentVisible(c2, p2_stub, m) ||
+                              isSegmentVisible(p2_stub, p2, m);
+                }
                 if (!visible) continue;
             }
 
@@ -2679,6 +2331,14 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
 
             float bestD = std::min({d0, d1, d2, d3, d4});
             ImVec2 bestQ = (bestD == d0) ? q0 : ((bestD == d1) ? q1 : ((bestD == d2) ? q2 : ((bestD == d3) ? q3 : q4)));
+            if (routed) {
+                bestD = 1e30f;
+                for (size_t si = 0; si + 1 < routePts.size(); ++si) {
+                    float dd = 0;
+                    ImVec2 q = getClosestPointOnSegment(mousePos, routePts[si], routePts[si + 1], dd);
+                    if (dd < bestD) { bestD = dd; bestQ = q; }
+                }
+            }
 
             bool isWireHovered = (bestD < 12.0f * zoomLevel);
 
@@ -2718,7 +2378,13 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             ImU32 wireColor = isSelected ? selColor : (isThisWireHovered ? hovColor : domainColor);
             float thickness = (isSelected || isThisWireHovered) ? 3.5f * zoomLevel : 2.5f * zoomLevel;
 
-            if (isSelected) {
+            if (routed) {
+                for (size_t si = 0; si + 1 < routePts.size(); ++si) {
+                    if (isSelected)
+                        drawList->AddLine(routePts[si], routePts[si + 1], IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
+                    drawList->AddLine(routePts[si], routePts[si + 1], wireColor, thickness);
+                }
+            } else if (isSelected) {
                 drawList->AddLine(p1, p1_stub, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
                 drawList->AddLine(p1_stub, c1, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
                 drawList->AddLine(c1, c2, IM_COL32(245, 158, 11, 60), thickness + 4.0f*zoomLevel);
@@ -2727,11 +2393,13 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
             }
             
             // Render 100% Strictly Orthogonal Wire Path with Port Stubs
-            drawList->AddLine(p1, p1_stub, wireColor, thickness);
-            drawList->AddLine(p1_stub, c1, wireColor, thickness);
-            drawList->AddLine(c1, c2, wireColor, thickness);
-            drawList->AddLine(c2, p2_stub, wireColor, thickness);
-            drawList->AddLine(p2_stub, p2, wireColor, thickness);
+            if (!routed) {
+                drawList->AddLine(p1, p1_stub, wireColor, thickness);
+                drawList->AddLine(p1_stub, c1, wireColor, thickness);
+                drawList->AddLine(c1, c2, wireColor, thickness);
+                drawList->AddLine(c2, p2_stub, wireColor, thickness);
+                drawList->AddLine(p2_stub, p2, wireColor, thickness);
+            }
 
             if (wire.to.isWireJunction) {
                 drawList->AddCircleFilled(p2, 4.0f * zoomLevel, domainColor);
@@ -2740,6 +2408,14 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 drawList->AddCircleFilled(p1, 4.0f * zoomLevel, domainColor);
             }
 
+            // A routed wire has no segment handles: clicking it while selected drops
+            // the stored route (undoable), after which it can be shaped as usual.
+            if (routed && isSelected && selectedComponentIds.empty()) {
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && isWireHovered) {
+                    pushUndoState();
+                    wire.manualPath.clear();
+                }
+            } else
             // Interactive Segment Drag Handles (Horizontal / Vertical 4-Way Dragging)
             if (isSelected && selectedComponentIds.empty()) {
                 ImVec2 h1((p1_stub.x + c1.x)*0.5f, (p1_stub.y + c1.y)*0.5f);
@@ -2770,6 +2446,10 @@ void SchematicCanvas::drawWires(ImDrawList* drawList, ImVec2 canvasPos) {
                 float arrWidth = 4.0f * zoomLevel;
 
                 ImVec2 dir(p2.x - p2_stub.x, p2.y - p2_stub.y);
+                if (routed && routePts.size() >= 2) {
+                    const ImVec2& pre = routePts[routePts.size() - 2];
+                    dir = ImVec2(p2.x - pre.x, p2.y - pre.y);
+                }
                 float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
                 if (len > 1e-4f) {
                     dir.x /= len;
@@ -3159,114 +2839,11 @@ void SchematicCanvas::deleteSelected() {
 }
 
 void SchematicCanvas::cleanupOrphanedJunctions() {
-    std::unordered_set<std::string> validWireIds;
-    for (const auto& w : design.wires) {
-        validWireIds.insert(w.id);
-    }
-
-    // Clear junction flag if targetWireId no longer exists in design.wires
-    for (auto& w : design.wires) {
-        if (w.from.isWireJunction && !w.from.targetWireId.empty()) {
-            if (validWireIds.count(w.from.targetWireId) == 0) {
-                w.from.isWireJunction = false;
-                w.from.targetWireId.clear();
-            }
-        }
-        if (w.to.isWireJunction && !w.to.targetWireId.empty()) {
-            if (validWireIds.count(w.to.targetWireId) == 0) {
-                w.to.isWireJunction = false;
-                w.to.targetWireId.clear();
-            }
-        }
-    }
+    CircuitSim::cleanupOrphanedJunctions(design);
 }
 
 void SchematicCanvas::consolidateOverlappingWires() {
-    if (design.wires.empty() || design.components.empty()) return;
-
-    // Component map for fast coordinate lookups
-    std::unordered_map<std::string, const ComponentInstance*> compMap;
-    compMap.reserve(design.components.size());
-    for (const auto& comp : design.components) compMap[comp.id] = &comp;
-
-    // Group direct wire connections by component terminal "compId.terminal"
-    struct PinConn {
-        size_t wireIdx;
-        bool isFrom;
-    };
-    std::unordered_map<std::string, std::vector<PinConn>> termConnMap;
-
-    for (size_t wi = 0; wi < design.wires.size(); ++wi) {
-        const auto& w = design.wires[wi];
-        if (!w.from.isWireJunction && !w.from.compId.empty() && !w.from.terminal.empty()) {
-            std::string key = w.from.compId + "." + w.from.terminal;
-            termConnMap[key].push_back({wi, true});
-        }
-        if (!w.to.isWireJunction && !w.to.compId.empty() && !w.to.terminal.empty()) {
-            std::string key = w.to.compId + "." + w.to.terminal;
-            termConnMap[key].push_back({wi, false});
-        }
-    }
-
-    // For any terminal with > 1 incoming/outgoing direct wires, convert subsequent wires to junctions
-    for (const auto& [termKey, conns] : termConnMap) {
-        if (conns.size() <= 1) continue;
-
-        size_t dotPos = termKey.find('.');
-        if (dotPos == std::string::npos) continue;
-        std::string compId = termKey.substr(0, dotPos);
-        std::string termName = termKey.substr(dotPos + 1);
-
-        auto itC = compMap.find(compId);
-        if (itC == compMap.end()) continue;
-        const ComponentInstance& comp = *(itC->second);
-
-        // Find terminal coordinate and port stub point in world space
-        ImVec2 pinPos(comp.x, comp.y);
-        ImVec2 stubPos(comp.x, comp.y);
-        auto terms = getTerminals(comp);
-        for (const auto& t : terms) {
-            if (isTerminalMatch(comp.rawTypeStr, t.name, termName)) {
-                float rad = comp.rotation * 3.14159265f / 180.0f;
-                float rx = t.relX * std::cos(rad) - t.relY * std::sin(rad);
-                float ry = t.relX * std::sin(rad) + t.relY * std::cos(rad);
-                pinPos = ImVec2(comp.x + rx, comp.y + ry);
-
-                float dx = t.dx * std::cos(rad) - t.dy * std::sin(rad);
-                float dy = t.dx * std::sin(rad) + t.dy * std::cos(rad);
-                stubPos = ImVec2(pinPos.x + dx * 20.0f, pinPos.y + dy * 20.0f);
-                break;
-            }
-        }
-
-        // Primary wire stays directly connected
-        std::string mainWireId = design.wires[conns[0].wireIdx].id;
-
-        // Subsequent wires connect as junction onto mainWire at stubPos
-        for (size_t i = 1; i < conns.size(); ++i) {
-            size_t subIdx = conns[i].wireIdx;
-            if (subIdx >= design.wires.size()) continue;
-            WireInstance& subW = design.wires[subIdx];
-
-            if (conns[i].isFrom) {
-                subW.from.isWireJunction = true;
-                subW.from.targetWireId = mainWireId;
-                subW.from.junctionX = stubPos.x;
-                subW.from.junctionY = stubPos.y;
-                subW.from.compId.clear();
-                subW.from.terminal.clear();
-                subW.fromNode = mainWireId + ".junction";
-            } else {
-                subW.to.isWireJunction = true;
-                subW.to.targetWireId = mainWireId;
-                subW.to.junctionX = stubPos.x;
-                subW.to.junctionY = stubPos.y;
-                subW.to.compId.clear();
-                subW.to.terminal.clear();
-                subW.toNode = mainWireId + ".junction";
-            }
-        }
-    }
+    CircuitSim::consolidateOverlappingWires(design);
 }
 
 void SchematicCanvas::copySelected() {

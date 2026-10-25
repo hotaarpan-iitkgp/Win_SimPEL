@@ -210,4 +210,28 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
     }
 }
 
+bool NetlistBuilder::firstGroundPinIsSetRoot(const CircuitDesign& design, std::string* groundId) {
+    // Same registration and unions as buildNodesForCircuit.
+    DSU dsu;
+    for (const auto& comp : design.components)
+        for (const auto& term : getTerminals(comp)) dsu.find(comp.id + ":" + term.name);
+    std::unordered_map<std::string, WireInstance> wireMap;
+    for (const auto& w : design.wires) wireMap[w.id] = w;
+    for (const auto& wire : design.wires) {
+        std::unordered_set<std::string> visited1, visited2;
+        std::string pin1 = getResolvedPin(wire.from, design, wireMap, visited1);
+        std::string pin2 = getResolvedPin(wire.to, design, wireMap, visited2);
+        if (!pin1.empty() && !pin2.empty() && pin1 != pin2) dsu.unite(pin1, pin2);
+    }
+    for (const auto& comp : design.components) {
+        std::string t = comp.rawTypeStr;
+        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+        if (t == "GND" || t == "GROUND") {
+            if (groundId) *groundId = comp.id;
+            return dsu.find(comp.id + ":Gnd") == comp.id + ":Gnd";
+        }
+    }
+    return false;
+}
+
 } // namespace CircuitSim

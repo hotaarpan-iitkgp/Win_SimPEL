@@ -1,0 +1,85 @@
+{
+  "components": [
+    {
+      "id": "SINE_A",
+      "type": "SINE_WAVE",
+      "x": -600, "y": -200, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "45" }
+    },
+    {
+      "id": "SINE_B",
+      "type": "SINE_WAVE",
+      "x": -600, "y": -100, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "-75" }
+    },
+    {
+      "id": "SINE_C",
+      "type": "SINE_WAVE",
+      "x": -600, "y": 0, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "-195" }
+    },
+    {
+      "id": "THETA",
+      "type": "RAMP",
+      "x": -600, "y": 150, "rotation": 0,
+      "parameters": { "slope": "314.159265359", "start_time": "0.0", "initial_output": "0.0" }
+    },
+    {
+      "id": "CLARKE1",
+      "type": "CLARKE",
+      "x": -400, "y": -100, "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "PARK1",
+      "type": "PARK",
+      "x": -200, "y": -100, "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "INV_PARK1",
+      "type": "INV_PARK",
+      "x": 0, "y": -100, "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "INV_CLARKE1",
+      "type": "INV_CLARKE",
+      "x": 200, "y": -100, "rotation": 0,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    { "id": "w1", "from": { "type": "pin", "compId": "SINE_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "CLARKE1", "terminal": "A" } },
+    { "id": "w2", "from": { "type": "pin", "compId": "SINE_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "CLARKE1", "terminal": "B" } },
+    { "id": "w3", "from": { "type": "pin", "compId": "SINE_C", "terminal": "Out" }, "to": { "type": "pin", "compId": "CLARKE1", "terminal": "C" } },
+    
+    { "id": "w4", "from": { "type": "pin", "compId": "CLARKE1", "terminal": "Alpha" }, "to": { "type": "pin", "compId": "PARK1", "terminal": "Alpha" } },
+    { "id": "w5", "from": { "type": "pin", "compId": "CLARKE1", "terminal": "Beta" }, "to": { "type": "pin", "compId": "PARK1", "terminal": "Beta" } },
+    { "id": "w6", "from": { "type": "pin", "compId": "THETA", "terminal": "Out" }, "to": { "type": "pin", "compId": "PARK1", "terminal": "Theta" } },
+    
+    { "id": "w7", "from": { "type": "pin", "compId": "PARK1", "terminal": "d" }, "to": { "type": "pin", "compId": "INV_PARK1", "terminal": "d" } },
+    { "id": "w8", "from": { "type": "pin", "compId": "PARK1", "terminal": "q" }, "to": { "type": "pin", "compId": "INV_PARK1", "terminal": "q" } },
+    { "id": "w9", "from": { "type": "pin", "compId": "THETA", "terminal": "Out" }, "to": { "type": "pin", "compId": "INV_PARK1", "terminal": "Theta" } },
+    
+    { "id": "w10", "from": { "type": "pin", "compId": "INV_PARK1", "terminal": "Alpha" }, "to": { "type": "pin", "compId": "INV_CLARKE1", "terminal": "Alpha" } },
+    { "id": "w11", "from": { "type": "pin", "compId": "INV_PARK1", "terminal": "Beta" }, "to": { "type": "pin", "compId": "INV_CLARKE1", "terminal": "Beta" } }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Transforms Outputs",
+        "variables": [
+          "SINE_A.Out", "CLARKE1.Alpha", "CLARKE1.Beta", 
+          "PARK1.d", "PARK1.q", 
+          "INV_PARK1.Alpha", "INV_PARK1.Beta",
+          "INV_CLARKE1.A", "INV_CLARKE1.B", "INV_CLARKE1.C"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.05", "h": "1e-5", "solver": "euler", "step_type": "fixed"
+  },
+  "description": "Test of Signal Transforms"
+}

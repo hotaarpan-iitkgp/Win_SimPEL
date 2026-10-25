@@ -11,3 +11,9 @@ imgui.ini
 .vs/
 .vscode/
 *.user
+# Python API
+.venv/
+__pycache__/
+*.pyd
+python/build/
+tests/engine_suites.log

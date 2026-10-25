@@ -1,0 +1,71 @@
+# Build, test and package on Windows with the MinGW-w64 toolchain the project uses.
+# Action versions are pinned to release tags.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: Toolchain
+        run: |
+          # MSYS2's MinGW-w64 GCC, CMake and Ninja are preinstalled on the image.
+          "C:\msys64\mingw64\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: Versions
+        run: |
+          g++ --version
+          cmake --version
+          ninja --version
+
+      - name: Configure
+        run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (core, CLI, GUI, tests)
+        run: cmake --build build -j 4
+
+      - name: CTest (golden, registry, emission, export, layout, route, ...)
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: Engine suites and reference digests
+        run: |
+          powershell -ExecutionPolicy Bypass -File tests\run_engine_suites.ps1
+          if ($LASTEXITCODE -ne 0) { Get-Content tests\engine_suites.log; exit 1 }
+
+      - name: Python wheel
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install -r python\requirements-dev.txt
+          # MinGW g++, not the MSVC toolchain the image also has.
+          $env:CMAKE_GENERATOR = "Ninja"; $env:CXX = "g++"; $env:CC = "gcc"
+          .\.venv\Scripts\python.exe -m pip wheel --no-build-isolation --no-deps -w dist .\python
+          .\.venv\Scripts\python.exe -m pip install --no-deps (Get-ChildItem dist\*.whl).FullName
+
+      - name: pytest
+        working-directory: python
+        run: ..\.venv\Scripts\python.exe -m pytest -q
+
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: simpel-wheel
+          path: dist/*.whl
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: simpel-binaries
+          path: |
+            build/circuitsim_pro_win.exe
+            build/simpel_cli.exe

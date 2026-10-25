@@ -1,0 +1,358 @@
+{
+  "components": [
+    {
+      "id": "SRC_IDEAL_XFMR1",
+      "type": "V",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "IDEAL_XFMR1",
+      "type": "IDEAL_XFMR",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "primary_turns": "[100]",
+        "secondary_turns": "[100]"
+      }
+    },
+    {
+      "id": "LOAD_IDEAL_XFMR",
+      "type": "R",
+      "x": 400,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "GND_IDEAL_XFMR1",
+      "type": "GND",
+      "x": 100,
+      "y": 50,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_XFMR_2W1",
+      "type": "V",
+      "x": 0,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "XFMR_2W1",
+      "type": "XFMR_2W",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_XFMR_2W",
+      "type": "R",
+      "x": 400,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "GND_XFMR_2W1",
+      "type": "GND",
+      "x": 100,
+      "y": 250,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_MUTUAL_2W1",
+      "type": "V",
+      "x": 0,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "24",
+        "amplitude": "10"
+      }
+    },
+    {
+      "id": "MUTUAL_2W1",
+      "type": "MUTUAL_2W",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_MUTUAL_2W",
+      "type": "R",
+      "x": 400,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "GND_MUTUAL_2W1",
+      "type": "GND",
+      "x": 100,
+      "y": 450,
+      "rotation": 0,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IDEAL_XFMR1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IDEAL_XFMR1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IDEAL_XFMR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IDEAL_XFMR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "IDEAL_XFMR1",
+        "terminal": "B1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IDEAL_XFMR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "IDEAL_XFMR1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_IDEAL_XFMR",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w5",
+      "from": {
+        "type": "pin",
+        "compId": "IDEAL_XFMR1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IDEAL_XFMR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w6",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_IDEAL_XFMR",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IDEAL_XFMR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w7",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_2W1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_2W1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w8",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_2W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w9",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_2W1",
+        "terminal": "B1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w10",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_2W1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_XFMR_2W",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w11",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_2W1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w12",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_XFMR_2W",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w13",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MUTUAL_2W1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MUTUAL_2W1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w14",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MUTUAL_2W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w15",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_2W1",
+        "terminal": "B1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w16",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_2W1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_MUTUAL_2W",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w17",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_2W1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w18",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_MUTUAL_2W",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_2W1",
+        "terminal": "Gnd"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": []
+  },
+  "description": "Test Transformers and Machines"
+}

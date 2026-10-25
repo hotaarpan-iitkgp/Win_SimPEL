@@ -1,0 +1,41 @@
+# Export snapshot (schematic SVG, scope SVG, scope selection, HTML report).
+Buck_converter.json schematic 75e0b8699540506c 9837
+Buck_converter.json scope 72ee04042105bfb5 24515
+Buck_converter.json scopes ff2d6db7d5d0a50d 34
+Buck_converter.json html 5e4ec7c410c31aa9 54018
+boost closed loop.json schematic e61d5acc509cf58e 10466
+boost closed loop.json scope 14f62ea7d4b30632 133044
+boost closed loop.json scopes bef0bb269142a66d 40
+boost closed loop.json html c29e3f6d4fd3324a 169977
+fixed_thyristor_bridge.json schematic dbc3ee542fede112 19095
+fixed_thyristor_bridge.json scope 7fb33cb740f722dc 24514
+fixed_thyristor_bridge.json scopes d1ff4836a4d7a7b0 48
+fixed_thyristor_bridge.json html 45690c571a72ae52 81734
+Electrical_Semiconductors_Test.json schematic ec9b3be8a6d5b928 43568
+Electrical_Semiconductors_Test.json scope eda315702746fe05 24221
+Electrical_Semiconductors_Test.json scopes 2d4370e143bc118f 48
+Electrical_Semiconductors_Test.json html 861add90be82e6dd 125825
+Electrical_Complex_Transformers_Machines_Test.json schematic c6879080bcf0735a 28072
+Electrical_Complex_Transformers_Machines_Test.json scope f3013c9ad9e6dd09 24189
+Electrical_Complex_Transformers_Machines_Test.json scopes ee82c0b090c60393 84
+Electrical_Complex_Transformers_Machines_Test.json html 0438e5d92c4c0f57 111714
+Math_Blocks_Test.json schematic 2b16ab14eaa69386 9935
+Math_Blocks_Test.json scope a0c7c0495de6fd37 24101
+Math_Blocks_Test.json scopes 66caeba8065966a5 36
+Math_Blocks_Test.json html 9ff59aa98d3a4675 56999
+three_phase_inverter_basic_spwm_fixed.json schematic 297270de7c357c0e 24549
+three_phase_inverter_basic_spwm_fixed.json scope b667d834c987b139 24713
+three_phase_inverter_basic_spwm_fixed.json scopes a820d0f3c914d161 19
+three_phase_inverter_basic_spwm_fixed.json html aebf495136f8dc1d 77292
+test01_buck_pid.json schematic 00dca594edd09a96 14288
+test01_buck_pid.json scope 9bfcb0e78ecf0955 24513
+test01_buck_pid.json scopes 3202587caa989267 19
+test01_buck_pid.json html 47a91bbc299afda9 54965
+test04_isolated_flyback.json schematic 12ffe002fe20797c 11547
+test04_isolated_flyback.json scope e5986dd2312fa9ae 133046
+test04_isolated_flyback.json scopes d54bc14aaa9e36ca 4
+test04_isolated_flyback.json html fc188f075abd723b 67857
+functionstables.json schematic 8729e322e5d627f1 33247
+functionstables.json scope 04ac302888dcb3f0 12081
+functionstables.json scopes 7ef4ca69b256630f 159
+functionstables.json html 8d9ab9c13b63ef02 158051

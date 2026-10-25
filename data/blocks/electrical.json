@@ -1,0 +1,2232 @@
+{
+  "schema": 1,
+  "category": "electrical",
+  "description": "Electrical-domain (power circuit) blocks.",
+  "blocks": [
+    {
+      "type": "E_PORT",
+      "name": "Electrical Port",
+      "subcategory": "Connectivity",
+      "ui_type": "ElectricalPort",
+      "aliases": [
+        "ElectricalPort"
+      ],
+      "role": "structural",
+      "params": [],
+      "palette": [
+        {
+          "order": 100,
+          "text": "Electrical Port (E_PORT)",
+          "label": "E-Port",
+          "prefix": "E_PORT",
+          "ui_type": "ElectricalPort",
+          "subcategory": "Connectivity",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "E_LABEL",
+      "name": "Electrical Label",
+      "subcategory": "Connectivity",
+      "ui_type": "ElectricalLabel",
+      "aliases": [
+        "ElectricalLabel"
+      ],
+      "role": "structural",
+      "params": [
+        {
+          "name": "label",
+          "default": "A"
+        }
+      ],
+      "palette": [
+        {
+          "order": 101,
+          "text": "Electrical Label (E_LABEL)",
+          "label": "E-Tag",
+          "prefix": "E_LABEL",
+          "ui_type": "ElectricalLabel",
+          "subcategory": "Connectivity",
+          "basic": false,
+          "params": [
+            [
+              "label",
+              "A"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GND",
+      "name": "Ground",
+      "subcategory": "Connectivity",
+      "ui_type": "Unknown",
+      "role": "structural",
+      "params": [],
+      "palette": [
+        {
+          "order": 102,
+          "text": "Ground (GND)",
+          "label": "GND",
+          "prefix": "GND",
+          "ui_type": "Unknown",
+          "subcategory": "Connectivity",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "V",
+      "name": "DC Voltage Source",
+      "subcategory": "Sources",
+      "ui_type": "VoltageSource",
+      "aliases": [
+        "VoltageSource",
+        "dc",
+        "DC_V"
+      ],
+      "params": [
+        {
+          "name": "value",
+          "default": "24"
+        }
+      ],
+      "netlist": {
+        "section": "physical_stage.voltage_sources",
+        "fields": {
+          "nodes": {
+            "nodes": true
+          },
+          "value": {
+            "param": "value",
+            "default": 24.0
+          },
+          "src_type": "dc"
+        }
+      },
+      "palette": [
+        {
+          "order": 103,
+          "text": "DC Voltage Source (V)",
+          "label": "DC_V",
+          "prefix": "V",
+          "ui_type": "VoltageSource",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "value",
+              "24"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "I",
+      "name": "DC Current Source",
+      "subcategory": "Sources",
+      "ui_type": "CurrentSource",
+      "aliases": [
+        "CurrentSource",
+        "DC_I"
+      ],
+      "params": [
+        {
+          "name": "value",
+          "default": "1"
+        }
+      ],
+      "netlist": {
+        "section": "physical_stage.current_sources",
+        "fields": {
+          "nodes": {
+            "nodes": true
+          },
+          "value": {
+            "param": "value",
+            "default": 1.0
+          },
+          "src_type": "dc"
+        }
+      },
+      "palette": [
+        {
+          "order": 104,
+          "text": "DC Current Source (I)",
+          "label": "DC_I",
+          "prefix": "I",
+          "ui_type": "CurrentSource",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "value",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "AC_V",
+      "name": "AC Voltage Source",
+      "subcategory": "Sources",
+      "ui_type": "ACVoltageSource",
+      "aliases": [
+        "ACVoltageSource",
+        "ac"
+      ],
+      "params": [
+        {
+          "name": "amplitude",
+          "default": "12"
+        },
+        {
+          "name": "frequency",
+          "default": "50"
+        },
+        {
+          "name": "phase",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 105,
+          "text": "AC Voltage Source (AC_V)",
+          "label": "AC_V",
+          "prefix": "AC_V",
+          "ui_type": "ACVoltageSource",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "amplitude",
+              "12"
+            ],
+            [
+              "frequency",
+              "50"
+            ],
+            [
+              "phase",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "AC_I",
+      "name": "AC Current Source",
+      "subcategory": "Sources",
+      "ui_type": "ACCurrentSource",
+      "aliases": [
+        "ACCurrentSource"
+      ],
+      "params": [
+        {
+          "name": "amplitude",
+          "default": "1"
+        },
+        {
+          "name": "frequency",
+          "default": "50"
+        },
+        {
+          "name": "phase",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 106,
+          "text": "AC Current Source (AC_I)",
+          "label": "AC_I",
+          "prefix": "AC_I",
+          "ui_type": "ACCurrentSource",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "amplitude",
+              "1"
+            ],
+            [
+              "frequency",
+              "50"
+            ],
+            [
+              "phase",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "CTRL_V",
+      "name": "Controlled Voltage Source",
+      "subcategory": "Sources",
+      "ui_type": "ControlledVoltageSource",
+      "aliases": [
+        "ControlledVoltageSource"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 107,
+          "text": "Controlled Voltage Source (CTRL_V)",
+          "label": "Src V",
+          "prefix": "CTRL_V",
+          "ui_type": "ControlledVoltageSource",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "CTRL_I",
+      "name": "Controlled Current Source",
+      "subcategory": "Sources",
+      "ui_type": "ControlledCurrentSource",
+      "aliases": [
+        "ControlledCurrentSource"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 108,
+          "text": "Controlled Current Source (CTRL_I)",
+          "label": "Src I",
+          "prefix": "CTRL_I",
+          "ui_type": "ControlledCurrentSource",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "V_3PH",
+      "name": "3-Phase Voltage Source",
+      "subcategory": "Sources",
+      "ui_type": "ThreePhaseSource",
+      "aliases": [
+        "ThreePhaseSource"
+      ],
+      "params": [
+        {
+          "name": "magnitude",
+          "default": "230"
+        },
+        {
+          "name": "frequency",
+          "default": "50"
+        },
+        {
+          "name": "phase",
+          "default": "0"
+        },
+        {
+          "name": "connection",
+          "default": "Y"
+        }
+      ],
+      "palette": [
+        {
+          "order": 109,
+          "text": "3-Phase Voltage Source (V_3PH)",
+          "label": "3Ph V",
+          "prefix": "V3PH",
+          "ui_type": "ThreePhaseSource",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "magnitude",
+              "230"
+            ],
+            [
+              "frequency",
+              "50"
+            ],
+            [
+              "phase",
+              "0"
+            ],
+            [
+              "connection",
+              "Y"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "I_3PH",
+      "name": "3-Phase Current Source",
+      "subcategory": "Sources",
+      "ui_type": "ThreePhaseCurrentSource",
+      "aliases": [
+        "ThreePhaseCurrentSource"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 110,
+          "text": "3-Phase Current Source (I_3PH)",
+          "label": "3Ph I",
+          "prefix": "I3PH",
+          "ui_type": "ThreePhaseCurrentSource",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "VM",
+      "name": "Voltmeter",
+      "subcategory": "Meters (Sensors)",
+      "ui_type": "Voltmeter",
+      "aliases": [
+        "Voltmeter"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "physical_stage.voltmeters",
+        "fields": {
+          "nodes": {
+            "nodes": true
+          },
+          "signal": "{id}.Out"
+        }
+      },
+      "palette": [
+        {
+          "order": 111,
+          "text": "Voltmeter (VM)",
+          "label": "VM",
+          "prefix": "VM",
+          "ui_type": "Voltmeter",
+          "subcategory": "Meters (Sensors)",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "AM",
+      "name": "Ammeter",
+      "subcategory": "Meters (Sensors)",
+      "ui_type": "Ammeter",
+      "aliases": [
+        "Ammeter"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "physical_stage.ammeters",
+        "fields": {
+          "nodes": {
+            "nodes": true
+          },
+          "signal": "{id}.Out"
+        }
+      },
+      "palette": [
+        {
+          "order": 112,
+          "text": "Ammeter (AM)",
+          "label": "AM",
+          "prefix": "AM",
+          "ui_type": "Ammeter",
+          "subcategory": "Meters (Sensors)",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "VM_3PH",
+      "name": "Voltage Meter (3-Phase)",
+      "subcategory": "Meters (Sensors)",
+      "ui_type": "Voltmeter3Ph",
+      "aliases": [
+        "Voltmeter3Ph"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 113,
+          "text": "Voltage Meter (3-Phase) (VM_3PH)",
+          "label": "3VM",
+          "prefix": "VM_3PH",
+          "ui_type": "Voltmeter3Ph",
+          "subcategory": "Meters (Sensors)",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "AM_3PH",
+      "name": "Current Meter (3-Phase)",
+      "subcategory": "Meters (Sensors)",
+      "ui_type": "Ammeter3Ph",
+      "aliases": [
+        "Ammeter3Ph"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 114,
+          "text": "Current Meter (3-Phase) (AM_3PH)",
+          "label": "3AM",
+          "prefix": "AM_3PH",
+          "ui_type": "Ammeter3Ph",
+          "subcategory": "Meters (Sensors)",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "R",
+      "name": "Resistor",
+      "subcategory": "Passive Components",
+      "ui_type": "Resistor",
+      "aliases": [
+        "Resistor"
+      ],
+      "params": [
+        {
+          "name": "value",
+          "default": "10"
+        }
+      ],
+      "palette": [
+        {
+          "order": 115,
+          "text": "Resistor (R)",
+          "label": "R",
+          "prefix": "R",
+          "ui_type": "Resistor",
+          "subcategory": "Passive Components",
+          "basic": true,
+          "params": [
+            [
+              "value",
+              "10"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "L",
+      "name": "Inductor",
+      "subcategory": "Passive Components",
+      "ui_type": "Inductor",
+      "aliases": [
+        "Inductor"
+      ],
+      "params": [
+        {
+          "name": "L",
+          "default": "10m"
+        },
+        {
+          "name": "esr",
+          "default": "0"
+        },
+        {
+          "name": "iL0",
+          "default": "0"
+        }
+      ],
+      "netlist": {
+        "section": "physical_stage.inductors",
+        "fields": {
+          "nodes": {
+            "nodes": true
+          },
+          "L": {
+            "param": "L",
+            "default": 0.0001
+          },
+          "esr": {
+            "param": "esr",
+            "default": 0.05
+          },
+          "iL0": {
+            "param": "iL0",
+            "default": 0.0
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 116,
+          "text": "Inductor (L)",
+          "label": "L",
+          "prefix": "L",
+          "ui_type": "Inductor",
+          "subcategory": "Passive Components",
+          "basic": true,
+          "params": [
+            [
+              "L",
+              "10m"
+            ],
+            [
+              "esr",
+              "0"
+            ],
+            [
+              "iL0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "C",
+      "name": "Capacitor",
+      "subcategory": "Passive Components",
+      "ui_type": "Capacitor",
+      "aliases": [
+        "Capacitor"
+      ],
+      "params": [
+        {
+          "name": "C",
+          "default": "100u"
+        },
+        {
+          "name": "esr",
+          "default": "0"
+        },
+        {
+          "name": "vC0",
+          "default": "0"
+        }
+      ],
+      "netlist": {
+        "section": "physical_stage.capacitors",
+        "fields": {
+          "nodes": {
+            "nodes": true
+          },
+          "C": {
+            "param": "C",
+            "default": 0.0001
+          },
+          "esr": {
+            "param": "esr",
+            "default": 0.01
+          },
+          "vC0": {
+            "param": "vC0",
+            "default": 0.0
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 117,
+          "text": "Capacitor (C)",
+          "label": "C",
+          "prefix": "C",
+          "ui_type": "Capacitor",
+          "subcategory": "Passive Components",
+          "basic": true,
+          "params": [
+            [
+              "C",
+              "100u"
+            ],
+            [
+              "esr",
+              "0"
+            ],
+            [
+              "vC0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "VAR_R",
+      "name": "Variable Resistor",
+      "subcategory": "Passive Components",
+      "ui_type": "VariableResistor",
+      "aliases": [
+        "VariableResistor"
+      ],
+      "params": [
+        {
+          "name": "value",
+          "default": "10"
+        }
+      ],
+      "palette": [
+        {
+          "order": 118,
+          "text": "Variable Resistor (VAR_R)",
+          "label": "var R",
+          "prefix": "VAR_R",
+          "ui_type": "VariableResistor",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": [
+            [
+              "value",
+              "10"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "VAR_L",
+      "name": "Variable Inductor",
+      "subcategory": "Passive Components",
+      "ui_type": "VariableInductor",
+      "aliases": [
+        "VariableInductor"
+      ],
+      "params": [
+        {
+          "name": "L",
+          "default": "10m"
+        },
+        {
+          "name": "iL0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 119,
+          "text": "Variable Inductor (VAR_L)",
+          "label": "var L",
+          "prefix": "VAR_L",
+          "ui_type": "VariableInductor",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": [
+            [
+              "L",
+              "10m"
+            ],
+            [
+              "iL0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "VAR_C",
+      "name": "Variable Capacitor",
+      "subcategory": "Passive Components",
+      "ui_type": "VariableCapacitor",
+      "aliases": [
+        "VariableCapacitor"
+      ],
+      "params": [
+        {
+          "name": "C",
+          "default": "100u"
+        },
+        {
+          "name": "vC0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 120,
+          "text": "Variable Capacitor (VAR_C)",
+          "label": "var C",
+          "prefix": "VAR_C",
+          "ui_type": "VariableCapacitor",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": [
+            [
+              "C",
+              "100u"
+            ],
+            [
+              "vC0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SAT_L",
+      "name": "Saturable Inductor",
+      "subcategory": "Passive Components",
+      "ui_type": "SaturableInductor",
+      "aliases": [
+        "SaturableInductor"
+      ],
+      "params": [
+        {
+          "name": "L",
+          "default": "10m"
+        },
+        {
+          "name": "iL0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 121,
+          "text": "Saturable Inductor (SAT_L)",
+          "label": "sat L",
+          "prefix": "SAT_L",
+          "ui_type": "SaturableInductor",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": [
+            [
+              "L",
+              "10m"
+            ],
+            [
+              "iL0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SAT_C",
+      "name": "Saturable Capacitor",
+      "subcategory": "Passive Components",
+      "ui_type": "SaturableCapacitor",
+      "aliases": [
+        "SaturableCapacitor"
+      ],
+      "params": [
+        {
+          "name": "C",
+          "default": "100u"
+        },
+        {
+          "name": "vC0",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 122,
+          "text": "Saturable Capacitor (SAT_C)",
+          "label": "sat C",
+          "prefix": "SAT_C",
+          "ui_type": "SaturableCapacitor",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": [
+            [
+              "C",
+              "100u"
+            ],
+            [
+              "vC0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PI_SECTION",
+      "name": "Pi-Section Line",
+      "subcategory": "Passive Components",
+      "ui_type": "PiSectionLine",
+      "aliases": [
+        "PiSectionLine"
+      ],
+      "role": "unsupported",
+      "params": [],
+      "palette": [
+        {
+          "order": 123,
+          "text": "Pi-Section Line (PI_SECTION)",
+          "label": "Pi Line",
+          "prefix": "PI_SECTION",
+          "ui_type": "PiSectionLine",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "LINE_3PH",
+      "name": "Transmission Line (3ph)",
+      "subcategory": "Passive Components",
+      "ui_type": "TransmissionLine3Ph",
+      "aliases": [
+        "TransmissionLine3Ph"
+      ],
+      "role": "unsupported",
+      "params": [],
+      "palette": [
+        {
+          "order": 124,
+          "text": "Transmission Line (3ph) (LINE_3PH)",
+          "label": "3Ph Line",
+          "prefix": "LINE_3PH",
+          "ui_type": "TransmissionLine3Ph",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "PWL_R",
+      "name": "Piece-wise Linear Resistor",
+      "subcategory": "Passive Components",
+      "ui_type": "PWLResistor",
+      "aliases": [
+        "PWLResistor"
+      ],
+      "params": [
+        {
+          "name": "value",
+          "default": "10"
+        }
+      ],
+      "palette": [
+        {
+          "order": 125,
+          "text": "Piece-wise Linear Resistor (PWL_R)",
+          "label": "pwl R",
+          "prefix": "PWL_R",
+          "ui_type": "PWLResistor",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": [
+            [
+              "value",
+              "10"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "E_ALGEBRAIC",
+      "name": "Electrical Algebraic Component",
+      "subcategory": "Passive Components",
+      "ui_type": "ElectricalAlgebraic",
+      "aliases": [
+        "ElectricalAlgebraic"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 126,
+          "text": "Electrical Algebraic Component (E_ALGEBRAIC)",
+          "label": "E-Alg",
+          "prefix": "E_ALGEBRAIC",
+          "ui_type": "ElectricalAlgebraic",
+          "subcategory": "Passive Components",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "D",
+      "name": "Diode",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "Diode",
+      "aliases": [
+        "Diode"
+      ],
+      "params": [
+        {
+          "name": "Vd",
+          "default": "0.7"
+        },
+        {
+          "name": "Ron",
+          "default": "1m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 129,
+          "text": "Diode (D)",
+          "label": "D",
+          "prefix": "D",
+          "ui_type": "Diode",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": true,
+          "params": [
+            [
+              "Vd",
+              "0.7"
+            ],
+            [
+              "Ron",
+              "1m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "THYRISTOR",
+      "name": "Thyristor",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "Thyristor",
+      "aliases": [
+        "Thyristor",
+        "SCR"
+      ],
+      "params": [
+        {
+          "name": "Vd",
+          "default": "0.8"
+        },
+        {
+          "name": "Ron",
+          "default": "1m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        },
+        {
+          "name": "Iholding",
+          "default": "10m"
+        },
+        {
+          "name": "Vgt",
+          "default": "0.5"
+        }
+      ],
+      "palette": [
+        {
+          "order": 130,
+          "text": "Thyristor (THYRISTOR)",
+          "label": "SCR",
+          "prefix": "THYRISTOR",
+          "ui_type": "Thyristor",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": true,
+          "params": [
+            [
+              "Vd",
+              "0.8"
+            ],
+            [
+              "Ron",
+              "1m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ],
+            [
+              "Iholding",
+              "10m"
+            ],
+            [
+              "Vgt",
+              "0.5"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GTO",
+      "name": "GTO (Gate Turn-Off)",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "GTO",
+      "params": [
+        {
+          "name": "Vd",
+          "default": "0.8"
+        },
+        {
+          "name": "Ron",
+          "default": "1m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 131,
+          "text": "GTO (Gate Turn-Off) (GTO)",
+          "label": "GTO",
+          "prefix": "GTO",
+          "ui_type": "GTO",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": false,
+          "params": [
+            [
+              "Vd",
+              "0.8"
+            ],
+            [
+              "Ron",
+              "1m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IGBT",
+      "name": "IGBT",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "IGBT",
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 132,
+          "text": "IGBT (IGBT)",
+          "label": "IGBT",
+          "prefix": "IGBT",
+          "ui_type": "Switch",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": true,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IGBT_DIODE",
+      "name": "IGBT with Diode",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "IGBTDiode",
+      "aliases": [
+        "IGBTDiode"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 133,
+          "text": "IGBT with Diode (IGBT_DIODE)",
+          "label": "IGBT+D",
+          "prefix": "IGBT_DIODE",
+          "ui_type": "IGBTDiode",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IGCT",
+      "name": "IGCT",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "IGCT",
+      "params": [
+        {
+          "name": "Vd",
+          "default": "0.8"
+        },
+        {
+          "name": "Ron",
+          "default": "1m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 134,
+          "text": "IGCT (IGCT)",
+          "label": "IGCT",
+          "prefix": "IGCT",
+          "ui_type": "IGCT",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": false,
+          "params": [
+            [
+              "Vd",
+              "0.8"
+            ],
+            [
+              "Ron",
+              "1m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MOSFET",
+      "name": "MOSFET",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "MOSFET",
+      "aliases": [
+        "MOSFET_DIODE"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 135,
+          "text": "MOSFET (MOSFET)",
+          "label": "MOSFET",
+          "prefix": "MOSFET",
+          "ui_type": "MOSFET",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": true,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "vg-FET",
+      "name": "Voltage-Gated FET",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "VGFET",
+      "aliases": [
+        "VGFET"
+      ],
+      "params": [
+        {
+          "name": "Gate_Signal_Label",
+          "default": "S1"
+        },
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 136,
+          "text": "Voltage-Gated FET (vg-FET)",
+          "label": "vg-FET",
+          "prefix": "vg-FET",
+          "ui_type": "VGFET",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": true,
+          "params": [
+            [
+              "Gate_Signal_Label",
+              "S1"
+            ],
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "BJT",
+      "name": "BJT",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "BJT",
+      "params": [
+        {
+          "name": "Vd",
+          "default": "0.7"
+        },
+        {
+          "name": "Ron",
+          "default": "1m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 137,
+          "text": "BJT (BJT)",
+          "label": "BJT",
+          "prefix": "BJT",
+          "ui_type": "BJT",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": false,
+          "params": [
+            [
+              "Vd",
+              "0.7"
+            ],
+            [
+              "Ron",
+              "1m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "JFET",
+      "name": "JFET",
+      "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+      "ui_type": "JFET",
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 138,
+          "text": "JFET (JFET)",
+          "label": "JFET",
+          "prefix": "JFET",
+          "ui_type": "JFET",
+          "subcategory": "Power Semiconductors (Ideal Behavioral Switches)",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "S",
+      "name": "Switch",
+      "subcategory": "Switches",
+      "ui_type": "Switch",
+      "aliases": [
+        "Switch"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 139,
+          "text": "Switch (S)",
+          "label": "S",
+          "prefix": "S",
+          "ui_type": "Switch",
+          "subcategory": "Switches",
+          "basic": true,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "BREAKER",
+      "name": "Breaker",
+      "subcategory": "Switches",
+      "ui_type": "Breaker",
+      "aliases": [
+        "Breaker"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 140,
+          "text": "Breaker (BREAKER)",
+          "label": "Breaker",
+          "prefix": "BREAKER",
+          "ui_type": "Breaker",
+          "subcategory": "Switches",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DBL_SWITCH",
+      "name": "Double Switch",
+      "subcategory": "Switches",
+      "ui_type": "DoubleSwitch",
+      "aliases": [
+        "DoubleSwitch"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 141,
+          "text": "Double Switch (DBL_SWITCH)",
+          "label": "2-Way",
+          "prefix": "DBL_SWITCH",
+          "ui_type": "DoubleSwitch",
+          "subcategory": "Switches",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MAN_SWITCH",
+      "name": "Manual Switch",
+      "subcategory": "Switches",
+      "ui_type": "ElectricalManualSwitch",
+      "aliases": [
+        "ManualSwitch"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 142,
+          "text": "Manual Switch (MAN_SWITCH)",
+          "label": "Man Sw",
+          "prefix": "MAN_SWITCH",
+          "ui_type": "ElectricalManualSwitch",
+          "subcategory": "Switches",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MAN_DBL_SWITCH",
+      "name": "Manual Double Switch",
+      "subcategory": "Switches",
+      "ui_type": "ManualDoubleSwitch",
+      "aliases": [
+        "ManualDoubleSwitch"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 143,
+          "text": "Manual Double Switch (MAN_DBL_SWITCH)",
+          "label": "Man 2Sw",
+          "prefix": "MAN_DBL_SWITCH",
+          "ui_type": "ManualDoubleSwitch",
+          "subcategory": "Switches",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MAN_TRPL_SWITCH",
+      "name": "Manual Triple Switch",
+      "subcategory": "Switches",
+      "ui_type": "ManualTripleSwitch",
+      "aliases": [
+        "ManualTripleSwitch"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 144,
+          "text": "Manual Triple Switch (MAN_TRPL_SWITCH)",
+          "label": "Man 3Sw",
+          "prefix": "MAN_TRPL_SWITCH",
+          "ui_type": "ManualTripleSwitch",
+          "subcategory": "Switches",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SR_SWITCH",
+      "name": "Set/Reset Switch",
+      "subcategory": "Switches",
+      "ui_type": "SRSwitch",
+      "aliases": [
+        "SRSwitch"
+      ],
+      "params": [
+        {
+          "name": "Ron",
+          "default": "10m"
+        },
+        {
+          "name": "Roff",
+          "default": "1M"
+        }
+      ],
+      "palette": [
+        {
+          "order": 145,
+          "text": "Set/Reset Switch (SR_SWITCH)",
+          "label": "SR Sw",
+          "prefix": "SR_SWITCH",
+          "ui_type": "SRSwitch",
+          "subcategory": "Switches",
+          "basic": false,
+          "params": [
+            [
+              "Ron",
+              "10m"
+            ],
+            [
+              "Roff",
+              "1M"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IDEAL_XFMR",
+      "name": "Ideal Transformer",
+      "subcategory": "Transformers",
+      "ui_type": "IdealTransformer",
+      "aliases": [
+        "IdealTransformer"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "100"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 146,
+          "text": "Ideal Transformer (IDEAL_XFMR)",
+          "label": "Ideal XFMR",
+          "prefix": "IDEAL_XFMR",
+          "ui_type": "IdealTransformer",
+          "subcategory": "Transformers",
+          "basic": false,
+          "params": [
+            [
+              "primary_turns",
+              "100"
+            ],
+            [
+              "secondary_turns",
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "XFMR_2W",
+      "name": "Linear Transformer (2-Winding)",
+      "subcategory": "Transformers",
+      "ui_type": "Transformer2W",
+      "aliases": [
+        "Transformer2W"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "100"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 147,
+          "text": "Linear Transformer (2-Winding) (XFMR_2W)",
+          "label": "XFMR 2W",
+          "prefix": "XFMR_2W",
+          "ui_type": "Transformer2W",
+          "subcategory": "Transformers",
+          "basic": true,
+          "params": [
+            [
+              "primary_turns",
+              "100"
+            ],
+            [
+              "secondary_turns",
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "XFMR_3W",
+      "name": "Linear Transformer (3-Winding)",
+      "subcategory": "Transformers",
+      "ui_type": "Transformer3W",
+      "aliases": [
+        "Transformer3W"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "100"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "100, 100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 148,
+          "text": "Linear Transformer (3-Winding) (XFMR_3W)",
+          "label": "XFMR 3W",
+          "prefix": "XFMR_3W",
+          "ui_type": "Transformer3W",
+          "subcategory": "Transformers",
+          "basic": false,
+          "params": [
+            [
+              "primary_turns",
+              "100"
+            ],
+            [
+              "secondary_turns",
+              "100, 100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MUTUAL_2W",
+      "name": "Mutual Inductor (2-Winding)",
+      "subcategory": "Transformers",
+      "ui_type": "MutualInductor2W",
+      "aliases": [
+        "MutualInductor2W"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "100"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 149,
+          "text": "Mutual Inductor (2-Winding) (MUTUAL_2W)",
+          "label": "Mut 2W",
+          "prefix": "MUTUAL_2W",
+          "ui_type": "MutualInductor2W",
+          "subcategory": "Transformers",
+          "basic": false,
+          "params": [
+            [
+              "primary_turns",
+              "100"
+            ],
+            [
+              "secondary_turns",
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MUTUAL_3W",
+      "name": "Mutual Inductor (3-Winding)",
+      "subcategory": "Transformers",
+      "ui_type": "MutualInductor3W",
+      "aliases": [
+        "MutualInductor3W"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "100"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "100, 100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 150,
+          "text": "Mutual Inductor (3-Winding) (MUTUAL_3W)",
+          "label": "Mut 3W",
+          "prefix": "MUTUAL_3W",
+          "ui_type": "MutualInductor3W",
+          "subcategory": "Transformers",
+          "basic": false,
+          "params": [
+            [
+              "primary_turns",
+              "100"
+            ],
+            [
+              "secondary_turns",
+              "100, 100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SAT_XFMR",
+      "name": "Saturable Transformer",
+      "subcategory": "Transformers",
+      "ui_type": "SaturableTransformer",
+      "aliases": [
+        "SaturableTransformer"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "100"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "100"
+        }
+      ],
+      "palette": [
+        {
+          "order": 151,
+          "text": "Saturable Transformer (SAT_XFMR)",
+          "label": "Sat XFMR",
+          "prefix": "SAT_XFMR",
+          "ui_type": "SaturableTransformer",
+          "subcategory": "Transformers",
+          "basic": false,
+          "params": [
+            [
+              "primary_turns",
+              "100"
+            ],
+            [
+              "secondary_turns",
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "XFMR_3PH_2W",
+      "name": "Transformers (3-Phase 2-Winding)",
+      "subcategory": "Transformers",
+      "ui_type": "Transformer3Ph2W",
+      "aliases": [
+        "Transformer3Ph2W"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 152,
+          "text": "Transformers (3-Phase 2-Winding) (XFMR_3PH_2W)",
+          "label": "3Ph 2W XFMR",
+          "prefix": "XFMR_3PH_2W",
+          "ui_type": "Transformer3Ph2W",
+          "subcategory": "Transformers",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INDUCTION_MOTOR",
+      "name": "Induction Motor (1-Phase/3-Phase)",
+      "subcategory": "Electrical Machines",
+      "ui_type": "InductionMotor",
+      "aliases": [
+        "InductionMotor"
+      ],
+      "params": [
+        {
+          "name": "Rs",
+          "default": "1.115"
+        }
+      ],
+      "palette": [
+        {
+          "order": 153,
+          "text": "Induction Motor (1-Phase/3-Phase) (INDUCTION_MOTOR)",
+          "label": "Ind Motor 1Ph/3Ph",
+          "prefix": "INDUCTION_MOTOR",
+          "ui_type": "InductionMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            [
+              "Rs",
+              "1.115"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IND_MOTOR",
+      "name": "Induction Motor",
+      "subcategory": "Electrical Machines",
+      "ui_type": "InductionMotor",
+      "params": [
+        {
+          "name": "Rs",
+          "default": "1.115"
+        }
+      ],
+      "palette": [
+        {
+          "order": 154,
+          "text": "Induction Motor (IND_MOTOR)",
+          "label": "Ind Motor",
+          "prefix": "IND_MOTOR",
+          "ui_type": "InductionMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            [
+              "Rs",
+              "1.115"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "OPAMP",
+      "name": "Operational Amplifier",
+      "subcategory": "Electronics",
+      "ui_type": "OpAmp",
+      "aliases": [
+        "OpAmp"
+      ],
+      "params": [
+        {
+          "name": "gain",
+          "default": "1e5"
+        }
+      ],
+      "palette": [
+        {
+          "order": 155,
+          "text": "Operational Amplifier (OPAMP)",
+          "label": "OpAmp",
+          "prefix": "OPAMP",
+          "ui_type": "OpAmp",
+          "subcategory": "Electronics",
+          "basic": false,
+          "params": [
+            [
+              "gain",
+              "1e5"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "E_COMP",
+      "name": "Comparator (Electrical)",
+      "subcategory": "Electronics",
+      "ui_type": "EComp",
+      "aliases": [
+        "EComp"
+      ],
+      "params": [
+        {
+          "name": "gain",
+          "default": "1e5"
+        }
+      ],
+      "palette": [
+        {
+          "order": 156,
+          "text": "Comparator (Electrical) (E_COMP)",
+          "label": "E-Comp",
+          "prefix": "E_COMP",
+          "ui_type": "EComp",
+          "subcategory": "Electronics",
+          "basic": false,
+          "params": [
+            [
+              "gain",
+              "1e5"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GEN_EBLOCK",
+      "name": "Generalized Electrical Block",
+      "subcategory": "Custom Machine/Load Models",
+      "ui_type": "GenEBlock",
+      "aliases": [
+        "GenEBlock"
+      ],
+      "params": [
+        {
+          "name": "terminals",
+          "default": "3"
+        }
+      ],
+      "palette": [
+        {
+          "order": 157,
+          "text": "Generalized Electrical Block (GEN_EBLOCK)",
+          "label": "Gen E-Block",
+          "prefix": "GEN_EBLOCK",
+          "ui_type": "GenEBlock",
+          "subcategory": "Custom Machine/Load Models",
+          "basic": true,
+          "params": [
+            [
+              "terminals",
+              "3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "IC_555",
+      "name": "555 Timer",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_7400",
+      "name": "7400 Quad NAND",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_7404",
+      "name": "7404 Hex Inverter",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_7408",
+      "name": "7408 Quad AND",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_7432",
+      "name": "7432 Quad OR",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_LM317",
+      "name": "LM317 Adjustable Regulator",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_LM7805",
+      "name": "LM7805 5 V Regulator",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "IC_PC817",
+      "name": "PC817 Optocoupler",
+      "subcategory": "Integrated Circuits",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "TRPL_SWITCH",
+      "name": "Triple Switch",
+      "subcategory": "Switches",
+      "ui_type": "TripleSwitch",
+      "aliases": [
+        "TripleSwitch"
+      ],
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "XFMR",
+      "name": "Transformer (multi-winding)",
+      "subcategory": "Transformers",
+      "ui_type": "Transformer",
+      "aliases": [
+        "Transformer"
+      ],
+      "params": [
+        {
+          "name": "primary_turns",
+          "default": "[100]"
+        },
+        {
+          "name": "secondary_turns",
+          "default": "[100]"
+        },
+        {
+          "name": "polarity",
+          "default": "inverted"
+        },
+        {
+          "name": "Lm",
+          "default": "1m"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "XFMR_3PH_3W",
+      "name": "Transformer (3-Phase 3-Winding)",
+      "subcategory": "Transformers",
+      "ui_type": "Transformer3Ph3W",
+      "aliases": [
+        "Transformer3Ph3W"
+      ],
+      "params": [],
+      "palette": []
+    }
+  ]
+}

@@ -53,10 +53,19 @@ std::vector<SwitchLossResult> LossAnalysisEngine::runAnalysis(
     double duration, 
     double global_tj
 ) {
-    std::vector<SwitchLossResult> results;
-    
     auto telemetry = const_cast<CircuitSimulator*>(&sim)->getTelemetryCopy();
-    
+    return runAnalysis(telemetry, design, t_start, duration, global_tj);
+}
+
+std::vector<SwitchLossResult> LossAnalysisEngine::runAnalysis(
+    const TelemetryData& telemetry,
+    const CircuitSim::CircuitDesign& design,
+    double t_start,
+    double duration,
+    double global_tj
+) {
+    std::vector<SwitchLossResult> results;
+
     // get time array
     const auto& t_all = telemetry.timeHistory;
     if (t_all.empty()) return results;

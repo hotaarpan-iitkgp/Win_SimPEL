@@ -371,7 +371,7 @@ void ScopeWindow::renderToolbar(const CircuitSimEngine::TelemetryData& data, con
         std::string scopeIdLower = scopeId;
         std::transform(scopeIdLower.begin(), scopeIdLower.end(), scopeIdLower.begin(), ::tolower);
         std::string defaultName = projectBaseName + "_" + scopeIdLower + "_waveform.svg";
-        std::string path = SVGExporter::saveSVGFileDialog("Export Scope Waveforms as SVG", defaultName);
+        std::string path = FileDialogs::saveSVGFileDialog("Export Scope Waveforms as SVG", defaultName);
         if (!path.empty()) {
             double tMin = -1.0, tMax = -1.0;
             if (viewTimeMax > viewTimeMin && !data.timeHistory.empty()) {

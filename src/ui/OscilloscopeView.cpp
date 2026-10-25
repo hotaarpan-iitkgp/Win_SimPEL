@@ -235,7 +235,7 @@ void OscilloscopeView::render(const char* title, CircuitSimEngine::CircuitSimula
 
     if (ImGui::Button("Export SVG##oscSvgBtn")) {
         std::string defaultName = projectBaseName + "_oscilloscope_waveform.svg";
-        std::string path = SVGExporter::saveSVGFileDialog("Export Oscilloscope Waveforms as SVG", defaultName);
+        std::string path = FileDialogs::saveSVGFileDialog("Export Oscilloscope Waveforms as SVG", defaultName);
         if (!path.empty()) {
             std::vector<std::string> sigKeys;
             std::vector<std::string> sigLabels;

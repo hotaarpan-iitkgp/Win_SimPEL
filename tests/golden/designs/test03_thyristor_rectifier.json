@@ -1,0 +1,297 @@
+{
+  "components": [
+    {
+      "id": "AC_V",
+      "type": "AC_V",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "311",
+        "frequency": "50"
+      }
+    },
+    {
+      "id": "THYRISTOR1",
+      "type": "THYRISTOR",
+      "x": 400,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "Vd": "1"
+      }
+    },
+    {
+      "id": "FROM_SIG1",
+      "type": "FROM_SIG",
+      "x": 320,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "tag": "Gate"
+      }
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 500,
+      "y": 200,
+      "rotation": 270,
+      "parameters": {
+        "L": "10m"
+      }
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 600,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "GND1",
+      "type": "GND",
+      "x": 200,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "VM1",
+      "type": "VM",
+      "x": 680,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "PULSE1",
+      "type": "PULSE_GEN",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "1",
+        "period": "0.02",
+        "width": "0.5"
+      }
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": 300,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "tag": "Gate"
+      }
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 800,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      }
+    },
+    {
+      "id": "GOTO_SIG_VM1",
+      "type": "GOTO_SIG",
+      "x": 740,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "tag": "Vout"
+      }
+    },
+    {
+      "id": "FROM_SIG_VM1",
+      "type": "FROM_SIG",
+      "x": 740,
+      "y": 220,
+      "rotation": 0,
+      "parameters": {
+        "tag": "Vout"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "AC_V",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "K"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "AC_V",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "AC_V",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND1",
+        "terminal": "1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "THYRISTOR1",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG_VM1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG_VM1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    }
+  ],
+  "simulationSettings": {
+    "stopTime": "0.05",
+    "stepSize": "1e-5"
+  }
+}

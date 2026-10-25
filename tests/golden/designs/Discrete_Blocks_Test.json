@@ -1,0 +1,174 @@
+{
+  "components": [
+    {
+      "id": "CONST_INPUT",
+      "type": "CONST",
+      "x": -400,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "value": "1.0"
+      }
+    },
+    {
+      "id": "SINE_INPUT",
+      "type": "SINE_WAVE",
+      "x": -400,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "1.0",
+        "frequency": "5.0",
+        "phase": "0.0",
+        "bias": "1.0"
+      }
+    },
+    {
+      "id": "DISCRETE_INT1",
+      "type": "DISCRETE_INT",
+      "x": -200,
+      "y": -300,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.01",
+        "method": "Forward Euler",
+        "initial_value": "1.0"
+      }
+    },
+    {
+      "id": "DISCRETE_TF1",
+      "type": "DISCRETE_TF",
+      "x": -200,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.01",
+        "num": "[0.1]",
+        "den": "[1 -0.9]"
+      }
+    },
+    {
+      "id": "DISCRETE_SS1",
+      "type": "DISCRETE_SS",
+      "x": -200,
+      "y": -100,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.01",
+        "A": "[0.5]",
+        "B": "[1]",
+        "C": "[1]",
+        "D": "[0]",
+        "x0": "[1.0]"
+      }
+    },
+    {
+      "id": "DISCRETE_PID1",
+      "type": "DISCRETE_PID",
+      "x": -200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.01",
+        "Kp": "1.0",
+        "Ki": "0.1",
+        "Kd": "0.0",
+        "limit_output": "false"
+      }
+    },
+    {
+      "id": "UNIT_DELAY1",
+      "type": "UNIT_DELAY",
+      "x": -200,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.02"
+      }
+    },
+    {
+      "id": "ZOH1",
+      "type": "ZOH",
+      "x": -200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.02"
+      }
+    },
+    {
+      "id": "DISCRETE_MEAN1",
+      "type": "DISCRETE_MEAN",
+      "x": -200,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "ts": "0.001",
+        "period": "0.02",
+        "initial_value": "1.0"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": { "type": "pin", "compId": "CONST_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "DISCRETE_INT1", "terminal": "In" }
+    },
+    {
+      "id": "w2",
+      "from": { "type": "pin", "compId": "SINE_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "DISCRETE_TF1", "terminal": "In" }
+    },
+    {
+      "id": "w3",
+      "from": { "type": "pin", "compId": "SINE_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "DISCRETE_SS1", "terminal": "In" }
+    },
+    {
+      "id": "w4",
+      "from": { "type": "pin", "compId": "CONST_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "DISCRETE_PID1", "terminal": "In" }
+    },
+    {
+      "id": "w5",
+      "from": { "type": "pin", "compId": "SINE_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "UNIT_DELAY1", "terminal": "In" }
+    },
+    {
+      "id": "w6",
+      "from": { "type": "pin", "compId": "SINE_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "ZOH1", "terminal": "In" }
+    },
+    {
+      "id": "w7",
+      "from": { "type": "pin", "compId": "SINE_INPUT", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "DISCRETE_MEAN1", "terminal": "In" }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Discrete Blocks Outputs",
+        "variables": [
+          "CONST_INPUT.Out",
+          "SINE_INPUT.Out",
+          "DISCRETE_INT1.Out",
+          "DISCRETE_TF1.Out",
+          "DISCRETE_SS1.Out",
+          "DISCRETE_PID1.Out",
+          "UNIT_DELAY1.Out",
+          "ZOH1.Out",
+          "DISCRETE_MEAN1.Out"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.5",
+    "h": "0.001",
+    "solver": "euler",
+    "step_type": "fixed"
+  },
+  "description": "Test of Discrete Time Dynamics Blocks (Non-zero inputs)"
+}

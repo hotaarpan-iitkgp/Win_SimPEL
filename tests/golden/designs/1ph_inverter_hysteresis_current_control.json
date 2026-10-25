@@ -1,0 +1,460 @@
+{
+  "components": [
+    {
+      "id": "MOSFET1",
+      "type": "MOSFET",
+      "x": -80,
+      "y": -560,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET2",
+      "type": "MOSFET",
+      "x": -80,
+      "y": -320,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "lastClickTime": 1782624096509
+    },
+    {
+      "id": "MOSFET3",
+      "type": "MOSFET",
+      "x": 40,
+      "y": -560,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "MOSFET4",
+      "type": "MOSFET",
+      "x": 40,
+      "y": -320,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "V1",
+      "type": "V",
+      "x": -260,
+      "y": -420,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 200,
+      "y": -500,
+      "rotation": 270,
+      "parameters": {
+        "L": "10m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1782624393663
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 300,
+      "y": -440,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      }
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 460,
+      "y": -440,
+      "rotation": 0,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      },
+      "lastClickTime": 1782624375480
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": -320,
+      "y": -140,
+      "rotation": 0,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "",
+        "code": "// 1. Declare parameters and default values at the top (editable in properties panel)\nconst double I_ref = 2.0;      // Reference current amplitude (A)\nconst double fm = 50.0;        // Reference current frequency (Hz)\nconst double h_band = 0.1;     // Hysteresis band width (A)\n\n// 2. Declare state variables at the top (retained across steps)\ndouble g1_state = 0.0;         // Leg A upper gate state\ndouble g3_state = 1.0;         // Leg B upper gate state\n\n// 3. Dynamic step function\nvoid step() {\n    // Sensed feedback current from input pin (In1)\n    double i_act = inputs[0];\n    \n    // Generate sinusoidal current reference\n    double pi = 3.141592653589793;\n    double i_ref = I_ref * sin(2.0 * pi * fm * time);\n    \n    // Calculate current tracking error\n    double i_err = i_ref - i_act;\n    \n    // Hysteresis switching logic\n    if (i_err > h_band) {\n        // Current is too low: apply positive voltage (+Vdc) to increase current\n        // Leg A upper ON, Leg B upper OFF\n        g1_state = 1.0;\n        g3_state = 0.0;\n    } else if (i_err < -h_band) {\n        // Current is too high: apply negative voltage (-Vdc) to decrease current\n        // Leg A upper OFF, Leg B upper ON\n        g1_state = 0.0;\n        g3_state = 1.0;\n    }\n    // If error is within [-h_band, h_band], switch states remain unchanged (memory)\n    \n    // Complementary gate pulse generation\n    double g1 = g1_state;\n    double g2 = (g1 > 0.5) ? 0.0 : 1.0;\n    \n    double g3 = g3_state;\n    double g4 = (g3 > 0.5) ? 0.0 : 1.0;\n    \n    // 4. Map gate signals directly to block output terminals\n    outputs[0] = g1; // Out1 (Leg A upper gate signal)\n    outputs[1] = g2; // Out2 (Leg A lower gate signal)\n    outputs[2] = g3; // Out3 (Leg B upper gate signal)\n    outputs[3] = g4; // Out4 (Leg B lower gate signal)\n}",
+        "plot_disabled_pins": "",
+        "fm": "50.0",
+        "pi": "3.141592653589793",
+        "I_ref": "2.0",
+        "h_band": "0.1",
+        "g1_state": "0.0",
+        "g3_state": "1.0"
+      },
+      "lastClickTime": 0
+    },
+    {
+      "id": "PROBE1",
+      "type": "PROBE",
+      "x": 400,
+      "y": -180,
+      "rotation": 0,
+      "parameters": {
+        "target": "L1,MOSFET2",
+        "selected_signals": "I_L1,V_MOSFET2"
+      },
+      "lastClickTime": 1782625472910
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 540,
+      "y": -180,
+      "rotation": 0,
+      "parameters": {
+        "channels": "2"
+      },
+      "lastClickTime": 1782624110116
+    },
+    {
+      "id": "PROBE2",
+      "type": "PROBE",
+      "x": -540,
+      "y": -120,
+      "rotation": 0,
+      "parameters": {
+        "target": "L1,MOSFET2",
+        "selected_signals": "I_L1,V_MOSFET2"
+      },
+      "lastClickTime": 1782625480064
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "S"
+      }
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "D"
+      }
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      },
+      "manualPath": [
+        {
+          "x": -260,
+          "y": -460
+        },
+        {
+          "x": -260,
+          "y": -620
+        },
+        {
+          "x": -80,
+          "y": -620
+        },
+        {
+          "x": -80,
+          "y": -600
+        }
+      ]
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "S"
+      },
+      "manualPath": [
+        {
+          "x": -260,
+          "y": -380
+        },
+        {
+          "x": -260,
+          "y": -260
+        },
+        {
+          "x": -80,
+          "y": -260
+        },
+        {
+          "x": -80,
+          "y": -280
+        }
+      ]
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET2",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out3"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET3",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W15",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out4"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET4",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W16",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE1",
+        "terminal": "I_L1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W17",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE1",
+        "terminal": "V_MOSFET2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE1",
+        "terminal": "In2"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W6",
+        "x": 300,
+        "y": -500
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W2",
+        "x": -80,
+        "y": -500
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W18",
+      "from": {
+        "type": "pin",
+        "compId": "PROBE2",
+        "terminal": "I_L1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In1"
+      },
+      "manualPath": null
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "CSCRIPT1.In1",
+          "CSCRIPT1.Out1",
+          "CSCRIPT1.Out2",
+          "CSCRIPT1.Out3",
+          "CSCRIPT1.Out4"
+        ]
+      },
+      {
+        "title": "Custom Subplot Lane",
+        "variables": [
+          "I_L1"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.1",
+    "stepSize": "1e-5",
+    "stepType": "fixed",
+    "solver": "euler"
+  }
+}

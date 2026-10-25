@@ -2,6 +2,7 @@
 
 #include "engine/Components.hpp"
 #include "engine/CircuitSimulator.hpp"
+#include "engine/NetlistGenerator.hpp"
 #include "ui/TracePlotter.hpp"
 #include "imgui.h"
 #include <string>
@@ -46,7 +47,8 @@ public:
     float getTraceLineWidth() const { return traceLineWidth; }
 
     void triggerAutoFit() { autoFitNext = true; }
-    static std::string generateNetlistJson(const CircuitDesign& design);
+    // Kept for existing callers; the implementation lives in the engine.
+    static std::string generateNetlistJson(const CircuitDesign& design) { return CircuitSim::generateNetlistJson(design); }
     void updateFromCircuit(const CircuitDesign& design);
     void render(const char* title, CircuitDesign& design, CircuitSimEngine::CircuitSimulator& simulator);
 };

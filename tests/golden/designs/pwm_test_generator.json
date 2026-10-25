@@ -1,0 +1,66 @@
+{
+  "components": [
+    {
+      "id": "SINE1",
+      "type": "SINE_WAVE",
+      "x": 100,
+      "y": 250,
+      "rotation": 0,
+      "parameters": { "amplitude": "0.5", "frequency": "50", "phase": "0", "bias": "0.5" },
+      "label": "50Hz Sine Reference (0 to 1)"
+    },
+    {
+      "id": "PWM1",
+      "type": "PWM",
+      "x": 300,
+      "y": 250,
+      "rotation": 0,
+      "parameters": { "frequency": "1k", "min": "0", "max": "1" },
+      "label": "1kHz PWM Generator"
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 500,
+      "y": 250,
+      "rotation": 0,
+      "parameters": { "channels": "2" },
+      "label": "Output Scope"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "PWM1", "terminal": "In" }
+    },
+    {
+      "id": "w2",
+      "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SCOPE1", "terminal": "In1" }
+    },
+    {
+      "id": "w3",
+      "from": { "type": "pin", "compId": "PWM1", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SCOPE1", "terminal": "In2" }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Reference Signal",
+        "variables": [ "SINE1.Out" ]
+      },
+      {
+        "title": "PWM Output",
+        "variables": [ "PWM1.Out" ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.04",
+    "stepSize": "10u",
+    "solver": "euler",
+    "stepType": "fixed"
+  }
+}

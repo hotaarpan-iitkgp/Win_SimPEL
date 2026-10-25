@@ -1,0 +1,58 @@
+{
+  "components": [
+    {
+      "id": "SINE_A",
+      "type": "SINE_WAVE",
+      "x": -400, "y": -200, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "0" }
+    },
+    {
+      "id": "SINE_B",
+      "type": "SINE_WAVE",
+      "x": -400, "y": -100, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "-120" }
+    },
+    {
+      "id": "SINE_C",
+      "type": "SINE_WAVE",
+      "x": -400, "y": 0, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "-240" }
+    },
+    {
+      "id": "PWM1",
+      "type": "PWM_3PH",
+      "x": -200, "y": -150, "rotation": 0,
+      "parameters": { "fc": "1000", "dead_time": "0.0" }
+    },
+    {
+      "id": "SVPWM1",
+      "type": "SVPWM",
+      "x": -200, "y": 50, "rotation": 0,
+      "parameters": { "fc": "1000", "dead_time": "0.0" }
+    }
+  ],
+  "wires": [
+    { "id": "w1", "from": { "type": "pin", "compId": "SINE_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "PWM1", "terminal": "Va" } },
+    { "id": "w2", "from": { "type": "pin", "compId": "SINE_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "PWM1", "terminal": "Vb" } },
+    { "id": "w3", "from": { "type": "pin", "compId": "SINE_C", "terminal": "Out" }, "to": { "type": "pin", "compId": "PWM1", "terminal": "Vc" } },
+    { "id": "w4", "from": { "type": "pin", "compId": "SINE_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "SVPWM1", "terminal": "Va" } },
+    { "id": "w5", "from": { "type": "pin", "compId": "SINE_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "SVPWM1", "terminal": "Vb" } },
+    { "id": "w6", "from": { "type": "pin", "compId": "SINE_C", "terminal": "Out" }, "to": { "type": "pin", "compId": "SVPWM1", "terminal": "Vc" } }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Modulators Outputs",
+        "variables": [
+          "SINE_A.Out", "SINE_B.Out", "SINE_C.Out",
+          "PWM1.gA1", "PWM1.gB1", "PWM1.gC1",
+          "SVPWM1.gA1", "SVPWM1.gB1", "SVPWM1.gC1"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.05", "h": "1e-5", "solver": "euler", "step_type": "fixed"
+  },
+  "description": "Test of Modulators"
+}

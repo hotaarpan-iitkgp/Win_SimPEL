@@ -1,0 +1,118 @@
+{
+  "components": [
+    {
+      "id": "CONST1",
+      "type": "CONSTANT",
+      "x": -400, "y": -400, "rotation": 0,
+      "parameters": { "value": "5.0" }
+    },
+    {
+      "id": "CONST2",
+      "type": "CONSTANT",
+      "x": -400, "y": -300, "rotation": 0,
+      "parameters": { "value": "3.0" }
+    },
+    {
+      "id": "CONST3",
+      "type": "CONSTANT",
+      "x": -400, "y": -200, "rotation": 0,
+      "parameters": { "value": "-2.0" }
+    },
+    {
+      "id": "OFFSET1",
+      "type": "OFFSET",
+      "x": -200, "y": -400, "rotation": 0,
+      "parameters": { "offset": "2.0" }
+    },
+    {
+      "id": "SUM1",
+      "type": "SUM",
+      "x": -200, "y": -300, "rotation": 0,
+      "parameters": { "signs": "++" }
+    },
+    {
+      "id": "SUM_ROUND1",
+      "type": "SUM_ROUND",
+      "x": -200, "y": -200, "rotation": 0,
+      "parameters": { "signs": "++" }
+    },
+    {
+      "id": "SUM_RECT1",
+      "type": "SUM_RECT",
+      "x": -200, "y": -100, "rotation": 0,
+      "parameters": { "signs": "++" }
+    },
+    {
+      "id": "SUBTRACT1",
+      "type": "SUBTRACT",
+      "x": -200, "y": 0, "rotation": 0,
+      "parameters": { "signs": "+-" }
+    },
+    {
+      "id": "PROD1",
+      "type": "PRODUCT_RECT",
+      "x": -200, "y": 100, "rotation": 0,
+      "parameters": { "operators": "**" }
+    },
+    {
+      "id": "SIGNUM1",
+      "type": "SIGNUM",
+      "x": -200, "y": 200, "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "DIVIDE1",
+      "type": "DIVIDE",
+      "x": -200, "y": 300, "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CONV1",
+      "type": "DATATYPE_CONV",
+      "x": -200, "y": 400, "rotation": 0,
+      "parameters": { "datatype": "integer" }
+    }
+  ],
+  "wires": [
+    { "id": "w1", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "OFFSET1", "terminal": "In" } },
+    
+    { "id": "w2", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUM1", "terminal": "A" } },
+    { "id": "w3", "from": { "type": "pin", "compId": "CONST2", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUM1", "terminal": "B" } },
+    
+    { "id": "w4", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUM_ROUND1", "terminal": "A" } },
+    { "id": "w5", "from": { "type": "pin", "compId": "CONST2", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUM_ROUND1", "terminal": "B" } },
+    
+    { "id": "w6", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUM_RECT1", "terminal": "A" } },
+    { "id": "w7", "from": { "type": "pin", "compId": "CONST2", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUM_RECT1", "terminal": "B" } },
+    
+    { "id": "w8", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUBTRACT1", "terminal": "A" } },
+    { "id": "w9", "from": { "type": "pin", "compId": "CONST2", "terminal": "Out" }, "to": { "type": "pin", "compId": "SUBTRACT1", "terminal": "B" } },
+    
+    { "id": "w10", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "PROD1", "terminal": "In1" } },
+    { "id": "w11", "from": { "type": "pin", "compId": "CONST2", "terminal": "Out" }, "to": { "type": "pin", "compId": "PROD1", "terminal": "In2" } },
+    
+    { "id": "w12", "from": { "type": "pin", "compId": "CONST3", "terminal": "Out" }, "to": { "type": "pin", "compId": "SIGNUM1", "terminal": "In" } },
+    
+    { "id": "w13", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "DIVIDE1", "terminal": "Num" } },
+    { "id": "w14", "from": { "type": "pin", "compId": "CONST2", "terminal": "Out" }, "to": { "type": "pin", "compId": "DIVIDE1", "terminal": "Den" } },
+    
+    { "id": "w15", "from": { "type": "pin", "compId": "CONST1", "terminal": "Out" }, "to": { "type": "pin", "compId": "CONV1", "terminal": "In" } }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Math Outputs",
+        "variables": [
+          "CONST1.Out", "CONST2.Out", "CONST3.Out",
+          "OFFSET1.Out", "SUM1.Out", "SUM_ROUND1.Out",
+          "SUM_RECT1.Out", "SUBTRACT1.Out", "PROD1.Out",
+          "SIGNUM1.Out", "DIVIDE1.Out", "CONV1.Out"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.1", "h": "1e-4", "solver": "euler", "step_type": "fixed"
+  },
+  "description": "Test of Math Blocks"
+}

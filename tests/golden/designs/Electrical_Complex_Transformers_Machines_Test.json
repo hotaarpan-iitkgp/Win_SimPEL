@@ -1,0 +1,1132 @@
+{
+  "components": [
+    {
+      "id": "XFMR_3W1",
+      "type": "XFMR_3W",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_XFMR_3W1",
+      "type": "V",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_XFMR_3W1",
+      "type": "GND",
+      "x": 400,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD1_XFMR_3W1",
+      "type": "R",
+      "x": 300,
+      "y": -20,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD2_XFMR_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 20,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "MUTUAL_3W1",
+      "type": "MUTUAL_3W",
+      "x": 200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_MUTUAL_3W1",
+      "type": "V",
+      "x": 0,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_MUTUAL_3W1",
+      "type": "GND",
+      "x": 400,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD1_MUTUAL_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOAD2_MUTUAL_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 220,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "SAT_XFMR1",
+      "type": "SAT_XFMR",
+      "x": 200,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_SAT_XFMR1",
+      "type": "V",
+      "x": 0,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "GND_SAT_XFMR1",
+      "type": "GND",
+      "x": 400,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOAD_SAT_XFMR1",
+      "type": "R",
+      "x": 300,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "XFMR_3PH_2W1",
+      "type": "XFMR_3PH_2W",
+      "x": 200,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_XFMR_3PH_2W1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "230"
+      }
+    },
+    {
+      "id": "GND_XFMR_3PH_2W1",
+      "type": "GND",
+      "x": 400,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOADA2_XFMR_3PH_2W1",
+      "type": "R",
+      "x": 300,
+      "y": 580,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADB2_XFMR_3PH_2W1",
+      "type": "R",
+      "x": 300,
+      "y": 600,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADC2_XFMR_3PH_2W1",
+      "type": "R",
+      "x": 300,
+      "y": 620,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "XFMR_3PH_3W1",
+      "type": "XFMR_3PH_3W",
+      "x": 200,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_XFMR_3PH_3W1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "230"
+      }
+    },
+    {
+      "id": "GND_XFMR_3PH_3W1",
+      "type": "GND",
+      "x": 400,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "LOADA2_XFMR_3PH_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 780,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADB2_XFMR_3PH_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 800,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADC2_XFMR_3PH_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 820,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADA3_XFMR_3PH_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 840,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADB3_XFMR_3PH_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 860,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "LOADC3_XFMR_3PH_3W1",
+      "type": "R",
+      "x": 300,
+      "y": 880,
+      "rotation": 0,
+      "parameters": {
+        "value": "10"
+      }
+    },
+    {
+      "id": "INDUCTION_MOTOR1",
+      "type": "INDUCTION_MOTOR",
+      "x": 200,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_INDUCTION_MOTOR1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "230"
+      }
+    },
+    {
+      "id": "GND_INDUCTION_MOTOR1",
+      "type": "GND",
+      "x": 400,
+      "y": 1000,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_INDUCTION_MOTOR1",
+      "type": "CONST",
+      "x": 100,
+      "y": 950,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    },
+    {
+      "id": "IND_MOTOR1",
+      "type": "IND_MOTOR",
+      "x": 200,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SRC_IND_MOTOR1",
+      "type": "V_3PH",
+      "x": 0,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {
+        "magnitude": "230"
+      }
+    },
+    {
+      "id": "GND_IND_MOTOR1",
+      "type": "GND",
+      "x": 400,
+      "y": 1200,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CTRL_IND_MOTOR1",
+      "type": "CONST",
+      "x": 100,
+      "y": 1150,
+      "rotation": 0,
+      "parameters": {
+        "value": "5"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3W1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3W1",
+        "terminal": "P1"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3W1",
+        "terminal": "P2"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3W1",
+        "terminal": "S1_1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD1_XFMR_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w5",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3W1",
+        "terminal": "S1_2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD1_XFMR_3W1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w6",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD1_XFMR_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w7",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3W1",
+        "terminal": "S2_1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD2_XFMR_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w8",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3W1",
+        "terminal": "S2_2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD2_XFMR_3W1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w9",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD2_XFMR_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w10",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MUTUAL_3W1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MUTUAL_3W1",
+        "terminal": "P1"
+      }
+    },
+    {
+      "id": "w11",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MUTUAL_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MUTUAL_3W1",
+        "terminal": "P2"
+      }
+    },
+    {
+      "id": "w12",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_MUTUAL_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w13",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_3W1",
+        "terminal": "S1_1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD1_MUTUAL_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w14",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_3W1",
+        "terminal": "S1_2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD1_MUTUAL_3W1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w15",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD1_MUTUAL_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w16",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_3W1",
+        "terminal": "S2_1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD2_MUTUAL_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w17",
+      "from": {
+        "type": "pin",
+        "compId": "MUTUAL_3W1",
+        "terminal": "S2_2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD2_MUTUAL_3W1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w18",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD2_MUTUAL_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_MUTUAL_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w19",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_SAT_XFMR1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SAT_XFMR1",
+        "terminal": "P1"
+      }
+    },
+    {
+      "id": "w20",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_SAT_XFMR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SAT_XFMR1",
+        "terminal": "P2"
+      }
+    },
+    {
+      "id": "w21",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_SAT_XFMR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_SAT_XFMR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w22",
+      "from": {
+        "type": "pin",
+        "compId": "SAT_XFMR1",
+        "terminal": "S1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_SAT_XFMR1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w23",
+      "from": {
+        "type": "pin",
+        "compId": "SAT_XFMR1",
+        "terminal": "S2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOAD_SAT_XFMR1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w24",
+      "from": {
+        "type": "pin",
+        "compId": "LOAD_SAT_XFMR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_SAT_XFMR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w25",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_2W1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3PH_2W1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w26",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_2W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3PH_2W1",
+        "terminal": "B1"
+      }
+    },
+    {
+      "id": "w27",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_2W1",
+        "terminal": "C"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3PH_2W1",
+        "terminal": "C1"
+      }
+    },
+    {
+      "id": "w28",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_2W1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w29",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_2W1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADA2_XFMR_3PH_2W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w30",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_2W1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADB2_XFMR_3PH_2W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w31",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_2W1",
+        "terminal": "C2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADC2_XFMR_3PH_2W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w32",
+      "from": {
+        "type": "pin",
+        "compId": "LOADA2_XFMR_3PH_2W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w33",
+      "from": {
+        "type": "pin",
+        "compId": "LOADB2_XFMR_3PH_2W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w34",
+      "from": {
+        "type": "pin",
+        "compId": "LOADC2_XFMR_3PH_2W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_2W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w35",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_3W1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "A1"
+      }
+    },
+    {
+      "id": "w36",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "B1"
+      }
+    },
+    {
+      "id": "w37",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_3W1",
+        "terminal": "C"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "C1"
+      }
+    },
+    {
+      "id": "w38",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_XFMR_3PH_3W1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w39",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "A2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADA2_XFMR_3PH_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w40",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "B2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADB2_XFMR_3PH_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w41",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "C2"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADC2_XFMR_3PH_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w42",
+      "from": {
+        "type": "pin",
+        "compId": "LOADA2_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w43",
+      "from": {
+        "type": "pin",
+        "compId": "LOADB2_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w44",
+      "from": {
+        "type": "pin",
+        "compId": "LOADC2_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w45",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "a3"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADA3_XFMR_3PH_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w46",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "b3"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADB3_XFMR_3PH_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w47",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR_3PH_3W1",
+        "terminal": "c3"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "LOADC3_XFMR_3PH_3W1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w48",
+      "from": {
+        "type": "pin",
+        "compId": "LOADA3_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w49",
+      "from": {
+        "type": "pin",
+        "compId": "LOADB3_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w50",
+      "from": {
+        "type": "pin",
+        "compId": "LOADC3_XFMR_3PH_3W1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_XFMR_3PH_3W1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w51",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_INDUCTION_MOTOR1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "INDUCTION_MOTOR1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w52",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_INDUCTION_MOTOR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "INDUCTION_MOTOR1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w53",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_INDUCTION_MOTOR1",
+        "terminal": "C"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "INDUCTION_MOTOR1",
+        "terminal": "C"
+      }
+    },
+    {
+      "id": "w54",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_INDUCTION_MOTOR1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_INDUCTION_MOTOR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w55",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_INDUCTION_MOTOR1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "INDUCTION_MOTOR1",
+        "terminal": "TL"
+      }
+    },
+    {
+      "id": "w56",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IND_MOTOR1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IND_MOTOR1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "w57",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IND_MOTOR1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IND_MOTOR1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "w58",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IND_MOTOR1",
+        "terminal": "C"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IND_MOTOR1",
+        "terminal": "C"
+      }
+    },
+    {
+      "id": "w59",
+      "from": {
+        "type": "pin",
+        "compId": "SRC_IND_MOTOR1",
+        "terminal": "N"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GND_IND_MOTOR1",
+        "terminal": "Gnd"
+      }
+    },
+    {
+      "id": "w60",
+      "from": {
+        "type": "pin",
+        "compId": "CTRL_IND_MOTOR1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "IND_MOTOR1",
+        "terminal": "TL"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": []
+  },
+  "description": "Test Complex Transformers and Machines"
+}

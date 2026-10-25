@@ -1,0 +1,254 @@
+{
+  "components": [
+    {
+      "id": "V_in",
+      "type": "V",
+      "x": 100,
+      "y": 300,
+      "rotation": 0,
+      "parameters": { "value": "24.0" },
+      "label": "Input DC (24V)"
+    },
+    {
+      "id": "Q1",
+      "type": "MOSFET",
+      "x": 240,
+      "y": 200,
+      "rotation": 270,
+      "parameters": { "Ron": "1m", "Roff": "1e5" },
+      "label": "Buck Switch"
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 300,
+      "y": 300,
+      "rotation": 180,
+      "parameters": { "Ron": "1m", "Roff": "1e5" },
+      "label": "Freewheeling Diode"
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 400,
+      "y": 200,
+      "rotation": 270,
+      "parameters": { "L": "330u", "esr": "0.02" }
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 500,
+      "y": 300,
+      "rotation": 0,
+      "parameters": { "C": "100u", "vC0": "0.0" }
+    },
+    {
+      "id": "R_load",
+      "type": "R",
+      "x": 600,
+      "y": 300,
+      "rotation": 0,
+      "parameters": { "value": "5.0" }
+    },
+    {
+      "id": "V_out_meter",
+      "type": "VM",
+      "x": 700,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "REF",
+      "type": "CONST",
+      "x": 400,
+      "y": 600,
+      "rotation": 0,
+      "parameters": { "value": "12.0" }
+    },
+    {
+      "id": "ERROR_SUM",
+      "type": "SUM",
+      "x": 500,
+      "y": 600,
+      "rotation": 0,
+      "parameters": { "signs": "+-" }
+    },
+    {
+      "id": "PID_CTRL",
+      "type": "PID",
+      "x": 600,
+      "y": 600,
+      "rotation": 0,
+      "parameters": { "Kp": "0.1", "Ki": "100.0", "Kd": "0", "limit_output": "true", "upper_limit": "0.95", "lower_limit": "0.05", "anti_windup": "true" }
+    },
+    {
+      "id": "PWM_GEN",
+      "type": "PWM",
+      "x": 700,
+      "y": 600,
+      "rotation": 0,
+      "parameters": { "frequency": "50k", "min": "0", "max": "1" }
+    },
+    {
+      "id": "GND1",
+      "type": "GND",
+      "x": 100,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND2",
+      "type": "GND",
+      "x": 300,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND3",
+      "type": "GND",
+      "x": 500,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND4",
+      "type": "GND",
+      "x": 600,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "GND5",
+      "type": "GND",
+      "x": 700,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SCOPE1",
+      "type": "SCOPE",
+      "x": 800,
+      "y": 450,
+      "rotation": 0,
+      "parameters": { "channels": "2" },
+      "label": "Output Scope"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": { "type": "pin", "compId": "V_in", "terminal": "A" },
+      "to": { "type": "pin", "compId": "Q1", "terminal": "D" }
+    },
+    {
+      "id": "w2",
+      "from": { "type": "pin", "compId": "Q1", "terminal": "S" },
+      "to": { "type": "pin", "compId": "D1", "terminal": "B" }
+    },
+    {
+      "id": "w3",
+      "from": { "type": "pin", "compId": "D1", "terminal": "B" },
+      "to": { "type": "pin", "compId": "L1", "terminal": "A" }
+    },
+    {
+      "id": "w4",
+      "from": { "type": "pin", "compId": "L1", "terminal": "B" },
+      "to": { "type": "pin", "compId": "C1", "terminal": "A" }
+    },
+    {
+      "id": "w5",
+      "from": { "type": "pin", "compId": "C1", "terminal": "A" },
+      "to": { "type": "pin", "compId": "R_load", "terminal": "A" }
+    },
+    {
+      "id": "w6",
+      "from": { "type": "pin", "compId": "R_load", "terminal": "A" },
+      "to": { "type": "pin", "compId": "V_out_meter", "terminal": "A" }
+    },
+    {
+      "id": "wg1",
+      "from": { "type": "pin", "compId": "V_in", "terminal": "B" },
+      "to": { "type": "pin", "compId": "GND1", "terminal": "A" }
+    },
+    {
+      "id": "wg2",
+      "from": { "type": "pin", "compId": "D1", "terminal": "A" },
+      "to": { "type": "pin", "compId": "GND2", "terminal": "A" }
+    },
+    {
+      "id": "wg3",
+      "from": { "type": "pin", "compId": "C1", "terminal": "B" },
+      "to": { "type": "pin", "compId": "GND3", "terminal": "A" }
+    },
+    {
+      "id": "wg4",
+      "from": { "type": "pin", "compId": "R_load", "terminal": "B" },
+      "to": { "type": "pin", "compId": "GND4", "terminal": "A" }
+    },
+    {
+      "id": "wg5",
+      "from": { "type": "pin", "compId": "V_out_meter", "terminal": "B" },
+      "to": { "type": "pin", "compId": "GND5", "terminal": "A" }
+    },
+    {
+      "id": "c1",
+      "from": { "type": "pin", "compId": "REF", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "ERROR_SUM", "terminal": "A" }
+    },
+    {
+      "id": "c2",
+      "from": { "type": "pin", "compId": "V_out_meter", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "ERROR_SUM", "terminal": "B" }
+    },
+    {
+      "id": "c3",
+      "from": { "type": "pin", "compId": "ERROR_SUM", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "PID_CTRL", "terminal": "In" }
+    },
+    {
+      "id": "c4",
+      "from": { "type": "pin", "compId": "PID_CTRL", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "PWM_GEN", "terminal": "In" }
+    },
+    {
+      "id": "c5",
+      "from": { "type": "pin", "compId": "PWM_GEN", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "Q1", "terminal": "G" }
+    },
+    {
+      "id": "cs1",
+      "from": { "type": "pin", "compId": "V_out_meter", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SCOPE1", "terminal": "In1" }
+    },
+    {
+      "id": "cs2",
+      "from": { "type": "pin", "compId": "PID_CTRL", "terminal": "Out" },
+      "to": { "type": "pin", "compId": "SCOPE1", "terminal": "In2" }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Output Voltage (V)",
+        "variables": [ "V_out_meter.Out", "REF.Out" ]
+      },
+      {
+        "title": "PID Control Signal",
+        "variables": [ "PID_CTRL.Out" ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.01",
+    "stepSize": "0.1u",
+    "solver": "euler",
+    "stepType": "fixed"
+  }
+}

@@ -1,0 +1,67 @@
+# Golden-output regression manifest.
+# name | design file (relative to designs/) | options
+# options: tstop=<s> dt=<s> maxsteps=<n> (default 20000) step=<fixed|variable>
+# Designs copied from ../working jsons and ../regression_tests.
+1ph_inverter_hysteresis_basic_blocks | 1ph_inverter_hysteresis_basic_blocks.json |
+1ph_inverter_hysteresis_current_control | 1ph_inverter_hysteresis_current_control.json |
+1ph_inverter_unipolar | 1ph_inverter_unipolar.json |
+3-Level_3_phase_T-type_VSI_min_max_injection_PWM_svpwm_type | 3-Level 3_phase T-type VSI min max injection PWM svpwm type.json |
+3P_VSI_goto_from_block_test | 3P VSI goto from block test.json |
+3Phase_Inverter_Sin_PWM | 3Phase Inverter Sin PWM.json |
+Buck_example | Buck example.json |
+Buck_converter | Buck_converter.json |
+Buck_converter__adaptive | Buck_converter.json | step=variable
+Cascaded_H-bridge_5-level_inverter_single_phase | Cascaded H-bridge 5-level inverter single phase.json |
+Control_Blocks_Test | Control_Blocks_Test.json |
+Delay_Blocks_Test | Delay_Blocks_Test.json |
+Discontinuous_Blocks_Test | Discontinuous_Blocks_Test.json |
+Discrete_Blocks_Test | Discrete_Blocks_Test.json |
+Dual_Active_Bridge_converter | Dual Active Bridge converter.json |
+Electrical_Blocks_Test | Electrical_Blocks_Test.json |
+Electrical_Complex_Switches_Test | Electrical_Complex_Switches_Test.json |
+Electrical_Complex_Transformers_Machines_Test | Electrical_Complex_Transformers_Machines_Test.json |
+Electrical_ICs_Electronics_Test | Electrical_ICs_Electronics_Test.json |
+Electrical_Machines_Transformers_Test | Electrical_Machines_Transformers_Test.json |
+Electrical_Remaining_Missing_Test | Electrical_Remaining_Missing_Test.json |
+Electrical_Semiconductors_Test | Electrical_Semiconductors_Test.json |
+Filters_Measurements_Test | Filters_Measurements_Test.json |
+Flyback_Converter_Closed_loop | Flyback Converter Closed loop.json |
+Forward_Converter_closed_loop | Forward Converter closed loop.json |
+Forward_Converter_mw | Forward Converter mw.json |
+Forward_Converter | Forward Converter.json |
+Logical_Blocks_Test | Logical_Blocks_Test.json |
+Math_Blocks_Test | Math_Blocks_Test.json |
+Modulators_Test | Modulators_Test.json |
+SEPIC_open_loop | SEPIC open loop.json |
+State_Machines_Test | State_Machines_Test.json |
+Three_Phase_VSI_min_max_injection_PWM_svpwm_type | Three Phase VSI min max injection PWM svpwm type.json |
+Three_Phase_VSI_sin_PWM | Three Phase VSI sin PWM.json |
+Three_phase_inverter | Three phase inverter.json |
+Transforms_Test | Transforms_Test.json |
+boost_closed_loop | boost closed loop.json |
+boost_closed_loop__adaptive | boost closed loop.json | step=variable
+buck_closed_dual_loop | buck closed dual loop.json |
+buck_converter_pid_test | buck_converter_pid_test.json |
+fixed_thyristor_bridge | fixed_thyristor_bridge.json |
+forward_converter_multiwinding_fixed | forward_converter_multiwinding_fixed.json |
+functionstables | functionstables.json |
+pwm_test_comparator | pwm_test_comparator.json |
+pwm_test_generator | pwm_test_generator.json |
+scenario1_buck_converter | scenario1_buck_converter.json |
+sepic_closed_loop_script_routing_test | sepic closed loop script routing test.json |
+sepic_closed_loop_with_script_block_and_wireless_routing | sepic closed loop with script block and wireless routing.json |
+snubber_thyristor_bridge | snubber_thyristor_bridge.json |
+test_functions | test_functions.json |
+three_phase_inverter_basic_spwm_fixed | three_phase_inverter_basic_spwm_fixed.json |
+three_phase_inverter_spwm | three_phase_inverter_spwm.json |
+user_fixed_netlist | user_fixed_netlist.json |
+user_forward_converter_test | user_forward_converter_test.json |
+vgFET_3Phase_VSI | vgFET 3Phase VSI.json |
+zeta_converter_pid_closed_loop | zeta_converter_pid_closed_loop.json |
+test01_buck_pid | test01_buck_pid.json |
+test01_buck_pid__adaptive | test01_buck_pid.json | step=variable
+test02_inverter_spwm | test02_inverter_spwm.json |
+test03_thyristor_rectifier | test03_thyristor_rectifier.json |
+test03_thyristor_rectifier__adaptive | test03_thyristor_rectifier.json | step=variable
+test04_isolated_flyback | test04_isolated_flyback.json |
+test05_control_logic | test05_control_logic.json |

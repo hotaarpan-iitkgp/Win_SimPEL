@@ -1,0 +1,366 @@
+{
+  "components": [
+    {
+      "id": "V_in",
+      "type": "V",
+      "x": -540,
+      "y": 40,
+      "rotation": 0,
+      "parameters": {
+        "value": "24.0"
+      },
+      "label": "Input DC (24V)"
+    },
+    {
+      "id": "vgFET1",
+      "type": "vg-FET",
+      "x": -380,
+      "y": 180,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M",
+        "Gate_Signal_Label": "S1"
+      },
+      "label": "Primary Switch"
+    },
+    {
+      "id": "XFMR1",
+      "type": "XFMR",
+      "x": -280,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "primary_turns": "[100]",
+        "secondary_turns": "[-50]",
+        "polarity": "inverted"
+      },
+      "label": "Flyback Transformer (Coupled Inductor)",
+      "lastClickTime": 1783168723370
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": -140,
+      "y": 0,
+      "rotation": 270,
+      "parameters": {
+        "Ron": "5m",
+        "Roff": "1M"
+      },
+      "label": "Flyback Diode"
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 60,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "C": "1000u",
+        "vC0": "0"
+      },
+      "label": "Output Capacitor",
+      "lastClickTime": 1783168667127
+    },
+    {
+      "id": "R_load",
+      "type": "R",
+      "x": 160,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "value": "4.0"
+      },
+      "label": "Load"
+    },
+    {
+      "id": "VM1",
+      "type": "VM",
+      "x": 240,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {},
+      "label": "V_out Sensor"
+    },
+    {
+      "id": "V_set",
+      "type": "CONST",
+      "x": 140,
+      "y": 320,
+      "rotation": 180,
+      "parameters": {
+        "value": "12.0"
+      },
+      "label": "Target Reference",
+      "lastClickTime": 1783168707409
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": -40,
+      "y": 300,
+      "rotation": 180,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "ramp,duty",
+        "code": "// ─── ZONE 1: Parameters (editable in properties panel) ───\nconst double V_ref = 12.0;     // Target regulated output voltage\nconst double Kp = 0.25;        // Proportional gain\nconst double Ki = 120.0;       // Integral gain\nconst double fc = 100000.0;    // Switching frequency\nconst double dt = 1e-6;        // Controller time step\nconst double D_max = 0.50;     // Maximum duty cycle\nconst double D_min = 0.01;     // Minimum duty cycle\n\n// ─── ZONE 2: State Variables (persistent across time steps) ───\ndouble integrator = 0.0;      // PI loop accumulator\ndouble ramp = 0.0;            // PWM sawtooth carrier accumulator\n\n// ─── ZONE 3: Step Function (runs every time step) ───\nvoid step() {\n    double v_target = inputs[0];\n    double v_actual = inputs[1];\n    double error = v_target - v_actual;\n    double P = Kp * error;\n    double next_integrator = integrator + Ki * error * dt;\n    double duty = P + next_integrator;\n\n    if (duty > D_max) {\n        duty = D_max;\n        if (error < 0.0) {\n            integrator = next_integrator;\n        }\n    } else if (duty < D_min) {\n        duty = D_min;\n        if (error > 0.0) {\n            integrator = next_integrator;\n        }\n    } else {\n        integrator = next_integrator;\n    }\n\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? next_ramp - 1.0 : next_ramp;\n    double gate = (ramp < duty) ? 1.0 : 0.0;\n    outputs[0] = gate;\n}",
+        "V_ref": "12.0",
+        "Kp": "0.25",
+        "Ki": "120.0",
+        "fc": "100000.0",
+        "dt": "1e-6",
+        "D_max": "0.50",
+        "D_min": "0.01",
+        "integrator": "0.0",
+        "ramp": "0.0"
+      },
+      "lastClickTime": 1783168726073
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": -180,
+      "y": 300,
+      "rotation": 180,
+      "parameters": {
+        "tag": "S1"
+      },
+      "label": "Wireless Gate Routing",
+      "lastClickTime": 1783168703217
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": -420,
+      "y": 40,
+      "rotation": 180,
+      "parameters": {
+        "L": "10u",
+        "esr": "2m"
+      },
+      "label": "Post-Filter Inductor",
+      "lastClickTime": 1783168756828
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "V_in",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "P1A"
+      }
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "P1B"
+      }
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "vgFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V_in",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "S1A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "XFMR1",
+        "terminal": "S1B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "R_load",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W_ctrl1",
+      "from": {
+        "type": "pin",
+        "compId": "V_set",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In1"
+      }
+    },
+    {
+      "id": "W_ctrl2",
+      "from": {
+        "type": "pin",
+        "compId": "VM1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "In2"
+      }
+    },
+    {
+      "id": "W_gate_wireless",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W2",
+        "x": -380,
+        "y": 80
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W1",
+        "x": -420,
+        "y": -20
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W7",
+        "x": 60,
+        "y": 0
+      },
+      "manualPath": null
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Flyback Output Tracking",
+        "variables": [
+          "V_C1",
+          "I_L_filter"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.05",
+    "stepSize": "1e-6",
+    "stepType": "fixed",
+    "solver": "euler"
+  }
+}

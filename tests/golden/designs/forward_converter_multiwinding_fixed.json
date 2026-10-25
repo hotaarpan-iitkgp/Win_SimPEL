@@ -1,0 +1,371 @@
+{
+  "components": [
+    {
+      "id": "V_in",
+      "type": "V",
+      "x": -540.0,
+      "y": 100.0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24.0"
+      }
+    },
+    {
+      "id": "vgFET1",
+      "type": "MOSFET",
+      "x": -340.0,
+      "y": 160.0,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "XFMR1",
+      "type": "XFMR",
+      "x": -280.0,
+      "y": 60.0,
+      "rotation": 0,
+      "parameters": {
+        "polarity": "non_inverted",
+        "primary_turns": "[100 100]",
+        "secondary_turns": "[50 50]"
+      }
+    },
+    {
+      "id": "D_reset",
+      "type": "D",
+      "x": -220.0,
+      "y": 20.0,
+      "rotation": 180,
+      "parameters": {
+        "Ron": "5m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 60.0,
+      "y": -120.0,
+      "rotation": 270,
+      "parameters": {
+        "Ron": "5m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "D2",
+      "type": "D",
+      "x": 100.0,
+      "y": -60.0,
+      "rotation": 180,
+      "parameters": {
+        "Ron": "1m",
+        "Roff": "1M",
+        "Vd": "0.7"
+      }
+    },
+    {
+      "id": "L_filter",
+      "type": "L",
+      "x": 160.0,
+      "y": -120.0,
+      "rotation": 270,
+      "parameters": {
+        "L": "100u",
+        "esr": "2m"
+      }
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 220.0,
+      "y": -60.0,
+      "rotation": 0,
+      "parameters": {
+        "C": "1000u",
+        "vC0": "0"
+      }
+    },
+    {
+      "id": "R_load",
+      "type": "R",
+      "x": 300.0,
+      "y": -60.0,
+      "rotation": 0,
+      "parameters": {
+        "value": "4.0"
+      }
+    },
+    {
+      "id": "VM1",
+      "type": "VM",
+      "x": 380.0,
+      "y": -60.0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "D3",
+      "type": "D",
+      "x": -160.0,
+      "y": 140.0,
+      "rotation": 270,
+      "parameters": {
+        "Ron": "5m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "D4",
+      "type": "D",
+      "x": -120.0,
+      "y": 200.0,
+      "rotation": 180,
+      "parameters": {
+        "Ron": "1m",
+        "Roff": "1M",
+        "Vd": "0.7"
+      }
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": -60.0,
+      "y": 140.0,
+      "rotation": 270,
+      "parameters": {
+        "L": "100u",
+        "esr": "2m"
+      }
+    },
+    {
+      "id": "C2",
+      "type": "C",
+      "x": 0.0,
+      "y": 200.0,
+      "rotation": 0,
+      "parameters": {
+        "C": "1000u",
+        "vC0": "0"
+      }
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 80.0,
+      "y": 200.0,
+      "rotation": 0,
+      "parameters": {
+        "value": "4.0"
+      }
+    },
+    {
+      "id": "V_set",
+      "type": "CONST",
+      "x": 480.0,
+      "y": 160.0,
+      "rotation": 180,
+      "parameters": {
+        "value": "12.0"
+      }
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": 300.0,
+      "y": 140.0,
+      "rotation": 180,
+      "parameters": {
+        "code": "// Closed-Loop PI Voltage Controller for Forward Converter\nconst double V_ref = 12.0;\nconst double Kp = 0.25;\nconst double Ki = 120.0;\nconst double fc = 50000.0;\nconst double dt = 1e-6;\nconst double D_max = 0.45;\nconst double D_min = 0.01;\n\ndouble integrator = 0.0;\ndouble ramp = 0.0;\n\nvoid step() {\n    double v_target = inputs[0];\n    double v_actual = inputs[1];\n    double error = v_target - v_actual;\n    double P = Kp * error;\n    double next_integrator = integrator + Ki * error * dt;\n    double duty = P + next_integrator;\n\n    if (duty > D_max) {\n        duty = D_max;\n        if (error < 0.0) integrator = next_integrator;\n    } else if (duty < D_min) {\n        duty = D_min;\n        if (error > 0.0) integrator = next_integrator;\n    } else {\n        integrator = next_integrator;\n    }\n\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? next_ramp - 1.0 : next_ramp;\n    double gate = (ramp < duty) ? 1.0 : 0.0;\n    outputs[0] = gate;\n}"
+      }
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": 160.0,
+      "y": 140.0,
+      "rotation": 180,
+      "parameters": {
+        "tag": "S1"
+      }
+    },
+    {
+      "id": "FROM_SIG1",
+      "type": "FROM_SIG",
+      "x": -420.0,
+      "y": 160.0,
+      "rotation": 0,
+      "parameters": {
+        "tag": "S1"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": { "compId": "V_in", "terminal": "A", "type": "pin" },
+      "to": { "compId": "XFMR1", "terminal": "P1A", "type": "pin" }
+    },
+    {
+      "id": "W2",
+      "from": { "compId": "vgFET1", "terminal": "D", "type": "pin" },
+      "to": { "compId": "XFMR1", "terminal": "P1B", "type": "pin" }
+    },
+    {
+      "id": "W3",
+      "from": { "compId": "vgFET1", "terminal": "S", "type": "pin" },
+      "to": { "compId": "V_in", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W_gate_direct",
+      "from": { "compId": "FROM_SIG1", "terminal": "Out", "type": "pin" },
+      "to": { "compId": "vgFET1", "terminal": "G", "type": "pin" }
+    },
+    {
+      "id": "W_reset1",
+      "from": { "compId": "XFMR1", "terminal": "P2B", "type": "pin" },
+      "to": { "compId": "D_reset", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W_reset2",
+      "from": { "compId": "D_reset", "terminal": "B", "type": "pin" },
+      "to": { "compId": "V_in", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W_reset3",
+      "from": { "compId": "XFMR1", "terminal": "P2A", "type": "pin" },
+      "to": { "compId": "V_in", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W4",
+      "from": { "compId": "XFMR1", "terminal": "S1A", "type": "pin" },
+      "to": { "compId": "D1", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W5",
+      "from": { "compId": "D1", "terminal": "B", "type": "pin" },
+      "to": { "compId": "L_filter", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W6",
+      "from": { "compId": "L_filter", "terminal": "B", "type": "pin" },
+      "to": { "compId": "C1", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W7",
+      "from": { "compId": "C1", "terminal": "A", "type": "pin" },
+      "to": { "compId": "R_load", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W8",
+      "from": { "compId": "R_load", "terminal": "A", "type": "pin" },
+      "to": { "compId": "VM1", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W9",
+      "from": { "compId": "XFMR1", "terminal": "S1B", "type": "pin" },
+      "to": { "compId": "C1", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W10",
+      "from": { "compId": "C1", "terminal": "B", "type": "pin" },
+      "to": { "compId": "R_load", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W11",
+      "from": { "compId": "R_load", "terminal": "B", "type": "pin" },
+      "to": { "compId": "VM1", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W12",
+      "from": { "compId": "D2", "terminal": "B", "type": "pin" },
+      "to": { "compId": "D1", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W13",
+      "from": { "compId": "D2", "terminal": "A", "type": "pin" },
+      "to": { "compId": "C1", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W17",
+      "from": { "compId": "XFMR1", "terminal": "S2A", "type": "pin" },
+      "to": { "compId": "D3", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W14",
+      "from": { "compId": "D3", "terminal": "B", "type": "pin" },
+      "to": { "compId": "L1", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W15",
+      "from": { "compId": "L1", "terminal": "B", "type": "pin" },
+      "to": { "compId": "C2", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W16",
+      "from": { "compId": "C2", "terminal": "A", "type": "pin" },
+      "to": { "compId": "R1", "terminal": "A", "type": "pin" }
+    },
+    {
+      "id": "W18",
+      "from": { "compId": "C2", "terminal": "B", "type": "pin" },
+      "to": { "compId": "R1", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W19",
+      "from": { "compId": "XFMR1", "terminal": "S2B", "type": "pin" },
+      "to": { "compId": "C2", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W23",
+      "from": { "compId": "D4", "terminal": "B", "type": "pin" },
+      "to": { "compId": "D3", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W24",
+      "from": { "compId": "D4", "terminal": "A", "type": "pin" },
+      "to": { "compId": "C2", "terminal": "B", "type": "pin" }
+    },
+    {
+      "id": "W_ctrl1",
+      "from": { "compId": "V_set", "terminal": "Out", "type": "pin" },
+      "to": { "compId": "CSCRIPT1", "terminal": "In1", "type": "pin" }
+    },
+    {
+      "id": "W_ctrl2",
+      "from": { "compId": "VM1", "terminal": "Out", "type": "pin" },
+      "to": { "compId": "CSCRIPT1", "terminal": "In2", "type": "pin" }
+    },
+    {
+      "id": "W_gate_wireless",
+      "from": { "compId": "CSCRIPT1", "terminal": "Out1", "type": "pin" },
+      "to": { "compId": "GOTO_SIG1", "terminal": "In", "type": "pin" }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Regulated Output Voltage V_out vs V_ref (12V)",
+        "variables": [
+          "VM1.Out",
+          "V_set.Out"
+        ]
+      },
+      {
+        "title": "Gate Driving Signal & Controller Duty",
+        "variables": [
+          "CSCRIPT1.Out1"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.02",
+    "stepSize": "1e-6",
+    "stepType": "fixed",
+    "solver": "euler"
+  }
+}

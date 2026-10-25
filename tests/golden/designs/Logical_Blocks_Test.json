@@ -1,0 +1,99 @@
+{
+  "components": [
+    {
+      "id": "CLOCK_A",
+      "type": "CLOCK",
+      "x": -600, "y": -300, "rotation": 0,
+      "parameters": { "frequency": "100", "duty_cycle": "50", "amplitude": "1.0", "offset": "0.0" }
+    },
+    {
+      "id": "CLOCK_B",
+      "type": "CLOCK",
+      "x": -600, "y": -200, "rotation": 0,
+      "parameters": { "frequency": "50", "duty_cycle": "50", "amplitude": "1.0", "offset": "0.0" }
+    },
+    {
+      "id": "CLOCK_C",
+      "type": "CLOCK",
+      "x": -600, "y": -100, "rotation": 0,
+      "parameters": { "frequency": "200", "duty_cycle": "20", "amplitude": "1.0", "offset": "0.0" }
+    },
+    {
+      "id": "LOGIC_AND",
+      "type": "LOGIC_OP",
+      "x": -400, "y": -250, "rotation": 0,
+      "parameters": { "operator": "AND" }
+    },
+    {
+      "id": "LOGIC_OR",
+      "type": "LOGIC_OP",
+      "x": -400, "y": -150, "rotation": 0,
+      "parameters": { "operator": "OR" }
+    },
+    {
+      "id": "BITWISE_XOR",
+      "type": "BITWISE_OP",
+      "x": -400, "y": -50, "rotation": 0,
+      "parameters": { "operator": "XOR", "bit_mask": "1" }
+    },
+    {
+      "id": "EDGE_RISING",
+      "type": "EDGE_DETECT",
+      "x": -400, "y": 50, "rotation": 0,
+      "parameters": { "edge_type": "rising" }
+    },
+    {
+      "id": "MONOSTABLE1",
+      "type": "MONOSTABLE",
+      "x": -400, "y": 150, "rotation": 0,
+      "parameters": { "pulse_width": "0.002", "edge_type": "rising" }
+    },
+    {
+      "id": "RELATIONAL_GT",
+      "type": "RELATIONAL_OPERATOR",
+      "x": -400, "y": 250, "rotation": 0,
+      "parameters": { "operator": ">" }
+    },
+    {
+      "id": "D_FLIP_FLOP1",
+      "type": "D_FLIP_FLOP",
+      "x": -400, "y": 350, "rotation": 0,
+      "parameters": {}
+    }
+  ],
+  "wires": [
+    { "id": "w1", "from": { "type": "pin", "compId": "CLOCK_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "LOGIC_AND", "terminal": "In1" } },
+    { "id": "w2", "from": { "type": "pin", "compId": "CLOCK_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "LOGIC_AND", "terminal": "In2" } },
+    
+    { "id": "w3", "from": { "type": "pin", "compId": "CLOCK_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "LOGIC_OR", "terminal": "In1" } },
+    { "id": "w4", "from": { "type": "pin", "compId": "CLOCK_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "LOGIC_OR", "terminal": "In2" } },
+    
+    { "id": "w5", "from": { "type": "pin", "compId": "CLOCK_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "BITWISE_XOR", "terminal": "In" } },
+    
+    { "id": "w6", "from": { "type": "pin", "compId": "CLOCK_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "EDGE_RISING", "terminal": "In" } },
+    
+    { "id": "w7", "from": { "type": "pin", "compId": "CLOCK_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "MONOSTABLE1", "terminal": "In" } },
+    
+    { "id": "w8", "from": { "type": "pin", "compId": "CLOCK_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "RELATIONAL_GT", "terminal": "In1" } },
+    { "id": "w9", "from": { "type": "pin", "compId": "CLOCK_B", "terminal": "Out" }, "to": { "type": "pin", "compId": "RELATIONAL_GT", "terminal": "In2" } },
+    
+    { "id": "w10", "from": { "type": "pin", "compId": "CLOCK_A", "terminal": "Out" }, "to": { "type": "pin", "compId": "D_FLIP_FLOP1", "terminal": "D" } },
+    { "id": "w11", "from": { "type": "pin", "compId": "CLOCK_C", "terminal": "Out" }, "to": { "type": "pin", "compId": "D_FLIP_FLOP1", "terminal": "Clk" } }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Logical Blocks Outputs",
+        "variables": [
+          "CLOCK_A.Out", "CLOCK_B.Out", "CLOCK_C.Out",
+          "LOGIC_AND.Out", "LOGIC_OR.Out", "BITWISE_XOR.Out", 
+          "EDGE_RISING.Out", "MONOSTABLE1.Out", "RELATIONAL_GT.Out", "D_FLIP_FLOP1.Q"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.05", "h": "1e-5", "solver": "euler", "step_type": "fixed"
+  },
+  "description": "Test of Logical Blocks with Fast Clocks"
+}

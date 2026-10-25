@@ -1,0 +1,375 @@
+{
+  "components": [
+    {
+      "id": "CONST1",
+      "type": "CONST",
+      "x": -200,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "value": "2.5"
+      }
+    },
+    {
+      "id": "INT1",
+      "type": "INTEGRATOR",
+      "x": -100,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "initial_state": "0",
+        "limit_output": "false",
+        "upper_limit": "1",
+        "lower_limit": "-1"
+      }
+    },
+    {
+      "id": "CONST2",
+      "type": "SINE_WAVE",
+      "x": -200,
+      "y": -100,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "10.0",
+        "frequency": "50.0",
+        "phase": "0.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "DERIV1",
+      "type": "DERIVATIVE",
+      "x": -100,
+      "y": -100,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "CONST3",
+      "type": "STEP",
+      "x": -200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "step_time": "0.01",
+        "initial_value": "0.0",
+        "final_value": "1.0"
+      }
+    },
+    {
+      "id": "TF1",
+      "type": "TRANSFER_FCN",
+      "x": -100,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "numerator": "[1]",
+        "denominator": "[1, 1]"
+      }
+    },
+    {
+      "id": "CONST4",
+      "type": "SINE_WAVE",
+      "x": -200,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "1.0",
+        "frequency": "10.0",
+        "phase": "0.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "SS1",
+      "type": "STATE_SPACE",
+      "x": -100,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "A": "[[-1, 0]; [0, -2]]",
+        "B": "[[1]; [1]]",
+        "C": "[[1, 1]]",
+        "D": "[[0]]",
+        "x0": "[0, 0]"
+      }
+    },
+    {
+      "id": "CONST5",
+      "type": "STEP",
+      "x": -200,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "step_time": "0.005",
+        "initial_value": "0.0",
+        "final_value": "2.0"
+      }
+    },
+    {
+      "id": "PID1",
+      "type": "PID",
+      "x": -100,
+      "y": 200,
+      "rotation": 0,
+      "parameters": {
+        "Kp": "1",
+        "Ki": "0.1",
+        "Kd": "0",
+        "limit_output": "false"
+      }
+    },
+    {
+      "id": "CONST6",
+      "type": "SINE_WAVE",
+      "x": -200,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "2.0",
+        "frequency": "5.0",
+        "phase": "0.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "CONT_PID1",
+      "type": "CONT_PID",
+      "x": -100,
+      "y": 300,
+      "rotation": 0,
+      "parameters": {
+        "Kp": "1",
+        "Ki": "0.1",
+        "Kd": "0.01",
+        "limit_output": "false"
+      }
+    },
+    {
+      "id": "CONST7",
+      "type": "SINE_WAVE",
+      "x": 200,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "311.0",
+        "frequency": "50.0",
+        "phase": "0.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "PLL1",
+      "type": "PLL_1PH",
+      "x": 300,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "fn": "50.0",
+        "Kp": "1.0",
+        "Ki": "10.0"
+      }
+    },
+    {
+      "id": "CONST8a",
+      "type": "SINE_WAVE",
+      "x": 200,
+      "y": -50,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "311.0",
+        "frequency": "50.0",
+        "phase": "0.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "CONST8b",
+      "type": "SINE_WAVE",
+      "x": 200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "311.0",
+        "frequency": "50.0",
+        "phase": "-120.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "CONST8c",
+      "type": "SINE_WAVE",
+      "x": 200,
+      "y": 50,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "311.0",
+        "frequency": "50.0",
+        "phase": "120.0",
+        "bias": "0.0"
+      }
+    },
+    {
+      "id": "PLL3",
+      "type": "PLL_3PH",
+      "x": 300,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "fn": "50.0",
+        "Kp": "1.0",
+        "Ki": "10.0"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "CONST1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "INT1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "CONST2",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "DERIV1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "CONST3",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TF1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "CONST4",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SS1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w5",
+      "from": {
+        "type": "pin",
+        "compId": "CONST5",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "PID1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w6",
+      "from": {
+        "type": "pin",
+        "compId": "CONST6",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "CONT_PID1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w7",
+      "from": {
+        "type": "pin",
+        "compId": "CONST7",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "PLL1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w8a",
+      "from": {
+        "type": "pin",
+        "compId": "CONST8a",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "PLL3",
+        "terminal": "Va"
+      }
+    },
+    {
+      "id": "w8b",
+      "from": {
+        "type": "pin",
+        "compId": "CONST8b",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "PLL3",
+        "terminal": "Vb"
+      }
+    },
+    {
+      "id": "w8c",
+      "from": {
+        "type": "pin",
+        "compId": "CONST8c",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "PLL3",
+        "terminal": "Vc"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Control Blocks outputs",
+        "variables": [
+          "INT1.Out",
+          "DERIV1.Out",
+          "TF1.Out",
+          "SS1.Out",
+          "PID1.Out",
+          "CONT_PID1.Out",
+          "PLL1.theta",
+          "PLL3.theta"
+        ]
+      }
+    ]
+  },
+  "description": "Test of various Control Blocks"
+}

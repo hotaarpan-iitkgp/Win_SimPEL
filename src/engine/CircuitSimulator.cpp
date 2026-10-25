@@ -2017,12 +2017,12 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 val = (currentTime >= fc.delay) ? fc.maxVal : fc.minVal;
             }
             else if (fc.type == ComponentType::RandomNumbers) {
-                thread_local std::mt19937 gen(12345);
+                std::mt19937& gen = rngRandomNumbers_;
                 std::normal_distribution<double> dist(fc.val, (fc.gain > 0.0 ? fc.gain : 1.0));
                 val = dist(gen);
             }
             else if (fc.type == ComponentType::WhiteNoise) {
-                thread_local std::mt19937 gen(54321);
+                std::mt19937& gen = rngWhiteNoise_;
                 std::normal_distribution<double> dist(0.0, 1.0);
                 double dt = dtNow;
                 val = std::sqrt(fc.val / dt) * dist(gen);
@@ -4118,6 +4118,10 @@ bool CircuitSimulator::solveNetworkStep(double t, double hStep) {
 
 SimulationOutput CircuitSimulator::runTransient() {
     double nextOutputTime = 0.0;
+    cancelRequested_.store(false, std::memory_order_relaxed);
+    cancelled_ = false;
+    rngRandomNumbers_.seed(12345);
+    rngWhiteNoise_.seed(54321);
     auto simClockStart = std::chrono::high_resolution_clock::now();
     setComputeTimeSeconds(0.0);
     SimulationOutput out;
@@ -4533,6 +4537,7 @@ SimulationOutput CircuitSimulator::runTransient() {
     auto lastPublishClock = simClockStart;
 
     while (currentTime < tStop - 1e-12 && iterCount < max_iterations) {
+        if (cancelRequested_.load(std::memory_order_relaxed)) { cancelled_ = true; break; }
         iterCount++;
 
         // Time this sample is labelled with. The fixed path keeps its historical
@@ -4943,6 +4948,7 @@ SimulationOutput CircuitSimulator::runTransient() {
                 setComputeTimeSeconds(std::chrono::duration<double>(simClockCur - simClockStart).count());
                 appendTelemetryFrom(out);
                 lastPublishClock = simClockCur;
+                if (progressCb_) progressCb_(currentTime, tStop);
             }
         }
     }
@@ -4950,6 +4956,7 @@ SimulationOutput CircuitSimulator::runTransient() {
     auto simClockEnd = std::chrono::high_resolution_clock::now();
     double finalElSec = std::chrono::duration<double>(simClockEnd - simClockStart).count();
     setComputeTimeSeconds(finalElSec);
+    if (progressCb_) progressCb_(currentTime, tStop);
 
     return out;
 }

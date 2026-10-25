@@ -1,0 +1,5121 @@
+{
+  "schema": 1,
+  "category": "control",
+  "description": "Control-domain (signal) blocks.",
+  "blocks": [
+    {
+      "type": "CONST",
+      "name": "Constant",
+      "subcategory": "Sources",
+      "ui_type": "Constant",
+      "aliases": [
+        "Constant"
+      ],
+      "params": [
+        {
+          "name": "value",
+          "default": "1.0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 13,
+          "text": "Constant (CONST)",
+          "label": "Constant",
+          "prefix": "CONST",
+          "ui_type": "Constant",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "value",
+              "1.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "CLOCK",
+      "name": "Clock",
+      "subcategory": "Sources",
+      "ui_type": "Clock",
+      "aliases": [
+        "Clock"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 14,
+          "text": "Clock (CLOCK)",
+          "label": "Clock",
+          "prefix": "CLOCK",
+          "ui_type": "Clock",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INIT_COND",
+      "name": "Initial Condition",
+      "subcategory": "Sources",
+      "ui_type": "InitialCondition",
+      "aliases": [
+        "InitialCondition"
+      ],
+      "params": [
+        {
+          "name": "initial_value",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 15,
+          "text": "Initial Condition (INIT_COND)",
+          "label": "Initial Condition",
+          "prefix": "INIT_COND",
+          "ui_type": "InitialCondition",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "initial_value",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PULSE_GEN",
+      "name": "Pulse Generator",
+      "subcategory": "Sources",
+      "ui_type": "PulseGenerator",
+      "aliases": [
+        "PulseGenerator",
+        "PULSE"
+      ],
+      "params": [
+        {
+          "name": "amplitude",
+          "default": "1"
+        },
+        {
+          "name": "period",
+          "default": "1"
+        },
+        {
+          "name": "width",
+          "default": "0.5"
+        },
+        {
+          "name": "delay",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 16,
+          "text": "Pulse Generator (PULSE_GEN)",
+          "label": "Pulse Gen",
+          "prefix": "PULSE_GEN",
+          "ui_type": "PulseGenerator",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "amplitude",
+              "1"
+            ],
+            [
+              "period",
+              "1"
+            ],
+            [
+              "width",
+              "0.5"
+            ],
+            [
+              "delay",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RAMP",
+      "name": "Ramp",
+      "subcategory": "Sources",
+      "ui_type": "Ramp",
+      "aliases": [
+        "Ramp"
+      ],
+      "params": [
+        {
+          "name": "slope",
+          "default": "1"
+        },
+        {
+          "name": "start_time",
+          "default": "0"
+        },
+        {
+          "name": "initial_output",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 17,
+          "text": "Ramp (RAMP)",
+          "label": "Ramp",
+          "prefix": "RAMP",
+          "ui_type": "Ramp",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "slope",
+              "1"
+            ],
+            [
+              "start_time",
+              "0"
+            ],
+            [
+              "initial_output",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RANDOM_NUM",
+      "name": "Random Numbers",
+      "subcategory": "Sources",
+      "ui_type": "RandomNumbers",
+      "aliases": [
+        "RandomNumbers"
+      ],
+      "params": [
+        {
+          "name": "mean",
+          "default": "0"
+        },
+        {
+          "name": "std",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 18,
+          "text": "Random Numbers (RANDOM_NUM)",
+          "label": "Random Numbers",
+          "prefix": "RANDOM_NUM",
+          "ui_type": "RandomNumbers",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "mean",
+              "0"
+            ],
+            [
+              "std",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SINE_WAVE",
+      "name": "Sine Wave",
+      "subcategory": "Sources",
+      "ui_type": "SineWave",
+      "aliases": [
+        "SineWave"
+      ],
+      "params": [
+        {
+          "name": "amplitude",
+          "default": "1"
+        },
+        {
+          "name": "frequency",
+          "default": "50"
+        },
+        {
+          "name": "phase",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 19,
+          "text": "Sine Wave (SINE_WAVE)",
+          "label": "Sine Wave",
+          "prefix": "SINE_WAVE",
+          "ui_type": "SineWave",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "amplitude",
+              "1"
+            ],
+            [
+              "frequency",
+              "50"
+            ],
+            [
+              "phase",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "STEP",
+      "name": "Step",
+      "subcategory": "Sources",
+      "ui_type": "Step",
+      "aliases": [
+        "Step"
+      ],
+      "params": [
+        {
+          "name": "step_time",
+          "default": "1"
+        },
+        {
+          "name": "initial_value",
+          "default": "0"
+        },
+        {
+          "name": "final_value",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 20,
+          "text": "Step (STEP)",
+          "label": "Step",
+          "prefix": "STEP",
+          "ui_type": "Step",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "step_time",
+              "1"
+            ],
+            [
+              "initial_value",
+              "0"
+            ],
+            [
+              "final_value",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "TRI_GEN",
+      "name": "Triangular Wave Generator",
+      "subcategory": "Sources",
+      "ui_type": "Triangle_Carrier",
+      "aliases": [
+        "Triangle_Carrier"
+      ],
+      "params": [
+        {
+          "name": "frequency",
+          "default": "10k"
+        },
+        {
+          "name": "min",
+          "default": "0"
+        },
+        {
+          "name": "max",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 21,
+          "text": "Triangular Wave Generator (TRI_GEN)",
+          "label": "Triangle",
+          "prefix": "TRI",
+          "ui_type": "Triangle_Carrier",
+          "subcategory": "Sources",
+          "basic": true,
+          "params": [
+            [
+              "frequency",
+              "10k"
+            ],
+            [
+              "min",
+              "0"
+            ],
+            [
+              "max",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "WHITE_NOISE",
+      "name": "White Noise",
+      "subcategory": "Sources",
+      "ui_type": "WhiteNoise",
+      "aliases": [
+        "WhiteNoise"
+      ],
+      "params": [
+        {
+          "name": "psd",
+          "default": "0.1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 22,
+          "text": "White Noise (WHITE_NOISE)",
+          "label": "White Noise",
+          "prefix": "WHITE_NOISE",
+          "ui_type": "WhiteNoise",
+          "subcategory": "Sources",
+          "basic": false,
+          "params": [
+            [
+              "psd",
+              "0.1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GAIN",
+      "name": "Gain Scalar",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Gain",
+      "aliases": [
+        "Gain"
+      ],
+      "params": [
+        {
+          "name": "K",
+          "default": "2.5"
+        }
+      ],
+      "palette": [
+        {
+          "order": 23,
+          "text": "Gain Scalar (GAIN)",
+          "label": "Gain",
+          "prefix": "GAIN",
+          "ui_type": "Gain",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "K",
+              "2.5"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SUM_RECT",
+      "name": "Sum",
+      "subcategory": "Functions & Tables",
+      "ui_type": "SummingJunction",
+      "aliases": [
+        "SummingJunction"
+      ],
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        },
+        {
+          "name": "signs",
+          "default": "++"
+        }
+      ],
+      "palette": [
+        {
+          "order": 24,
+          "text": "Sum (SUM_RECT)",
+          "label": "Sum",
+          "prefix": "SUM_RECT",
+          "ui_type": "SummingJunction",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "++"
+            ]
+          ]
+        },
+        {
+          "order": 92,
+          "text": "Summing Block (SUM)",
+          "label": "SUM",
+          "prefix": "SUM_RECT",
+          "ui_type": "SummingJunction",
+          "subcategory": "Math",
+          "basic": false,
+          "params": [
+            [
+              "signs",
+              "++"
+            ]
+          ]
+        },
+        {
+          "order": 94,
+          "text": "Sum (rectangular) (SUM_RECT)",
+          "label": "SUM",
+          "prefix": "SUM_RECT",
+          "ui_type": "SummingJunction",
+          "subcategory": "Math",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ],
+            [
+              "signs",
+              "++"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PRODUCT_RECT",
+      "name": "Product",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Product",
+      "aliases": [
+        "Product"
+      ],
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        },
+        {
+          "name": "operators",
+          "default": "**"
+        }
+      ],
+      "palette": [
+        {
+          "order": 25,
+          "text": "Product (PROD)",
+          "label": "Product",
+          "prefix": "PROD",
+          "ui_type": "Product",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "operators",
+              "*/"
+            ]
+          ]
+        },
+        {
+          "order": 96,
+          "text": "Product (rectangular) (PRODUCT_RECT)",
+          "label": "PROD",
+          "prefix": "PRODUCT_RECT",
+          "ui_type": "Product",
+          "subcategory": "Math",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ],
+            [
+              "operators",
+              "**"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "TRIG_FCN",
+      "name": "Trigonometric Function",
+      "subcategory": "Functions & Tables",
+      "ui_type": "TrigFunction",
+      "aliases": [
+        "TrigFunction"
+      ],
+      "params": [
+        {
+          "name": "function",
+          "default": "sin"
+        }
+      ],
+      "choices": {
+        "function": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "func": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "fcn": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "expression": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ]
+      },
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "TRIG_FCN",
+          "function": {
+            "param": "function",
+            "default": "sin",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": {
+            "signal": "In2"
+          },
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 26,
+          "text": "Trigonometric Function (TRIG_FCN)",
+          "label": "Trig",
+          "prefix": "TRIG_FCN",
+          "ui_type": "TrigFunction",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": [
+            [
+              "function",
+              "sin"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MATH_FCN",
+      "name": "Math Function",
+      "subcategory": "Functions & Tables",
+      "ui_type": "MathFunction",
+      "aliases": [
+        "MathFunction"
+      ],
+      "params": [
+        {
+          "name": "function",
+          "default": "exp"
+        }
+      ],
+      "choices": {
+        "function": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "func": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "fcn": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "expression": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ]
+      },
+      "palette": [
+        {
+          "order": 27,
+          "text": "Math Function (MATH_FCN)",
+          "label": "Math Function",
+          "prefix": "MATH_FCN",
+          "ui_type": "MathFunction",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "function",
+              "exp"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ABS",
+      "name": "Abs",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Abs",
+      "aliases": [
+        "Abs"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "ABS",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 28,
+          "text": "Abs (ABS)",
+          "label": "Abs",
+          "prefix": "ABS",
+          "ui_type": "Abs",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "SIGN",
+      "name": "Sign",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Sign",
+      "aliases": [
+        "Sign"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "SIGN",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 29,
+          "text": "Sign (SIGN)",
+          "label": "Sign",
+          "prefix": "SIGN",
+          "ui_type": "Sign",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "ROUND",
+      "name": "Round",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Round",
+      "aliases": [
+        "Round"
+      ],
+      "params": [
+        {
+          "name": "mode",
+          "default": "nearest"
+        }
+      ],
+      "choices": {
+        "function": [
+          "round",
+          "floor",
+          "ceil",
+          "fix"
+        ],
+        "func": [
+          "round",
+          "floor",
+          "ceil",
+          "fix"
+        ],
+        "fcn": [
+          "round",
+          "floor",
+          "ceil",
+          "fix"
+        ],
+        "expression": [
+          "round",
+          "floor",
+          "ceil",
+          "fix"
+        ],
+        "alignment": [
+          "nearest",
+          "floor",
+          "ceil",
+          "fix"
+        ],
+        "rounding_mode": [
+          "nearest",
+          "floor",
+          "ceil",
+          "fix"
+        ]
+      },
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "ROUND",
+          "mode": {
+            "param": "mode",
+            "default": "nearest",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 30,
+          "text": "Round (ROUND)",
+          "label": "Round",
+          "prefix": "ROUND",
+          "ui_type": "Round",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": [
+            [
+              "mode",
+              "nearest"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MIN_MAX",
+      "name": "Min/Max",
+      "subcategory": "Functions & Tables",
+      "ui_type": "MinMax",
+      "aliases": [
+        "MinMax"
+      ],
+      "params": [
+        {
+          "name": "function",
+          "default": "min"
+        },
+        {
+          "name": "num_inputs",
+          "default": "2"
+        }
+      ],
+      "choices": {
+        "function": [
+          "min",
+          "max"
+        ],
+        "func": [
+          "min",
+          "max"
+        ],
+        "fcn": [
+          "min",
+          "max"
+        ],
+        "expression": [
+          "min",
+          "max"
+        ]
+      },
+      "palette": [
+        {
+          "order": 31,
+          "text": "Min/Max (MIN_MAX)",
+          "label": "MinMax",
+          "prefix": "MIN_MAX",
+          "ui_type": "MinMax",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": [
+            [
+              "function",
+              "min"
+            ],
+            [
+              "num_inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "POLYNOMIAL",
+      "name": "Polynomial",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Polynomial",
+      "aliases": [
+        "Polynomial"
+      ],
+      "params": [
+        {
+          "name": "coefficients",
+          "default": "[1, 0]"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.functions",
+        "fields": {
+          "original_type": "POLYNOMIAL",
+          "output": "{id}.Out",
+          "input": {
+            "signal": "In"
+          },
+          "coefficients": {
+            "param": "coefficients",
+            "default": "[1, 0]",
+            "as": "string"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 32,
+          "text": "Polynomial (POLYNOMIAL)",
+          "label": "Polynomial",
+          "prefix": "POLYNOMIAL",
+          "ui_type": "Polynomial",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "coefficients",
+              "[1, 0]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "LUT_1D",
+      "name": "1D Look-Up Table",
+      "subcategory": "Functions & Tables",
+      "ui_type": "LUT_1D",
+      "params": [
+        {
+          "name": "x_data",
+          "default": "[0, 1, 2]"
+        },
+        {
+          "name": "y_data",
+          "default": "[0, 2, 4]"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "LUT_1D",
+          "x": {
+            "param": "x_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "y": {
+            "param": "y_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 33,
+          "text": "1D Look-Up Table (LUT_1D)",
+          "label": "LUT 1D",
+          "prefix": "LUT_1D",
+          "ui_type": "LUT_1D",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": [
+            [
+              "x_data",
+              "[0, 1, 2]"
+            ],
+            [
+              "y_data",
+              "[0, 2, 4]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "LUT_2D",
+      "name": "2D Look-Up Table",
+      "subcategory": "Functions & Tables",
+      "ui_type": "LUT_2D",
+      "params": [
+        {
+          "name": "x_data",
+          "default": "[0, 1]"
+        },
+        {
+          "name": "y_data",
+          "default": "[0, 1]"
+        },
+        {
+          "name": "z_data",
+          "default": "[[0, 1], [1, 2]]"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "LUT_2D",
+          "x": {
+            "param": "x_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "y": {
+            "param": "y_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "z": {
+            "param": "z_data",
+            "default": "[[0, 1], [1, 2]]",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 34,
+          "text": "2D Look-Up Table (LUT_2D)",
+          "label": "LUT 2D",
+          "prefix": "LUT_2D",
+          "ui_type": "LUT_2D",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": [
+            [
+              "x_data",
+              "[0, 1]"
+            ],
+            [
+              "y_data",
+              "[0, 1]"
+            ],
+            [
+              "z_data",
+              "[[0, 1], [1, 2]]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "LUT_3D",
+      "name": "3D Look-Up Table",
+      "subcategory": "Functions & Tables",
+      "ui_type": "LUT_3D",
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "LUT_3D",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 35,
+          "text": "3D Look-Up Table (LUT_3D)",
+          "label": "LUT 3D",
+          "prefix": "LUT_3D",
+          "ui_type": "LUT_3D",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "CSCRIPT",
+      "name": "C-Script",
+      "subcategory": "Functions & Tables",
+      "ui_type": "CustomScript",
+      "aliases": [
+        "CustomScript"
+      ],
+      "params": [
+        {
+          "name": "code",
+          "default": "// Step code\noutputs[0] = inputs[0] * 2.0;\n"
+        }
+      ],
+      "palette": [
+        {
+          "order": 36,
+          "text": "C-Script (CSCRIPT)",
+          "label": "C-Script",
+          "prefix": "CSCRIPT",
+          "ui_type": "CustomScript",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "code",
+              "// Step code\noutputs[0] = inputs[0] * 2.0;\n"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ALGEBRAIC_CONSTRAINT",
+      "name": "Algebraic Constraint",
+      "subcategory": "Functions & Tables",
+      "ui_type": "AlgebraicConstraint",
+      "aliases": [
+        "AlgebraicConstraint"
+      ],
+      "params": [
+        {
+          "name": "initial_guess",
+          "default": "0.0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.functions",
+        "fields": {
+          "original_type": "ALGEBRAIC_CONSTRAINT",
+          "output": "{id}.Out",
+          "input": {
+            "signal": "In"
+          },
+          "initial_guess": {
+            "param": "initial_guess",
+            "default": "0.0",
+            "as": "string"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 37,
+          "text": "Algebraic Constraint (ALGEBRAIC_CONSTRAINT)",
+          "label": "Alg Constraint",
+          "prefix": "ALGEBRAIC_CONSTRAINT",
+          "ui_type": "AlgebraicConstraint",
+          "subcategory": "Functions & Tables",
+          "basic": true,
+          "params": [
+            [
+              "initial_guess",
+              "0.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DLL",
+      "name": "DLL",
+      "subcategory": "Functions & Tables",
+      "ui_type": "DLL",
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "{type}",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 38,
+          "text": "DLL (DLL)",
+          "label": "DLL",
+          "prefix": "DLL",
+          "ui_type": "DLL",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "FMU",
+      "name": "FMU",
+      "subcategory": "Functions & Tables",
+      "ui_type": "FMU",
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "{type}",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 39,
+          "text": "FMU (FMU)",
+          "label": "FMU",
+          "prefix": "FMU",
+          "ui_type": "FMU",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "FOURIER_SERIES",
+      "name": "Fourier Series",
+      "subcategory": "Functions & Tables",
+      "ui_type": "FourierSeries",
+      "aliases": [
+        "FourierSeries"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "{type}",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 40,
+          "text": "Fourier Series (FOURIER_SERIES)",
+          "label": "Fourier",
+          "prefix": "FOURIER_SERIES",
+          "ui_type": "FourierSeries",
+          "subcategory": "Functions & Tables",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INTEGRATOR",
+      "name": "Integrator",
+      "subcategory": "Continuous",
+      "ui_type": "Integrator",
+      "aliases": [
+        "Integrator"
+      ],
+      "params": [
+        {
+          "name": "initial_condition",
+          "default": "0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "INTEGRATOR",
+          "initial_condition": {
+            "param": "initial_condition",
+            "default": 0.0
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 41,
+          "text": "Integrator (INTEGRATOR)",
+          "label": "1/s",
+          "prefix": "INTEGRATOR",
+          "ui_type": "Integrator",
+          "subcategory": "Continuous",
+          "basic": false,
+          "params": [
+            [
+              "initial_condition",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DERIVATIVE",
+      "name": "Derivative",
+      "subcategory": "Continuous",
+      "ui_type": "Derivative",
+      "aliases": [
+        "Derivative"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DERIVATIVE",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 42,
+          "text": "Derivative (DERIVATIVE)",
+          "label": "s",
+          "prefix": "DERIVATIVE",
+          "ui_type": "Derivative",
+          "subcategory": "Continuous",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "TRANSFER_FCN",
+      "name": "Transfer Function",
+      "subcategory": "Continuous",
+      "ui_type": "TransferFunction",
+      "aliases": [
+        "TransferFunction"
+      ],
+      "params": [
+        {
+          "name": "num",
+          "default": "[1]"
+        },
+        {
+          "name": "den",
+          "default": "[1, 1]"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "TRANSFER_FCN",
+          "num": {
+            "param": "num",
+            "default": "[1]",
+            "as": "string"
+          },
+          "den": {
+            "param": "den",
+            "default": "[1 1]",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 43,
+          "text": "Transfer Function (TRANSFER_FCN)",
+          "label": "G(s)",
+          "prefix": "TRANSFER_FCN",
+          "ui_type": "TransferFunction",
+          "subcategory": "Continuous",
+          "basic": false,
+          "params": [
+            [
+              "num",
+              "[1]"
+            ],
+            [
+              "den",
+              "[1, 1]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "STATE_SPACE",
+      "name": "State Space",
+      "subcategory": "Continuous",
+      "ui_type": "StateSpace",
+      "aliases": [
+        "StateSpace"
+      ],
+      "params": [
+        {
+          "name": "A",
+          "default": "[-1]"
+        },
+        {
+          "name": "B",
+          "default": "[1]"
+        },
+        {
+          "name": "C",
+          "default": "[1]"
+        },
+        {
+          "name": "D",
+          "default": "[0]"
+        },
+        {
+          "name": "x0",
+          "default": "0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "STATE_SPACE",
+          "A": {
+            "param": "A",
+            "default": "[-1]",
+            "as": "string"
+          },
+          "B": {
+            "param": "B",
+            "default": "[1]",
+            "as": "string"
+          },
+          "C": {
+            "param": "C",
+            "default": "[1]",
+            "as": "string"
+          },
+          "D": {
+            "param": "D",
+            "default": "[0]",
+            "as": "string"
+          },
+          "x0": {
+            "param": "x0",
+            "default": "0",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 44,
+          "text": "State Space (STATE_SPACE)",
+          "label": "State Space",
+          "prefix": "STATE_SPACE",
+          "ui_type": "StateSpace",
+          "subcategory": "Continuous",
+          "basic": false,
+          "params": [
+            [
+              "A",
+              "[-1]"
+            ],
+            [
+              "B",
+              "[1]"
+            ],
+            [
+              "C",
+              "[1]"
+            ],
+            [
+              "D",
+              "[0]"
+            ],
+            [
+              "x0",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PID",
+      "name": "PI Controller",
+      "subcategory": "Continuous",
+      "ui_type": "PI_Controller",
+      "aliases": [
+        "PI_Controller"
+      ],
+      "params": [
+        {
+          "name": "Kp",
+          "default": "2.5"
+        },
+        {
+          "name": "Ki",
+          "default": "50.0"
+        },
+        {
+          "name": "Kd",
+          "default": "0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 45,
+          "text": "PI Controller (PID)",
+          "label": "PID",
+          "prefix": "PID",
+          "ui_type": "PI_Controller",
+          "subcategory": "Continuous",
+          "basic": true,
+          "params": [
+            [
+              "Kp",
+              "2.5"
+            ],
+            [
+              "Ki",
+              "50.0"
+            ],
+            [
+              "Kd",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "CONT_PID",
+      "name": "Continuous PID Controller",
+      "subcategory": "Continuous",
+      "ui_type": "ContinuousPID",
+      "aliases": [
+        "ContinuousPID"
+      ],
+      "params": [
+        {
+          "name": "Kp",
+          "default": "1.0"
+        },
+        {
+          "name": "Ki",
+          "default": "0.0"
+        },
+        {
+          "name": "Kd",
+          "default": "0.0"
+        },
+        {
+          "name": "Tf",
+          "default": "0.01"
+        }
+      ],
+      "palette": [
+        {
+          "order": 46,
+          "text": "Continuous PID Controller (CONT_PID)",
+          "label": "PID(s)",
+          "prefix": "CONT_PID",
+          "ui_type": "ContinuousPID",
+          "subcategory": "Continuous",
+          "basic": false,
+          "params": [
+            [
+              "Kp",
+              "1.0"
+            ],
+            [
+              "Ki",
+              "0.0"
+            ],
+            [
+              "Kd",
+              "0.0"
+            ],
+            [
+              "Tf",
+              "0.01"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PLL_1PH",
+      "name": "Single-Phase PLL",
+      "subcategory": "Continuous",
+      "ui_type": "PLL_1PH",
+      "params": [
+        {
+          "name": "fn",
+          "default": "50.0"
+        },
+        {
+          "name": "Kp",
+          "default": "20.0"
+        },
+        {
+          "name": "Ki",
+          "default": "1000.0"
+        }
+      ],
+      "palette": [
+        {
+          "order": 47,
+          "text": "Single-Phase PLL (PLL_1PH)",
+          "label": "PLL 1Ph",
+          "prefix": "PLL_1PH",
+          "ui_type": "PLL_1PH",
+          "subcategory": "Continuous",
+          "basic": false,
+          "params": [
+            [
+              "fn",
+              "50.0"
+            ],
+            [
+              "Kp",
+              "20.0"
+            ],
+            [
+              "Ki",
+              "1000.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DELAY",
+      "name": "Delay",
+      "subcategory": "Delays",
+      "ui_type": "Delay",
+      "aliases": [
+        "Delay"
+      ],
+      "params": [
+        {
+          "name": "delay",
+          "default": "0.1"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "{type}",
+          "delay": {
+            "param": "delay",
+            "default": 0.1
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 48,
+          "text": "Delay (DELAY)",
+          "label": "Delay",
+          "prefix": "DELAY",
+          "ui_type": "Delay",
+          "subcategory": "Delays",
+          "basic": false,
+          "params": [
+            [
+              "delay",
+              "0.1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "TRANSPORT_DELAY",
+      "name": "Transport Delay",
+      "subcategory": "Delays",
+      "ui_type": "TransportDelay",
+      "aliases": [
+        "TransportDelay"
+      ],
+      "params": [
+        {
+          "name": "delay",
+          "default": "0.1"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "{type}",
+          "delay": {
+            "param": "delay",
+            "default": 0.1
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 49,
+          "text": "Transport Delay (TRANSPORT_DELAY)",
+          "label": "e^-sT",
+          "prefix": "TRANSPORT_DELAY",
+          "ui_type": "TransportDelay",
+          "subcategory": "Delays",
+          "basic": false,
+          "params": [
+            [
+              "delay",
+              "0.1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "TURN_ON_DELAY",
+      "name": "Turn-on Delay",
+      "subcategory": "Delays",
+      "ui_type": "TurnOnDelay",
+      "aliases": [
+        "TurnOnDelay"
+      ],
+      "params": [
+        {
+          "name": "delay",
+          "default": "0.05"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "TURN_ON_DELAY",
+          "delay": {
+            "param": "delay",
+            "default": 0.05
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 50,
+          "text": "Turn-on Delay (TURN_ON_DELAY)",
+          "label": "Ton",
+          "prefix": "TURN_ON_DELAY",
+          "ui_type": "TurnOnDelay",
+          "subcategory": "Delays",
+          "basic": false,
+          "params": [
+            [
+              "delay",
+              "0.05"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MEMORY_BLOCK",
+      "name": "Memory",
+      "subcategory": "Delays",
+      "ui_type": "MemoryBlock",
+      "aliases": [
+        "MemoryBlock",
+        "MEMORY"
+      ],
+      "params": [
+        {
+          "name": "initial_value",
+          "default": "0.0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "MEMORY_BLOCK",
+          "initial_value": {
+            "param": "initial_value",
+            "default": 0.0
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 51,
+          "text": "Memory (MEMORY_BLOCK)",
+          "label": "Mem",
+          "prefix": "MEMORY_BLOCK",
+          "ui_type": "MemoryBlock",
+          "subcategory": "Delays",
+          "basic": false,
+          "params": [
+            [
+              "initial_value",
+              "0.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "QUANTIZER",
+      "name": "Quantizer",
+      "subcategory": "Discontinuous",
+      "ui_type": "Quantizer",
+      "aliases": [
+        "Quantizer"
+      ],
+      "params": [
+        {
+          "name": "step_size",
+          "default": "0.5"
+        },
+        {
+          "name": "mode",
+          "default": "round"
+        }
+      ],
+      "palette": [
+        {
+          "order": 52,
+          "text": "Quantizer (QUANTIZER)",
+          "label": "Quantize",
+          "prefix": "QUANTIZER",
+          "ui_type": "Quantizer",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "step_size",
+              "0.5"
+            ],
+            [
+              "mode",
+              "round"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SIGNAL_SWITCH",
+      "name": "Signal Switch",
+      "subcategory": "Discontinuous",
+      "ui_type": "SignalSwitch",
+      "aliases": [
+        "SignalSwitch"
+      ],
+      "params": [
+        {
+          "name": "threshold",
+          "default": "0.5"
+        },
+        {
+          "name": "criteria",
+          "default": "u2 >= threshold"
+        }
+      ],
+      "palette": [
+        {
+          "order": 53,
+          "text": "Signal Switch (SIGNAL_SWITCH)",
+          "label": "Switch",
+          "prefix": "SIGNAL_SWITCH",
+          "ui_type": "SignalSwitch",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "threshold",
+              "0.5"
+            ],
+            [
+              "criteria",
+              "u2 >= threshold"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MANUAL_SWITCH",
+      "name": "Manual Signal Switch",
+      "subcategory": "Discontinuous",
+      "ui_type": "ManualSwitch",
+      "params": [
+        {
+          "name": "state",
+          "default": "Input 1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 54,
+          "text": "Manual Signal Switch (MANUAL_SWITCH)",
+          "label": "Manual Sw",
+          "prefix": "MANUAL_SWITCH",
+          "ui_type": "ManualSwitch",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "state",
+              "Input 1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MULTIPORT_SWITCH",
+      "name": "Multiport Signal Switch",
+      "subcategory": "Discontinuous",
+      "ui_type": "MultiportSwitch",
+      "aliases": [
+        "MultiportSwitch"
+      ],
+      "params": [
+        {
+          "name": "inputs",
+          "default": "3"
+        },
+        {
+          "name": "indexing",
+          "default": "1-based"
+        }
+      ],
+      "palette": [
+        {
+          "order": 55,
+          "text": "Multiport Signal Switch (MULTIPORT_SWITCH)",
+          "label": "Multiport Sw",
+          "prefix": "MULTIPORT_SWITCH",
+          "ui_type": "MultiportSwitch",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "inputs",
+              "3"
+            ],
+            [
+              "indexing",
+              "1-based"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "HIT_CROSSING",
+      "name": "Hit Crossing",
+      "subcategory": "Discontinuous",
+      "ui_type": "HitCrossing",
+      "aliases": [
+        "HitCrossing"
+      ],
+      "params": [
+        {
+          "name": "offset",
+          "default": "0.0"
+        },
+        {
+          "name": "direction",
+          "default": "either"
+        }
+      ],
+      "choices": {
+        "edgetype": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "edge": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "edge_type": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "direction": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "hit_direction": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "dir": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "detection_mode": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "type": [
+          "either",
+          "rising",
+          "falling"
+        ],
+        "mode": [
+          "either",
+          "rising",
+          "falling"
+        ]
+      },
+      "palette": [
+        {
+          "order": 56,
+          "text": "Hit Crossing (HIT_CROSSING)",
+          "label": "Hit Cross",
+          "prefix": "HIT_CROSSING",
+          "ui_type": "HitCrossing",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "offset",
+              "0.0"
+            ],
+            [
+              "direction",
+              "either"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SATURATION",
+      "name": "Saturation",
+      "subcategory": "Discontinuous",
+      "ui_type": "Saturation",
+      "aliases": [
+        "Saturation"
+      ],
+      "params": [
+        {
+          "name": "min",
+          "default": "-10"
+        },
+        {
+          "name": "max",
+          "default": "10"
+        }
+      ],
+      "palette": [
+        {
+          "order": 57,
+          "text": "Saturation (SATURATION)",
+          "label": "Sat",
+          "prefix": "SATURATION",
+          "ui_type": "Saturation",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "min",
+              "-10"
+            ],
+            [
+              "max",
+              "10"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DEAD_ZONE",
+      "name": "Dead Zone",
+      "subcategory": "Discontinuous",
+      "ui_type": "DeadZone",
+      "aliases": [
+        "DeadZone"
+      ],
+      "params": [
+        {
+          "name": "start",
+          "default": "-0.5"
+        },
+        {
+          "name": "end",
+          "default": "0.5"
+        }
+      ],
+      "palette": [
+        {
+          "order": 58,
+          "text": "Dead Zone (DEAD_ZONE)",
+          "label": "Dead",
+          "prefix": "DEAD_ZONE",
+          "ui_type": "DeadZone",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "start",
+              "-0.5"
+            ],
+            [
+              "end",
+              "0.5"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RATE_LIMITER",
+      "name": "Rate Limiter",
+      "subcategory": "Discontinuous",
+      "ui_type": "RateLimiter",
+      "aliases": [
+        "RateLimiter"
+      ],
+      "params": [
+        {
+          "name": "up",
+          "default": "10"
+        },
+        {
+          "name": "down",
+          "default": "-10"
+        }
+      ],
+      "palette": [
+        {
+          "order": 59,
+          "text": "Rate Limiter (RATE_LIMITER)",
+          "label": "Rate",
+          "prefix": "RATE_LIMITER",
+          "ui_type": "RateLimiter",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "up",
+              "10"
+            ],
+            [
+              "down",
+              "-10"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RELAY",
+      "name": "Relay",
+      "subcategory": "Discontinuous",
+      "ui_type": "Relay",
+      "aliases": [
+        "Relay"
+      ],
+      "params": [
+        {
+          "name": "on_threshold",
+          "default": "1"
+        },
+        {
+          "name": "off_threshold",
+          "default": "-1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 60,
+          "text": "Relay (RELAY)",
+          "label": "Relay",
+          "prefix": "RELAY",
+          "ui_type": "Relay",
+          "subcategory": "Discontinuous",
+          "basic": false,
+          "params": [
+            [
+              "on_threshold",
+              "1"
+            ],
+            [
+              "off_threshold",
+              "-1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "COMP",
+      "name": "Comparator",
+      "subcategory": "Discontinuous",
+      "ui_type": "Comparator",
+      "aliases": [
+        "Comparator"
+      ],
+      "params": [],
+      "choices": {
+        "operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "op": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relop": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relational_operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "condition": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "comparison": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ]
+      },
+      "palette": [
+        {
+          "order": 61,
+          "text": "Comparator (COMP)",
+          "label": "COMP",
+          "prefix": "COMP",
+          "ui_type": "Comparator",
+          "subcategory": "Discontinuous",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "AND",
+      "name": "AND Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "AND_Gate",
+      "aliases": [
+        "AND_Gate"
+      ],
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 62,
+          "text": "AND Gate (AND)",
+          "label": "AND",
+          "prefix": "AND",
+          "ui_type": "AND_Gate",
+          "subcategory": "Logical & Bitwise",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "OR",
+      "name": "OR Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "OR_Gate",
+      "aliases": [
+        "OR_Gate"
+      ],
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 63,
+          "text": "OR Gate (OR)",
+          "label": "OR",
+          "prefix": "OR",
+          "ui_type": "OR_Gate",
+          "subcategory": "Logical & Bitwise",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "NOT",
+      "name": "NOT Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "NOT_Gate",
+      "aliases": [
+        "NOT_Gate"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 64,
+          "text": "NOT Gate (NOT)",
+          "label": "NOT",
+          "prefix": "NOT",
+          "ui_type": "NOT_Gate",
+          "subcategory": "Logical & Bitwise",
+          "basic": true,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "NAND",
+      "name": "NAND Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "Unknown",
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 65,
+          "text": "NAND Gate (NAND)",
+          "label": "NAND",
+          "prefix": "NAND",
+          "ui_type": "AND_Gate",
+          "subcategory": "Logical & Bitwise",
+          "basic": false,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "NOR",
+      "name": "NOR Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "Unknown",
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 66,
+          "text": "NOR Gate (NOR)",
+          "label": "NOR",
+          "prefix": "NOR",
+          "ui_type": "OR_Gate",
+          "subcategory": "Logical & Bitwise",
+          "basic": false,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "XOR",
+      "name": "XOR Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "Unknown",
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 67,
+          "text": "XOR Gate (XOR)",
+          "label": "XOR",
+          "prefix": "XOR",
+          "ui_type": "LogicOp",
+          "subcategory": "Logical & Bitwise",
+          "basic": false,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "XNOR",
+      "name": "XNOR Gate",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "Unknown",
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        }
+      ],
+      "palette": [
+        {
+          "order": 68,
+          "text": "XNOR Gate (XNOR)",
+          "label": "XNOR",
+          "prefix": "XNOR",
+          "ui_type": "LogicOp",
+          "subcategory": "Logical & Bitwise",
+          "basic": false,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "COMP_CONST",
+      "name": "Compare To Constant",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "CompareToConstant",
+      "aliases": [
+        "CompareToConstant"
+      ],
+      "params": [
+        {
+          "name": "operator",
+          "default": "=="
+        },
+        {
+          "name": "const",
+          "default": "0"
+        }
+      ],
+      "choices": {
+        "operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "op": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relop": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relational_operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "condition": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "comparison": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ]
+      },
+      "palette": [
+        {
+          "order": 69,
+          "text": "Compare To Constant (COMP_CONST)",
+          "label": "Compare",
+          "prefix": "COMP_CONST",
+          "ui_type": "CompareToConstant",
+          "subcategory": "Logical & Bitwise",
+          "basic": false,
+          "params": [
+            [
+              "operator",
+              "=="
+            ],
+            [
+              "const",
+              "0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RELATIONAL_OPERATOR",
+      "name": "Relational Operator",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "RelationalOp",
+      "aliases": [
+        "RelationalOp"
+      ],
+      "params": [
+        {
+          "name": "operator",
+          "default": "<"
+        }
+      ],
+      "choices": {
+        "operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "op": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relop": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relational_operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "condition": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "comparison": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ]
+      },
+      "palette": [
+        {
+          "order": 70,
+          "text": "Relational Operator (RELATIONAL_OPERATOR)",
+          "label": "RelOp",
+          "prefix": "RELOP",
+          "ui_type": "RelationalOp",
+          "subcategory": "Logical & Bitwise",
+          "basic": false,
+          "params": [
+            [
+              "operator",
+              "<"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PWM",
+      "name": "PWM Generator",
+      "subcategory": "Modulators",
+      "ui_type": "PWM_Generator",
+      "aliases": [
+        "PWM_Generator"
+      ],
+      "params": [
+        {
+          "name": "frequency",
+          "default": "10k"
+        },
+        {
+          "name": "min",
+          "default": "0"
+        },
+        {
+          "name": "max",
+          "default": "1"
+        }
+      ],
+      "choices": {
+        "alignment": [
+          "edge",
+          "center",
+          "symmetric",
+          "asymmetric"
+        ],
+        "rounding_mode": [
+          "edge",
+          "center",
+          "symmetric",
+          "asymmetric"
+        ]
+      },
+      "palette": [
+        {
+          "order": 71,
+          "text": "PWM Generator (PWM)",
+          "label": "PWM",
+          "prefix": "PWM",
+          "ui_type": "PWM_Generator",
+          "subcategory": "Modulators",
+          "basic": true,
+          "params": [
+            [
+              "frequency",
+              "10k"
+            ],
+            [
+              "min",
+              "0"
+            ],
+            [
+              "max",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PWM_MASTER",
+      "name": "Master PWM",
+      "subcategory": "Modulators",
+      "ui_type": "MasterPWM",
+      "aliases": [
+        "MasterPWM"
+      ],
+      "params": [
+        {
+          "name": "frequency",
+          "default": "10k"
+        },
+        {
+          "name": "min",
+          "default": "0"
+        },
+        {
+          "name": "max",
+          "default": "1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 72,
+          "text": "Master PWM (PWM_MASTER)",
+          "label": "Master PWM",
+          "prefix": "PWM_MASTER",
+          "ui_type": "MasterPWM",
+          "subcategory": "Modulators",
+          "basic": true,
+          "params": [
+            [
+              "frequency",
+              "10k"
+            ],
+            [
+              "min",
+              "0"
+            ],
+            [
+              "max",
+              "1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "EDGE_DETECT",
+      "name": "Edge Detector",
+      "subcategory": "Modulators",
+      "ui_type": "EdgeDetector",
+      "aliases": [
+        "EdgeDetector"
+      ],
+      "params": [
+        {
+          "name": "edge_type",
+          "default": "rising"
+        }
+      ],
+      "choices": {
+        "edgetype": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "edge": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "edge_type": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "direction": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "hit_direction": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "dir": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "detection_mode": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "type": [
+          "rising",
+          "falling",
+          "either"
+        ],
+        "mode": [
+          "rising",
+          "falling",
+          "either"
+        ]
+      },
+      "palette": [
+        {
+          "order": 73,
+          "text": "Edge Detector (EDGE_DETECT)",
+          "label": "Edge",
+          "prefix": "EDGE_DETECT",
+          "ui_type": "EdgeDetect",
+          "subcategory": "Modulators",
+          "basic": true,
+          "params": [
+            [
+              "edge_type",
+              "rising"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PARK_TRANSFORM",
+      "name": "ABC to dq Transform",
+      "subcategory": "Signal Transforms",
+      "ui_type": "Park",
+      "aliases": [
+        "Park",
+        "PARK_TRANS"
+      ],
+      "pins_from": "PARK",
+      "params": [],
+      "palette": [
+        {
+          "order": 74,
+          "text": "ABC to dq Transform (PARK_TRANSFORM)",
+          "label": "αβ-dq",
+          "prefix": "PARK_TRANSFORM",
+          "ui_type": "Park",
+          "subcategory": "Signal Transforms",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INV_PARK_TRANSFORM",
+      "name": "dq to ABC Transform",
+      "subcategory": "Signal Transforms",
+      "ui_type": "InvPark",
+      "aliases": [
+        "InvPark",
+        "INV_PARK_TRANS"
+      ],
+      "pins_from": "INV_PARK",
+      "params": [],
+      "palette": [
+        {
+          "order": 75,
+          "text": "dq to ABC Transform (INV_PARK_TRANSFORM)",
+          "label": "dq-αβ",
+          "prefix": "INV_PARK_TRANSFORM",
+          "ui_type": "InvPark",
+          "subcategory": "Signal Transforms",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "CLARKE_TRANSFORM",
+      "name": "Clarke Transform",
+      "subcategory": "Signal Transforms",
+      "ui_type": "Clarke",
+      "aliases": [
+        "Clarke",
+        "CLARKE_TRANS"
+      ],
+      "pins_from": "CLARKE",
+      "params": [],
+      "palette": [
+        {
+          "order": 76,
+          "text": "Clarke Transform (CLARKE_TRANSFORM)",
+          "label": "abc-αβ",
+          "prefix": "CLARKE_TRANSFORM",
+          "ui_type": "Clarke",
+          "subcategory": "Signal Transforms",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INV_CLARKE",
+      "name": "Inverse Clarke Transform",
+      "subcategory": "Signal Transforms",
+      "ui_type": "InvClarke",
+      "aliases": [
+        "InvClarke",
+        "INV_CLARKE_TRANSFORM",
+        "INV_CLARKE_TRANS"
+      ],
+      "params": [],
+      "palette": [
+        {
+          "order": 77,
+          "text": "Inverse Clarke Transform (INV_CLARKE)",
+          "label": "αβ-abc",
+          "prefix": "INV_CLARKE",
+          "ui_type": "InvClarke",
+          "subcategory": "Signal Transforms",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "PARK",
+      "name": "Park Transform",
+      "subcategory": "Signal Transforms",
+      "ui_type": "Park",
+      "params": [],
+      "palette": [
+        {
+          "order": 78,
+          "text": "Park Transform (PARK)",
+          "label": "abc-dq",
+          "prefix": "PARK",
+          "ui_type": "Park",
+          "subcategory": "Signal Transforms",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "INV_PARK",
+      "name": "Inverse Park Transform",
+      "subcategory": "Signal Transforms",
+      "ui_type": "InvPark",
+      "params": [],
+      "palette": [
+        {
+          "order": 79,
+          "text": "Inverse Park Transform (INV_PARK)",
+          "label": "dq-αβ",
+          "prefix": "INV_PARK",
+          "ui_type": "InvPark",
+          "subcategory": "Signal Transforms",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "PER_AVG",
+      "name": "Periodic Average",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "PerAvg",
+      "aliases": [
+        "PerAvg"
+      ],
+      "params": [
+        {
+          "name": "period",
+          "default": "0.02"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "PER_AVG",
+          "period": {
+            "param": "period",
+            "default": 0.02
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 80,
+          "text": "Periodic Average (PER_AVG)",
+          "label": "Avg T",
+          "prefix": "PER_AVG",
+          "ui_type": "PerAvg",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "period",
+              "0.02"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PERIODIC_IMP_AVG",
+      "name": "Periodic Impulse Average",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "PeriodicImpAvg",
+      "aliases": [
+        "PeriodicImpAvg"
+      ],
+      "params": [
+        {
+          "name": "initial_value",
+          "default": "0.0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "PERIODIC_IMP_AVG",
+          "initial_value": {
+            "param": "initial_value",
+            "default": 0.0
+          },
+          "input": {
+            "signal": "In"
+          },
+          "control_signal": {
+            "signal": "Trig"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 81,
+          "text": "Periodic Impulse Average (PERIODIC_IMP_AVG)",
+          "label": "Imp Avg",
+          "prefix": "PERIODIC_IMP_AVG",
+          "ui_type": "PeriodicImpAvg",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "initial_value",
+              "0.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FOURIER_TRANS",
+      "name": "Fourier Transform",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "FourierTrans",
+      "aliases": [
+        "FourierTrans"
+      ],
+      "params": [
+        {
+          "name": "f",
+          "default": "50.0"
+        },
+        {
+          "name": "harmonic",
+          "default": "1"
+        },
+        {
+          "name": "ts",
+          "default": "100u"
+        }
+      ],
+      "choices": {
+        "alignment": [
+          "magnitude_phase",
+          "real_imag",
+          "harmonic_series"
+        ],
+        "rounding_mode": [
+          "magnitude_phase",
+          "real_imag",
+          "harmonic_series"
+        ]
+      },
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output_mag": "{id}.Mag",
+          "output_phase": "{id}.Phase",
+          "original_type": "FOURIER_TRANS",
+          "f": {
+            "param": "f",
+            "default": 50.0
+          },
+          "harmonic": {
+            "param": "harmonic",
+            "default": 1,
+            "as": "int"
+          },
+          "ts": {
+            "param": "ts",
+            "default": "100u",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 82,
+          "text": "Fourier Transform (FOURIER_TRANS)",
+          "label": "Fourier",
+          "prefix": "FOURIER_TRANS",
+          "ui_type": "FourierTrans",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "f",
+              "50.0"
+            ],
+            [
+              "harmonic",
+              "1"
+            ],
+            [
+              "ts",
+              "100u"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "MOV_AVG",
+      "name": "Moving Average",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "MovAvg",
+      "aliases": [
+        "MovAvg"
+      ],
+      "params": [
+        {
+          "name": "window",
+          "default": "10"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "MOV_AVG",
+          "window": {
+            "param": "window",
+            "default": 10,
+            "as": "int"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 83,
+          "text": "Moving Average (MOV_AVG)",
+          "label": "MovAvg",
+          "prefix": "MOV_AVG",
+          "ui_type": "MovAvg",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "window",
+              "10"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FILTER_1ST",
+      "name": "First-Order Filter",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "Filter1st",
+      "aliases": [
+        "Filter1st"
+      ],
+      "params": [
+        {
+          "name": "type",
+          "default": "Lowpass"
+        },
+        {
+          "name": "fc",
+          "default": "1k"
+        }
+      ],
+      "choices": {
+        "filter_type": [
+          "lowpass",
+          "highpass",
+          "bandpass",
+          "bandstop"
+        ]
+      },
+      "palette": [
+        {
+          "order": 84,
+          "text": "First-Order Filter (FILTER_1ST)",
+          "label": "Filt1st",
+          "prefix": "FILTER_1ST",
+          "ui_type": "Filter1st",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "type",
+              "Lowpass"
+            ],
+            [
+              "fc",
+              "1k"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FILTER_2ND",
+      "name": "Second-Order Filter",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "Filter2nd",
+      "aliases": [
+        "Filter2nd"
+      ],
+      "params": [
+        {
+          "name": "type",
+          "default": "Lowpass"
+        },
+        {
+          "name": "fc",
+          "default": "1k"
+        },
+        {
+          "name": "Q",
+          "default": "0.707"
+        }
+      ],
+      "choices": {
+        "filter_type": [
+          "lowpass",
+          "highpass",
+          "bandpass",
+          "bandstop"
+        ]
+      },
+      "palette": [
+        {
+          "order": 85,
+          "text": "Second-Order Filter (FILTER_2ND)",
+          "label": "Filt2nd",
+          "prefix": "FILTER_2ND",
+          "ui_type": "Filter2nd",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "type",
+              "Lowpass"
+            ],
+            [
+              "fc",
+              "1k"
+            ],
+            [
+              "Q",
+              "0.707"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FOURIER_ANALYSIS",
+      "name": "Fourier Analysis",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "FourierAnalysis",
+      "aliases": [
+        "FourierAnalysis"
+      ],
+      "params": [
+        {
+          "name": "f",
+          "default": "50.0"
+        }
+      ],
+      "choices": {
+        "alignment": [
+          "magnitude_phase",
+          "real_imag",
+          "harmonic_series"
+        ],
+        "rounding_mode": [
+          "magnitude_phase",
+          "real_imag",
+          "harmonic_series"
+        ]
+      },
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output_mag": "{id}.Mag",
+          "output_phase": "{id}.Phase",
+          "original_type": "FOURIER_ANALYSIS",
+          "f": {
+            "param": "f",
+            "default": 50.0
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 86,
+          "text": "Fourier Analysis (FOURIER_ANALYSIS)",
+          "label": "Fourier",
+          "prefix": "FOURIER_ANALYSIS",
+          "ui_type": "FourierAnalysis",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "f",
+              "50.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "RMS_VAL",
+      "name": "RMS",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "RmsVal",
+      "aliases": [
+        "RmsVal"
+      ],
+      "params": [
+        {
+          "name": "frequency",
+          "default": "50"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "RMS_VAL",
+          "frequency": {
+            "param": "frequency",
+            "default": 50.0
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 87,
+          "text": "RMS (RMS_VAL)",
+          "label": "RMS",
+          "prefix": "RMS_VAL",
+          "ui_type": "RmsVal",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "frequency",
+              "50"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "THD_VAL",
+      "name": "THD",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "ThdVal",
+      "aliases": [
+        "ThdVal"
+      ],
+      "params": [
+        {
+          "name": "frequency",
+          "default": "50"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "THD_VAL",
+          "frequency": {
+            "param": "frequency",
+            "default": 50.0
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 88,
+          "text": "THD (THD_VAL)",
+          "label": "THD",
+          "prefix": "THD_VAL",
+          "ui_type": "ThdVal",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "frequency",
+              "50"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "PLL_LOOP",
+      "name": "PLL (Phase-Locked Loop)",
+      "subcategory": "Filters & Measurements",
+      "ui_type": "PllLoop",
+      "aliases": [
+        "PllLoop"
+      ],
+      "params": [
+        {
+          "name": "fn",
+          "default": "50.0"
+        },
+        {
+          "name": "Kp",
+          "default": "20.0"
+        },
+        {
+          "name": "Ki",
+          "default": "1000.0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output_theta": "{id}.Theta",
+          "output_freq": "{id}.Freq",
+          "output_cos": "{id}.Cos",
+          "output_sin": "{id}.Sin",
+          "original_type": "PLL_LOOP",
+          "fn": {
+            "param": "fn",
+            "default": 50.0
+          },
+          "Kp": {
+            "param": "Kp",
+            "default": 20.0
+          },
+          "Ki": {
+            "param": "Ki",
+            "default": 1000.0
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
+      "palette": [
+        {
+          "order": 89,
+          "text": "PLL (Phase-Locked Loop) (PLL_LOOP)",
+          "label": "PLL",
+          "prefix": "PLL_LOOP",
+          "ui_type": "PllLoop",
+          "subcategory": "Filters & Measurements",
+          "basic": false,
+          "params": [
+            [
+              "fn",
+              "50.0"
+            ],
+            [
+              "Kp",
+              "20.0"
+            ],
+            [
+              "Ki",
+              "1000.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "STATE_MACHINE",
+      "name": "State Machine",
+      "subcategory": "State Machines",
+      "ui_type": "StateMachine",
+      "aliases": [
+        "StateMachine"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "STATE_MACHINE",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 90,
+          "text": "State Machine (STATE_MACHINE)",
+          "label": "State",
+          "prefix": "STATE_MACHINE",
+          "ui_type": "StateMachine",
+          "subcategory": "State Machines",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "OFFSET",
+      "name": "Offset",
+      "subcategory": "Math",
+      "ui_type": "Offset",
+      "aliases": [
+        "Offset"
+      ],
+      "params": [
+        {
+          "name": "offset",
+          "default": "0.0"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "OFFSET",
+          "offset": {
+            "param": "offset",
+            "default": 0.0
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 91,
+          "text": "Offset (OFFSET)",
+          "label": "OFFSET",
+          "prefix": "OFFSET",
+          "ui_type": "Offset",
+          "subcategory": "Math",
+          "basic": false,
+          "params": [
+            [
+              "offset",
+              "0.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SUM_ROUND",
+      "name": "Sum (round)",
+      "subcategory": "Math",
+      "ui_type": "SummingJunction",
+      "params": [
+        {
+          "name": "inputs",
+          "default": "2"
+        },
+        {
+          "name": "signs",
+          "default": "++"
+        }
+      ],
+      "palette": [
+        {
+          "order": 93,
+          "text": "Sum (round) (SUM_ROUND)",
+          "label": "SUM",
+          "prefix": "SUM_ROUND",
+          "ui_type": "SummingJunction",
+          "subcategory": "Math",
+          "basic": true,
+          "params": [
+            [
+              "inputs",
+              "2"
+            ],
+            [
+              "signs",
+              "++"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SUBTRACT",
+      "name": "Subtract",
+      "subcategory": "Math",
+      "ui_type": "SummingJunction",
+      "aliases": [
+        "SUB"
+      ],
+      "params": [
+        {
+          "name": "signs",
+          "default": "+-"
+        }
+      ],
+      "palette": [
+        {
+          "order": 95,
+          "text": "Subtract (SUBTRACT)",
+          "label": "SUB",
+          "prefix": "SUBTRACT",
+          "ui_type": "SummingJunction",
+          "subcategory": "Math",
+          "basic": false,
+          "params": [
+            [
+              "signs",
+              "+-"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "SIGNUM",
+      "name": "Signum",
+      "subcategory": "Math",
+      "ui_type": "Signum",
+      "aliases": [
+        "Signum",
+        "SGN"
+      ],
+      "params": [],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "SIGNUM",
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 97,
+          "text": "Signum (SIGNUM)",
+          "label": "sgn",
+          "prefix": "SIGNUM",
+          "ui_type": "Signum",
+          "subcategory": "Math",
+          "basic": false,
+          "params": []
+        }
+      ]
+    },
+    {
+      "type": "DIVIDE",
+      "name": "Divide",
+      "subcategory": "Math",
+      "ui_type": "Divide",
+      "aliases": [
+        "Divide"
+      ],
+      "params": [
+        {
+          "name": "operators",
+          "default": "*/"
+        }
+      ],
+      "netlist": {
+        "section": "control_loops.product_blocks",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DIVIDE",
+          "inputs": [
+            {
+              "signal": "Num"
+            },
+            {
+              "signal": "Den"
+            }
+          ]
+        }
+      },
+      "palette": [
+        {
+          "order": 98,
+          "text": "Divide (DIVIDE)",
+          "label": "DIV",
+          "prefix": "DIVIDE",
+          "ui_type": "Divide",
+          "subcategory": "Math",
+          "basic": false,
+          "params": [
+            [
+              "operators",
+              "*/"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "DATATYPE_CONV",
+      "name": "Data Type Conversion",
+      "subcategory": "Math",
+      "ui_type": "DataTypeConv",
+      "aliases": [
+        "DataTypeConv"
+      ],
+      "params": [
+        {
+          "name": "datatype",
+          "default": "boolean"
+        }
+      ],
+      "choices": {
+        "datatype": [
+          "double",
+          "float",
+          "int32",
+          "int16",
+          "int8",
+          "uint32",
+          "uint16",
+          "uint8",
+          "boolean"
+        ],
+        "output_type": [
+          "double",
+          "float",
+          "int32",
+          "int16",
+          "int8",
+          "uint32",
+          "uint16",
+          "uint8",
+          "boolean"
+        ]
+      },
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DATATYPE_CONV",
+          "datatype": {
+            "param": "datatype",
+            "default": "boolean",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          },
+          "input1": {
+            "signal": "In"
+          },
+          "input2": "0.0",
+          "K": 1.0
+        }
+      },
+      "palette": [
+        {
+          "order": 99,
+          "text": "Data Type Conversion (DATATYPE_CONV)",
+          "label": "Cast",
+          "prefix": "DATATYPE_CONV",
+          "ui_type": "DataTypeConv",
+          "subcategory": "Math",
+          "basic": false,
+          "params": [
+            [
+              "datatype",
+              "boolean"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GOTO_SIG",
+      "name": "Signal Goto",
+      "subcategory": "Signals Routing",
+      "ui_type": "GotoSignal",
+      "aliases": [
+        "GOTO",
+        "GotoSignal"
+      ],
+      "params": [
+        {
+          "name": "tag",
+          "default": "S1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 127,
+          "text": "Signal Goto (GOTO_SIG)",
+          "label": "Goto",
+          "prefix": "GOTO_SIG",
+          "ui_type": "GotoSignal",
+          "subcategory": "Signals Routing",
+          "basic": false,
+          "params": [
+            [
+              "tag",
+              "S1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FROM_SIG",
+      "name": "Signal From",
+      "subcategory": "Signals Routing",
+      "ui_type": "FromSignal",
+      "aliases": [
+        "FROM",
+        "FromSignal"
+      ],
+      "params": [
+        {
+          "name": "tag",
+          "default": "S1"
+        }
+      ],
+      "palette": [
+        {
+          "order": 128,
+          "text": "Signal From (FROM_SIG)",
+          "label": "From",
+          "prefix": "FROM_SIG",
+          "ui_type": "FromSignal",
+          "subcategory": "Signals Routing",
+          "basic": false,
+          "params": [
+            [
+              "tag",
+              "S1"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "BITWISE_OP",
+      "name": "Bitwise Operator",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "BitwiseOp",
+      "aliases": [
+        "BitwiseOp"
+      ],
+      "params": [
+        {
+          "name": "operator",
+          "default": "XOR"
+        },
+        {
+          "name": "bit_mask",
+          "default": "1"
+        }
+      ],
+      "choices": {
+        "operator": [
+          "AND",
+          "OR",
+          "XOR",
+          "NOT",
+          "SHIFT_LEFT",
+          "SHIFT_RIGHT"
+        ],
+        "op": [
+          "AND",
+          "OR",
+          "XOR",
+          "NOT",
+          "SHIFT_LEFT",
+          "SHIFT_RIGHT"
+        ],
+        "relop": [
+          "AND",
+          "OR",
+          "XOR",
+          "NOT",
+          "SHIFT_LEFT",
+          "SHIFT_RIGHT"
+        ],
+        "relational_operator": [
+          "AND",
+          "OR",
+          "XOR",
+          "NOT",
+          "SHIFT_LEFT",
+          "SHIFT_RIGHT"
+        ],
+        "condition": [
+          "AND",
+          "OR",
+          "XOR",
+          "NOT",
+          "SHIFT_LEFT",
+          "SHIFT_RIGHT"
+        ],
+        "comparison": [
+          "AND",
+          "OR",
+          "XOR",
+          "NOT",
+          "SHIFT_LEFT",
+          "SHIFT_RIGHT"
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "CLARKE",
+      "name": "Clarke Transform (abc to alpha-beta)",
+      "subcategory": "Signal Transforms",
+      "ui_type": "Clarke",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "COMPARE_TO_CONSTANT",
+      "name": "Compare To Constant",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "CompareToConstant",
+      "params": [
+        {
+          "name": "operator",
+          "default": ">="
+        },
+        {
+          "name": "constant",
+          "default": "1.0"
+        }
+      ],
+      "choices": {
+        "operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "op": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relop": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "relational_operator": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "condition": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "comparison": [
+          "==",
+          "~=",
+          "!=",
+          "<",
+          "<=",
+          ">",
+          ">="
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "CONSTANT",
+      "name": "Constant",
+      "subcategory": "Sources",
+      "ui_type": "Unknown",
+      "pins_from": "CONST",
+      "params": [
+        {
+          "name": "value",
+          "default": "5.0"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "DISCRETE_INT",
+      "name": "Discrete Integrator",
+      "subcategory": "Discrete",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.01"
+        },
+        {
+          "name": "method",
+          "default": "Forward Euler"
+        },
+        {
+          "name": "initial_value",
+          "default": "1.0"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "DISCRETE_MEAN",
+      "name": "Discrete Mean Value",
+      "subcategory": "Discrete",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.001"
+        },
+        {
+          "name": "period",
+          "default": "0.02"
+        },
+        {
+          "name": "initial_value",
+          "default": "1.0"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "DISCRETE_PID",
+      "name": "Discrete PID Controller",
+      "subcategory": "Discrete",
+      "ui_type": "ContinuousPID",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.01"
+        },
+        {
+          "name": "Kp",
+          "default": "1.0"
+        },
+        {
+          "name": "Ki",
+          "default": "0.1"
+        },
+        {
+          "name": "Kd",
+          "default": "0.0"
+        },
+        {
+          "name": "limit_output",
+          "default": "false"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "DISCRETE_SS",
+      "name": "Discrete State Space",
+      "subcategory": "Discrete",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.01"
+        },
+        {
+          "name": "A",
+          "default": "[0.5]"
+        },
+        {
+          "name": "B",
+          "default": "[1]"
+        },
+        {
+          "name": "C",
+          "default": "[1]"
+        },
+        {
+          "name": "D",
+          "default": "[0]"
+        },
+        {
+          "name": "x0",
+          "default": "[1.0]"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "DISCRETE_TF",
+      "name": "Discrete Transfer Function",
+      "subcategory": "Discrete",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.01"
+        },
+        {
+          "name": "num",
+          "default": "[0.1]"
+        },
+        {
+          "name": "den",
+          "default": "[1 -0.9]"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "D_FLIP_FLOP",
+      "name": "D Flip-Flop",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "DFlipFlop",
+      "aliases": [
+        "DFlipFlop"
+      ],
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "LOGIC_OP",
+      "name": "Logical Operator",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "LogicOp",
+      "aliases": [
+        "LogicOp"
+      ],
+      "params": [
+        {
+          "name": "operator",
+          "default": "AND"
+        }
+      ],
+      "choices": {
+        "function": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "func": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "fcn": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "expression": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "operator": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "op": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "relop": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "relational_operator": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "condition": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "comparison": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "MONOSTABLE",
+      "name": "Monostable",
+      "subcategory": "Logical & Bitwise",
+      "ui_type": "Monostable",
+      "aliases": [
+        "Monostable"
+      ],
+      "params": [
+        {
+          "name": "pulse_width",
+          "default": "0.002"
+        },
+        {
+          "name": "edge_type",
+          "default": "rising"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "PLL_3PH",
+      "name": "Three-Phase PLL",
+      "subcategory": "Continuous",
+      "ui_type": "PLL_3PH",
+      "params": [
+        {
+          "name": "fn",
+          "default": "50.0"
+        },
+        {
+          "name": "Kp",
+          "default": "1.0"
+        },
+        {
+          "name": "Ki",
+          "default": "10.0"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "PROD",
+      "name": "Product",
+      "subcategory": "Functions & Tables",
+      "ui_type": "Product",
+      "params": [
+        {
+          "name": "operators",
+          "default": "*/"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "PWM_3PH",
+      "name": "Three-Phase PWM",
+      "subcategory": "Modulators",
+      "ui_type": "PWM_3PH",
+      "params": [
+        {
+          "name": "fc",
+          "default": "1000"
+        },
+        {
+          "name": "dead_time",
+          "default": "0.0"
+        }
+      ],
+      "choices": {
+        "alignment": [
+          "edge",
+          "center",
+          "symmetric",
+          "asymmetric"
+        ],
+        "rounding_mode": [
+          "edge",
+          "center",
+          "symmetric",
+          "asymmetric"
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "SUM",
+      "name": "Sum",
+      "subcategory": "Math",
+      "ui_type": "SummingJunction",
+      "params": [
+        {
+          "name": "signs",
+          "default": "+-"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "SVPWM",
+      "name": "Space-Vector PWM",
+      "subcategory": "Modulators",
+      "ui_type": "SVPWM",
+      "params": [
+        {
+          "name": "fc",
+          "default": "1000"
+        },
+        {
+          "name": "dead_time",
+          "default": "0.0"
+        }
+      ],
+      "choices": {
+        "alignment": [
+          "edge",
+          "center",
+          "symmetric",
+          "asymmetric"
+        ],
+        "rounding_mode": [
+          "edge",
+          "center",
+          "symmetric",
+          "asymmetric"
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "TRI",
+      "name": "Triangular Carrier",
+      "subcategory": "Sources",
+      "ui_type": "Triangle_Carrier",
+      "params": [
+        {
+          "name": "frequency",
+          "default": "10k"
+        },
+        {
+          "name": "min",
+          "default": "0"
+        },
+        {
+          "name": "max",
+          "default": "1"
+        },
+        {
+          "name": "amplitude",
+          "default": "1"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "UNIT_DELAY",
+      "name": "Unit Delay",
+      "subcategory": "Discrete",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.02"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "ZOH",
+      "name": "Zero-Order Hold",
+      "subcategory": "Discrete",
+      "ui_type": "Unknown",
+      "role": "unsupported",
+      "params": [
+        {
+          "name": "ts",
+          "default": "0.02"
+        }
+      ],
+      "palette": []
+    },
+    {
+      "type": "COMB_LOGIC",
+      "name": "Combinatorial Logic",
+      "subcategory": "Legacy",
+      "ui_type": "CombLogic",
+      "aliases": [
+        "CombLogic"
+      ],
+      "legacy": true,
+      "params": [],
+      "choices": {
+        "function": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "func": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "fcn": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "expression": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "operator": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "op": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "relop": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "relational_operator": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "condition": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ],
+        "comparison": [
+          "AND",
+          "OR",
+          "NAND",
+          "NOR",
+          "XOR",
+          "NXOR",
+          "NOT"
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "EdgeDetect",
+      "name": "Edge Detect (legacy name)",
+      "subcategory": "Legacy",
+      "ui_type": "EdgeDetect",
+      "role": "unsupported",
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "MONOFLOP",
+      "name": "Monoflop",
+      "subcategory": "Legacy",
+      "ui_type": "Monoflop",
+      "aliases": [
+        "Monoflop"
+      ],
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "JK_FLIP_FLOP",
+      "name": "JK Flip-Flop",
+      "subcategory": "Legacy",
+      "ui_type": "JKFlipFlop",
+      "aliases": [
+        "JKFlipFlop"
+      ],
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "SHIFT_REG",
+      "name": "Shift Register",
+      "subcategory": "Legacy",
+      "ui_type": "ShiftReg",
+      "aliases": [
+        "ShiftReg"
+      ],
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "DQ_TO_ABC",
+      "name": "dq to abc (3-phase)",
+      "subcategory": "Legacy",
+      "ui_type": "DqToAbc",
+      "aliases": [
+        "DQ_ABC",
+        "INV_PARK_3PH",
+        "PARK_INV_3PH",
+        "DqToAbc"
+      ],
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "ABC_TO_DQ",
+      "name": "abc to dq (3-phase)",
+      "subcategory": "Legacy",
+      "ui_type": "AbcToDq",
+      "aliases": [
+        "ABC_DQ",
+        "PARK_3PH",
+        "PARK_3PHASE",
+        "AbcToDq"
+      ],
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "FCN",
+      "name": "Custom Function",
+      "subcategory": "Legacy",
+      "ui_type": "CustomFunction",
+      "aliases": [
+        "CustomFunction"
+      ],
+      "role": "unsupported",
+      "legacy": true,
+      "params": [],
+      "choices": {
+        "function": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "func": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "fcn": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ],
+        "expression": [
+          "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "atan2",
+          "sinh",
+          "cosh",
+          "tanh",
+          "exp",
+          "log",
+          "log10",
+          "sqrt",
+          "abs",
+          "square",
+          "pow",
+          "reciprocal"
+        ]
+      },
+      "palette": []
+    },
+    {
+      "type": "Mux",
+      "name": "Mux",
+      "subcategory": "Legacy",
+      "ui_type": "Mux",
+      "role": "unsupported",
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "Demux",
+      "name": "Demux",
+      "subcategory": "Legacy",
+      "ui_type": "Demux",
+      "role": "unsupported",
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "KEY_TRIGGER",
+      "name": "Key Trigger",
+      "subcategory": "Legacy",
+      "ui_type": "KeyTrigger",
+      "aliases": [
+        "KeyTrigger"
+      ],
+      "role": "unsupported",
+      "legacy": true,
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "Goto",
+      "name": "Goto (legacy name)",
+      "subcategory": "Legacy",
+      "ui_type": "Goto",
+      "legacy": true,
+      "pins_from": "GOTO_SIG",
+      "params": [],
+      "palette": []
+    },
+    {
+      "type": "From",
+      "name": "From (legacy name)",
+      "subcategory": "Legacy",
+      "ui_type": "From",
+      "legacy": true,
+      "pins_from": "FROM_SIG",
+      "params": [],
+      "palette": []
+    }
+  ]
+}

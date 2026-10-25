@@ -11,6 +11,7 @@
 #include "engine/NetlistBuilder.hpp"
 #include "engine/NetlistParser.hpp"
 #include "engine/CircuitSimulator.hpp"
+#include "engine/DesignIO.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
@@ -21,291 +22,16 @@
 #include <csignal>
 #include <chrono>
 #include <ctime>
+#include <cstring>
 
 static std::string buildSchematicJsonString(const CircuitSim::CircuitDesign& cd) {
-    nlohmann::json j;
-    nlohmann::json compArray = nlohmann::json::array();
-    for (const auto& comp : cd.components) {
-        nlohmann::json cObj;
-        cObj["id"] = comp.id;
-        cObj["type"] = comp.rawTypeStr;
-        cObj["label"] = comp.label;
-        cObj["x"] = comp.x;
-        cObj["y"] = comp.y;
-        cObj["rotation"] = comp.rotation;
-        nlohmann::json pObj = nlohmann::json::object();
-        for (const auto& [k, v] : comp.parameters) pObj[k] = v;
-        cObj["parameters"] = pObj;
-        compArray.push_back(cObj);
-    }
-    j["components"] = compArray;
-    nlohmann::json wireArray = nlohmann::json::array();
-    for (const auto& wire : cd.wires) {
-        nlohmann::json wObj;
-        wObj["id"] = wire.id;
-        nlohmann::json fObj;
-        if (wire.from.isWireJunction) {
-            fObj["type"] = "junction";
-            fObj["compId"] = wire.from.targetWireId;
-            fObj["terminal"] = "";
-            fObj["x"] = wire.from.junctionX;
-            fObj["y"] = wire.from.junctionY;
-        } else {
-            fObj["type"] = "pin";
-            fObj["compId"] = wire.from.compId;
-            fObj["terminal"] = wire.from.terminal;
-        }
-        nlohmann::json tObj;
-        if (wire.to.isWireJunction) {
-            tObj["type"] = "junction";
-            tObj["compId"] = wire.to.targetWireId;
-            tObj["terminal"] = "";
-            tObj["x"] = wire.to.junctionX;
-            tObj["y"] = wire.to.junctionY;
-        } else {
-            tObj["type"] = "pin";
-            tObj["compId"] = wire.to.compId;
-            tObj["terminal"] = wire.to.terminal;
-        }
-        wObj["from"] = fObj;
-        wObj["to"] = tObj;
-        wireArray.push_back(wObj);
-    }
-    j["wires"] = wireArray;
-    return j.dump(2);
+    return CircuitSim::DesignIO::saveDesignString(cd);
 }
 
-static void parseWireEndpointJSON(
-    const nlohmann::json& epObj,
-    CircuitSim::WireEndpoint& ep,
-    const std::function<std::string(const std::string&, const std::string&)>& resolveTerm = nullptr
-) {
-    if (!epObj.is_object()) return;
-
-    std::string compId = epObj.value("compId", epObj.value("componentId", ""));
-    std::string wireId = epObj.value("wireId", epObj.value("targetWireId", ""));
-    std::string epType = epObj.value("type", "");
-    std::string terminal = epObj.value("terminal", epObj.value("terminalName", ""));
-
-    std::string targetW = !wireId.empty() ? wireId : compId;
-
-    bool isJunction = (epType == "wire" || epType == "junction" || epObj.value("isWireJunction", false));
-    if (!isJunction && !targetW.empty()) {
-        if ((targetW[0] == 'w' || targetW[0] == 'W') && targetW.find('.') == std::string::npos) {
-            isJunction = true;
-        }
-    }
-
-    if (isJunction) {
-        ep.isWireJunction = true;
-        ep.targetWireId = targetW;
-        ep.junctionX = epObj.value("x", epObj.value("junctionX", 0.0f));
-        ep.junctionY = epObj.value("y", epObj.value("junctionY", 0.0f));
-        ep.compId = "";
-        ep.terminal = "";
-    } else {
-        ep.isWireJunction = false;
-        ep.compId = compId;
-        ep.terminal = resolveTerm ? resolveTerm(compId, terminal) : terminal;
-        ep.targetWireId = "";
-        ep.junctionX = 0.0f;
-        ep.junctionY = 0.0f;
-    }
-}
-
-static void sanitizeCircuitWires(CircuitSim::CircuitDesign& cd) {
-    std::vector<CircuitSim::WireInstance> cleanWires;
-    std::unordered_map<std::string, const CircuitSim::ComponentInstance*> compMap;
-    for (const auto& c : cd.components) compMap[c.id] = &c;
-
-    for (const auto& w : cd.wires) {
-        bool fromValid = w.from.isWireJunction ? !w.from.targetWireId.empty() : !w.from.compId.empty();
-        bool toValid   = w.to.isWireJunction   ? !w.to.targetWireId.empty()   : !w.to.compId.empty();
-
-        if (!fromValid || !toValid) continue;
-
-        if (!w.from.isWireJunction && !compMap.count(w.from.compId)) continue;
-        if (!w.to.isWireJunction && !compMap.count(w.to.compId)) continue;
-
-        if (!w.from.isWireJunction && !w.to.isWireJunction && w.from.compId == w.to.compId && w.from.terminal == w.to.terminal) {
-            continue;
-        }
-
-        cleanWires.push_back(w);
-    }
-    cd.wires = cleanWires;
-
-    std::vector<CircuitSim::WireInstance> dedupedWires;
-    std::unordered_set<std::string> seenEndpoints;
-
-    for (const auto& w : cd.wires) {
-        std::string ep1 = w.from.isWireJunction ? ("j:" + w.from.targetWireId) : ("p:" + w.from.compId + "." + w.from.terminal);
-        std::string ep2 = w.to.isWireJunction   ? ("j:" + w.to.targetWireId)   : ("p:" + w.to.compId + "." + w.to.terminal);
-
-        std::string forwardKey = ep1 + "<->" + ep2;
-        std::string reverseKey = ep2 + "<->" + ep1;
-
-        if (seenEndpoints.count(forwardKey) || seenEndpoints.count(reverseKey)) {
-            continue;
-        }
-        seenEndpoints.insert(forwardKey);
-        seenEndpoints.insert(reverseKey);
-        dedupedWires.push_back(w);
-    }
-    cd.wires = dedupedWires;
-}
-
+// Headless runs load through the shared DesignIO loader with the canvas wire
+// normalisation applied, so they simulate exactly what the GUI simulates.
 static CircuitSim::CircuitDesign loadSchematicFromJson(const nlohmann::json& j) {
-    CircuitSim::CircuitDesign cd;
-    if (j.contains("components") && j["components"].is_array()) {
-        for (const auto& cItem : j["components"]) {
-            CircuitSim::ComponentInstance comp;
-            comp.id = cItem.value("id", "");
-            comp.rawTypeStr = cItem.value("type", "R");
-            comp.type = CircuitSim::stringToComponentType(comp.rawTypeStr);
-            comp.label = cItem.value("label", comp.id);
-            comp.x = cItem.value("x", 0.0f);
-            comp.y = cItem.value("y", 0.0f);
-            comp.rotation = cItem.value("rotation", 0);
-            auto parseParamsObj = [&](const nlohmann::json& pObj) {
-                for (auto& [k, v] : pObj.items()) {
-                    if (v.is_string()) comp.parameters[k] = v.get<std::string>();
-                    else if (v.is_number()) comp.parameters[k] = std::to_string(v.get<double>());
-                    else if (v.is_boolean()) comp.parameters[k] = v.get<bool>() ? "true" : "false";
-                }
-            };
-            if (cItem.contains("parameters") && cItem["parameters"].is_object()) parseParamsObj(cItem["parameters"]);
-            if (cItem.contains("params") && cItem["params"].is_object()) parseParamsObj(cItem["params"]);
-
-            // Normalise web-tool parameter aliases onto the native keys, otherwise the
-            // value is ignored by the solver and silently falls back to a default.
-            if (comp.type == CircuitSim::ComponentType::Resistor ||
-                comp.type == CircuitSim::ComponentType::VariableResistor ||
-                comp.type == CircuitSim::ComponentType::PWLResistor) {
-                if (!comp.parameters.count("value")) {
-                    if (comp.parameters.count("resistance")) comp.parameters["value"] = comp.parameters["resistance"];
-                    else if (comp.parameters.count("R")) comp.parameters["value"] = comp.parameters["R"];
-                }
-                comp.parameters.erase("resistance");
-            }
-
-            // Backfill energy-storage initial-condition params so they are editable
-            // in the Property Inspector even for circuits saved without them.
-            if (comp.type == CircuitSim::ComponentType::Inductor ||
-                comp.type == CircuitSim::ComponentType::VariableInductor ||
-                comp.type == CircuitSim::ComponentType::SaturableInductor) {
-                if (!comp.parameters.count("iL0")) comp.parameters["iL0"] = "0";
-            }
-            if (comp.type == CircuitSim::ComponentType::Capacitor ||
-                comp.type == CircuitSim::ComponentType::VariableCapacitor ||
-                comp.type == CircuitSim::ComponentType::SaturableCapacitor) {
-                if (!comp.parameters.count("vC0")) comp.parameters["vC0"] = "0";
-            }
-
-            CircuitSim::setupComponentPins(comp);
-            cd.components.push_back(comp);
-        }
-    }
-
-    std::unordered_map<std::string, std::string> compTypeMap;
-    for (const auto& c : cd.components) {
-        compTypeMap[c.id] = c.rawTypeStr;
-    }
-
-    auto resolveTerminalName = [&](const std::string& compId, const std::string& term) -> std::string {
-        auto it = compTypeMap.find(compId);
-        if (it != compTypeMap.end()) {
-            std::string t = it->second;
-            if (t == "SCOPE" || t == "Oscilloscope") {
-                std::string lowerTerm = term;
-                std::transform(lowerTerm.begin(), lowerTerm.end(), lowerTerm.begin(), ::tolower);
-                if (lowerTerm.rfind("ch", 0) == 0 && lowerTerm.length() > 2) {
-                    return "In" + lowerTerm.substr(2);
-                }
-                if (lowerTerm.rfind("in", 0) == 0 && lowerTerm.length() > 2) {
-                    return "In" + lowerTerm.substr(2);
-                }
-            }
-        }
-        return term;
-    };
-
-    if (j.contains("wires") && j["wires"].is_array()) {
-        // Pass 1: build a remap table from legacy/original wire ids ("oldId") to the
-        // current wire ids. Copy-pasted or re-exported schematics keep pointing their
-        // junction "targetWireId" at the pre-copy ids, which would otherwise dangle.
-        std::unordered_map<std::string, std::string> wireIdRemap;
-        std::unordered_set<std::string> knownWireIds;
-        for (const auto& wItem : j["wires"]) {
-            std::string wid = wItem.value("id", "");
-            if (wid.empty()) continue;
-            knownWireIds.insert(wid);
-            std::string oldId = wItem.value("oldId", "");
-            if (!oldId.empty() && oldId != wid) wireIdRemap[oldId] = wid;
-        }
-
-        for (const auto& wItem : j["wires"]) {
-            CircuitSim::WireInstance wire;
-            wire.id = wItem.value("id", "");
-            if (wItem.contains("from")) {
-                parseWireEndpointJSON(wItem["from"], wire.from, resolveTerminalName);
-            } else if (wItem.contains("fromComp")) {
-                wire.from.compId = wItem.value("fromComp", "");
-                wire.from.terminal = resolveTerminalName(wire.from.compId, wItem.value("fromTerm", wItem.value("fromTerminal", "")));
-                wire.from.isWireJunction = false;
-            }
-
-            if (wItem.contains("to")) {
-                parseWireEndpointJSON(wItem["to"], wire.to, resolveTerminalName);
-            } else if (wItem.contains("toComp")) {
-                wire.to.compId = wItem.value("toComp", "");
-                wire.to.terminal = resolveTerminalName(wire.to.compId, wItem.value("toTerm", wItem.value("toTerminal", "")));
-                wire.to.isWireJunction = false;
-            }
-
-            bool isJunc = wItem.value("isJunction", false);
-            std::string targetWId = wItem.value("targetWireId", "");
-            // Only convert the "to" endpoint into a wire junction when it does NOT
-            // already reference a real component pin. Previously this overwrote valid
-            // pin connections, silently disconnecting components (e.g. series meters).
-            if ((isJunc || !targetWId.empty()) && wire.to.compId.empty()) {
-                wire.to.isWireJunction = true;
-                wire.to.targetWireId = targetWId;
-                wire.to.junctionX = wItem.value("jX", 0.0f);
-                wire.to.junctionY = wItem.value("jY", 0.0f);
-            }
-
-            cd.wires.push_back(wire);
-        }
-
-        // Pass 2: resolve junction targets through the oldId remap table.
-        for (auto& w : cd.wires) {
-            auto remapEndpoint = [&](CircuitSim::WireEndpoint& ep) {
-                if (!ep.isWireJunction || ep.targetWireId.empty()) return;
-                if (knownWireIds.count(ep.targetWireId)) return; // already valid
-                auto it = wireIdRemap.find(ep.targetWireId);
-                if (it != wireIdRemap.end()) ep.targetWireId = it->second;
-            };
-            remapEndpoint(w.from);
-            remapEndpoint(w.to);
-        }
-
-        // Pass 3: drop junctions that still cannot be resolved — they contribute no
-        // electrical connection and would create phantom isolated nets.
-        for (auto& w : cd.wires) {
-            auto dropDangling = [&](CircuitSim::WireEndpoint& ep) {
-                if (ep.isWireJunction && !ep.targetWireId.empty() &&
-                    !knownWireIds.count(ep.targetWireId)) {
-                    ep.targetWireId.clear();
-                }
-            };
-            dropDangling(w.from);
-            dropDangling(w.to);
-        }
-
-        sanitizeCircuitWires(cd);
-    }
-    return cd;
+    return CircuitSim::DesignIO::loadDesign(j);
 }
 
 static bool processSingleJsonFile(
@@ -392,71 +118,8 @@ static bool processSingleJsonFile(
 
     auto telemetry = simulator.getTelemetryCopy();
 
-    std::vector<CircuitSim::SVGExporter::ScopeReportData> scopesData;
-
-    for (const auto& comp : design.components) {
-        if (comp.type == CircuitSim::ComponentType::Oscilloscope || comp.rawTypeStr == "SCOPE") {
-            int numChannels = 2;
-            if (comp.parameters.count("channels")) {
-                try { numChannels = std::stoi(comp.parameters.at("channels")); } catch(...) {}
-            }
-
-            std::vector<std::string> sigKeys = CircuitSim::SVGExporter::traceScopeInputSignals(design, comp.id, numChannels);
-
-            std::vector<std::string> validKeys;
-            std::vector<std::string> validLabels;
-            for (const auto& k : sigKeys) {
-                if (!k.empty() && (telemetry.voltages.count(k) || !telemetry.timeHistory.empty())) {
-                    validKeys.push_back(k);
-                    validLabels.push_back(k);
-                }
-            }
-
-            if (!validKeys.empty()) {
-                CircuitSim::SVGExporter::ScopeReportData srd;
-                srd.scopeId = comp.id;
-                srd.scopeTitle = (comp.label.empty() || comp.label == comp.id) ? comp.id : (comp.label + " (" + comp.id + ")");
-                srd.signalKeys = validKeys;
-                srd.signalLabels = validLabels;
-                srd.numPanes = (int)validKeys.size();
-                scopesData.push_back(srd);
-            }
-        }
-    }
-
-    if (scopesData.empty()) {
-        std::vector<std::string> probeKeys;
-        for (const auto& comp : design.components) {
-            if (comp.rawTypeStr == "PROBE") {
-                if (comp.parameters.count("selected_signals") && !comp.parameters.at("selected_signals").empty()) {
-                    probeKeys.push_back(comp.parameters.at("selected_signals"));
-                } else if (comp.parameters.count("target") && !comp.parameters.at("target").empty()) {
-                    std::string pType = comp.parameters.count("probe_type") ? comp.parameters.at("probe_type") : "Voltage";
-                    if (pType == "Current" || pType == "I") probeKeys.push_back("I_" + comp.parameters.at("target"));
-                    else probeKeys.push_back("V_" + comp.parameters.at("target"));
-                }
-            }
-        }
-
-        std::vector<std::string> validKeys;
-        std::vector<std::string> validLabels;
-        for (const auto& k : probeKeys) {
-            if (!k.empty() && telemetry.voltages.count(k)) {
-                validKeys.push_back(k);
-                validLabels.push_back(k);
-            }
-        }
-
-        if (!validKeys.empty()) {
-            CircuitSim::SVGExporter::ScopeReportData srd;
-            srd.scopeId = "Probes";
-            srd.scopeTitle = "Probe Waveforms";
-            srd.signalKeys = validKeys;
-            srd.signalLabels = validLabels;
-            srd.numPanes = (int)validKeys.size();
-            scopesData.push_back(srd);
-        }
-    }
+    std::vector<CircuitSim::SVGExporter::ScopeReportData> scopesData =
+        CircuitSim::SVGExporter::scopesForReport(design, telemetry);
 
     std::string schematicJson = buildSchematicJsonString(design);
 
@@ -895,6 +558,29 @@ int main(int argc, char** argv) {
     }
 
     CircuitSim::MainWindow mainWindow;
+
+    // Open a file given on the command line (simpel.open_in_gui, file associations):
+    //   --results <file.simres> | <file.simres>   stored results, no simulation
+    //   --open <file.json>      | <file.json>     schematic
+    for (int i = 1; i < argc; ++i) {
+        std::string a = argv[i];
+        auto endsWith = [&](const std::string& s, const char* ext) {
+            const size_t n = std::strlen(ext);
+            return s.size() > n && s.compare(s.size() - n, n, ext) == 0;
+        };
+        std::string resultsPath, schematicPath;
+        if ((a == "--results" || a == "-r") && i + 1 < argc) resultsPath = argv[++i];
+        else if (a == "--open" && i + 1 < argc) schematicPath = argv[++i];
+        else if (endsWith(a, ".simres")) resultsPath = a;
+        else if (endsWith(a, ".json")) schematicPath = a;
+        else continue;
+        std::string err;
+        if (!resultsPath.empty() && !mainWindow.openResultsFile(resultsPath, &err))
+            MessageBoxA(NULL, err.c_str(), "Open Results", MB_OK | MB_ICONERROR);
+        if (!schematicPath.empty() && !mainWindow.openSchematicFile(schematicPath, &err))
+            MessageBoxA(NULL, err.c_str(), "Open Schematic", MB_OK | MB_ICONERROR);
+        break;
+    }
 
     // Main render loop
     bool done = false;

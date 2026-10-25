@@ -1,0 +1,332 @@
+{
+  "components": [
+    {
+      "id": "V1",
+      "type": "V",
+      "x": -220,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "24"
+      }
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": -100,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      }
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": -40,
+      "y": -120,
+      "rotation": 90,
+      "parameters": {
+        "L": "1m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1782747012723
+    },
+    {
+      "id": "MOSFET1",
+      "type": "MOSFET",
+      "x": 80,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "lastClickTime": 1782746825963
+    },
+    {
+      "id": "C2",
+      "type": "C",
+      "x": 160,
+      "y": -120,
+      "rotation": 90,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      }
+    },
+    {
+      "id": "L2",
+      "type": "L",
+      "x": 260,
+      "y": 0,
+      "rotation": 180,
+      "parameters": {
+        "L": "1m",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1782747019764
+    },
+    {
+      "id": "C3",
+      "type": "C",
+      "x": 420,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "C": "10u",
+        "esr": "10m",
+        "vC0": "0"
+      },
+      "lastClickTime": 1782747064009
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 520,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      }
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 340,
+      "y": -120,
+      "rotation": 270,
+      "parameters": {
+        "Vd": "0.7",
+        "Ron": "1m",
+        "Roff": "1M"
+      }
+    },
+    {
+      "id": "CSCRIPT1",
+      "type": "CSCRIPT",
+      "x": 200,
+      "y": 180,
+      "rotation": 180,
+      "parameters": {
+        "timestep": "0",
+        "plot_custom_vars": "",
+        "code": "// ─── ZONE 1: Parameters (editable in properties panel) ───\nconst double D = 0.5;         // Duty cycle (0.0 to 1.0)\nconst double fc = 100000.0;   // Switching frequency (Hz) - e.g., 100 kHz\nconst double dt = 1e-7;       // Internal time step for carrier (s)\n\n// ─── ZONE 2: State Variables (persistent across time steps) ───\ndouble ramp = 0.0;            // Carrier ramp accumulator\n\n// ─── ZONE 3: Step Function (runs every time step) ───\nvoid step() {\n    // Update the sawtooth carrier ramp (0.0 to 1.0)\n    double next_ramp = ramp + fc * dt;\n    ramp = (next_ramp >= 1.0) ? next_ramp - 1.0 : next_ramp;\n\n    // Generate the PWM gate signal\n    // If the ramp is less than the duty cycle, turn the switch ON (1.0), else OFF (0.0)\n    double gate = (ramp < D) ? 1.0 : 0.0;\n\n    // Write the gate pulse to the first output pin\n    outputs[0] = gate;\n}",
+        "D": "0.5",
+        "fc": "100000.0",
+        "dt": "1e-7",
+        "ramp": "0.0",
+        "plot_disabled_pins": ""
+      },
+      "lastClickTime": 1782747065563
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "C2",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "L2",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C2",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "L2",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S"
+      }
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "C3",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L2",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C3",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W13",
+      "from": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "C2",
+        "terminal": "A"
+      }
+    },
+    {
+      "id": "W14",
+      "from": {
+        "type": "pin",
+        "compId": "C3",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W15",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      }
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "CSCRIPT1",
+        "terminal": "Out1"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "G"
+      },
+      "manualPath": null
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "CSCRIPT1.Out1",
+          "V_C3"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.001",
+    "stepSize": "1e-7",
+    "stepType": "fixed",
+    "solver": "euler"
+  }
+}

@@ -1,0 +1,331 @@
+{
+  "components": [
+    {
+      "id": "MOSFET1",
+      "type": "MOSFET",
+      "x": 380,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "Ron": "10m",
+        "Roff": "1M"
+      },
+      "lastClickTime": 1782443017623
+    },
+    {
+      "id": "FROM_SIG1",
+      "type": "FROM_SIG",
+      "x": 320,
+      "y": 60,
+      "rotation": 0,
+      "parameters": {
+        "tag": "A"
+      },
+      "lastClickTime": 1783332716880
+    },
+    {
+      "id": "D1",
+      "type": "D",
+      "x": 380,
+      "y": 220,
+      "rotation": 180,
+      "parameters": {
+        "Vd": "0.7",
+        "Ron": "1m",
+        "Roff": "1M"
+      },
+      "lastClickTime": 1782443031678
+    },
+    {
+      "id": "V1",
+      "type": "V",
+      "x": 220,
+      "y": 160,
+      "rotation": 0,
+      "parameters": {
+        "value": "100"
+      },
+      "lastClickTime": 1782443364806
+    },
+    {
+      "id": "L1",
+      "type": "L",
+      "x": 480,
+      "y": 140,
+      "rotation": 270,
+      "parameters": {
+        "L": "100u",
+        "esr": "50m",
+        "iL0": "0"
+      },
+      "lastClickTime": 1783334281003
+    },
+    {
+      "id": "C1",
+      "type": "C",
+      "x": 560,
+      "y": 220,
+      "rotation": 0,
+      "parameters": {
+        "C": "100u",
+        "esr": "10m",
+        "vC0": "0"
+      },
+      "lastClickTime": 1783333305647
+    },
+    {
+      "id": "R1",
+      "type": "R",
+      "x": 620,
+      "y": 220,
+      "rotation": 0,
+      "parameters": {
+        "value": "10",
+        "esr": "0"
+      },
+      "lastClickTime": 1782443478412
+    },
+    {
+      "id": "GOTO_SIG1",
+      "type": "GOTO_SIG",
+      "x": 460,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "tag": "A"
+      },
+      "lastClickTime": 1782443203051
+    },
+    {
+      "id": "COMP1",
+      "type": "COMP",
+      "x": 360,
+      "y": 400,
+      "rotation": 0,
+      "parameters": {
+        "hysteresis": "0"
+      },
+      "lastClickTime": 1782443282315
+    },
+    {
+      "id": "TRI1",
+      "type": "TRI",
+      "x": 240,
+      "y": 380,
+      "rotation": 0,
+      "parameters": {
+        "frequency": "10k",
+        "min": "0",
+        "max": "1"
+      },
+      "lastClickTime": 1782443246791
+    },
+    {
+      "id": "CONST1",
+      "type": "CONST",
+      "x": 240,
+      "y": 420,
+      "rotation": 0,
+      "parameters": {
+        "value": "0.5"
+      },
+      "lastClickTime": 1782443313034
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": {
+        "type": "pin",
+        "compId": "FROM_SIG1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "G"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W2",
+      "from": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "S",
+        "x": 380,
+        "y": 200
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W3",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MOSFET1",
+        "terminal": "D"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W4",
+      "from": {
+        "type": "pin",
+        "compId": "V1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "D1",
+        "terminal": "A"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W6",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "B"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W7",
+      "from": {
+        "type": "pin",
+        "compId": "C1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W4",
+        "x": 380,
+        "y": 280
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W9",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "B"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W7",
+        "x": 560,
+        "y": 280
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W5",
+      "from": {
+        "type": "pin",
+        "compId": "L1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W2",
+        "x": 380,
+        "y": 140
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W8",
+      "from": {
+        "type": "pin",
+        "compId": "R1",
+        "terminal": "A"
+      },
+      "to": {
+        "type": "wire",
+        "wireId": "W6",
+        "x": 560,
+        "y": 140
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W10",
+      "from": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "GOTO_SIG1",
+        "terminal": "In"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W11",
+      "from": {
+        "type": "pin",
+        "compId": "TRI1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Plus"
+      },
+      "manualPath": null
+    },
+    {
+      "id": "W12",
+      "from": {
+        "type": "pin",
+        "compId": "CONST1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "COMP1",
+        "terminal": "Minus"
+      },
+      "manualPath": null
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Waveform analysis",
+        "variables": [
+          "COMP1.Minus",
+          "COMP1.Out",
+          "COMP1.Plus",
+          "CONST1.Out",
+          "I_L1"
+        ]
+      }
+    ]
+  },
+  "simulationSettings": {
+    "stopTime": "0.01",
+    "stepSize": "10u",
+    "solver": "euler",
+    "stepType": "fixed"
+  }
+}

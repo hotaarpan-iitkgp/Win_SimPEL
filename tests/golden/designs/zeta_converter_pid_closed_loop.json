@@ -1,0 +1,563 @@
+{
+  "components": [
+    {
+      "id": "V1",
+      "label": "Vin (24V)",
+      "parameters": {
+        "value": "24"
+      },
+      "rotation": 0,
+      "type": "V",
+      "x": -339.0216979980469,
+      "y": -281.6195983886719
+    },
+    {
+      "id": "MOSFET1",
+      "label": "Main Switch S1",
+      "parameters": {
+        "Roff": "1000000",
+        "Ron": "0.01"
+      },
+      "rotation": 270,
+      "type": "MOSFET",
+      "x": -246.1207275390625,
+      "y": -392.4468994140625
+    },
+    {
+      "id": "L1",
+      "label": "L1 (100uH)",
+      "parameters": {
+        "value": "0.0001"
+      },
+      "rotation": 0,
+      "type": "L",
+      "x": -143.98880004882813,
+      "y": -266.4805603027344
+    },
+    {
+      "id": "C1",
+      "label": "Coupling Cap Cc (47uF)",
+      "parameters": {
+        "value": "0.000047"
+      },
+      "rotation": 270,
+      "type": "C",
+      "x": 48.55915069580078,
+      "y": -400.6276550292969
+    },
+    {
+      "id": "L2",
+      "label": "L2 (100uH)",
+      "parameters": {
+        "value": "0.0001"
+      },
+      "rotation": 270,
+      "type": "L",
+      "x": 207.32662963867188,
+      "y": -401.8981628417969
+    },
+    {
+      "id": "C2",
+      "label": "Output Cap Cout (220uF)",
+      "parameters": {
+        "value": "0.00022"
+      },
+      "rotation": 0,
+      "type": "C",
+      "x": 291.7266845703125,
+      "y": -233.093017578125
+    },
+    {
+      "id": "R1",
+      "label": "Load Resistor (10 Ohm)",
+      "parameters": {
+        "plotV": "1",
+        "probe_signal": "1",
+        "value": "10"
+      },
+      "rotation": 0,
+      "type": "R",
+      "x": 430.3416442871094,
+      "y": -235.16143798828125
+    },
+    {
+      "id": "VREF",
+      "label": "Vref (15V Target)",
+      "parameters": {
+        "value": "15.0"
+      },
+      "rotation": 180,
+      "type": "CONST",
+      "x": 116.1046371459961,
+      "y": 70.3951416015625
+    },
+    {
+      "id": "SUM1",
+      "label": "Error Subtractor",
+      "parameters": {
+        "signs": "+-"
+      },
+      "rotation": 180,
+      "type": "SUBTRACT",
+      "x": -43.05226135253906,
+      "y": 61.107269287109375
+    },
+    {
+      "id": "PID1",
+      "label": "Voltage PID Controller",
+      "parameters": {
+        "Kd": "0.00005",
+        "Ki": "150.0",
+        "Kp": "0.02",
+        "Tf": "0.0005",
+        "anti_windup": "true",
+        "limit_output": "true",
+        "lower_limit": "0.05",
+        "upper_limit": "0.85"
+      },
+      "rotation": 180,
+      "type": "PID",
+      "x": -158.5860137939453,
+      "y": 58.661651611328125
+    },
+    {
+      "id": "TRI1",
+      "label": "Carrier (50kHz)",
+      "parameters": {
+        "frequency": "50000",
+        "max": "1",
+        "min": "0"
+      },
+      "rotation": 180,
+      "type": "TRI",
+      "x": -18.938199996948242,
+      "y": -9.623457908630371
+    },
+    {
+      "id": "COMP1",
+      "label": "PWM Modulator",
+      "parameters": {},
+      "rotation": 270,
+      "type": "COMP",
+      "x": -239.48001098632813,
+      "y": -50.71137237548828
+    },
+    {
+      "id": "D1",
+      "label": "D",
+      "parameters": {
+        "Roff": "1M",
+        "Ron": "1m",
+        "Vd": "0.7"
+      },
+      "rotation": 180,
+      "type": "D",
+      "x": 135.86331176757813,
+      "y": -257.931640625
+    },
+    {
+      "id": "VM1",
+      "label": "VM",
+      "parameters": {},
+      "rotation": 0,
+      "type": "VM",
+      "x": 536.2330322265625,
+      "y": -258.6590881347656
+    }
+  ],
+  "wires": [
+    {
+      "from": {
+        "compId": "V1",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w1",
+      "to": {
+        "compId": "MOSFET1",
+        "terminal": "D",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "MOSFET1",
+        "terminal": "S",
+        "type": "pin"
+      },
+      "id": "w3",
+      "to": {
+        "compId": "w29",
+        "terminal": "",
+        "type": "junction",
+        "x": -174.88641357421875,
+        "y": -393.2492980957031
+      }
+    },
+    {
+      "from": {
+        "compId": "C1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w5",
+      "to": {
+        "compId": "w25",
+        "terminal": "",
+        "type": "junction",
+        "x": 108.5592041015625,
+        "y": -400.6276550292969
+      }
+    },
+    {
+      "from": {
+        "compId": "L2",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w6",
+      "to": {
+        "compId": "C2",
+        "terminal": "A",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "L2",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w7",
+      "to": {
+        "compId": "w33",
+        "terminal": "",
+        "type": "junction",
+        "x": 267.32666015625,
+        "y": -401.8981628417969
+      }
+    },
+    {
+      "from": {
+        "compId": "V1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w11",
+      "to": {
+        "compId": "w31",
+        "terminal": "",
+        "type": "junction",
+        "x": -339.021728515625,
+        "y": -140.00003051757813
+      }
+    },
+    {
+      "from": {
+        "compId": "V1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w12",
+      "to": {
+        "compId": "w35",
+        "terminal": "",
+        "type": "junction",
+        "x": -339.021728515625,
+        "y": -140.00003051757813
+      }
+    },
+    {
+      "from": {
+        "compId": "VREF",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w14",
+      "to": {
+        "compId": "SUM1",
+        "terminal": "In1",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "SUM1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w16",
+      "to": {
+        "compId": "PID1",
+        "terminal": "In",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "PID1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w17",
+      "to": {
+        "compId": "COMP1",
+        "terminal": "In1",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "TRI1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w18",
+      "to": {
+        "compId": "COMP1",
+        "terminal": "In2",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "COMP1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w19",
+      "to": {
+        "compId": "MOSFET1",
+        "terminal": "G",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "D1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w25",
+      "to": {
+        "compId": "w5",
+        "terminal": "",
+        "type": "junction",
+        "x": 135.86328125,
+        "y": -400.6276550292969
+      }
+    },
+    {
+      "from": {
+        "compId": "D1",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w27",
+      "to": {
+        "compId": "w11",
+        "terminal": "",
+        "type": "junction",
+        "x": 135.86328125,
+        "y": -140.0
+      }
+    },
+    {
+      "from": {
+        "compId": "L1",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w29",
+      "to": {
+        "compId": "w3",
+        "terminal": "",
+        "type": "junction",
+        "x": -143.98880004882813,
+        "y": -393.2492980957031
+      }
+    },
+    {
+      "from": {
+        "compId": "L1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w31",
+      "to": {
+        "compId": "w11",
+        "terminal": "",
+        "type": "junction",
+        "x": -143.98880004882813,
+        "y": -140.00003051757813
+      }
+    },
+    {
+      "from": {
+        "compId": "VM1",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w33",
+      "to": {
+        "compId": "w43",
+        "terminal": "",
+        "type": "junction",
+        "x": 430.0,
+        "y": -400.0
+      }
+    },
+    {
+      "from": {
+        "compId": "VM1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w35",
+      "to": {
+        "compId": "w41",
+        "terminal": "",
+        "type": "junction",
+        "x": 430.0,
+        "y": -140.0
+      }
+    },
+    {
+      "from": {
+        "compId": "VM1",
+        "terminal": "Out",
+        "type": "pin"
+      },
+      "id": "w37",
+      "to": {
+        "compId": "SUM1",
+        "terminal": "In2",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "C1",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w38",
+      "to": {
+        "compId": "L1",
+        "terminal": "A",
+        "type": "pin"
+      }
+    },
+    {
+      "from": {
+        "compId": "C2",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w39",
+      "to": {
+        "compId": "w35",
+        "terminal": "",
+        "type": "junction",
+        "x": 290.0,
+        "y": -140.0
+      }
+    },
+    {
+      "from": {
+        "compId": "w39",
+        "terminal": "",
+        "type": "junction",
+        "x": 290.0,
+        "y": -140.0
+      },
+      "id": "w40",
+      "to": {
+        "compId": "w12",
+        "terminal": "",
+        "type": "junction",
+        "x": 536.2330322265625,
+        "y": -140.0
+      }
+    },
+    {
+      "from": {
+        "compId": "R1",
+        "terminal": "B",
+        "type": "pin"
+      },
+      "id": "w41",
+      "to": {
+        "compId": "w35",
+        "terminal": "",
+        "type": "junction",
+        "x": 430.0,
+        "y": -140.0
+      }
+    },
+    {
+      "from": {
+        "compId": "w41",
+        "terminal": "",
+        "type": "junction",
+        "x": 430.0,
+        "y": -140.0
+      },
+      "id": "w42",
+      "to": {
+        "compId": "w39",
+        "terminal": "",
+        "type": "junction",
+        "x": 290.0,
+        "y": -140.0
+      }
+    },
+    {
+      "from": {
+        "compId": "R1",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w43",
+      "to": {
+        "compId": "w33",
+        "terminal": "",
+        "type": "junction",
+        "x": 430.0,
+        "y": -400.0
+      }
+    },
+    {
+      "from": {
+        "compId": "w43",
+        "terminal": "",
+        "type": "junction",
+        "x": 430.0,
+        "y": -400.0
+      },
+      "id": "w44",
+      "to": {
+        "compId": "w7",
+        "terminal": "",
+        "type": "junction",
+        "x": 536.2330322265625,
+        "y": -401.8981628417969
+      }
+    },
+    {
+      "from": {
+        "compId": "L2",
+        "terminal": "A",
+        "type": "pin"
+      },
+      "id": "w45",
+      "to": {
+        "compId": "w25",
+        "terminal": "",
+        "type": "junction",
+        "x": 140.0,
+        "y": -400.0
+      }
+    }
+  ]
+}

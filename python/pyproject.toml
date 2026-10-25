@@ -1,0 +1,39 @@
+[build-system]
+requires = ["scikit-build-core==1.1.1", "pybind11==3.1.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "simpel"
+version = "0.1.0"
+description = "Python API for the SimPEL power-electronics circuit simulator"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0,<3"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+
+[project.optional-dependencies]
+pandas = ["pandas>=2.2,<4"]
+plot = ["matplotlib>=3.8,<4"]
+test = ["pytest>=8,<10"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+# The C++ project (engine, GUI, tests) lives one directory up; only the extension
+# module is built and installed for the wheel.
+cmake.source-dir = ".."
+build.targets = ["_core"]
+wheel.packages = ["src/simpel"]
+build-dir = "build/{wheel_tag}"
+
+[tool.scikit-build.cmake.define]
+SIMPEL_BUILD_PYTHON = "ON"
+SIMPEL_BUILD_GUI = "OFF"
+SIMPEL_BUILD_TESTS = "OFF"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

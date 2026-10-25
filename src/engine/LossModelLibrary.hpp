@@ -24,8 +24,15 @@ public:
         }
     }
 
-    // Synchronous loading
+    // Synchronous loading. Besides custom_dir and the built-in search locations
+    // (next to the executable, the working directory and its parent), the
+    // directories in SIMPEL_LOSS_MODELS_DIR (';'-separated) are scanned first.
     void loadAllModels(const std::string& custom_dir = "");
+    // Replaces the library with the models found in exactly these directories
+    // (searched recursively), ignoring the built-in search locations.
+    void loadFromDirectories(const std::vector<std::string>& dirs);
+    // Progress messages on stdout (default on, as the GUI shows them in its console).
+    void setVerbose(bool v) { verbose.store(v); }
     void refresh();
 
     // Asynchronous loading (parallel background task)
@@ -52,6 +59,7 @@ private:
 
     mutable std::mutex libraryMutex;
     std::atomic<bool> loading{false};
+    std::atomic<bool> verbose{true};
     std::thread workerThread;
 
     std::map<std::string, std::shared_ptr<LossModel>> models;

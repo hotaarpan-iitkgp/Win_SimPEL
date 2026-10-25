@@ -1,0 +1,59 @@
+{
+  "components": [
+    {
+      "id": "SINE1",
+      "type": "SINE_WAVE",
+      "x": -600, "y": 0, "rotation": 0,
+      "parameters": { "amplitude": "1.0", "frequency": "50", "phase": "0" }
+    },
+    {
+      "id": "PULSE1",
+      "type": "PULSE_GEN",
+      "x": -600, "y": 100, "rotation": 0,
+      "parameters": { "period": "0.02", "duty_cycle": "50" }
+    },
+    { "id": "F1", "type": "PER_AVG", "x": -200, "y": -400, "rotation": 0, "parameters": {} },
+    { "id": "F2", "type": "PERIODIC_IMP_AVG", "x": -200, "y": -300, "rotation": 0, "parameters": {} },
+    { "id": "F3", "type": "FOURIER_TRANS", "x": -200, "y": -200, "rotation": 0, "parameters": {} },
+    { "id": "F4", "type": "MOV_AVG", "x": -200, "y": -100, "rotation": 0, "parameters": {} },
+    { "id": "F5", "type": "FILTER_1ST", "x": -200, "y": 0, "rotation": 0, "parameters": {} },
+    { "id": "F6", "type": "FILTER_2ND", "x": -200, "y": 100, "rotation": 0, "parameters": {} },
+    { "id": "F7", "type": "FOURIER_ANALYSIS", "x": -200, "y": 200, "rotation": 0, "parameters": {} },
+    { "id": "F8", "type": "RMS_VAL", "x": -200, "y": 300, "rotation": 0, "parameters": {} },
+    { "id": "F9", "type": "THD_VAL", "x": -200, "y": 400, "rotation": 0, "parameters": {} },
+    { "id": "F10", "type": "PLL_LOOP", "x": -200, "y": 500, "rotation": 0, "parameters": {} }
+  ],
+  "wires": [
+    { "id": "w1", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F1", "terminal": "In" } },
+    
+    { "id": "w2", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F2", "terminal": "In" } },
+    { "id": "w3", "from": { "type": "pin", "compId": "PULSE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F2", "terminal": "Trig" } },
+    
+    { "id": "w4", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F3", "terminal": "In" } },
+    { "id": "w5", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F4", "terminal": "In" } },
+    { "id": "w6", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F5", "terminal": "In" } },
+    { "id": "w7", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F6", "terminal": "In" } },
+    { "id": "w8", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F7", "terminal": "In" } },
+    { "id": "w9", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F8", "terminal": "In" } },
+    { "id": "w10", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F9", "terminal": "In" } },
+    { "id": "w11", "from": { "type": "pin", "compId": "SINE1", "terminal": "Out" }, "to": { "type": "pin", "compId": "F10", "terminal": "In" } }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Filters and Measurements Outputs",
+        "variables": [
+          "SINE1.Out",
+          "F1.Out", "F2.Out",
+          "F3.Mag", "F3.Phase",
+          "F4.Out", "F5.Out", "F6.Out", "F7.Out",
+          "F8.Out", "F9.Out", "F10.Out"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.1", "h": "1e-4", "solver": "euler", "step_type": "fixed"
+  },
+  "description": "Test of Filters and Measurements Blocks"
+}

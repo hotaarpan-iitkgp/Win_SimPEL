@@ -1,0 +1,7 @@
+# Exact versions used to build and test the extension locally and in CI.
+scikit-build-core==1.1.1
+pybind11==3.1.0
+numpy==2.4.6
+pandas==3.1.0
+pytest==9.1.1
+matplotlib==3.11.2

@@ -1,0 +1,145 @@
+{
+  "components": [
+    {
+      "id": "STEP1",
+      "type": "STEP",
+      "x": -200,
+      "y": -200,
+      "rotation": 0,
+      "parameters": {
+        "step_time": "0.02",
+        "initial_value": "0.0",
+        "final_value": "1.0"
+      }
+    },
+    {
+      "id": "DELAY1",
+      "type": "DELAY",
+      "x": 0,
+      "y": -250,
+      "rotation": 0,
+      "parameters": {
+        "delay": "0.01"
+      }
+    },
+    {
+      "id": "TRANS_DELAY1",
+      "type": "TRANSPORT_DELAY",
+      "x": 0,
+      "y": -150,
+      "rotation": 0,
+      "parameters": {
+        "delay": "0.02"
+      }
+    },
+    {
+      "id": "MEM1",
+      "type": "MEMORY_BLOCK",
+      "x": 0,
+      "y": -50,
+      "rotation": 0,
+      "parameters": {
+        "initial_value": "0.0"
+      }
+    },
+    {
+      "id": "PULSE1",
+      "type": "PULSE_GEN",
+      "x": -200,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "frequency": "20.0",
+        "duty_cycle": "50.0",
+        "amplitude": "1.0",
+        "offset": "0.0"
+      }
+    },
+    {
+      "id": "TURN_ON1",
+      "type": "TURN_ON_DELAY",
+      "x": 0,
+      "y": 100,
+      "rotation": 0,
+      "parameters": {
+        "delay": "0.01"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": {
+        "type": "pin",
+        "compId": "STEP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "DELAY1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w2",
+      "from": {
+        "type": "pin",
+        "compId": "STEP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TRANS_DELAY1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w3",
+      "from": {
+        "type": "pin",
+        "compId": "STEP1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "MEM1",
+        "terminal": "In"
+      }
+    },
+    {
+      "id": "w4",
+      "from": {
+        "type": "pin",
+        "compId": "PULSE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "TURN_ON1",
+        "terminal": "In"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "Delay Blocks Outputs",
+        "variables": [
+          "STEP1.Out",
+          "DELAY1.Out",
+          "TRANS_DELAY1.Out",
+          "MEM1.Out",
+          "PULSE1.Out",
+          "TURN_ON1.Out"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.1",
+    "h": "0.0001",
+    "solver": "euler",
+    "step_type": "fixed"
+  },
+  "description": "Test of Delay Blocks"
+}

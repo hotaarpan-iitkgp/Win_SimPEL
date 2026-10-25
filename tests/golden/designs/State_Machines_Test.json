@@ -1,0 +1,80 @@
+{
+  "components": [
+    {
+      "id": "STATE1",
+      "type": "STATE_MACHINE",
+      "x": -200,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {}
+    },
+    {
+      "id": "SCOPE_STATE1_0",
+      "type": "SCOPE",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "parameters": {
+        "channels": "1"
+      }
+    },
+    {
+      "id": "SINE_WAVE_1",
+      "type": "SINE_WAVE",
+      "x": -400,
+      "y": 15,
+      "rotation": 0,
+      "parameters": {
+        "amplitude": "5.0",
+        "frequency": "50",
+        "phase": "0"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W_1",
+      "from": {
+        "type": "pin",
+        "compId": "STATE1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "SCOPE_STATE1_0",
+        "terminal": "In1"
+      }
+    },
+    {
+      "id": "W_2",
+      "from": {
+        "type": "pin",
+        "compId": "SINE_WAVE_1",
+        "terminal": "Out"
+      },
+      "to": {
+        "type": "pin",
+        "compId": "STATE1",
+        "terminal": "In"
+      }
+    }
+  ],
+  "plotConfiguration": {
+    "plots": [
+      {
+        "title": "State Machines Output",
+        "variables": [
+          "SINE1.Out",
+          "STATE1.Out"
+        ]
+      }
+    ]
+  },
+  "simulation_parameters": {
+    "t_end": "0.1",
+    "h": "1e-4",
+    "solver": "euler",
+    "step_type": "fixed"
+  },
+  "description": "Test of State Machine Blocks"
+}
