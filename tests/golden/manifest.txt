@@ -20,9 +20,7 @@ Dual_Active_Bridge_converter | Dual Active Bridge converter.json |
 Electrical_Blocks_Test | Electrical_Blocks_Test.json |
 Electrical_Complex_Switches_Test | Electrical_Complex_Switches_Test.json |
 Electrical_Complex_Transformers_Machines_Test | Electrical_Complex_Transformers_Machines_Test.json |
-Electrical_ICs_Electronics_Test | Electrical_ICs_Electronics_Test.json |
 Electrical_Machines_Transformers_Test | Electrical_Machines_Transformers_Test.json |
-Electrical_Remaining_Missing_Test | Electrical_Remaining_Missing_Test.json |
 Electrical_Semiconductors_Test | Electrical_Semiconductors_Test.json |
 Filters_Measurements_Test | Filters_Measurements_Test.json |
 Flyback_Converter_Closed_loop | Flyback Converter Closed loop.json |

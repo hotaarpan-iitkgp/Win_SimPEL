@@ -1,6 +1,8 @@
 #include "CircuitSimulator.hpp"
 #include <cmath>
 #include <cctype>
+#include <cstdlib>
+#include <cstdio>
 #include <iostream>
 #include <algorithm>
 #include <sstream>
@@ -19,6 +21,21 @@ static std::string toLowerAscii(std::string s) {
     return s;
 }
 
+// Normalized trapezoidal back-EMF shape of a BLDC phase, theta in radians (any value). The shape
+// is +1 over 120 deg, -1 over the next 120 deg, and changes linearly over 60 deg at each edge.
+static double trapezoidShape(double theta) {
+    const double twoPi = 6.283185307179586;
+    double d = std::fmod(theta, twoPi);
+    if (d < 0.0) d += twoPi;                  // [0, 2 pi)
+    double deg = d * 180.0 / 3.141592653589793;
+    if (deg >= 180.0) deg -= 360.0;           // [-180, 180)
+    if (deg < -150.0) deg += 360.0;           // falling edge of the negative half, now (150, 210)
+    if (deg > 150.0) return 1.0 - (deg - 150.0) / 30.0;
+    if (deg > 30.0) return 1.0;
+    if (deg >= -30.0) return deg / 30.0;      // rising edge
+    return -1.0;
+}
+
 // Effective value of a passive element for the current timestep. Signal-controlled
 // elements (VAR_R / VAR_L / VAR_C) read their value from the bound control signal,
 // floored to keep the MNA stamp well conditioned. Elements with no control signal
@@ -28,6 +45,89 @@ static inline double liveElementValue(const FastCompiledComponent& fc, double fl
     double v = *fc.ctrlSigPtr;
     if (!(v == v)) return fc.nominalVal;      // NaN guard
     return (v < floorVal) ? floorVal : v;
+}
+
+// PWM_3PH output ports, in registration order: G1..G6, gA1,gA2,gB1,gB2,gC1,gC2,
+// OutA,OutB,OutC, Out1,Out2,Out3. Upper gates follow the comparison, lower gates
+// are its complement (no dead time in this block).
+// Dead-time gating for PWM_3PH. raw[k] is the requested state of gate k (order:
+// A-upper, A-lower, B-upper, B-lower, C-upper, C-lower). A gate may switch on only
+// deadTime after its own rising edge, so the two switches of a leg never conduct
+// together. Turn-off is immediate. The rising-edge times live in the component's
+// PWM master state arrays, updated once per accepted step (commit).
+// Parses "[[a, b], [c, d]]", "[a, b; c, d]" or "[a b]" into rows of numbers.
+static std::vector<std::vector<double>> parseNumRows(const std::string& src) {
+    std::string s;
+    s.reserve(src.size());
+    int depth = 0;
+    for (char c : src) {
+        if (c == '[') {
+            ++depth;
+            if (depth == 2 && !s.empty()) s += ';';
+        } else if (c == ']') {
+            --depth;
+        } else if (c == ',') {
+            s += ' ';
+        } else {
+            s += c;
+        }
+    }
+    std::vector<std::vector<double>> rows;
+    std::stringstream ss(s);
+    std::string line;
+    while (std::getline(ss, line, ';')) {
+        std::stringstream ls(line);
+        std::vector<double> row;
+        double v;
+        while (ls >> v) row.push_back(v);
+        if (!row.empty()) rows.push_back(row);
+    }
+    return rows;
+}
+
+static void pwm3PhGates(FastCompiledComponent& fc, double t, double deadTime, bool commit,
+                        const double raw[6], double gated[6]) {
+    if (fc.pwmMasterLastTargetDirect.size() < 6) {
+        fc.pwmMasterLastTargetDirect.assign(6, 0);
+        fc.pwmMasterLastTransDirect.assign(6, -1.0);
+    }
+    if (commit && t > fc.lastTime) {
+        for (int k = 0; k < 6; ++k) {
+            const int r = raw[k] > 0.5 ? 1 : 0;
+            if (r != fc.pwmMasterLastTargetDirect[k]) {
+                fc.pwmMasterLastTargetDirect[k] = r;
+                if (r) fc.pwmMasterLastTransDirect[k] = t;   // rising edge
+            }
+        }
+        fc.lastTime = t;
+    }
+    for (int k = 0; k < 6; ++k) {
+        const bool on = raw[k] > 0.5;
+        const double since = (fc.pwmMasterLastTransDirect[k] >= 0.0) ? (t - fc.pwmMasterLastTransDirect[k]) : 1e300;
+        const bool blocked = on && deadTime > 0.0 && since < deadTime - 1e-15;
+        gated[k] = (on && !blocked) ? 1.0 : 0.0;
+    }
+}
+
+// Writes the 18 PWM_3PH output ports, in registration order: G1..G6, gA1..gC2,
+// OutA..OutC, Out1..Out3. Upper and lower gates are the gated values.
+static inline void writePwm3PhGates(const FastCompiledComponent& fc, std::vector<double>& sigs,
+                                    const double g[6]) {
+    const double vals[18] = {g[0], g[1], g[2], g[3], g[4], g[5],
+                             g[0], g[1], g[2], g[3], g[4], g[5],
+                             g[0], g[2], g[4], g[0], g[2], g[4]};
+    for (size_t k = 0; k < 18 && k < fc.outputSigIndices.size(); ++k) {
+        int idx = fc.outputSigIndices[k];
+        if (idx >= 0 && idx < (int)sigs.size()) sigs[idx] = vals[k];
+    }
+}
+
+// Control blocks whose outputs are recorded one vector per port. A CSCRIPT with a
+// single output belongs here too: it used to fall through to the "<id>.Out" path,
+// a key the script never writes, so its only output read 0 in the results.
+static inline bool hasPerPortOutputs(const FastCompiledComponent& fc) {
+    if (fc.type == ComponentType::CustomScript) return !fc.outputSigKeys.empty();
+    return fc.outputSigKeys.size() > 1;
 }
 
 void CircuitSimulator::setup(const std::vector<ComponentModel>& physComps, 
@@ -100,6 +200,7 @@ void CircuitSimulator::buildIndexMaps() {
     signalKeyToIdx.clear();
     flatControlSignals.clear();
     flatCapVoltages.clear();
+    flatCapCurrents.clear();
     flatIndCurrents.clear();
     flatDiodeStates.clear();
     flatSwitchStates.clear();
@@ -174,8 +275,11 @@ void CircuitSimulator::buildIndexMaps() {
     // Reset stale change-detection state so the first assembly always factorizes.
     matrixKChanged = true;
     trapModeStampValid = false;
-    // Do not carry a pending backward-Euler damping window into the next run.
-    forceBackwardEulerSteps = 0;
+    // Do not carry a pending backward-Euler damping window into the next run, but
+    // start each run with one: the trapezoidal history terms (capacitor current,
+    // inductor voltage) start at zero, which is wrong whenever the circuit is not at
+    // rest at t = 0, and trapezoidal never damps that error away.
+    forceBackwardEulerSteps = 2;
     B.assign(totalDim, 0.0);
     X.assign(totalDim, 0.0);
 
@@ -281,6 +385,7 @@ void CircuitSimulator::buildIndexMaps() {
             fc.val = evaluateParam(comp, "C", 1e-6);
             fc.stateIdx = (int)flatCapVoltages.size();
             flatCapVoltages.push_back(capVoltagesPrev[comp.id]);
+            flatCapCurrents.push_back(0.0);
         }
         else if (comp.type == ComponentType::Inductor) {
             fc.val = evaluateParam(comp, "L", 1e-3);
@@ -521,6 +626,9 @@ void CircuitSimulator::buildIndexMaps() {
             bool isCommonMod = (getParamString(ctrlComp, "common_modulation", "false") == "true");
 
             fc.numInputs = numCarriers;
+            // Carrier range: the triangle runs from min to max, as in PWM_Generator.
+            fc.minVal = evaluateParam(ctrlComp, "min", 0.0);
+            fc.maxVal = evaluateParam(ctrlComp, "max", 1.0);
             fc.pwmMasterInIndices.assign(numCarriers, -1);
             fc.pwmMasterExtPhaseIndices.assign(numCarriers, -1);
             fc.pwmMasterOutDirectIndices.assign(numCarriers, -1);
@@ -592,11 +700,17 @@ void CircuitSimulator::buildIndexMaps() {
                 fc.pwmMasterOutDirectIndices[i] = getOrCreateSignalIdx(dKey);
                 fc.pwmMasterOutComplIndices[i] = getOrCreateSignalIdx(cKey);
 
-                fc.outputSigKeys.push_back(dKey);
-                fc.outputSigKeys.push_back(cKey);
-                fc.outputSigKeys.push_back(ctrlComp.id + ".OutDirect" + std::to_string(chIdx));
-                fc.outputSigKeys.push_back(ctrlComp.id + ".OutCompl" + std::to_string(chIdx));
-                fc.outputSigKeys.push_back(ctrlComp.id + ".Out" + std::to_string(chIdx));
+                // Keys and indices must stay in step: the recorder walks outputSigIndices,
+                // so a key with no index was never written and came back empty.
+                const std::string portKeys[5] = {
+                    dKey, cKey,
+                    ctrlComp.id + ".OutDirect" + std::to_string(chIdx),
+                    ctrlComp.id + ".OutCompl" + std::to_string(chIdx),
+                    ctrlComp.id + ".Out" + std::to_string(chIdx)};
+                for (const auto& pk : portKeys) {
+                    fc.outputSigKeys.push_back(pk);
+                    fc.outputSigIndices.push_back(getOrCreateSignalIdx(pk));
+                }
             }
         } else if (ctrlComp.type == ComponentType::LUT_1D) {
             fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
@@ -624,9 +738,30 @@ void CircuitSimulator::buildIndexMaps() {
             if (ctrlComp.parameters.count("k")) fc.gain = evaluateParam(ctrlComp, "k", 1.0);
         } else if (ctrlComp.type == ComponentType::ContinuousPID) {
             fc.gain = evaluateParam(ctrlComp, "Kp", 1.0);
-            fc.vAlphaKey = std::to_string(evaluateParam(ctrlComp, "Ki", 0.0));
-            fc.vBetaKey = std::to_string(evaluateParam(ctrlComp, "Kd", 0.0));
+            // ts > 0 turns the controller into a sampled one (DISCRETE_PID); 0 is continuous.
+            fc.delay = evaluateParam(ctrlComp, "ts", 0.0);
+            // Ki and Kd travel as text (read back with atof). std::to_string keeps only
+            // six decimals, which rounded small gains (Kd = 5e-7 became 0), so print
+            // them round-trip exact instead.
+            auto exactText = [](double x) {
+                char buf[32];
+                std::snprintf(buf, sizeof buf, "%.17g", x);
+                return std::string(buf);
+            };
+            fc.vAlphaKey = exactText(evaluateParam(ctrlComp, "Ki", 0.0));
+            fc.vBetaKey = exactText(evaluateParam(ctrlComp, "Kd", 0.0));
             fc.minVal = evaluateParam(ctrlComp, "Tf", 0.01);
+            // These were emitted into the netlist but never read, so a limited PID
+            // ran unlimited and wound up.
+            auto isOn = [&](const char* key) {
+                std::string v = toLowerAscii(getParamString(ctrlComp, key, "false"));
+                return v == "true" || v == "1" || v == "on" || v == "yes";
+            };
+            fc.pidLimitOutput = isOn("limit_output");
+            fc.pidAntiWindup = isOn("anti_windup");
+            fc.pidUpper = evaluateParam(ctrlComp, "upper_limit", 1.0);
+            fc.pidLower = evaluateParam(ctrlComp, "lower_limit", -1.0);
+            if (fc.pidLower > fc.pidUpper) std::swap(fc.pidLower, fc.pidUpper);
         } else if (ctrlComp.type == ComponentType::PLL_1PH || ctrlComp.type == ComponentType::PLL_3PH) {
             fc.freq = evaluateParam(ctrlComp, "fn", 50.0);
             fc.gain = evaluateParam(ctrlComp, "Kp", 20.0);
@@ -653,6 +788,15 @@ void CircuitSimulator::buildIndexMaps() {
         } else if (ctrlComp.type == ComponentType::MultiportSwitch) {
             fc.polarity = getParamString(ctrlComp, "indexing", "1-based");
             fc.val = evaluateParam(ctrlComp, "inputs", 3.0);
+            // Data inputs In1..InN come from the netlist "inputs" array (the parser
+            // exposes them as In1..InN). They were never bound, so the selected input
+            // always read 0 and the switch output was constant zero.
+            const int nData = std::max(1, (int)fc.val);
+            for (int k = 1; k <= nData; ++k) {
+                std::string inK = getParamString(ctrlComp, "In" + std::to_string(k), "");
+                fc.inputSigKeys.push_back(inK);
+                fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
+            }
         } else if (ctrlComp.type == ComponentType::HitCrossing) {
             fc.thresholdVal = evaluateParam(ctrlComp, "hit_threshold", 0.0);
             if (!ctrlComp.parameters.count("hit_threshold") && ctrlComp.parameters.count("offset")) fc.thresholdVal = evaluateParam(ctrlComp, "offset", 0.0);
@@ -706,7 +850,11 @@ void CircuitSimulator::buildIndexMaps() {
 
             fc.freq = getParamVal({"cutoff_freq", "cutoff", "fc", "freq", "frequency", "f"}, 100.0);
             fc.gain = getParamVal({"damping", "damping_ratio", "zeta", "Q", "q"}, 0.707);
-        } else if (ctrlComp.type == ComponentType::PerAvg || ctrlComp.type == ComponentType::MovAvg) {
+        } else if (ctrlComp.type == ComponentType::MovAvg) {
+            // Window length in samples. This was never set, so the runtime always used
+            // its default of 4 samples and the "window" parameter had no effect.
+            fc.shiftLength = std::max(1, (int)std::llround(evaluateParam(ctrlComp, "window", 10.0)));
+        } else if (ctrlComp.type == ComponentType::PerAvg) {
             fc.delayDuration = evaluateParam(ctrlComp, "period", 0.02);
             if (!ctrlComp.parameters.count("period") && ctrlComp.parameters.count("T")) fc.delayDuration = evaluateParam(ctrlComp, "T", 0.02);
             if (!ctrlComp.parameters.count("period") && !ctrlComp.parameters.count("T") && ctrlComp.parameters.count("duration")) fc.delayDuration = evaluateParam(ctrlComp, "duration", 0.02);
@@ -726,6 +874,148 @@ void CircuitSimulator::buildIndexMaps() {
             fc.vAlphaKey = getParamString(ctrlComp, "table_z", "[[0, 1], [1, 2]]");
             if (!ctrlComp.parameters.count("table_z") && ctrlComp.parameters.count("z")) fc.vAlphaKey = getParamString(ctrlComp, "z", "[[0, 1], [1, 2]]");
             if (!ctrlComp.parameters.count("table_z") && !ctrlComp.parameters.count("z") && ctrlComp.parameters.count("table_data")) fc.vAlphaKey = getParamString(ctrlComp, "table_data", "[[0, 1], [1, 2]]");
+        } else if (ctrlComp.type == ComponentType::UnitDelay || ctrlComp.type == ComponentType::ZoH) {
+            // Sample period. The output changes only at sample instants and is held in between.
+            fc.delay = evaluateParam(ctrlComp, "ts", 0.02);
+        } else if (ctrlComp.type == ComponentType::DcMotor) {
+            // stateVal is the shaft speed. inputSigIndices[0] is the armature current signal and
+            // outputSigIndices[0] receives the back-EMF Ke * speed.
+            fc.dcKt = evaluateParam(ctrlComp, "Kt", 0.05);
+            fc.dcKe = evaluateParam(ctrlComp, "Ke", 0.05);
+            fc.dcJ = evaluateParam(ctrlComp, "J", 1e-4);
+            fc.dcB = evaluateParam(ctrlComp, "B", 1e-4);
+            fc.stateVal = evaluateParam(ctrlComp, "omega0", 0.0);
+            fc.inputSigIndices.assign(1, getOrCreateSignalIdx(getParamString(ctrlComp, "current", "")));
+            fc.outputSigIndices.assign(1, getOrCreateSignalIdx(ctrlComp.id + ".Emf"));
+        } else if (ctrlComp.type == ComponentType::BldcMotor || ctrlComp.type == ComponentType::PmsmMotor ||
+                   ctrlComp.type == ComponentType::SynchronousMotor) {
+            // Three-phase machine with back-EMF e_x = k * omega * shape(theta - 2*pi*x/3).
+            // inputSigIndices: phase currents a, b, c (and the field current for SYNC_MOTOR).
+            // outputSigIndices: the phase EMFs. stateVal is the speed, mTheta the electrical angle.
+            fc.mPoles = evaluateParam(ctrlComp, "P", 2.0);
+            fc.mKe = evaluateParam(ctrlComp, "Ke", 0.05);
+            fc.mKf = evaluateParam(ctrlComp, "Kf", 0.05);
+            fc.mJ = evaluateParam(ctrlComp, "J", 1e-4);
+            fc.mB = evaluateParam(ctrlComp, "B", 1e-4);
+            fc.stateVal = evaluateParam(ctrlComp, "omega0", 0.0);
+            fc.mTheta = evaluateParam(ctrlComp, "theta0", 0.0);
+            fc.inputSigIndices.clear();
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_a", "")));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_b", "")));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_c", "")));
+            if (ctrlComp.type == ComponentType::SynchronousMotor)
+                fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_f", "")));
+            fc.outputSigIndices.clear();
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Ea"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Eb"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Ec"));
+        } else if (ctrlComp.type == ComponentType::SrMotor) {
+            // Switched reluctance: L_x(theta) = Lavg + Ldiff cos(theta - 2*pi*x/3), theta = Nr * theta_m.
+            // outputSigIndices: EMF a, b, c (0..2), then the phase inductances a, b, c (3..5).
+            const double lmin = evaluateParam(ctrlComp, "Lmin", 2e-3);
+            const double lmax = evaluateParam(ctrlComp, "Lmax", 10e-3);
+            fc.mPoles = evaluateParam(ctrlComp, "Nr", 4.0);
+            fc.mLavg = 0.5 * (lmin + lmax);
+            fc.mLdiff = 0.5 * (lmax - lmin);
+            fc.mJ = evaluateParam(ctrlComp, "J", 1e-4);
+            fc.mB = evaluateParam(ctrlComp, "B", 1e-4);
+            fc.stateVal = evaluateParam(ctrlComp, "omega0", 0.0);
+            fc.mTheta = evaluateParam(ctrlComp, "theta0", 0.0);
+            fc.inputSigIndices.clear();
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_a", "")));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_b", "")));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_c", "")));
+            fc.outputSigIndices.clear();
+            for (const char* sfx : {".Ea", ".Eb", ".Ec", ".La", ".Lb", ".Lc"})
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + sfx));
+        } else if (ctrlComp.type == ComponentType::InductionMotor) {
+            // Squirrel-cage induction machine in the stationary alpha-beta frame. The rotor flux
+            // linkage (mPsiA, mPsiB) is the state. Stator EMFs are (Lm / Lr) d psi_r / dt.
+            fc.mPoles = evaluateParam(ctrlComp, "P", 2.0);
+            fc.mRr = evaluateParam(ctrlComp, "Rr", 1.083);
+            fc.mLr = evaluateParam(ctrlComp, "Lr", 0.105974);
+            fc.mLm = evaluateParam(ctrlComp, "Lm", 0.1);
+            fc.mJ = evaluateParam(ctrlComp, "J", 0.02);
+            fc.mB = evaluateParam(ctrlComp, "B", 1e-3);
+            fc.stateVal = evaluateParam(ctrlComp, "omega0", 0.0);
+            fc.mPsiA = 0.0;
+            fc.mPsiB = 0.0;
+            fc.inputSigIndices.clear();
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_a", "")));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_b", "")));
+            fc.inputSigIndices.push_back(getOrCreateSignalIdx(getParamString(ctrlComp, "current_c", "")));
+            fc.outputSigIndices.clear();
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Ea"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Eb"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Ec"));
+        } else if (ctrlComp.type == ComponentType::DiscreteTF) {
+            // y[k] = (sum_i b_i u[k-i] - sum_{i>=1} a_i y[k-i]) / a0. dtfU and dtfY hold the past
+            // inputs and outputs, most recent first.
+            fc.delay = evaluateParam(ctrlComp, "ts", 0.01);
+            if (fc.delay <= 0.0) fc.delay = 0.01;
+            auto numRows = parseNumRows(getParamString(ctrlComp, "num", "[0.1]"));
+            auto denRows = parseNumRows(getParamString(ctrlComp, "den", "[1 -0.9]"));
+            fc.dtfNum = numRows.empty() ? std::vector<double>{0.1} : numRows[0];
+            fc.dtfDen = denRows.empty() ? std::vector<double>{1.0} : denRows[0];
+            fc.dtfU.assign(fc.dtfNum.size() > 1 ? fc.dtfNum.size() - 1 : 0, 0.0);
+            fc.dtfY.assign(fc.dtfDen.size() > 1 ? fc.dtfDen.size() - 1 : 0, 0.0);
+        } else if (ctrlComp.type == ComponentType::DiscreteSS) {
+            // x[k+1] = A x[k] + B u[k], y[k] = C x[k] + D u[k]. A is n x n, B, C and x0 have length n.
+            fc.delay = evaluateParam(ctrlComp, "ts", 0.01);
+            if (fc.delay <= 0.0) fc.delay = 0.01;
+            auto aRows = parseNumRows(getParamString(ctrlComp, "A", "[0.5]"));
+            const size_t n = aRows.empty() ? 1 : aRows.size();
+            auto firstRowPadded = [](const std::vector<std::vector<double>>& rows, size_t len) {
+                std::vector<double> v(len, 0.0);
+                if (!rows.empty())
+                    for (size_t i = 0; i < len && i < rows[0].size(); ++i) v[i] = rows[0][i];
+                return v;
+            };
+            fc.dssA.assign(n * n, 0.0);
+            for (size_t i = 0; i < n && i < aRows.size(); ++i)
+                for (size_t j = 0; j < n && j < aRows[i].size(); ++j) fc.dssA[i * n + j] = aRows[i][j];
+            fc.dssB = firstRowPadded(parseNumRows(getParamString(ctrlComp, "B", "[1]")), n);
+            fc.dssC = firstRowPadded(parseNumRows(getParamString(ctrlComp, "C", "[1]")), n);
+            auto dRows = parseNumRows(getParamString(ctrlComp, "D", "[0]"));
+            fc.dssD = (dRows.empty() || dRows[0].empty()) ? 0.0 : dRows[0][0];
+            fc.dssX = firstRowPadded(parseNumRows(getParamString(ctrlComp, "x0", "[0]")), n);
+        } else if (ctrlComp.type == ComponentType::DiscreteInt) {
+            // Forward Euler: y[k] = y[k-1] + ts * u[k-1]. prevOut holds y, stateVal the last input.
+            fc.delay = evaluateParam(ctrlComp, "ts", 0.01);
+            if (fc.delay <= 0.0) fc.delay = 0.01;
+            fc.prevOut = evaluateParam(ctrlComp, "initial_value", 1.0);
+        } else if (ctrlComp.type == ComponentType::DiscreteMean) {
+            // Mean of the samples taken in the last `period`. shiftLength is that window in samples.
+            fc.delay = evaluateParam(ctrlComp, "ts", 0.001);
+            if (fc.delay <= 0.0) fc.delay = 0.001;
+            const double meanPeriod = evaluateParam(ctrlComp, "period", 0.02);
+            fc.shiftLength = std::max(1, (int)std::llround(meanPeriod / fc.delay));
+            fc.prevOut = evaluateParam(ctrlComp, "initial_value", 1.0);
+        } else if (ctrlComp.type == ComponentType::Polynomial) {
+            // coefficients, highest power first: "[1, 0]" is u. Parsed once here.
+            std::string cs = getParamString(ctrlComp, "coefficients", "[1, 0]");
+            for (char& c : cs) if (c == '[' || c == ']' || c == ',') c = ' ';
+            std::stringstream csStream(cs);
+            double cv = 0.0;
+            while (csStream >> cv) fc.polyCoeffs.push_back(cv);
+        } else if (ctrlComp.type == ComponentType::AlgebraicConstraint) {
+            // initial_guess seeds the unknown. gain is the correction step per sample.
+            fc.stateVal = evaluateParam(ctrlComp, "initial_guess", 0.0);
+            fc.gain = evaluateParam(ctrlComp, "gain", 0.01);
+        } else if (ctrlComp.type == ComponentType::LUT_3D) {
+            // Axes go in polarity (x), vPlotKey (y) and vBetaKey (z). The cube
+            // table[i][j][k] goes in vAlphaKey. Keys come from the netlist (x, y, z, table).
+            const std::string kLut3Default = "[[[0, 1], [1, 2]], [[1, 2], [2, 3]]]";
+            fc.polarity = getParamString(ctrlComp, "x", "[0, 1]");
+            fc.vPlotKey = getParamString(ctrlComp, "y", "[0, 1]");
+            fc.vBetaKey = getParamString(ctrlComp, "z", "[0, 1]");
+            fc.vAlphaKey = getParamString(ctrlComp, "table", kLut3Default);
+        } else if (ctrlComp.type == ComponentType::FourierSeries) {
+            // Truncated Fourier series of the input over the last fundamental cycle.
+            // f = fundamental, harmonics = number of harmonics kept, ts = sample interval.
+            fc.freq = evaluateParam(ctrlComp, "f", 50.0);
+            fc.shiftLength = std::max(1, (int)std::llround(evaluateParam(ctrlComp, "harmonics", 10.0)));
+            fc.delay = evaluateParam(ctrlComp, "ts", 1e-4);
         } else if (ctrlComp.type == ComponentType::MathFunction) {
             fc.polarity = getParamString(ctrlComp, "function", "exp");
             if (!ctrlComp.parameters.count("function") && ctrlComp.parameters.count("func")) fc.polarity = getParamString(ctrlComp, "func", "exp");
@@ -760,10 +1050,12 @@ void CircuitSimulator::buildIndexMaps() {
                 else if (orig == "NOT" || orig == "not") op = "NOT";
                 else if (orig == "AND" || orig == "and") op = "AND";
                 else if (orig == "OR" || orig == "or") op = "OR";
+                else if (orig == "BITWISE_OP") op = "XOR";   // JSON default for BITWISE_OP
                 else op = "AND";
             }
             std::transform(op.begin(), op.end(), op.begin(), ::toupper);
             fc.polarity = op;
+            if (ctrlComp.type == ComponentType::BitwiseOp) fc.bitMask = (long long)evaluateParam(ctrlComp, "bit_mask", -1.0);
         } else if (ctrlComp.type == ComponentType::CombLogic) {
             fc.polarity = getParamString(ctrlComp, "truth_table", "");
         } else if (ctrlComp.type == ComponentType::EdgeDetect) {
@@ -795,11 +1087,13 @@ void CircuitSimulator::buildIndexMaps() {
 
             fc.retriggerable = (getParamString(ctrlComp, "retriggerable", "false") == "true");
         } else if (ctrlComp.type == ComponentType::RelationalOp) {
-            fc.polarity = getParamString(ctrlComp, "operator", "==");
+            fc.polarity = getParamString(ctrlComp, "operator", "<");   // JSON default is "<"
         } else if (ctrlComp.type == ComponentType::CompareToConstant) {
-            fc.polarity = getParamString(ctrlComp, "operator", "==");
-            if (!ctrlComp.parameters.count("operator") && ctrlComp.parameters.count("op")) fc.polarity = getParamString(ctrlComp, "op", "==");
-            if (!ctrlComp.parameters.count("operator") && !ctrlComp.parameters.count("op") && ctrlComp.parameters.count("relop")) fc.polarity = getParamString(ctrlComp, "relop", "==");
+            // Fallback is ">=", the JSON default. It used to be "==", so an unset operator
+            // compared for equality, which a continuous input almost never satisfies.
+            fc.polarity = getParamString(ctrlComp, "operator", ">=");
+            if (!ctrlComp.parameters.count("operator") && ctrlComp.parameters.count("op")) fc.polarity = getParamString(ctrlComp, "op", ">=");
+            if (!ctrlComp.parameters.count("operator") && !ctrlComp.parameters.count("op") && ctrlComp.parameters.count("relop")) fc.polarity = getParamString(ctrlComp, "relop", ">=");
 
             fc.thresholdVal = evaluateParam(ctrlComp, "threshold", 0.0);
             if (!ctrlComp.parameters.count("threshold") && ctrlComp.parameters.count("constant")) fc.thresholdVal = evaluateParam(ctrlComp, "constant", 0.0);
@@ -1024,6 +1318,12 @@ void CircuitSimulator::buildIndexMaps() {
             }
         } else if (ctrlComp.type == ComponentType::PWM_3PH || ctrlComp.type == ComponentType::SVPWM) {
             fc.outKey = ctrlComp.id + ".G1";
+            // The runtime used to infer alpha/beta input from "two inputs are bound",
+            // which is always true for an A/B/C block, so phase references were
+            // re-mixed as if they were alpha/beta. Decide it from the netlist keys.
+            fc.svpwmAlphaBeta = !getParamString(ctrlComp, "Valpha", "").empty() ||
+                                !getParamString(ctrlComp, "Alpha", "").empty() ||
+                                !getParamString(ctrlComp, "input_alpha", "").empty();
             std::string inA = getParamString(ctrlComp, "Valpha", ""); 
             if (inA.empty()) inA = getParamString(ctrlComp, "Alpha", ""); 
             if (inA.empty()) inA = getParamString(ctrlComp, "input_alpha", ""); 
@@ -1060,12 +1360,23 @@ void CircuitSimulator::buildIndexMaps() {
                 fc.outputSigIndices.push_back(getOrCreateSignalIdx(k));
             }
         } else if (ctrlComp.type == ComponentType::FourierTrans || ctrlComp.type == ComponentType::FourierAnalysis) {
+            // Parameters the runtime reads: freq = fundamental f, shiftLength = harmonic
+            // order, delay = sample interval ts. None of them were set before, so the
+            // generic defaults (10 kHz frequency, 1 harmonic of 4) were used instead.
+            fc.freq = evaluateParam(ctrlComp, "f", 50.0);
+            fc.shiftLength = std::max(1, (int)std::llround(evaluateParam(ctrlComp, "harmonic", 1.0)));
+            fc.delay = evaluateParam(ctrlComp, "ts", 1e-4);
             fc.outKey = ctrlComp.id + ".Mag";
             fc.outputSigKeys.push_back(ctrlComp.id + ".Mag");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Phase");
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Mag"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Phase"));
         } else if (ctrlComp.type == ComponentType::PllLoop) {
+            // fn/Kp/Ki are emitted by the registry but were never read here, so the
+            // loop started from the generic "frequency" default (10 kHz) with Kp = 1.
+            fc.freq = evaluateParam(ctrlComp, "fn", 50.0);
+            fc.gain = evaluateParam(ctrlComp, "Kp", 20.0);
+            fc.maxVal = evaluateParam(ctrlComp, "Ki", 1000.0);
             fc.outKey = ctrlComp.id + ".Theta";
             fc.outputSigKeys.push_back(ctrlComp.id + ".Theta");
             fc.outputSigKeys.push_back(ctrlComp.id + ".Freq");
@@ -1075,8 +1386,37 @@ void CircuitSimulator::buildIndexMaps() {
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Freq"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Cos"));
             fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Sin"));
+        } else if (ctrlComp.type == ComponentType::PLL_1PH || ctrlComp.type == ComponentType::PLL_3PH) {
+            // Both PLLs were stubs: they free-ran at fn and wrote only "<id>.Out", so
+            // the Theta/Freq pins the netlist routes downstream were never driven.
+            // Register the four outputs the generator emits (Theta, Freq, Cos, Sin).
+            // PLL_1PH exposes Theta on its single "Out" pin, so keep outKey there.
+            if (ctrlComp.type == ComponentType::PLL_3PH) {
+                fc.outKey = ctrlComp.id + ".Theta";
+                fc.inputSigKeys.clear();
+                fc.inputSigIndices.clear();
+                for (int k = 0; k < 3; ++k) {
+                    std::string inK = getParamString(ctrlComp, "In" + std::to_string(k + 1), "");
+                    if (inK.empty()) inK = getParamString(ctrlComp, "input_" + std::to_string(k), "");
+                    if (inK.empty()) inK = getParamString(ctrlComp, std::string(1, (char)('A' + k)), "");
+                    fc.inputSigKeys.push_back(inK);
+                    fc.inputSigIndices.push_back(getOrCreateSignalIdx(inK));
+                }
+            }
+            for (const char* port : {".Theta", ".Freq", ".Cos", ".Sin"}) {
+                fc.outputSigKeys.push_back(ctrlComp.id + port);
+                fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + port));
+            }
         } else if (ctrlComp.type == ComponentType::PeriodicImpAvg) {
-            fc.ctrlSigKey = getParamString(ctrlComp, "Trig", "");
+            // The trigger is emitted as control_signal (registry: signal "Trig"). The
+            // signal index is computed earlier in this function from the generic key, so
+            // it must be recomputed here too; otherwise the trigger was never bound and
+            // the output stayed at its default value.
+            std::string trigKey = getParamString(ctrlComp, "control_signal", "");
+            if (trigKey.empty()) trigKey = getParamString(ctrlComp, "Trig", "");
+            fc.ctrlSigKey = trigKey;
+            fc.ctrlSigSignalIdx = getOrCreateSignalIdx(trigKey);
+            fc.val = evaluateParam(ctrlComp, "initial_value", 0.0);
         }
 
         if (ctrlComp.type == ComponentType::UnifiedProbe) {
@@ -1121,19 +1461,23 @@ void CircuitSimulator::buildIndexMaps() {
             }
         }
 
-        if (fc.outKey.empty()) {
-            if (ctrlComp.type == ComponentType::DFlipFlop || ctrlComp.type == ComponentType::JKFlipFlop) {
-                fc.outKey = ctrlComp.id + ".Q";
-                // Register both Q and Q_bar in outputSigIndices
-                fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q"));
-                fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q_bar"));
-            } else {
-                fc.outKey = ctrlComp.id + ".Out";
-            }
+        if (ctrlComp.type == ComponentType::DFlipFlop || ctrlComp.type == ComponentType::JKFlipFlop) {
+            // Register Q and Q_bar in outputSigIndices. This runs whether or not the netlist
+            // named the output: the netlist sets outKey to Q, which used to skip the Q_bar
+            // registration, so feedback from Q_bar read 0 and the flip-flop never toggled.
+            if (fc.outKey.empty()) fc.outKey = ctrlComp.id + ".Q";
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q"));
+            fc.outputSigIndices.push_back(getOrCreateSignalIdx(ctrlComp.id + ".Q_bar"));
+        } else if (fc.outKey.empty()) {
+            fc.outKey = ctrlComp.id + ".Out";
         }
 
         fc.in0SignalIdx = getOrCreateSignalIdx(fc.in0Key);
         fc.in1SignalIdx = getOrCreateSignalIdx(fc.in1Key);
+        if (ctrlComp.type == ComponentType::LUT_3D) {
+            // LUT_3D reads In, In2 and In3 as u1, u2 and u3 through inputSigIndices.
+            fc.inputSigIndices = {fc.in0SignalIdx, fc.in1SignalIdx, getOrCreateSignalIdx(getParamString(ctrlComp, "In3", ""))};
+        }
         fc.outSignalIdx = getOrCreateSignalIdx(fc.outKey);
         if (ctrlComp.type != ComponentType::UnifiedProbe) {
             fc.targetSignalIdx = getOrCreateSignalIdx(fc.targetKey);
@@ -1147,6 +1491,29 @@ void CircuitSimulator::buildIndexMaps() {
 
             std::vector<CScriptPort> discIn, discOut;
             CScriptEngine::discoverPorts(code, discIn, discOut);
+
+            // Ports come back in order of first appearance in the code, but the
+            // runtime addresses them by position (inputs[k] / outputs[k]). A script
+            // that touched inputs[1] before inputs[0] therefore had its inputs
+            // swapped. Re-order by script index and fill gaps so position == index.
+            auto byIndex = [](std::vector<CScriptPort> ports, const char* prefix) {
+                int maxIdx = -1;
+                for (const auto& p : ports) maxIdx = std::max(maxIdx, p.index);
+                std::vector<CScriptPort> ordered(maxIdx + 1);
+                std::vector<bool> filled(maxIdx + 1, false);
+                for (const auto& p : ports) {
+                    if (p.index >= 0 && p.index <= maxIdx && !filled[p.index]) {
+                        ordered[p.index] = p;
+                        filled[p.index] = true;
+                    }
+                }
+                for (int k = 0; k <= maxIdx; ++k) {
+                    if (!filled[k]) ordered[k] = {std::string(prefix) + std::to_string(k + 1), false, k};
+                }
+                return ordered;
+            };
+            discIn = byIndex(discIn, "In");
+            discOut = byIndex(discOut, "Out");
 
             for (size_t i = 0; i < discIn.size(); ++i) {
                 std::string pName = discIn[i].name;
@@ -1689,7 +2056,7 @@ void CircuitSimulator::evaluateGateControls(double currentTime, double dtStep) {
                     double triVal = (tLocal < Tc / 2.0) 
                                     ? (tLocal / (Tc / 2.0)) 
                                     : (1.0 - (tLocal - Tc / 2.0) / (Tc / 2.0));
-                    double vCarrier = triVal + lOffset;
+                    double vCarrier = fc.minVal + (fc.maxVal - fc.minVal) * triVal + lOffset;
 
                     int targetDirect = (vMod >= vCarrier) ? 1 : 0;
                     int targetCompl = (targetDirect == 0) ? 1 : 0;
@@ -1742,9 +2109,17 @@ void CircuitSimulator::evaluateGateControls(double currentTime, double dtStep) {
                 double outB = (vb > v_car) ? 1.0 : 0.0;
                 double outC = (vc > v_car) ? 1.0 : 0.0;
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = outA;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
-                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
+                // Ports are registered as G1..G6, gA1..gC2, OutA..OutC, Out1..Out3 (in
+                // that order). Writing outputSigIndices[0..2] put phase A/B/C on G1/G2/G3
+                // and left OutA/OutB/OutC permanently at 0. Write each port explicitly;
+                // the even gates are the complementary lower switches.
+                {
+                    const double raw[6] = {outA, 1.0 - outA, outB, 1.0 - outB, outC, 1.0 - outC};
+                    double g[6];
+                    pwm3PhGates(fc, currentTime, fc.delayDuration, commitState && pass == 0, raw, g);
+                    writePwm3PhGates(fc, flatControlSignals, g);
+                    outA = g[0]; outB = g[2]; outC = g[4];
+                }
                 val = outA;
             }
             else if (fc.type == ComponentType::SVPWM) {
@@ -1759,7 +2134,7 @@ void CircuitSimulator::evaluateGateControls(double currentTime, double dtStep) {
                 double in3 = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
 
                 double vA = 0.0, vB = 0.0, vC = 0.0;
-                if (fc.inputSigIndices.size() >= 2 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[1] >= 0) {
+                if (fc.svpwmAlphaBeta) {
                     double valpha = in1;
                     double vbeta = in2;
                     vA = valpha;
@@ -1951,8 +2326,10 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
             double phaseRad = fc.delay * 3.141592653589793 / 180.0;
             iComp = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + phaseRad);
         } else if (fc.type == ComponentType::ControlledCurrentSource) {
-            double ctrlVal = fc.in0Ptr ? *fc.in0Ptr : (fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0);
-            iComp = (fc.gain != 0.0 ? fc.gain : 1.0) * ctrlVal;
+            // Same signal selection and gain as the MNA stamp, so I_<id> reports the
+            // current actually injected.
+            double ctrlVal = (fc.ctrlSigPtr && *fc.ctrlSigPtr != 0.0) ? *fc.ctrlSigPtr : (fc.in0Ptr ? *fc.in0Ptr : (fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0));
+            iComp = fc.gain * ctrlVal;
         } else if (fc.type == ComponentType::Diode) {
             double state = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
             double R = (state > 0.5) ? fc.Ron : fc.Roff;
@@ -2238,7 +2615,13 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
             }
             else if (fc.type == ComponentType::ContinuousPID) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double dt = dtNow;
+                // ts > 0 makes this a sampled controller (DISCRETE_PID): the state updates once
+                // per ts and the output is held in between. ts = 0 keeps the continuous form.
+                const bool sampled = fc.delay > 0.0;
+                const double ts = fc.delay;
+                const bool sampleNow = !sampled || (currentTime + 1e-12 >= fc.nextSampleTime);
+                const bool doCommit = (pass == 0 && commitState && sampleNow);
+                double dt = sampled ? ts : dtNow;
                 double Kp = fc.gain;
                 double Ki = std::atof(fc.vAlphaKey.c_str());
                 double Kd = std::atof(fc.vBetaKey.c_str());
@@ -2249,24 +2632,88 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                         fc.stateVal = 0.0;
                         fc.filterState = 0.0;
                     }
-                } else if (pass == 0 && commitState) {
-                    fc.stateVal += Ki * inVal * dt;
-                    fc.filterState = (Tf / (Tf + dt)) * fc.filterState + (dt / (Tf + dt)) * inVal;
+                } else if (doCommit) {
+                    const double newFilter = (Tf / (Tf + dt)) * fc.filterState + (dt / (Tf + dt)) * inVal;
+                    const double dI = Ki * inVal * dt;
+                    double newI = fc.stateVal + dI;
+                    if (fc.pidLimitOutput && fc.pidAntiWindup) {
+                        // Clamping anti-windup: the integrator may move outwards only as
+                        // far as the value that puts the output on the limit (never
+                        // backwards, so a reduced limit does not kick the state).
+                        const double rest = Kp * inVal + (Kd / (Tf + dt)) * (inVal - newFilter);
+                        if (dI > 0.0) newI = std::max(fc.stateVal, std::min(newI, fc.pidUpper - rest));
+                        else if (dI < 0.0) newI = std::min(fc.stateVal, std::max(newI, fc.pidLower - rest));
+                    }
+                    fc.stateVal = newI;
+                    fc.filterState = newFilter;
                 }
                 double dTerm = (Kd / (Tf + dt)) * (inVal - fc.filterState);
                 val = Kp * inVal + fc.stateVal + dTerm;
+                if (fc.pidLimitOutput) val = std::min(std::max(val, fc.pidLower), fc.pidUpper);
+                if (sampled) {
+                    if (doCommit) {
+                        fc.prevOut = val;
+                        fc.nextSampleTime = currentTime + ts;
+                    } else if (!sampleNow) {
+                        val = fc.prevOut;   // between samples: hold the last sampled output
+                    }
+                }
             }
             else if (fc.type == ComponentType::PLL_1PH || fc.type == ComponentType::PLL_3PH) {
-                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
-                double dt = dtNow;
-                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
-                double w0 = 2.0 * 3.141592653589793 * fn;
-                if (currentTime == 0.0) {
-                    if (pass == 0 && commitState) fc.stateVal = 0.0;
-                } else if (pass == 0 && commitState) {
-                    fc.stateVal = std::fmod(fc.stateVal + w0 * dt, 2.0 * 3.141592653589793);
+                // Phase-locked loop. Theta is aligned so that the (phase-A) input is
+                // Vm*sin(Theta). State: fc.stateVal = theta, fc.filterState = PI
+                // integrator (rad/s deviation from 2*pi*fn).
+                //  PLL_3PH: synchronous-reference-frame PLL. Clarke (amplitude
+                //           invariant) then err = alpha*cos(th) + beta*sin(th)
+                //           = Vm*sin(theta_grid - th): no 2f ripple for a balanced set.
+                //  PLL_1PH: multiplier phase detector, err = v*cos(th)
+                //           = (Vm/2)*sin(theta_grid - th) + 2f ripple (as PLL_LOOP).
+                // The detector is not normalised, so the loop gains scale with the
+                // input amplitude (the textbook form; the defaults suit volt-level inputs).
+                constexpr double kTwoPi = 2.0 * 3.141592653589793;
+                const double dt = dtNow;
+                const double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                const double w0 = kTwoPi * fn;
+                const double Kp = fc.gain;
+                const double Ki = fc.maxVal;
+                auto sig = [&](size_t k) {
+                    int idx = (k < fc.inputSigIndices.size()) ? fc.inputSigIndices[k] : -1;
+                    return (idx >= 0 && idx < (int)flatControlSignals.size()) ? flatControlSignals[idx] : 0.0;
+                };
+                if (currentTime == 0.0 && pass == 0 && commitState) {
+                    fc.stateVal = 0.0;
+                    fc.filterState = 0.0;
+                    fc.pllHasOmega = false;
                 }
-                val = fc.stateVal;
+                const double th = fc.stateVal;
+                double err;
+                if (fc.type == ComponentType::PLL_3PH) {
+                    const double va = sig(0), vb = sig(1), vc = sig(2);
+                    const double alpha = (2.0 / 3.0) * (va - 0.5 * vb - 0.5 * vc);
+                    const double beta = (vb - vc) / std::sqrt(3.0);
+                    err = alpha * std::cos(th) + beta * std::sin(th);
+                } else {
+                    const double v = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                    err = v * std::cos(th);
+                }
+                const double omega = w0 + Kp * err + fc.filterState;
+                if (pass == 0 && commitState && currentTime > 0.0) {
+                    fc.filterState += Ki * err * dt;
+                    double thNew = std::fmod(th + omega * dt, kTwoPi);
+                    if (thNew < 0.0) thNew += kTwoPi;
+                    fc.stateVal = thNew;
+                    fc.pllOmega = omega;
+                    fc.pllHasOmega = true;
+                }
+                // Later passes of the same step see the advanced theta, so recomputing
+                // omega there biases Freq by Kp*Vm*omega*dt. Report the committed value.
+                const double omegaOut = fc.pllHasOmega ? fc.pllOmega : omega;
+                const double outs[4] = {th, omegaOut / kTwoPi, std::cos(th), std::sin(th)};
+                for (size_t k = 0; k < 4 && k < fc.outputSigIndices.size(); ++k) {
+                    int idx = fc.outputSigIndices[k];
+                    if (idx >= 0 && idx < (int)flatControlSignals.size()) flatControlSignals[idx] = outs[k];
+                }
+                val = th;
             }
             else if (fc.type == ComponentType::Delay || fc.type == ComponentType::TransportDelay) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
@@ -2481,6 +2928,8 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
             else if (fc.type == ComponentType::BitwiseOp) {
                 int in1 = (int)(fc.in0Ptr ? *fc.in0Ptr : 0.0);
                 int in2 = (int)(fc.in1Ptr ? *fc.in1Ptr : 0.0);
+                in1 &= (int)fc.bitMask;
+                in2 &= (int)fc.bitMask;
                 const std::string& op = fc.polarity;
                 if (op == "AND") val = (double)(in1 & in2);
                 else if (op == "OR") val = (double)(in1 | in2);
@@ -2888,9 +3337,17 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 double outB = (vb > v_car) ? 1.0 : 0.0;
                 double outC = (vc > v_car) ? 1.0 : 0.0;
 
-                if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = outA;
-                if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = outB;
-                if (fc.outputSigIndices.size() > 2 && fc.outputSigIndices[2] >= 0 && fc.outputSigIndices[2] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[2]] = outC;
+                // Ports are registered as G1..G6, gA1..gC2, OutA..OutC, Out1..Out3 (in
+                // that order). Writing outputSigIndices[0..2] put phase A/B/C on G1/G2/G3
+                // and left OutA/OutB/OutC permanently at 0. Write each port explicitly;
+                // the even gates are the complementary lower switches.
+                {
+                    const double raw[6] = {outA, 1.0 - outA, outB, 1.0 - outB, outC, 1.0 - outC};
+                    double g[6];
+                    pwm3PhGates(fc, currentTime, fc.delayDuration, commitState && pass == 0, raw, g);
+                    writePwm3PhGates(fc, flatControlSignals, g);
+                    outA = g[0]; outB = g[2]; outC = g[4];
+                }
                 val = outA;
             }
             else if (fc.type == ComponentType::SVPWM) {
@@ -2905,7 +3362,7 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 double in3 = (fc.inputSigIndices.size() > 2 && fc.inputSigIndices[2] >= 0 && fc.inputSigIndices[2] < (int)flatControlSignals.size()) ? flatControlSignals[fc.inputSigIndices[2]] : 0.0;
 
                 double vA = 0.0, vB = 0.0, vC = 0.0;
-                if (fc.inputSigIndices.size() >= 2 && fc.inputSigIndices[0] >= 0 && fc.inputSigIndices[1] >= 0) {
+                if (fc.svpwmAlphaBeta) {
                     double valpha = in1;
                     double vbeta = in2;
                     vA = valpha;
@@ -3055,10 +3512,14 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 int N = (int)std::round(1.0 / (fn * ts));
                 if (N < 2) N = 2;
 
-                if (commitState && currentTime > fc.lastTime) {
+                // The window is N = 1/(f ts) samples, so one sample must enter per ts. The
+                // buffer used to take a sample every simulation step, which made the window
+                // cover 1/(f * step) of time instead of one fundamental cycle.
+                if (commitState && currentTime > fc.lastTime && currentTime + 1e-12 >= fc.nextSampleTime) {
                     fc.shiftBuffer.push_back(inVal);
                     if ((int)fc.shiftBuffer.size() > N) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
                     fc.lastTime = currentTime;
+                    fc.nextSampleTime = currentTime + ts;
                 }
 
                 double Re = 0.0, Im = 0.0;
@@ -3077,6 +3538,287 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 if (fc.outputSigIndices.size() > 0 && fc.outputSigIndices[0] >= 0 && fc.outputSigIndices[0] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[0]] = mag;
                 if (fc.outputSigIndices.size() > 1 && fc.outputSigIndices[1] >= 0 && fc.outputSigIndices[1] < (int)flatControlSignals.size()) flatControlSignals[fc.outputSigIndices[1]] = phase;
                 val = mag;
+            }
+            else if (fc.type == ComponentType::UnitDelay || fc.type == ComponentType::ZoH) {
+                // Sampled blocks: a sample is taken every ts and the output is held between samples.
+                // ZOH outputs the sample just taken. UNIT_DELAY outputs the previous sample, so it
+                // lags by one sample period. stateVal holds the last sample, prevOut the output.
+                const double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                const double ts = (fc.delay > 0.0) ? fc.delay : (config.stepSize > 0.0 ? config.stepSize : 1e-4);
+                const bool sampleNow = currentTime + 1e-12 >= fc.nextSampleTime;
+                const bool doCommit = (pass == 0 && commitState && sampleNow);
+                if (fc.type == ComponentType::ZoH) {
+                    if (doCommit) {
+                        fc.prevOut = inVal;
+                        fc.nextSampleTime = currentTime + ts;
+                    }
+                    val = sampleNow ? inVal : fc.prevOut;
+                } else {
+                    const double outNow = fc.stateVal;
+                    if (doCommit) {
+                        fc.prevOut = outNow;
+                        fc.stateVal = inVal;
+                        fc.nextSampleTime = currentTime + ts;
+                    }
+                    val = sampleNow ? outNow : fc.prevOut;
+                }
+            }
+            else if (fc.type == ComponentType::DiscreteInt) {
+                // Forward Euler on samples taken every ts. The output is held between samples.
+                const double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                const double ts = (fc.delay > 0.0) ? fc.delay : 0.01;
+                const bool sampleNow = currentTime + 1e-12 >= fc.nextSampleTime;
+                const bool doCommit = (pass == 0 && commitState && sampleNow);
+                const double yk = fc.prevOut + ts * fc.stateVal;   // y[k] = y[k-1] + ts * u[k-1]
+                if (doCommit) {
+                    fc.prevOut = yk;
+                    fc.stateVal = inVal;
+                    fc.nextSampleTime = currentTime + ts;
+                }
+                val = sampleNow ? yk : fc.prevOut;
+            }
+            else if (fc.type == ComponentType::DiscreteMean) {
+                // Window of the last shiftLength samples, updated on each sample instant.
+                const double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                const double ts = (fc.delay > 0.0) ? fc.delay : 0.001;
+                const bool sampleNow = currentTime + 1e-12 >= fc.nextSampleTime;
+                const bool doCommit = (pass == 0 && commitState && sampleNow);
+                if (doCommit) {
+                    fc.shiftBuffer.push_back(inVal);
+                    if ((int)fc.shiftBuffer.size() > fc.shiftLength) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.nextSampleTime = currentTime + ts;
+                }
+                if (fc.shiftBuffer.empty()) {
+                    val = fc.prevOut;   // initial_value until the first sample
+                } else {
+                    double sum = 0.0;
+                    for (double v : fc.shiftBuffer) sum += v;
+                    val = sum / (double)fc.shiftBuffer.size();
+                }
+            }
+            else if (fc.type == ComponentType::DcMotor) {
+                // Explicit Euler on the mechanical equation, once per committed step:
+                //   J domega/dt = Kt i - TL - B omega
+                // The speed is the state. The back-EMF Ke * omega is written for the armature.
+                const double tl = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                const double armCurrent = (!fc.inputSigIndices.empty() && fc.inputSigIndices[0] >= 0 &&
+                                           fc.inputSigIndices[0] < (int)flatControlSignals.size())
+                                              ? flatControlSignals[fc.inputSigIndices[0]] : 0.0;
+                if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                    fc.stateVal += dtNow * (fc.dcKt * armCurrent - tl - fc.dcB * fc.stateVal) / fc.dcJ;
+                    fc.lastTime = currentTime;
+                }
+                if (!fc.outputSigIndices.empty() && fc.outputSigIndices[0] >= 0 &&
+                    fc.outputSigIndices[0] < (int)flatControlSignals.size()) {
+                    flatControlSignals[fc.outputSigIndices[0]] = fc.dcKe * fc.stateVal;
+                }
+                val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::BldcMotor || fc.type == ComponentType::PmsmMotor ||
+                     fc.type == ComponentType::SynchronousMotor) {
+                // Phase EMF e_x = k * omega * shape(theta - 2*pi*x/3). k is Ke for BLDC and PMSM,
+                // and Kf * field current for SYNC. shape is a trapezoid for BLDC and a sine otherwise.
+                // Torque = k * sum_x shape_x i_x. Speed and electrical angle advance explicitly once
+                // per committed step, after the torque is taken from the currents at that step.
+                const double kTwoPi = 6.283185307179586;
+                const double kTwoPiThird = kTwoPi / 3.0;
+                const double tl = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                auto sigAt = [&](size_t k) -> double {
+                    return (k < fc.inputSigIndices.size() && fc.inputSigIndices[k] >= 0 &&
+                            fc.inputSigIndices[k] < (int)flatControlSignals.size())
+                               ? flatControlSignals[fc.inputSigIndices[k]] : 0.0;
+                };
+                const bool trapezoidal = (fc.type == ComponentType::BldcMotor);
+                auto shape = [trapezoidal](double th) -> double {
+                    return trapezoidal ? trapezoidShape(th) : std::sin(th);
+                };
+                const double k = (fc.type == ComponentType::SynchronousMotor) ? fc.mKf * sigAt(3) : fc.mKe;
+                if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                    const double torque = k * (shape(fc.mTheta) * sigAt(0) +
+                                               shape(fc.mTheta - kTwoPiThird) * sigAt(1) +
+                                               shape(fc.mTheta - 2.0 * kTwoPiThird) * sigAt(2));
+                    fc.stateVal += dtNow * (torque - tl - fc.mB * fc.stateVal) / fc.mJ;
+                    fc.mTheta = std::fmod(fc.mTheta + dtNow * fc.mPoles * fc.stateVal, kTwoPi);
+                    fc.lastTime = currentTime;
+                }
+                const double w = fc.stateVal;
+                for (size_t x = 0; x < 3 && x < fc.outputSigIndices.size(); ++x) {
+                    const int oi = fc.outputSigIndices[x];
+                    if (oi >= 0 && oi < (int)flatControlSignals.size())
+                        flatControlSignals[oi] = k * w * shape(fc.mTheta - (double)x * kTwoPiThird);
+                }
+                val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::SrMotor) {
+                // Switched reluctance. Phase inductance L_x(theta) = Lavg + Ldiff cos(theta_x) with
+                // theta_x = Nr * theta_m - 2*pi*x/3. The phase voltage is v = R i + L di/dt + i dL/dt,
+                // so the controlled EMF is e_x = i_x dL_x/dt = i_x * omega * dL_x/dtheta_m.
+                // Torque = sum_x 0.5 i_x^2 dL_x/dtheta_m. Inductances are written as signals for VAR_L.
+                const double kTwoPi = 6.283185307179586;
+                const double kTwoPiThird = kTwoPi / 3.0;
+                const double tl = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                auto sigAt = [&](size_t k) -> double {
+                    return (k < fc.inputSigIndices.size() && fc.inputSigIndices[k] >= 0 &&
+                            fc.inputSigIndices[k] < (int)flatControlSignals.size())
+                               ? flatControlSignals[fc.inputSigIndices[k]] : 0.0;
+                };
+                auto thetaOf = [&](int x) -> double { return fc.mTheta - (double)x * kTwoPiThird; };
+                auto dLdThetaM = [&](double th) -> double { return -fc.mLdiff * fc.mPoles * std::sin(th); };
+                if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                    double torque = 0.0;
+                    for (int x = 0; x < 3; ++x) {
+                        const double ix = sigAt((size_t)x);
+                        torque += 0.5 * ix * ix * dLdThetaM(thetaOf(x));
+                    }
+                    fc.stateVal += dtNow * (torque - tl - fc.mB * fc.stateVal) / fc.mJ;
+                    fc.mTheta = std::fmod(fc.mTheta + dtNow * fc.mPoles * fc.stateVal, kTwoPi);
+                    fc.lastTime = currentTime;
+                }
+                const double w = fc.stateVal;
+                for (int x = 0; x < 3; ++x) {
+                    const double th = thetaOf(x);
+                    if (!(fc.outputSigIndices.size() > (size_t)(x + 3))) break;
+                    const int oe = fc.outputSigIndices[(size_t)x];
+                    const int ol = fc.outputSigIndices[(size_t)(x + 3)];
+                    if (oe >= 0 && oe < (int)flatControlSignals.size())
+                        flatControlSignals[oe] = sigAt((size_t)x) * w * dLdThetaM(th);
+                    if (ol >= 0 && ol < (int)flatControlSignals.size())
+                        flatControlSignals[ol] = fc.mLavg + fc.mLdiff * std::cos(th);
+                }
+                val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::InductionMotor) {
+                // Induction machine, stationary alpha-beta frame, rotor flux linkage psi_r as state:
+                //   d psi/dt = -(Rr/Lr)(psi - Lm i_s) + j P omega psi
+                //   stator EMF e = (Lm / Lr) d psi / dt
+                //   torque T = 1.5 P (Lm / Lr) (psi_a i_b - psi_b i_a)
+                // Clarke transform with i_a + i_b + i_c = 0 (star without a neutral wire).
+                const double tl = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                auto sigAt = [&](size_t k) -> double {
+                    return (k < fc.inputSigIndices.size() && fc.inputSigIndices[k] >= 0 &&
+                            fc.inputSigIndices[k] < (int)flatControlSignals.size())
+                               ? flatControlSignals[fc.inputSigIndices[k]] : 0.0;
+                };
+                const double sqrt3 = 1.7320508075688772;
+                const double ia = sigAt(0), ib = sigAt(1), ic = sigAt(2);
+                const double iAlpha = ia;
+                const double iBeta = (ib - ic) / sqrt3;
+                const double M = fc.mLm;
+                const double k = fc.mRr / fc.mLr;
+                if (pass == 0 && commitState && currentTime > fc.lastTime) {
+                    const double torque = 1.5 * fc.mPoles * (M / fc.mLr) * (fc.mPsiA * iBeta - fc.mPsiB * iAlpha);
+                    const double wr = fc.mPoles * fc.stateVal;
+                    const double dPsiA = -k * (fc.mPsiA - M * iAlpha) - wr * fc.mPsiB;
+                    const double dPsiB = -k * (fc.mPsiB - M * iBeta) + wr * fc.mPsiA;
+                    fc.mPsiA += dtNow * dPsiA;
+                    fc.mPsiB += dtNow * dPsiB;
+                    fc.stateVal += dtNow * (torque - tl - fc.mB * fc.stateVal) / fc.mJ;
+                    fc.lastTime = currentTime;
+                }
+                const double wr = fc.mPoles * fc.stateVal;
+                const double dPsiA = -k * (fc.mPsiA - M * iAlpha) - wr * fc.mPsiB;
+                const double dPsiB = -k * (fc.mPsiB - M * iBeta) + wr * fc.mPsiA;
+                const double eAlpha = (M / fc.mLr) * dPsiA;
+                const double eBeta = (M / fc.mLr) * dPsiB;
+                const double eA = eAlpha;
+                const double eB = -0.5 * eAlpha + 0.5 * sqrt3 * eBeta;
+                const double eC = -0.5 * eAlpha - 0.5 * sqrt3 * eBeta;
+                const double outE[3] = {eA, eB, eC};
+                for (size_t x = 0; x < 3 && x < fc.outputSigIndices.size(); ++x) {
+                    const int oi = fc.outputSigIndices[x];
+                    if (oi >= 0 && oi < (int)flatControlSignals.size()) flatControlSignals[oi] = outE[x];
+                }
+                val = fc.stateVal;
+            }
+            else if (fc.type == ComponentType::DiscreteTF) {
+                // Difference equation on samples taken every ts; the output is held between samples.
+                const double uk = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                const double ts = (fc.delay > 0.0) ? fc.delay : 0.01;
+                const bool sampleNow = currentTime + 1e-12 >= fc.nextSampleTime;
+                const bool doCommit = (pass == 0 && commitState && sampleNow);
+                double acc = fc.dtfNum.empty() ? 0.0 : fc.dtfNum[0] * uk;
+                for (size_t i = 1; i < fc.dtfNum.size(); ++i)
+                    acc += fc.dtfNum[i] * (i - 1 < fc.dtfU.size() ? fc.dtfU[i - 1] : 0.0);
+                for (size_t i = 1; i < fc.dtfDen.size(); ++i)
+                    acc -= fc.dtfDen[i] * (i - 1 < fc.dtfY.size() ? fc.dtfY[i - 1] : 0.0);
+                const double a0 = (!fc.dtfDen.empty() && fc.dtfDen[0] != 0.0) ? fc.dtfDen[0] : 1.0;
+                const double yk = acc / a0;
+                if (doCommit) {
+                    if (!fc.dtfU.empty()) { fc.dtfU.insert(fc.dtfU.begin(), uk); fc.dtfU.pop_back(); }
+                    if (!fc.dtfY.empty()) { fc.dtfY.insert(fc.dtfY.begin(), yk); fc.dtfY.pop_back(); }
+                    fc.prevOut = yk;
+                    fc.nextSampleTime = currentTime + ts;
+                }
+                val = sampleNow ? yk : fc.prevOut;
+            }
+            else if (fc.type == ComponentType::DiscreteSS) {
+                // State update on samples taken every ts; the output is held between samples.
+                const double uk = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                const double ts = (fc.delay > 0.0) ? fc.delay : 0.01;
+                const bool sampleNow = currentTime + 1e-12 >= fc.nextSampleTime;
+                const bool doCommit = (pass == 0 && commitState && sampleNow);
+                const size_t n = fc.dssX.size();
+                double yk = fc.dssD * uk;
+                for (size_t i = 0; i < n; ++i) yk += fc.dssC[i] * fc.dssX[i];
+                if (doCommit) {
+                    std::vector<double> xn(n, 0.0);
+                    for (size_t i = 0; i < n; ++i) {
+                        double s = fc.dssB[i] * uk;
+                        for (size_t j = 0; j < n; ++j) s += fc.dssA[i * n + j] * fc.dssX[j];
+                        xn[i] = s;
+                    }
+                    fc.dssX = xn;
+                    fc.prevOut = yk;
+                    fc.nextSampleTime = currentTime + ts;
+                }
+                val = sampleNow ? yk : fc.prevOut;
+            }
+            else if (fc.type == ComponentType::FourierSeries) {
+                // Band-limited reconstruction: the DC term plus the first `harmonics` terms of
+                // the Fourier series fitted to the last fundamental cycle, evaluated at the
+                // newest sample. A pure sine at f passes through unchanged. Extra harmonics
+                // are dropped, which low-pass filters the input.
+                double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
+                double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
+                int H = (fc.shiftLength > 0) ? fc.shiftLength : 10;
+                double ts = (fc.delay > 0.0) ? fc.delay : (config.stepSize > 0.0 ? config.stepSize : 1e-4);
+                int N = (int)std::round(1.0 / (fn * ts));
+                if (N < 2) N = 2;
+                // One sample enters per ts, as in FOURIER_TRANS, so the window is one cycle.
+                if (commitState && currentTime > fc.lastTime && currentTime + 1e-12 >= fc.nextSampleTime) {
+                    fc.shiftBuffer.push_back(inVal);
+                    if ((int)fc.shiftBuffer.size() > N) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    fc.lastTime = currentTime;
+                    fc.nextSampleTime = currentTime + ts;
+                }
+                const int M = (int)fc.shiftBuffer.size();
+                if (M == 0) {
+                    val = 0.0;
+                } else {
+                    const double twoPi = 2.0 * 3.141592653589793;
+                    double a0 = 0.0;
+                    for (double v : fc.shiftBuffer) a0 += v;
+                    a0 /= M;
+                    // Evaluate at the current time, not at the last sample: advance from the
+                    // newest sample by the elapsed fraction of ts. Otherwise the output lags
+                    // the input by up to one sample interval.
+                    const double tSample = fc.nextSampleTime - ts;
+                    const double frac = std::clamp((currentTime - tSample) / ts, 0.0, 1.0);
+                    const double xNow = (double)(M - 1) + frac;
+                    double rec = a0;
+                    for (int n = 1; n <= H; ++n) {
+                        const double w = twoPi * n / N;
+                        double an = 0.0, bn = 0.0;
+                        for (int i = 0; i < M; ++i) {
+                            an += fc.shiftBuffer[i] * std::cos(w * i);
+                            bn += fc.shiftBuffer[i] * std::sin(w * i);
+                        }
+                        an *= 2.0 / M;
+                        bn *= 2.0 / M;
+                        rec += an * std::cos(w * xNow) + bn * std::sin(w * xNow);
+                    }
+                    val = rec;
+                }
             }
             else if (fc.type == ComponentType::MovAvg) {
                 double inVal = fc.in0Ptr ? *fc.in0Ptr : 0.0;
@@ -3227,6 +3969,18 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 else if (fcn == "power" || fcn == "pow") val = std::pow(u1, u2);
                 else if (fcn == "mod") { double m = (u2 == 0.0 ? 1.0 : u2); val = std::fmod(std::fmod(u1, m) + m, m); }
                 else if (fcn == "rem") { double m = (u2 == 0.0 ? 1.0 : u2); val = std::fmod(u1, m); }
+                // Trig and hyperbolic functions are listed as choices of the block but had
+                // no branch, so each silently evaluated to exp(u).
+                else if (fcn == "sin") val = std::sin(u1);
+                else if (fcn == "cos") val = std::cos(u1);
+                else if (fcn == "tan") val = std::tan(u1);
+                else if (fcn == "asin") val = std::asin(std::max(-1.0, std::min(1.0, u1)));
+                else if (fcn == "acos") val = std::acos(std::max(-1.0, std::min(1.0, u1)));
+                else if (fcn == "atan") val = std::atan(u1);
+                else if (fcn == "atan2") val = std::atan2(u1, u2);
+                else if (fcn == "sinh") val = std::sinh(u1);
+                else if (fcn == "cosh") val = std::cosh(u1);
+                else if (fcn == "tanh") val = std::tanh(u1);
                 else val = std::exp(u1);
             }
             else if (fc.type == ComponentType::Round) {
@@ -3261,7 +4015,7 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                     double triVal = (tLocal < Tc / 2.0) 
                                     ? (tLocal / (Tc / 2.0)) 
                                     : (1.0 - (tLocal - Tc / 2.0) / (Tc / 2.0));
-                    double vCarrier = triVal + lOffset;
+                    double vCarrier = fc.minVal + (fc.maxVal - fc.minVal) * triVal + lOffset;
 
                     int targetDirect = (vMod >= vCarrier) ? 1 : 0;
                     int targetCompl = (targetDirect == 0) ? 1 : 0;
@@ -3342,6 +4096,92 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                     val = (targetDirect == 1) ? 1.0 : 0.0;
                 }
             }
+            else if (fc.type == ComponentType::LUT_3D) {
+                // Trilinear interpolation of table[i][j][k] over axes x, y and z. Inputs are
+                // clamped to the table range. A table whose shape does not match its axes
+                // gives 0 instead of reading out of bounds.
+                auto sigAt = [&](size_t i) -> double {
+                    if (i < fc.inputSigIndices.size()) {
+                        const int idx = fc.inputSigIndices[i];
+                        if (idx >= 0 && idx < (int)flatControlSignals.size()) return flatControlSignals[idx];
+                    }
+                    return 0.0;
+                };
+                const double u1 = sigAt(0), u2 = sigAt(1), u3 = sigAt(2);
+
+                auto parseV = [](std::string s) -> std::vector<double> {
+                    std::vector<double> vec;
+                    for (char& c : s) if (c == '[' || c == ']' || c == ',') c = ' ';
+                    std::stringstream ss(s); double v;
+                    while (ss >> v) vec.push_back(v);
+                    return vec;
+                };
+
+                // Reads a nested "[[[..], [..]], [[..]]]" table into cube[i][j][k].
+                auto parseCube = [](const std::string& src) -> std::vector<std::vector<std::vector<double>>> {
+                    std::vector<std::vector<std::vector<double>>> cube;
+                    int depth = 0;
+                    const char* p = src.c_str();
+                    while (*p) {
+                        if (*p == '[') {
+                            ++depth;
+                            if (depth == 2) cube.emplace_back();
+                            else if (depth == 3 && !cube.empty()) cube.back().emplace_back();
+                            ++p;
+                        } else if (*p == ']') {
+                            --depth;
+                            ++p;
+                        } else if (std::isdigit((unsigned char)*p) || *p == '-' || *p == '+' || *p == '.') {
+                            char* end = nullptr;
+                            const double v = std::strtod(p, &end);
+                            if (end == p) { ++p; continue; }
+                            if (depth == 3 && !cube.empty() && !cube.back().empty()) cube.back().back().push_back(v);
+                            p = end;
+                        } else {
+                            ++p;
+                        }
+                    }
+                    return cube;
+                };
+
+                std::vector<double> ax = parseV(fc.polarity);
+                std::vector<double> ay = parseV(fc.vPlotKey);
+                std::vector<double> az = parseV(fc.vBetaKey);
+                auto cube = parseCube(fc.vAlphaKey);
+                if (ax.empty()) ax = {0.0, 1.0};
+                if (ay.empty()) ay = {0.0, 1.0};
+                if (az.empty()) az = {0.0, 1.0};
+                if (cube.empty()) cube = {{{0.0, 1.0}, {1.0, 2.0}}, {{1.0, 2.0}, {2.0, 3.0}}};
+
+                const size_t nx = ax.size(), ny = ay.size(), nz = az.size();
+                bool shapeOk = nx >= 2 && ny >= 2 && nz >= 2 && cube.size() == nx;
+                for (size_t i = 0; shapeOk && i < nx; ++i) {
+                    if (cube[i].size() != ny) shapeOk = false;
+                    for (size_t j = 0; shapeOk && j < ny; ++j)
+                        if (cube[i][j].size() != nz) shapeOk = false;
+                }
+                val = 0.0;
+                if (shapeOk) {
+                    // Cell index and fractional position along one axis.
+                    auto cell = [](const std::vector<double>& axis, double u, double& frac) -> size_t {
+                        size_t i = 0;
+                        for (size_t k = 0; k + 1 < axis.size(); ++k) if (u >= axis[k]) i = k;
+                        const double d = axis[i + 1] - axis[i];
+                        frac = (d > 0.0) ? std::clamp((u - axis[i]) / d, 0.0, 1.0) : 0.0;
+                        return i;
+                    };
+                    double tx = 0.0, ty = 0.0, tz = 0.0;
+                    const size_t i0 = cell(ax, u1, tx), j0 = cell(ay, u2, ty), k0 = cell(az, u3, tz);
+                    for (size_t a = 0; a < 2; ++a) {
+                        for (size_t b = 0; b < 2; ++b) {
+                            for (size_t c = 0; c < 2; ++c) {
+                                const double w = (a ? tx : 1.0 - tx) * (b ? ty : 1.0 - ty) * (c ? tz : 1.0 - tz);
+                                val += w * cube[i0 + a][j0 + b][k0 + c];
+                            }
+                        }
+                    }
+                }
+            }
             else if (fc.type == ComponentType::LUT_2D) {
                 double u1 = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double u2 = fc.in1Ptr ? *fc.in1Ptr : 0.0;
@@ -3355,10 +4195,27 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                     return vec;
                 };
 
-                auto parseM = [](std::string s) -> std::vector<std::vector<double>> {
+                auto parseM = [](const std::string& src) -> std::vector<std::vector<double>> {
                     std::vector<std::vector<double>> mat;
-                    if (s.empty()) return mat;
-                    for (char& c : s) if (c == '[' || c == ']' || c == ',') c = ' ';
+                    if (src.empty()) return mat;
+                    // Accepts "a, b; c, d" and the nested "[[a, b], [c, d]]" form used by the
+                    // defaults. Every inner '[' that opens a new row becomes a ';' separator.
+                    // Before this, the nested form was flattened into a single row.
+                    std::string s;
+                    s.reserve(src.size());
+                    int depth = 0;
+                    for (char c : src) {
+                        if (c == '[') {
+                            ++depth;
+                            if (depth == 2 && !s.empty()) s += ';';
+                        } else if (c == ']') {
+                            --depth;
+                        } else if (c == ',') {
+                            s += ' ';
+                        } else {
+                            s += c;
+                        }
+                    }
                     std::stringstream ss(s); std::string line;
                     while (std::getline(ss, line, ';')) {
                         std::stringstream lineSS(line); std::vector<double> row; double v;
@@ -3427,25 +4284,41 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 // the note on PerAvg above.
                 int N = (int)std::round(1.0 / (fn * (config.stepSize > 0 ? config.stepSize : 1e-4)));
                 if (N < 2) N = 2;
+                // Sliding DFT over the last N samples. Running sums are kept over absolute
+                // sample indices n; the fundamental magnitude does not depend on the
+                // window's starting phase, so this equals the windowed DFT magnitude.
+                const double omega = 2.0 * 3.141592653589793 / N;
                 if (commitState && currentTime > fc.lastTime) {
-                    fc.shiftBuffer.push_back(inVal);
-                    if ((int)fc.shiftBuffer.size() > N) fc.shiftBuffer.erase(fc.shiftBuffer.begin());
+                    if ((int)fc.thdRing.size() != N) {
+                        fc.thdRing.assign(N, 0.0);
+                        fc.thdHead = 0; fc.thdFill = 0; fc.thdCount = 0;
+                        fc.thdRe = fc.thdIm = fc.thdSumSq = 0.0;
+                    }
+                    if (fc.thdFill == N) {   // remove the oldest sample from the sums
+                        const double old = fc.thdRing[fc.thdHead];
+                        const long long nOld = fc.thdCount - N;
+                        fc.thdRe -= old * std::cos(omega * (double)nOld);
+                        fc.thdIm -= old * std::sin(omega * (double)nOld);
+                        fc.thdSumSq -= old * old;
+                    } else {
+                        fc.thdFill++;
+                    }
+                    fc.thdRing[fc.thdHead] = inVal;
+                    fc.thdHead = (fc.thdHead + 1) % N;
+                    fc.thdRe += inVal * std::cos(omega * (double)fc.thdCount);
+                    fc.thdIm += inVal * std::sin(omega * (double)fc.thdCount);
+                    fc.thdSumSq += inVal * inVal;
+                    fc.thdCount++;
                     fc.lastTime = currentTime;
                 }
-                double sumSq = 0.0;
-                for (double v : fc.shiftBuffer) sumSq += v * v;
-                double totalRms = std::sqrt(fc.shiftBuffer.empty() ? 0.0 : (sumSq / fc.shiftBuffer.size()));
+                const int bufSize = fc.thdFill;
+                const double sumSq = std::max(0.0, fc.thdSumSq);
+                double totalRms = std::sqrt(bufSize > 0 ? sumSq / bufSize : 0.0);
 
                 // Fundamental component amplitude (H1)
-                double Re = 0.0, Im = 0.0;
-                int bufSize = (int)fc.shiftBuffer.size();
-                double omega = 2.0 * 3.141592653589793 / N;
-                for (int i = 0; i < bufSize; ++i) {
-                    Re += fc.shiftBuffer[i] * std::cos(omega * i);
-                    Im += fc.shiftBuffer[i] * std::sin(omega * i);
-                }
-                Re = (2.0 / (bufSize > 0 ? bufSize : 1)) * Re;
-                Im = (2.0 / (bufSize > 0 ? bufSize : 1)) * Im;
+                const double norm = 2.0 / (bufSize > 0 ? bufSize : 1);
+                double Re = norm * fc.thdRe;
+                double Im = norm * fc.thdIm;
                 double fundRms = std::sqrt(Re * Re + Im * Im) / 1.4142135623730951;
 
                 if (fundRms < 1e-6) val = 0.0;
@@ -3459,24 +4332,29 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 double dt = dtNow;
                 double fn = (fc.freq > 0.0) ? fc.freq : 50.0;
                 double w0 = 2.0 * 3.141592653589793 * fn;
-                if (currentTime == 0.0) {
+                if (currentTime == 0.0 && pass == 0 && commitState) {
                     fc.stateVal = 0.0;     // theta
                     fc.filterState = w0;  // omega
+                    fc.pllHasOmega = false;
                 }
                 // Phase detector error (inVal * cos(theta))
                 double err = inVal * std::cos(fc.stateVal);
                 double Kp = (fc.gain > 0.0) ? fc.gain : 20.0;
                 double Ki = (fc.maxVal > 0.0) ? fc.maxVal : 1000.0;
                 double omega_total = fc.filterState + Kp * err;
-                if (commitState) {
+                // Advance once per step. The block is evaluated in two passes, and the
+                // state used to move on both, running the loop at twice its rate.
+                if (pass == 0 && commitState && currentTime > 0.0) {
                     fc.filterState += Ki * err * dt;
-                    omega_total = fc.filterState + Kp * err;
                     fc.stateVal = std::fmod(fc.stateVal + omega_total * dt, 2.0 * 3.141592653589793);
                     if (fc.stateVal < 0.0) fc.stateVal += 2.0 * 3.141592653589793;
+                    fc.pllOmega = omega_total;
+                    fc.pllHasOmega = true;
                 }
 
                 double theta = fc.stateVal;
-                double freqEstimated = omega_total / (2.0 * 3.141592653589793);
+                // Report the omega that advanced theta (see PLL_3PH above).
+                double freqEstimated = (fc.pllHasOmega ? fc.pllOmega : omega_total) / (2.0 * 3.141592653589793);
                 double cosVal = std::cos(theta);
                 double sinVal = std::sin(theta);
 
@@ -3597,6 +4475,10 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
                 val = fc.Kp * err + fc.Ki * piVal;
             }
             else if (fc.type == ComponentType::CustomScript) {
+                // The buffer is shared by all scripts: clear it so a script never sees
+                // the previous script's inputs, and grow it rather than write past 20.
+                if (scriptInValsBuf.size() < fc.inputSigIndices.size()) scriptInValsBuf.resize(fc.inputSigIndices.size(), 0.0);
+                std::fill(scriptInValsBuf.begin(), scriptInValsBuf.end(), 0.0);
                 for (size_t i = 0; i < fc.inputSigIndices.size(); ++i) {
                     int inIdx = fc.inputSigIndices[i];
                     double inVal = (inIdx >= 0 && inIdx < (int)flatControlSignals.size()) ? flatControlSignals[inIdx] : 0.0;
@@ -3668,7 +4550,7 @@ void CircuitSimulator::evaluateControls(double currentTime, double dtStep, bool 
             else if (fc.type == ComponentType::AlgebraicConstraint) {
                 double f_z = fc.in0Ptr ? *fc.in0Ptr : 0.0;
                 double z_prev = fc.stateVal;
-                double z_new = z_prev - 0.01 * f_z;
+                double z_new = z_prev - fc.gain * f_z;
                 fc.stateVal = z_new;
                 val = z_new;
             }
@@ -3737,6 +4619,7 @@ bool CircuitSimulator::updateDeviceStates() {
             double v2 = (fc.n2 >= 0 && fc.n2 < totalDim) ? X[fc.n2] : 0.0;
             double vDiff = v1 - v2;
             double vGate = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
+
 
             double currentState = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatDiodeStates.size()) ? flatDiodeStates[fc.stateIdx] : 0.0;
             double newState = currentState;
@@ -3888,11 +4771,19 @@ void CircuitSimulator::assembleMNA(double currentTime, double dtStep) {
             double C = liveElementValue(fc, 1e-15);
             if (C < 1e-15) C = 1e-15;
 
-            double rEq = (dt / C) + fc.esr;
+            // Companion model of C in series with its ESR:
+            //   BE  : vC = vC0 + (h/C)*i               -> i = (v - vC0) / (h/C + esr)
+            //   trap: vC = vC0 + (h/2C)*(i + i0)       -> i = (v - vC0 - (h/2C)*i0) / (h/2C + esr)
+            // The capacitor used to be stamped with BE even under the trapezoidal
+            // solver, so "trapezoidal" was first order (and numerically damped) in
+            // every capacitor.
+            const bool trapC = useTrapNow && fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapCurrents.size();
+            const double hc = trapC ? dt / (2.0 * C) : dt / C;
+            double rEq = hc + fc.esr;
             double gEq = 1.0 / rEq;
             if (gEq != fc.gStamped) { fc.gStamped = gEq; matrixKChanged = true; }
             double vCapPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapVoltages.size()) ? flatCapVoltages[fc.stateIdx] : 0.0;
-            double iEq = gEq * vCapPrev;
+            double iEq = gEq * (trapC ? vCapPrev + hc * flatCapCurrents[fc.stateIdx] : vCapPrev);
 
             stampConductance(n1, n2, gEq);
 
@@ -3988,9 +4879,14 @@ void CircuitSimulator::assembleMNA(double currentTime, double dtStep) {
             stampConductance(n1, n2, g);
 
             if (!isGateOn && state > 0.5) {
+                // Body diode: conducts from source (n2) to drain (n1), so the branch is
+                // i(n1->n2) = g*(v1 - v2 + Vd). The offset used to carry the forward
+                // diode's sign, which put +Vd across the device instead of -Vd: the
+                // solved V_DS came out positive, updateDeviceStates() switched the
+                // diode off again, and the body diode never conducted.
                 double iEq = g * fc.Vvd;
-                if (n1 >= 0) B[n1] += iEq;
-                if (n2 >= 0) B[n2] -= iEq;
+                if (n1 >= 0) B[n1] -= iEq;
+                if (n2 >= 0) B[n2] += iEq;
             }
         }
         else if (fc.type == ComponentType::IGBT || fc.type == ComponentType::GTO ||
@@ -4040,6 +4936,7 @@ void CircuitSimulator::saveSolverState(SolverSnapshot& s) const {
     // allocate after the first step.
     s.X = X;
     s.capV = flatCapVoltages;
+    s.capI = flatCapCurrents;
     s.indI = flatIndCurrents;
     s.indV = flatIndVoltages;
     s.diodeStates = flatDiodeStates;
@@ -4062,6 +4959,7 @@ void CircuitSimulator::restoreSolverState(const SolverSnapshot& s) {
     if (!s.valid) return;
     X = s.X;
     flatCapVoltages = s.capV;
+    flatCapCurrents = s.capI;
     flatIndCurrents = s.indI;
     flatIndVoltages = s.indV;
     flatDiodeStates = s.diodeStates;
@@ -4175,7 +5073,7 @@ SimulationOutput CircuitSimulator::runTransient() {
         fc.customScriptOutputVecPtrs.clear();
         fc.customScriptPlotVecPtrs.clear();
 
-        if (fc.outputSigKeys.size() > 1) {
+        if (hasPerPortOutputs(fc)) {
             for (size_t i = 0; i < fc.outputSigKeys.size(); ++i) {
                 const auto& outK = fc.outputSigKeys[i];
                 auto& sigVec = out.signals[outK];
@@ -4355,8 +5253,11 @@ SimulationOutput CircuitSimulator::runTransient() {
                 const double vDiff = v1 - v2;
                 double C = liveElementValue(fc, 1e-15);
                 if (C < 1e-15) C = 1e-15;
-                const double gEq = 1.0 / ((h / C) + fc.esr);
-                const double iC = gEq * (vDiff - flatCapVoltages[fc.stateIdx]);
+                const bool trapC = trapModeStampValid && trapModeStamped && fc.stateIdx < (int)flatCapCurrents.size();
+                const double hc = trapC ? h / (2.0 * C) : h / C;
+                const double gEq = 1.0 / (hc + fc.esr);
+                const double hist = trapC ? hc * flatCapCurrents[fc.stateIdx] : 0.0;
+                const double iC = gEq * (vDiff - flatCapVoltages[fc.stateIdx] - hist);
                 dst[fc.stateIdx] = vDiff - fc.esr * iC;
             } else if (fc.type == ComponentType::Inductor) {
                 if (fc.stateIdx < 0 || fc.stateIdx >= (int)flatIndCurrents.size()) continue;
@@ -4540,9 +5441,10 @@ SimulationOutput CircuitSimulator::runTransient() {
         if (cancelRequested_.load(std::memory_order_relaxed)) { cancelled_ = true; break; }
         iterCount++;
 
-        // Time this sample is labelled with. The fixed path keeps its historical
-        // convention (label = start of the step); the adaptive path labels the end of
-        // the step, which is where the backward-Euler solution actually lives.
+        // Time this sample is labelled with: the end of the step, which is where the
+        // solution X of the step lives. The fixed path used to label the start of the
+        // step, so every fixed-step waveform was shifted one step early (the first
+        // sample, at "t = 0", already held the state after one step).
         double sampleTime = currentTime;
         bool statesChanged = false;
         double lastErrAccepted = 0.0;   // scaled local-error norm of the accepted step
@@ -4555,7 +5457,7 @@ SimulationOutput CircuitSimulator::runTransient() {
 
             // Step 2: Iterative PWL solution loop for diode/switch convergence
             statesChanged = solveNetworkStep(currentTime, h);
-            sampleTime = currentTime;
+            sampleTime = currentTime + h;
         } else {
             // â”€â”€ Error-controlled step with event localisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Control signals are already valid for `currentTime` and are held
@@ -4766,10 +5668,16 @@ SimulationOutput CircuitSimulator::runTransient() {
             else if (fc.type == ComponentType::Capacitor) {
                 double C = liveElementValue(fc, 1e-15);
                 if (C < 1e-15) C = 1e-15;
-                double rEq = (h / C) + fc.esr;
+                // Same integration rule as the stamp this step was solved with.
+                const bool trapC = trapModeStampValid && trapModeStamped &&
+                                   fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapCurrents.size();
+                const double hc = trapC ? h / (2.0 * C) : h / C;
+                double rEq = hc + fc.esr;
                 double gEq = 1.0 / rEq;
                 double vCapPrev = (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapVoltages.size()) ? flatCapVoltages[fc.stateIdx] : 0.0;
-                iComp = gEq * (vDiff - vCapPrev);
+                const double hist = trapC ? hc * flatCapCurrents[fc.stateIdx] : 0.0;
+                iComp = gEq * (vDiff - vCapPrev - hist);
+                if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapCurrents.size()) flatCapCurrents[fc.stateIdx] = iComp;
                 if (fc.stateIdx >= 0 && fc.stateIdx < (int)flatCapVoltages.size()) {
                     // Store the voltage across the IDEAL capacitor, not across the
                     // whole branch. The companion model in assembleMNA() is
@@ -4850,6 +5758,19 @@ SimulationOutput CircuitSimulator::runTransient() {
                     iComp = vDiff / R;
                 }
             }
+            // Current sources had no branch here, so I_<id> was recorded as 0 for
+            // I, AC_I and CTRL_I. Same values as the MNA stamp at this time.
+            else if (fc.type == ComponentType::CurrentSource) {
+                iComp = fc.val;
+            }
+            else if (fc.type == ComponentType::ACCurrentSource) {
+                double phaseRad = fc.delay * 3.141592653589793 / 180.0;
+                iComp = fc.val * std::sin(2.0 * 3.141592653589793 * fc.freq * currentTime + phaseRad);
+            }
+            else if (fc.type == ComponentType::ControlledCurrentSource) {
+                double ctrlVal = (fc.ctrlSigPtr && *fc.ctrlSigPtr != 0.0) ? *fc.ctrlSigPtr : (fc.in0Ptr ? *fc.in0Ptr : (fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0));
+                iComp = fc.gain * ctrlVal;
+            }
             else if (fc.type == ComponentType::Switch) {
                 double ctrlVal = fc.ctrlSigPtr ? *fc.ctrlSigPtr : 0.0;
                 iComp = vDiff / ((ctrlVal > 0.5) ? fc.Ron : fc.Roff);
@@ -4883,16 +5804,29 @@ SimulationOutput CircuitSimulator::runTransient() {
 
         // Store control loop signals into output (Zero map lookups)
         for (auto& fc : fastCtrlComps) {
-            if (!fc.outputSigKeys.empty() && fc.outputSigKeys.size() > 1) {
+            if (hasPerPortOutputs(fc)) {
+                double firstVal = 0.0;
                 for (size_t i = 0; i < fc.outputSigIndices.size(); ++i) {
                     int sigIdx = fc.outputSigIndices[i];
                     double ctrlVal = (sigIdx >= 0 && sigIdx < (int)flatControlSignals.size()) ? flatControlSignals[sigIdx] : 0.0;
+                    if (i == 0) firstVal = ctrlVal;
                     if (i < fc.customScriptOutputVecPtrs.size() && fc.customScriptOutputVecPtrs[i]) {
                         fc.customScriptOutputVecPtrs[i]->push_back(ctrlVal);
                     }
                     if (i < fc.customScriptPlotVecPtrs.size() && fc.customScriptPlotVecPtrs[i]) {
                         fc.customScriptPlotVecPtrs[i]->push_back(ctrlVal);
                     }
+                }
+                // "<id>" and "<id>.Out" were registered for every block but never filled
+                // for per-port blocks, so they came back empty. Mirror the first port
+                // into them, unless the key is itself one of the ports (e.g. ABC_DQ's
+                // outKey is ".d") - that vector was already written above.
+                auto isPortVec = [&](const std::vector<double>* p) {
+                    return std::find(fc.customScriptOutputVecPtrs.begin(), fc.customScriptOutputVecPtrs.end(), p) != fc.customScriptOutputVecPtrs.end() ||
+                           std::find(fc.customScriptPlotVecPtrs.begin(), fc.customScriptPlotVecPtrs.end(), p) != fc.customScriptPlotVecPtrs.end();
+                };
+                for (std::vector<double>* p : {fc.sigVecPtr, fc.sigOutVecPtr, fc.vPlotVecPtr, fc.iPlotVecPtr}) {
+                    if (p && !isPortVec(p)) p->push_back(firstVal);
                 }
             } else {
                 double ctrlVal = (fc.outSignalIdx >= 0 && fc.outSignalIdx < (int)flatControlSignals.size()) ? flatControlSignals[fc.outSignalIdx] : 0.0;

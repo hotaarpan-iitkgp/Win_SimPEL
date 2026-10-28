@@ -1193,7 +1193,9 @@
           "input1": {
             "signal": "In"
           },
-          "input2": "0.0",
+          "In2": {
+            "signal": "In2"
+          },
           "K": 1.0
         }
       },
@@ -1228,19 +1230,46 @@
       "name": "3D Look-Up Table",
       "subcategory": "Functions & Tables",
       "ui_type": "LUT_3D",
-      "params": [],
+      "params": [
+        { "name": "x_data", "default": "[0, 1]" },
+        { "name": "y_data", "default": "[0, 1]" },
+        { "name": "z_data", "default": "[0, 1]" },
+        { "name": "table_data", "default": "[[[0, 1], [1, 2]], [[1, 2], [2, 3]]]" }
+      ],
       "netlist": {
         "section": "control_loops.gains",
         "fields": {
           "output": "{id}.Out",
           "original_type": "LUT_3D",
+          "x": {
+            "param": "x_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "y": {
+            "param": "y_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "z": {
+            "param": "z_data",
+            "default": "[0, 1]",
+            "as": "string"
+          },
+          "table": {
+            "param": "table_data",
+            "default": "[[[0, 1], [1, 2]], [[1, 2], [2, 3]]]",
+            "as": "string"
+          },
           "input": {
             "signal": "In"
           },
-          "input1": {
-            "signal": "In"
+          "In2": {
+            "signal": "In2"
           },
-          "input2": "0.0",
+          "In3": {
+            "signal": "In3"
+          },
           "K": 1.0
         }
       },
@@ -1301,6 +1330,10 @@
         {
           "name": "initial_guess",
           "default": "0.0"
+        },
+        {
+          "name": "gain",
+          "default": "0.01"
         }
       ],
       "netlist": {
@@ -1314,6 +1347,11 @@
           "initial_guess": {
             "param": "initial_guess",
             "default": "0.0",
+            "as": "string"
+          },
+          "gain": {
+            "param": "gain",
+            "default": "0.01",
             "as": "string"
           }
         }
@@ -1412,12 +1450,30 @@
       "aliases": [
         "FourierSeries"
       ],
-      "params": [],
+      "params": [
+        { "name": "f", "default": "50" },
+        { "name": "harmonics", "default": "10" },
+        { "name": "ts", "default": "100u" }
+      ],
       "netlist": {
         "section": "control_loops.gains",
         "fields": {
           "output": "{id}.Out",
           "original_type": "{type}",
+          "f": {
+            "param": "f",
+            "default": 50.0
+          },
+          "harmonics": {
+            "param": "harmonics",
+            "default": 10,
+            "as": "int"
+          },
+          "ts": {
+            "param": "ts",
+            "default": "100u",
+            "as": "string"
+          },
           "input": {
             "signal": "In"
           },
@@ -1770,8 +1826,34 @@
         {
           "name": "Tf",
           "default": "0.01"
+        },
+        {
+          "name": "limit_output",
+          "default": "false"
+        },
+        {
+          "name": "upper_limit",
+          "default": "1"
+        },
+        {
+          "name": "lower_limit",
+          "default": "-1"
+        },
+        {
+          "name": "anti_windup",
+          "default": "false"
         }
       ],
+      "choices": {
+        "limit_output": [
+          "false",
+          "true"
+        ],
+        "anti_windup": [
+          "false",
+          "true"
+        ]
+      },
       "palette": [
         {
           "order": 46,
@@ -4209,7 +4291,7 @@
         },
         {
           "name": "bit_mask",
-          "default": "1"
+          "default": "-1"
         }
       ],
       "choices": {
@@ -4363,8 +4445,10 @@
       "type": "DISCRETE_INT",
       "name": "Discrete Integrator",
       "subcategory": "Discrete",
-      "ui_type": "Unknown",
-      "role": "unsupported",
+      "ui_type": "DiscreteInt",
+      "choices": {
+        "method": ["Forward Euler"]
+      },
       "params": [
         {
           "name": "ts",
@@ -4379,14 +4463,33 @@
           "default": "1.0"
         }
       ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DISCRETE_INT",
+          "ts": {
+            "param": "ts",
+            "default": "0.01",
+            "as": "string"
+          },
+          "initial_value": {
+            "param": "initial_value",
+            "default": "1.0",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
       "palette": []
     },
     {
       "type": "DISCRETE_MEAN",
       "name": "Discrete Mean Value",
       "subcategory": "Discrete",
-      "ui_type": "Unknown",
-      "role": "unsupported",
+      "ui_type": "DiscreteMean",
       "params": [
         {
           "name": "ts",
@@ -4401,6 +4504,31 @@
           "default": "1.0"
         }
       ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DISCRETE_MEAN",
+          "ts": {
+            "param": "ts",
+            "default": "0.001",
+            "as": "string"
+          },
+          "period": {
+            "param": "period",
+            "default": "0.02",
+            "as": "string"
+          },
+          "initial_value": {
+            "param": "initial_value",
+            "default": "1.0",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
       "palette": []
     },
     {
@@ -4436,8 +4564,7 @@
       "type": "DISCRETE_SS",
       "name": "Discrete State Space",
       "subcategory": "Discrete",
-      "ui_type": "Unknown",
-      "role": "unsupported",
+      "ui_type": "DiscreteSS",
       "params": [
         {
           "name": "ts",
@@ -4464,14 +4591,53 @@
           "default": "[1.0]"
         }
       ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DISCRETE_SS",
+          "ts": {
+            "param": "ts",
+            "default": "0.01",
+            "as": "string"
+          },
+          "A": {
+            "param": "A",
+            "default": "[0.5]",
+            "as": "string"
+          },
+          "B": {
+            "param": "B",
+            "default": "[1]",
+            "as": "string"
+          },
+          "C": {
+            "param": "C",
+            "default": "[1]",
+            "as": "string"
+          },
+          "D": {
+            "param": "D",
+            "default": "[0]",
+            "as": "string"
+          },
+          "x0": {
+            "param": "x0",
+            "default": "[1.0]",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
       "palette": []
     },
     {
       "type": "DISCRETE_TF",
       "name": "Discrete Transfer Function",
       "subcategory": "Discrete",
-      "ui_type": "Unknown",
-      "role": "unsupported",
+      "ui_type": "DiscreteTF",
       "params": [
         {
           "name": "ts",
@@ -4486,6 +4652,31 @@
           "default": "[1 -0.9]"
         }
       ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "DISCRETE_TF",
+          "ts": {
+            "param": "ts",
+            "default": "0.01",
+            "as": "string"
+          },
+          "num": {
+            "param": "num",
+            "default": "[0.1]",
+            "as": "string"
+          },
+          "den": {
+            "param": "den",
+            "default": "[1 -0.9]",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
       "palette": []
     },
     {
@@ -4748,15 +4939,15 @@
         },
         {
           "name": "min",
-          "default": "0"
+          "default": ""
         },
         {
           "name": "max",
-          "default": "1"
+          "default": ""
         },
         {
           "name": "amplitude",
-          "default": "1"
+          "default": ""
         }
       ],
       "palette": []
@@ -4765,28 +4956,56 @@
       "type": "UNIT_DELAY",
       "name": "Unit Delay",
       "subcategory": "Discrete",
-      "ui_type": "Unknown",
-      "role": "unsupported",
+      "ui_type": "UnitDelay",
       "params": [
         {
           "name": "ts",
           "default": "0.02"
         }
       ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "UNIT_DELAY",
+          "ts": {
+            "param": "ts",
+            "default": "0.02",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
       "palette": []
     },
     {
       "type": "ZOH",
       "name": "Zero-Order Hold",
       "subcategory": "Discrete",
-      "ui_type": "Unknown",
-      "role": "unsupported",
+      "ui_type": "ZoH",
       "params": [
         {
           "name": "ts",
           "default": "0.02"
         }
       ],
+      "netlist": {
+        "section": "control_loops.gains",
+        "fields": {
+          "output": "{id}.Out",
+          "original_type": "ZOH",
+          "ts": {
+            "param": "ts",
+            "default": "0.02",
+            "as": "string"
+          },
+          "input": {
+            "signal": "In"
+          }
+        }
+      },
       "palette": []
     },
     {

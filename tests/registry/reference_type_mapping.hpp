@@ -192,6 +192,17 @@ inline ComponentType legacyStringToComponentType(const std::string& typeStr) {
 
     if (typeStr == "LOSS_ANALYZER" || typeStr == "LossAnalyzer") return ComponentType::LossAnalyzer;
 
+    if (typeStr == "DC_MOTOR" || typeStr == "DCMotor") return ComponentType::DCMotor;
+    if (typeStr == "BLDC_MOTOR" || typeStr == "BLDCMotor") return ComponentType::BLDCMotor;
+    if (typeStr == "PMSM_MOTOR" || typeStr == "PMSMMotor") return ComponentType::PMSMMotor;
+    if (typeStr == "SYNC_MOTOR" || typeStr == "SynchronousMotor") return ComponentType::SynchronousMotor;
+    if (typeStr == "SRM_MOTOR" || typeStr == "SRMotor") return ComponentType::SRMotor;
+    if (typeStr == "UNIT_DELAY" || typeStr == "UnitDelay") return ComponentType::UnitDelay;
+    if (typeStr == "ZOH" || typeStr == "ZoH") return ComponentType::ZoH;
+    if (typeStr == "DISCRETE_INT" || typeStr == "DiscreteInt") return ComponentType::DiscreteInt;
+    if (typeStr == "DISCRETE_MEAN" || typeStr == "DiscreteMean") return ComponentType::DiscreteMean;
+    if (typeStr == "DISCRETE_TF" || typeStr == "DiscreteTF") return ComponentType::DiscreteTF;
+    if (typeStr == "DISCRETE_SS" || typeStr == "DiscreteSS") return ComponentType::DiscreteSS;
     return ComponentType::Unknown;
 }
 inline std::vector<std::string> legacyLiterals() {
@@ -304,6 +315,17 @@ inline std::vector<std::string> legacyLiterals() {
         "InductionMotor",
         "INDUCTION_MOTOR",
         "IND_MOTOR",
+        "DC_MOTOR",
+        "BLDC_MOTOR",
+        "PMSM_MOTOR",
+        "SYNC_MOTOR",
+        "SRM_MOTOR",
+        "UNIT_DELAY",
+        "ZOH",
+        "DISCRETE_INT",
+        "DISCRETE_MEAN",
+        "DISCRETE_TF",
+        "DISCRETE_SS",
         "EComp",
         "E_COMP",
         "GenEBlock",

@@ -1,5 +1,6 @@
 #include "NetlistParser.hpp"
 #include <nlohmann/json.hpp>
+#include <cstdio>
 #include <iostream>
 #include <unordered_map>
 #include <set>
@@ -8,6 +9,16 @@
 using json = nlohmann::json;
 
 namespace CircuitSimEngine {
+
+// Numbers in the netlist JSON become parameter text that the solver parses back.
+// std::to_string prints six decimals, which turned every value below 5e-7 into 0
+// (a 100 nF capacitor, a 470 nH inductor, a 1e-7 gain) and rounded the rest
+// (2.2 uF -> 2 uF, a 4.1667 us gate delay -> 4 us). Print round-trip exact.
+static std::string numberText(double x) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%.17g", x);
+    return buf;
+}
 
 static std::vector<double> parseTurnsArrayStr(const std::string& str) {
     std::vector<double> res;
@@ -132,6 +143,17 @@ static ComponentType stringToComponentType(const std::string& typeStr, const std
     if (t == "TransportDelay" || t == "TRANSPORT_DELAY") return ComponentType::TransportDelay;
     if (t == "TurnOnDelay" || t == "TURN_ON_DELAY") return ComponentType::TurnOnDelay;
     if (t == "MemoryBlock" || t == "MEMORY" || t == "MEMORY_BLOCK") return ComponentType::MemoryBlock;
+    if (t == "UNIT_DELAY" || t == "UnitDelay") return ComponentType::UnitDelay;
+    if (t == "ZOH" || t == "ZoH") return ComponentType::ZoH;
+    if (t == "DISCRETE_INT" || t == "DiscreteInt") return ComponentType::DiscreteInt;
+    if (t == "DISCRETE_MEAN" || t == "DiscreteMean") return ComponentType::DiscreteMean;
+    if (t == "DISCRETE_TF" || t == "DiscreteTF") return ComponentType::DiscreteTF;
+    if (t == "DISCRETE_SS" || t == "DiscreteSS") return ComponentType::DiscreteSS;
+    if (t == "DC_MOTOR" || t == "DCMotor") return ComponentType::DcMotor;
+    if (t == "BLDC_MOTOR" || t == "BLDCMotor") return ComponentType::BldcMotor;
+    if (t == "PMSM_MOTOR" || t == "PMSMMotor") return ComponentType::PmsmMotor;
+    if (t == "SYNC_MOTOR" || t == "SynchronousMotor") return ComponentType::SynchronousMotor;
+    if (t == "SRM_MOTOR" || t == "SRMotor") return ComponentType::SrMotor;
     if (t == "Quantizer" || t == "QUANTIZER") return ComponentType::Quantizer;
     if (t == "SignalSwitch" || t == "SIGNAL_SWITCH") return ComponentType::SignalSwitch;
     if (t == "ManualSwitch" || t == "MANUAL_SWITCH") return ComponentType::ManualSwitch;
@@ -222,6 +244,14 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
     if (item.contains("src_type") && item["src_type"].is_string()) {
         std::string srcType = item["src_type"].get<std::string>();
         if (srcType == "ac" || srcType == "AC") itemType = "AC_V";
+        // CTRL_V / CTRL_I are emitted into voltage_sources / current_sources with no
+        // "type" key, only src_type "controlled". They were typed from the category
+        // as plain DC sources, so the control signal was ignored and the source
+        // output its "value" (1.0) regardless of Ctrl.
+        if (srcType == "controlled" && !item.contains("type")) {
+            if (defaultCategoryType == "voltage_sources") itemType = "CTRL_V";
+            else if (defaultCategoryType == "current_sources") itemType = "CTRL_I";
+        }
     }
     // Also detect AC via top-level type field "ac" when inside voltage_sources category
     if ((itemType == "ac" || itemType == "AC") ||
@@ -247,7 +277,7 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
                 }
             }
             if (w.contains("turns")) {
-                if (w["turns"].is_number()) pTurnsStr += std::to_string(w["turns"].get<double>()) + " ";
+                if (w["turns"].is_number()) pTurnsStr += numberText(w["turns"].get<double>()) + " ";
                 else if (w["turns"].is_string()) pTurnsStr += w["turns"].get<std::string>() + " ";
             }
         }
@@ -264,7 +294,7 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
                 }
             }
             if (w.contains("turns")) {
-                if (w["turns"].is_number()) sTurnsStr += std::to_string(w["turns"].get<double>()) + " ";
+                if (w["turns"].is_number()) sTurnsStr += numberText(w["turns"].get<double>()) + " ";
                 else if (w["turns"].is_string()) sTurnsStr += w["turns"].get<std::string>() + " ";
             }
         }
@@ -339,7 +369,7 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
 
     auto parseParamsMap = [&](const json& pObj) {
         for (auto& [k, v] : pObj.items()) {
-            std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? std::to_string(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
+            std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? numberText(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
             comp.parameters[k] = valStr;
 
             // Alias mappings for parameter key discrepancies
@@ -357,7 +387,7 @@ static void parseComponentItem(const json& item, const std::string& defaultCateg
 
     for (auto& [k, v] : item.items()) {
         if (k == "id" || k == "nodes" || k == "type" || k == "parameters" || k == "label" || k == "inputs" || k == "outputs") continue;
-        std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? std::to_string(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
+        std::string valStr = v.is_string() ? v.get<std::string>() : (v.is_number() ? numberText(v.get<double>()) : (v.is_boolean() ? (v.get<bool>() ? "true" : "false") : v.dump()));
         comp.parameters[k] = valStr;
 
         if (k == "start_of_dead_zone") comp.parameters["start"] = valStr;

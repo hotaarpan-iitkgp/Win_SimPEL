@@ -79,10 +79,27 @@ static std::string getResolvedPin(const WireEndpoint& ep, const CircuitDesign& d
         for (const auto& comp : design.components) {
             if (comp.id == ep.compId) {
                 auto terms = getTerminals(comp);
+                // The terminal's own name first (case-insensitive), then an alias.
+                // Alias-first resolved a SIGNAL_SWITCH "Ctrl" wire to its "In1" pin
+                // (both are in the Ctrl/In/In1 group and In1 is listed first).
+                std::string want = ep.terminal;
+                std::transform(want.begin(), want.end(), want.begin(), ::toupper);
+                for (const auto& term : terms) {
+                    std::string have = term.name;
+                    std::transform(have.begin(), have.end(), have.begin(), ::toupper);
+                    if (have == want) return comp.id + ":" + term.name;
+                }
                 for (const auto& term : terms) {
                     if (isTerminalMatch(comp.rawTypeStr, term.name, ep.terminal)) {
                         return comp.id + ":" + term.name;
                     }
+                }
+                // A ground symbol has one terminal; designs from other tools spell it
+                // "A", "GND", "p", ... Any wire end on it is that terminal.
+                {
+                    std::string t = comp.rawTypeStr;
+                    std::transform(t.begin(), t.end(), t.begin(), ::toupper);
+                    if ((t == "GND" || t == "GROUND") && terms.size() == 1) return comp.id + ":" + terms[0].name;
                 }
                 break;
             }
@@ -134,25 +151,30 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
         }
     }
 
-    // Identify Ground nodes (components of type GND / Ground or fallback to V1 negative terminal)
-    std::string groundRoot = "";
+    // Identify ground: the net of every GND / Ground block's terminal is node 0.
+    //
+    // This used to take only the first GND block, and treated "its pin is the
+    // representative of its set" as "not connected" - but which pin ends up as the
+    // representative depends only on wire direction and order. A ground drawn as
+    // R1.B -> GND therefore fell through to a phantom pin, the real ground net got
+    // an ordinary node number, and the generator re-grounded the circuit on the
+    // first voltage source's negative terminal instead.
+    std::vector<std::string> groundRoots;
     for (const auto& comp : design.components) {
         std::string t = comp.rawTypeStr;
         std::transform(t.begin(), t.end(), t.begin(), ::toupper);
-        if (t == "GND" || t == "GROUND") {
-            groundRoot = dsu.find(comp.id + ":Gnd");
-            if (groundRoot.empty() || groundRoot == comp.id + ":Gnd") {
-                groundRoot = dsu.find(comp.id + ":GND");
-            }
-            if (groundRoot.empty() || groundRoot == comp.id + ":GND") {
-                groundRoot = dsu.find(comp.id + ":p");
-            }
-            if (groundRoot.empty() || groundRoot == comp.id + ":p") {
-                groundRoot = dsu.find(comp.id + ":A");
-            }
-            break;
+        if (t != "GND" && t != "GROUND") continue;
+        auto terms = getTerminals(comp);
+        if (terms.empty()) continue;
+        const std::string pin = comp.id + ":" + terms[0].name;
+        // A GND that nothing is wired to grounds nothing.
+        bool wired = false;
+        for (const auto& kv : dsu.parent) {
+            if (kv.first != pin && dsu.find(kv.first) == dsu.find(pin)) { wired = true; break; }
         }
+        if (wired) groundRoots.push_back(dsu.find(pin));
     }
+    std::string groundRoot = groundRoots.empty() ? "" : groundRoots[0];
 
     if (groundRoot.empty()) {
         // Fallback: Default Ground to negative pin ("B" / "n") of first Voltage Source
@@ -193,6 +215,7 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
     if (!groundRoot.empty()) {
         rootToNode[groundRoot] = "0";
     }
+    for (const auto& r : groundRoots) rootToNode[r] = "0";   // every GND block is the same node
 
     int nodeCounter = 1;
     for (auto& comp : design.components) {
@@ -208,30 +231,6 @@ void NetlistBuilder::buildNodesForCircuit(CircuitDesign& design) {
             comp.nodes.push_back(rootToNode[root]);
         }
     }
-}
-
-bool NetlistBuilder::firstGroundPinIsSetRoot(const CircuitDesign& design, std::string* groundId) {
-    // Same registration and unions as buildNodesForCircuit.
-    DSU dsu;
-    for (const auto& comp : design.components)
-        for (const auto& term : getTerminals(comp)) dsu.find(comp.id + ":" + term.name);
-    std::unordered_map<std::string, WireInstance> wireMap;
-    for (const auto& w : design.wires) wireMap[w.id] = w;
-    for (const auto& wire : design.wires) {
-        std::unordered_set<std::string> visited1, visited2;
-        std::string pin1 = getResolvedPin(wire.from, design, wireMap, visited1);
-        std::string pin2 = getResolvedPin(wire.to, design, wireMap, visited2);
-        if (!pin1.empty() && !pin2.empty() && pin1 != pin2) dsu.unite(pin1, pin2);
-    }
-    for (const auto& comp : design.components) {
-        std::string t = comp.rawTypeStr;
-        std::transform(t.begin(), t.end(), t.begin(), ::toupper);
-        if (t == "GND" || t == "GROUND") {
-            if (groundId) *groundId = comp.id;
-            return dsu.find(comp.id + ":Gnd") == comp.id + ":Gnd";
-        }
-    }
-    return false;
 }
 
 } // namespace CircuitSim

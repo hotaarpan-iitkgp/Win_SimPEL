@@ -55,6 +55,57 @@ static json formatJSStyleDouble(double val) {
     }
 }
 
+// Node name of the i-th electrical pin, or node_0 when the pin is missing.
+static std::string machineNodeAt(const json& nodes, size_t i) {
+    return (i < nodes.size()) ? nodes[i].get<std::string>() : std::string("node_0");
+}
+
+// Stator of a three-phase machine. Each phase x (A, B, C) is a resistor R, an inductor L and a
+// controlled EMF source in series from terminal term[x] to the star node "node_<id>_N". The EMF
+// source obeys V(EMF+) - V(EMF-) = signal eSignals[x]. Inductor current "I_<id>_L<x>" flows from
+// the terminal into the machine. With lSignals set, the inductors are signal driven (VAR_L).
+static void emitMachineStator(json& phys, const std::string& id, const std::vector<std::string>& term,
+                              double R, double L, const std::vector<std::string>* lSignals,
+                              const std::vector<std::string>& eSignals) {
+    static const char* const phaseNames[3] = {"A", "B", "C"};
+    const std::string star = "node_" + id + "_N";
+    for (int x = 0; x < 3; ++x) {
+        const std::string sfx = phaseNames[x];
+        const std::string mid1 = "node_" + id + "_R" + sfx;
+        const std::string mid2 = "node_" + id + "_L" + sfx;
+
+        json rObj;
+        rObj["id"] = id + "_R" + sfx;
+        rObj["nodes"] = json::array({term[x], mid1});
+        rObj["value"] = formatJSStyleDouble(R);
+        rObj["esr"] = formatJSStyleDouble(0.0);
+        rObj["src_type"] = "static";
+        phys["resistors"].push_back(rObj);
+
+        json lObj;
+        lObj["id"] = id + "_L" + sfx;
+        lObj["nodes"] = json::array({mid1, mid2});
+        lObj["L"] = formatJSStyleDouble(L);
+        lObj["esr"] = formatJSStyleDouble(0.0);
+        lObj["iL0"] = formatJSStyleDouble(0.0);
+        if (lSignals) {
+            lObj["control_signal"] = (*lSignals)[x];
+            lObj["src_type"] = "variable";
+        } else {
+            lObj["src_type"] = "static";
+        }
+        phys["inductors"].push_back(lObj);
+
+        json eObj;
+        eObj["id"] = id + "_E" + sfx;
+        eObj["nodes"] = json::array({mid2, star});
+        eObj["value"] = 1.0;
+        eObj["control_signal"] = eSignals[x];
+        eObj["src_type"] = "controlled";
+        phys["voltage_sources"].push_back(eObj);
+    }
+}
+
 std::string generateNetlistJson(const CircuitDesign& design) {
     CircuitDesign tempDesign = design;
     NetlistBuilder::buildNodesForCircuit(tempDesign);
@@ -131,109 +182,148 @@ std::string generateNetlistJson(const CircuitDesign& design) {
     std::function<std::string(const std::string&, const std::string&)> getIncomingSignal;
     std::function<std::string(const std::string&)> getSignalFromWire;
 
-    getSignalFromWire = [&](const std::string& wireId) -> std::string {
-        for (const auto& w : tempDesign.wires) {
-            if (w.id == wireId) {
-                if (w.from.isWireJunction) {
-                    return getSignalFromWire(w.from.targetWireId);
-                } else if (!w.from.compId.empty()) {
-                    std::string cId = w.from.compId;
-                    std::string pName = w.from.terminal;
-                    for (const auto& c : tempDesign.components) {
-                        if (c.id == cId) {
-                            std::string ct = c.rawTypeStr;
-                            std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
-                            if (ct == "FROM_SIG" || ct == "FROM") {
-                                std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
-                                for (const auto& g : tempDesign.components) {
-                                    std::string gt = g.rawTypeStr;
-                                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
-                                    if (gt == "GOTO_SIG" || gt == "GOTO") {
-                                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
-                                        if (gotoTag == fromTag) {
-                                            return getIncomingSignal(g.id, "In");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return cId + "." + pName;
+    // ── Control-signal resolution ──────────────────────────────────────────────
+    // A control input reads the output pin that drives its signal net. The net is
+    // the set of pins joined by wires and by wire-to-wire junctions; its driver is
+    // the (first, in wire order) output pin on it.
+    //
+    // This used to return whatever pin sat at the far end of the first wire whose
+    // terminal matched the query, with alias groups that overlapped real pins: a
+    // query for "Ctrl" also accepted an "In1" wire, so a SIGNAL_SWITCH or
+    // MULTIPORT_SWITCH could read its data input as its control signal depending
+    // on wire order, and a junction was followed only along its target wire's
+    // "from" end, which is not necessarily the driver.
+    std::unordered_map<std::string, const ComponentInstance*> compById;
+    std::unordered_map<std::string, std::vector<TerminalDef>> termsById;
+    for (const auto& c : tempDesign.components) {
+        compById[c.id] = &c;
+        termsById[c.id] = getTerminals(c);
+    }
+    auto upperStr = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+        return s;
+    };
+    auto isRealTerminal = [&](const std::string& compId, const std::string& term) {
+        auto it = termsById.find(compId);
+        if (it == termsById.end()) return false;
+        for (const auto& td : it->second) if (td.name == term) return true;
+        return false;
+    };
+    auto isOutputPin = [&](const std::string& compId, const std::string& term) {
+        auto it = termsById.find(compId);
+        if (it == termsById.end()) return false;
+        const std::string u = upperStr(term);
+        for (const auto& td : it->second)
+            if (upperStr(td.name) == u) return td.isControl && td.dirX > 0.0f;
+        return false;
+    };
+    // Legacy spellings accepted for a queried pin name (exact matches are tried first).
+    auto isAliasSpelling = [](const std::string& pinName, const std::string& term) {
+        return (pinName == "In" && (term == "In1" || term == "Ctrl")) ||
+               (pinName == "Ctrl" && (term == "In" || term == "In1")) ||
+               ((pinName == "A" || pinName == "Plus") && (term == "A" || term == "Plus" || term == "In1")) ||
+               ((pinName == "B" || pinName == "Minus") && (term == "B" || term == "Minus" || term == "In2"));
+    };
+
+    // Signal nets over the wires.
+    std::unordered_map<std::string, std::string> sigParent;
+    std::function<std::string(const std::string&)> sigFind = [&](const std::string& k) -> std::string {
+        auto it = sigParent.find(k);
+        if (it == sigParent.end()) { sigParent[k] = k; return k; }
+        if (it->second == k) return k;
+        std::string r = sigFind(it->second);
+        sigParent[k] = r;
+        return r;
+    };
+    auto sigUnite = [&](const std::string& a, const std::string& b) {
+        std::string ra = sigFind(a), rb = sigFind(b);
+        if (ra != rb) sigParent[ra] = rb;
+    };
+    for (const auto& w : tempDesign.wires) {
+        const std::string wk = "w:" + w.id;
+        sigFind(wk);
+        for (const WireEndpoint* ep : {&w.from, &w.to}) {
+            if (ep->isWireJunction) {
+                if (!ep->targetWireId.empty()) sigUnite(wk, "w:" + ep->targetWireId);
+            } else if (!ep->compId.empty()) {
+                sigUnite(wk, "p:" + ep->compId + ":" + upperStr(ep->terminal));
+            }
+        }
+    }
+    // Driver of each net: the first output pin in wire order (with its spelling).
+    std::unordered_map<std::string, std::pair<std::string, std::string>> netDriver;
+    for (const auto& w : tempDesign.wires) {
+        for (const WireEndpoint* ep : {&w.from, &w.to}) {
+            if (ep->isWireJunction || ep->compId.empty()) continue;
+            if (!isOutputPin(ep->compId, ep->terminal)) continue;
+            const std::string r = sigFind("w:" + w.id);
+            if (!netDriver.count(r)) netDriver[r] = {ep->compId, ep->terminal};
+        }
+    }
+
+    std::unordered_set<std::string> resolving;   // guards GOTO/FROM cycles
+    // Signal name for an output pin, following FROM -> GOTO.
+    auto signalOfPin = [&](const std::string& compId, const std::string& term) -> std::string {
+        auto it = compById.find(compId);
+        if (it != compById.end()) {
+            const std::string ct = upperStr(it->second->rawTypeStr);
+            if (ct == "FROM_SIG" || ct == "FROM") {
+                const auto& fp = it->second->parameters;
+                std::string fromTag = fp.count("tag") ? fp.at("tag") : "A";
+                for (const auto& g : tempDesign.components) {
+                    const std::string gt = upperStr(g.rawTypeStr);
+                    if (gt != "GOTO_SIG" && gt != "GOTO") continue;
+                    std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
+                    if (gotoTag != fromTag) continue;
+                    if (resolving.count(g.id)) return "0.0";
+                    resolving.insert(g.id);
+                    std::string s = getIncomingSignal(g.id, "In");
+                    resolving.erase(g.id);
+                    return s;
                 }
             }
+        }
+        return compId + "." + term;
+    };
+
+    getSignalFromWire = [&](const std::string& wireId) -> std::string {
+        auto d = netDriver.find(sigFind("w:" + wireId));
+        if (d != netDriver.end()) return signalOfPin(d->second.first, d->second.second);
+        // No output pin on the net: keep the old answer (the tapped wire's start).
+        std::unordered_set<std::string> seen;
+        std::string id = wireId;
+        while (seen.insert(id).second) {
+            const WireInstance* tw = nullptr;
+            for (const auto& w : tempDesign.wires) if (w.id == id) { tw = &w; break; }
+            if (!tw) break;
+            if (tw->from.isWireJunction) { id = tw->from.targetWireId; continue; }
+            if (!tw->from.compId.empty()) return signalOfPin(tw->from.compId, tw->from.terminal);
+            break;
         }
         return "0.0";
     };
 
     getIncomingSignal = [&](const std::string& compId, const std::string& pinName) -> std::string {
-        for (const auto& w : tempDesign.wires) {
-            bool matchesTo = (w.to.compId == compId && (w.to.terminal == pinName ||
-                (pinName == "In" && (w.to.terminal == "In" || w.to.terminal == "In1" || w.to.terminal == "Ctrl")) ||
-                (pinName == "Ctrl" && (w.to.terminal == "Ctrl" || w.to.terminal == "In" || w.to.terminal == "In1")) ||
-                ((pinName == "A" || pinName == "Plus") && (w.to.terminal == "A" || w.to.terminal == "Plus" || w.to.terminal == "In1")) ||
-                ((pinName == "B" || pinName == "Minus") && (w.to.terminal == "B" || w.to.terminal == "Minus" || w.to.terminal == "In2"))));
-            bool matchesFrom = (w.from.compId == compId && (w.from.terminal == pinName ||
-                (pinName == "In" && (w.from.terminal == "In" || w.from.terminal == "In1" || w.from.terminal == "Ctrl")) ||
-                (pinName == "Ctrl" && (w.from.terminal == "Ctrl" || w.from.terminal == "In" || w.from.terminal == "In1")) ||
-                ((pinName == "A" || pinName == "Plus") && (w.from.terminal == "A" || w.from.terminal == "Plus" || w.from.terminal == "In1")) ||
-                ((pinName == "B" || pinName == "Minus") && (w.from.terminal == "B" || w.from.terminal == "Minus" || w.from.terminal == "In2"))));
-
-            if (matchesTo) {
-                if (w.from.isWireJunction) {
-                    return getSignalFromWire(w.from.targetWireId);
-                }
-                std::string otherCompId = w.from.compId;
-                std::string otherPinName = w.from.terminal;
-                if (!otherCompId.empty()) {
-                    for (const auto& c : tempDesign.components) {
-                        if (c.id == otherCompId) {
-                            std::string ct = c.rawTypeStr;
-                            std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
-                            if (ct == "FROM_SIG" || ct == "FROM") {
-                                std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
-                                for (const auto& g : tempDesign.components) {
-                                    std::string gt = g.rawTypeStr;
-                                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
-                                    if (gt == "GOTO_SIG" || gt == "GOTO") {
-                                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
-                                        if (gotoTag == fromTag) {
-                                            return getIncomingSignal(g.id, "In");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return otherCompId + "." + otherPinName;
-                }
-            } else if (matchesFrom) {
-                if (w.to.isWireJunction) {
-                    return getSignalFromWire(w.to.targetWireId);
-                }
-                std::string otherCompId = w.to.compId;
-                std::string otherPinName = w.to.terminal;
-                if (!otherCompId.empty()) {
-                    for (const auto& c : tempDesign.components) {
-                        if (c.id == otherCompId) {
-                            std::string ct = c.rawTypeStr;
-                            std::transform(ct.begin(), ct.end(), ct.begin(), ::toupper);
-                            if (ct == "FROM_SIG" || ct == "FROM") {
-                                std::string fromTag = c.parameters.count("tag") ? c.parameters.at("tag") : "A";
-                                for (const auto& g : tempDesign.components) {
-                                    std::string gt = g.rawTypeStr;
-                                    std::transform(gt.begin(), gt.end(), gt.begin(), ::toupper);
-                                    if (gt == "GOTO_SIG" || gt == "GOTO") {
-                                        std::string gotoTag = g.parameters.count("tag") ? g.parameters.at("tag") : "A";
-                                        if (gotoTag == fromTag) {
-                                            return getIncomingSignal(g.id, "In");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return otherCompId + "." + otherPinName;
-                }
+        // Pass 0: the pin's own name. Pass 1: a legacy spelling, unless that spelling
+        // is another real terminal of the same block (then the wire belongs to it).
+        for (int pass = 0; pass < 2; ++pass) {
+            for (const auto& w : tempDesign.wires) {
+                auto matches = [&](const WireEndpoint& ep) {
+                    if (ep.isWireJunction || ep.compId != compId) return false;
+                    if (pass == 0) return ep.terminal == pinName;
+                    return ep.terminal != pinName && isAliasSpelling(pinName, ep.terminal) &&
+                           !isRealTerminal(compId, ep.terminal);
+                };
+                const bool atTo = matches(w.to);
+                const bool atFrom = !atTo && matches(w.from);
+                if (!atTo && !atFrom) continue;
+                auto d = netDriver.find(sigFind("w:" + w.id));
+                if (d != netDriver.end() && !(d->second.first == compId && upperStr(d->second.second) == upperStr(pinName)))
+                    return signalOfPin(d->second.first, d->second.second);
+                // No driver on the net: the far end, as before.
+                const WireEndpoint& other = atTo ? w.from : w.to;
+                if (other.isWireJunction) return getSignalFromWire(other.targetWireId);
+                if (!other.compId.empty()) return signalOfPin(other.compId, other.terminal);
             }
         }
         return "0.0";
@@ -409,13 +499,36 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             }
             if (P <= 0.0) P = 1e-12;
 
-            cObj["type"] = "Capacitor";
-            cObj["nodes"] = formattedNodes;
-            cObj["C"] = formatJSStyleDouble(P);
-            cObj["esr"] = formatJSStyleDouble(0.0);
-            cObj["vC0"] = formatJSStyleDouble(parsedParams.count("F0") ? parsedParams["F0"] : 0.0);
-            cObj["src_type"] = "static";
-            physStageObj["capacitors"].push_back(cObj);
+            // Permeance is a static conductance: flux = P * (MMF - F0). Modelled as a resistor of
+            // 1 / P. It used to be a capacitor, which passes no current at DC, so these
+            // elements carried no steady flux. F0 is a permanent-magnet MMF in series with the
+            // reluctance, so it gets its own DC source and an internal node.
+            const double F0 = parsedParams.count("F0") ? parsedParams["F0"] : 0.0;
+            if (F0 == 0.0) {
+                cObj["type"] = "Resistor";
+                cObj["nodes"] = formattedNodes;
+                cObj["value"] = formatJSStyleDouble(1.0 / P);
+                cObj["esr"] = formatJSStyleDouble(0.0);
+                cObj["src_type"] = "static";
+                physStageObj["resistors"].push_back(cObj);
+            } else {
+                const std::string midNode = "node_" + comp.id + "_F0";
+                json rObj;
+                rObj["id"] = comp.id;
+                rObj["type"] = "Resistor";
+                rObj["nodes"] = json::array({formattedNodes[0], midNode});
+                rObj["value"] = formatJSStyleDouble(1.0 / P);
+                rObj["esr"] = formatJSStyleDouble(0.0);
+                rObj["src_type"] = "static";
+                physStageObj["resistors"].push_back(rObj);
+                json vObj;
+                vObj["id"] = comp.id + "_F0";
+                vObj["type"] = "VoltageSource";
+                vObj["nodes"] = json::array({midNode, formattedNodes[1]});
+                vObj["value"] = formatJSStyleDouble(F0);
+                vObj["src_type"] = "dc";
+                physStageObj["voltage_sources"].push_back(vObj);
+            }
 
         } else if (t == "MAG_RESISTANCE") {
             // PhiDot = G_fe * F, i.e. a resistor of value R_m = 1 / G_fe.
@@ -462,7 +575,64 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             cObj["Ron"] = formatJSStyleDouble(rOn);
             cObj["Roff"] = formatJSStyleDouble(rOff);
             physStageObj["diodes"].push_back(cObj);
-        } else if (t == "S" || t == "BREAKER" || t == "SR_SWITCH" || t == "DBL_SWITCH" || t == "MAN_SWITCH" || t == "MAN_DBL_SWITCH" || t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
+        } else if (t == "MAN_SWITCH" || t == "DBL_SWITCH" || t == "MAN_DBL_SWITCH" || t == "MAN_TRPL_SWITCH" || t == "TRPL_SWITCH") {
+            // Multi-pole switches. Each pole is a two-terminal switch between two pins, looked
+            // up by name. The old code took the first two nodes by position, which left the B
+            // throw and the other poles unconnected.
+            auto nodeOf = [&](const std::string& pin) -> json {
+                auto it = termsById.find(comp.id);
+                if (it != termsById.end()) {
+                    for (size_t i = 0; i < it->second.size() && i < formattedNodes.size(); ++i)
+                        if (it->second[i].name == pin) return formattedNodes[i];
+                }
+                return "node_0";
+            };
+            const double rOnM = parsedParams.count("Ron") ? parsedParams["Ron"] : 0.001;
+            double rOffM = parsedParams.count("Roff") ? parsedParams["Roff"] : 1000000.0;
+            if (rOffM < rOnM * 1e4 || rOffM <= 1.0) rOffM = 1000000.0;
+            const std::string stateStr = comp.parameters.count("state") ? comp.parameters.at("state") : "";
+
+            auto addPole = [&](const std::string& suffix, const std::string& a, const std::string& b, const std::string& controlKey) {
+                json sw;
+                sw["id"] = comp.id + "_" + suffix;
+                sw["type"] = "Switch";
+                sw["nodes"] = json::array({nodeOf(a), nodeOf(b)});
+                sw["Ron"] = formatJSStyleDouble(rOnM);
+                sw["Roff"] = formatJSStyleDouble(rOffM);
+                sw["initial_state"] = false;
+                sw["control_signal"] = controlKey;
+                physStageObj["switches"].push_back(sw);
+            };
+            // A constant control signal holds a manual switch in its chosen state.
+            auto addConstant = [&](const std::string& key, bool closed) {
+                json k;
+                k["output"] = key;
+                k["original_type"] = "CONST";
+                k["value"] = closed ? 1.0 : 0.0;
+                ctrlLoopsObj["constants"].push_back(k);
+            };
+
+            if (t == "MAN_SWITCH" || t == "DBL_SWITCH") {
+                // Single-pole double-throw: Common goes to A when state is "A", to B when "B".
+                const bool toA = (stateStr != "B");
+                addConstant(comp.id + ".ctlA", toA);
+                addConstant(comp.id + ".ctlB", !toA);
+                addPole("A", "Common", "A", comp.id + ".ctlA");
+                addPole("B", "Common", "B", comp.id + ".ctlB");
+            } else if (t == "MAN_DBL_SWITCH") {
+                // Two ganged single-pole switches (A1-B1 and A2-B2), open or closed together.
+                const bool closed = (stateStr != "open");
+                addConstant(comp.id + ".ctl", closed);
+                addPole("1", "A1", "B1", comp.id + ".ctl");
+                addPole("2", "A2", "B2", comp.id + ".ctl");
+            } else {
+                // MAN_TRPL_SWITCH and TRPL_SWITCH: three ganged poles driven by the Ctrl pin.
+                const std::string ctrl = getIncomingSignal(comp.id, "Ctrl");
+                addPole("1", "A1", "B1", ctrl);
+                addPole("2", "A2", "B2", ctrl);
+                addPole("3", "A3", "B3", ctrl);
+            }
+        } else if (t == "S" || t == "BREAKER" || t == "SR_SWITCH") {
             cObj["type"] = "Switch";
             json pNodes = json::array();
             if (formattedNodes.size() >= 2) {
@@ -504,6 +674,9 @@ std::string generateNetlistJson(const CircuitDesign& design) {
                         }
                     }
                 }
+                // A GOTO with the gate label takes priority. With no such GOTO, a wire into G
+                // drives the gate, as it does for the other FET types.
+                if (sig == "0.0") sig = getIncomingSignal(comp.id, termG);
                 cObj["control_signal"] = sig;
             } else {
                 cObj["control_signal"] = getIncomingSignal(comp.id, termG);
@@ -552,6 +725,21 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             if (comp.parameters.count("polarity")) xObj["polarity"] = comp.parameters.at("polarity");
 
             physStageObj["transformers"].push_back(xObj);
+
+            // The winding stamp is an ideal transformer, so the magnetising inductance
+            // the multi-winding XFMR declares is a separate inductor across the first
+            // primary winding (its current is the magnetising current referred to
+            // that winding). Lm <= 0 or absent keeps the transformer ideal.
+            if ((t == "XFMR" || t == "Transformer") && parsedParams.count("Lm") && parsedParams["Lm"] > 0.0 &&
+                std::isfinite(parsedParams["Lm"]) && !pArr.empty()) {
+                json lObj;
+                lObj["id"] = comp.id + "_Lm";
+                lObj["nodes"] = pArr[0]["nodes"];
+                lObj["L"] = formatJSStyleDouble(parsedParams["Lm"]);
+                lObj["esr"] = formatJSStyleDouble(0.0);
+                lObj["iL0"] = formatJSStyleDouble(0.0);
+                physStageObj["inductors"].push_back(lObj);
+            }
         } else if (t == "XFMR_3W" || t == "MUTUAL_3W" || t == "XFMR_3PH_2W" || t == "XFMR_3PH_3W") {
             json xObj;
             xObj["id"] = comp.id;
@@ -564,18 +752,61 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             xObj["core_permeability"] = formatJSStyleDouble(parsedParams.count("permeability") ? parsedParams["permeability"] : 2000.0);
             physStageObj["transformers"].push_back(xObj);
         } else if (t == "OPAMP" || t == "E_COMP") {
-            std::string nOut = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
-            std::string nPlus = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
-            std::string nMinus = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
-            json vObj;
-            vObj["id"] = comp.id;
-            vObj["nodes"] = json::array({nOut, "node_0"});
-            vObj["plus_node"] = nPlus;
-            vObj["minus_node"] = nMinus;
-            vObj["gain"] = formatJSStyleDouble(parsedParams.count("gain") ? parsedParams["gain"] : 1e5);
-            vObj["value"] = formatJSStyleDouble(parsedParams.count("value") ? parsedParams["value"] : 12.0);
-            vObj["src_type"] = (t == "OPAMP") ? "opamp" : "e_comp";
-            physStageObj["voltage_sources"].push_back(vObj);
+            // Finite-gain amplifier with rails, built from parts the engine already has:
+            //   sense:  voltmeter <id>_sense across Plus and Minus, signal <id>_sense.Out
+            //   gain:   K = gain, signal <id>.Ag
+            //   clamp:  saturation to +/- rail, signal <id>.Sat
+            //   drive:  controlled source from Out to ground, control <id>.Sat
+            // This replaces a fixed 12 V source that also had its pins in the wrong order.
+            auto nodeOf = [&](const std::string& pin) -> json {
+                auto it = termsById.find(comp.id);
+                if (it != termsById.end()) {
+                    for (size_t i = 0; i < it->second.size() && i < formattedNodes.size(); ++i)
+                        if (it->second[i].name == pin) return formattedNodes[i];
+                }
+                return "node_0";
+            };
+            const double opGain = parsedParams.count("gain") ? parsedParams["gain"] : 1e5;
+            const double opRail = parsedParams.count("rail") ? parsedParams["rail"] : 12.0;
+            // A voltmeter names its output after its own id, so the sense signal is <id>_sense.Out.
+            const std::string opSense = comp.id + "_sense.Out";
+            const std::string opAmp = comp.id + ".Ag";
+            const std::string opSat = comp.id + ".Sat";
+
+            json vm;
+            vm["id"] = comp.id + "_sense";
+            vm["nodes"] = json::array({nodeOf("Plus"), nodeOf("Minus")});
+            physStageObj["voltmeters"].push_back(vm);
+
+            json gainObj;
+            gainObj["output"] = opAmp;
+            gainObj["original_type"] = "GAIN";
+            gainObj["input"] = opSense;
+            gainObj["input1"] = opSense;
+            gainObj["input2"] = "0.0";
+            gainObj["K"] = formatJSStyleDouble(opGain);
+            ctrlLoopsObj["gains"].push_back(gainObj);
+
+            json satObj;
+            satObj["output"] = opSat;
+            satObj["original_type"] = "SATURATION";
+            satObj["min"] = formatJSStyleDouble(-opRail);
+            satObj["max"] = formatJSStyleDouble(opRail);
+            satObj["lower_limit"] = formatJSStyleDouble(-opRail);
+            satObj["upper_limit"] = formatJSStyleDouble(opRail);
+            satObj["input"] = opAmp;
+            satObj["input1"] = opAmp;
+            satObj["input2"] = "0.0";
+            satObj["K"] = 1.0;
+            ctrlLoopsObj["gains"].push_back(satObj);
+
+            json drive;
+            drive["id"] = comp.id;
+            drive["nodes"] = json::array({nodeOf("Out"), "node_0"});
+            drive["value"] = 1.0;
+            drive["control_signal"] = opSat;
+            drive["src_type"] = "controlled";
+            physStageObj["voltage_sources"].push_back(drive);
         } else if (t == "GEN_EBLOCK" || t == "GENERALIZEDEBLOCK") {
             json eObj;
             eObj["id"] = comp.id;
@@ -584,16 +815,186 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             eObj["timestep"] = comp.parameters.count("timestep") ? comp.parameters.at("timestep") : "0";
             eObj["terminals"] = std::to_string(formattedNodes.size());
             physStageObj["custom_eblocks"].push_back(eObj);
-        } else if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
-            std::string nA = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
-            std::string nB = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
-            std::string nC = (formattedNodes.size() > 2) ? formattedNodes[2].get<std::string>() : "node_0";
-            std::string nN = comp.id + "_N";
-            double rsVal = parsedParams.count("Rs") ? parsedParams["Rs"] : 1.115;
+        } else if (t == "DC_MOTOR") {
+            // DC machine. The electrical side is the armature R and L in series with a back-EMF
+            // source that tracks Ke * speed: V(A) - V(B) = Ra i + La di/dt + Ke omega. The
+            // mechanical side is one control block that integrates J domega/dt = Kt i - TL - B omega.
+            // TL is the load torque signal. Speed is the block output.
+            const std::string dmA = (formattedNodes.size() > 0) ? formattedNodes[0].get<std::string>() : "node_0";
+            const std::string dmB = (formattedNodes.size() > 1) ? formattedNodes[1].get<std::string>() : "node_0";
+            const std::string dmMid1 = "node_" + comp.id + "_Ra";
+            const std::string dmMid2 = "node_" + comp.id + "_La";
+            const double dmRa = parsedParams.count("Ra") ? parsedParams["Ra"] : 1.0;
+            const double dmLa = parsedParams.count("La") ? parsedParams["La"] : 1e-3;
 
-            json rA; rA["id"] = comp.id + "_RsA"; rA["nodes"] = json::array({nA, nN}); rA["value"] = formatJSStyleDouble(rsVal); rA["esr"] = 0.0; physStageObj["resistors"].push_back(rA);
-            json rB; rB["id"] = comp.id + "_RsB"; rB["nodes"] = json::array({nB, nN}); rB["value"] = formatJSStyleDouble(rsVal); rB["esr"] = 0.0; physStageObj["resistors"].push_back(rB);
-            json rC; rC["id"] = comp.id + "_RsC"; rC["nodes"] = json::array({nC, nN}); rC["value"] = formatJSStyleDouble(rsVal); rC["esr"] = 0.0; physStageObj["resistors"].push_back(rC);
+            json rObj;
+            rObj["id"] = comp.id + "_Ra";
+            rObj["nodes"] = json::array({dmA, dmMid1});
+            rObj["value"] = formatJSStyleDouble(dmRa);
+            rObj["esr"] = formatJSStyleDouble(0.0);
+            rObj["src_type"] = "static";
+            physStageObj["resistors"].push_back(rObj);
+
+            json lObj;
+            lObj["id"] = comp.id + "_La";
+            lObj["nodes"] = json::array({dmMid1, dmMid2});
+            lObj["L"] = formatJSStyleDouble(dmLa);
+            lObj["esr"] = formatJSStyleDouble(0.0);
+            lObj["iL0"] = formatJSStyleDouble(0.0);
+            lObj["src_type"] = "static";
+            physStageObj["inductors"].push_back(lObj);
+
+            json eObj;
+            eObj["id"] = comp.id + "_Emf";
+            eObj["nodes"] = json::array({dmMid2, dmB});
+            eObj["value"] = 1.0;
+            eObj["control_signal"] = comp.id + ".Emf";
+            eObj["src_type"] = "controlled";
+            physStageObj["voltage_sources"].push_back(eObj);
+
+            cObj["output"] = comp.id + ".Speed";
+            cObj["original_type"] = "DC_MOTOR";
+            cObj["input"] = getIncomingSignal(comp.id, "TL");
+            cObj["current"] = "I_" + comp.id + "_La";
+            cObj["Kt"] = formatJSStyleDouble(parsedParams.count("Kt") ? parsedParams["Kt"] : 0.05);
+            cObj["Ke"] = formatJSStyleDouble(parsedParams.count("Ke") ? parsedParams["Ke"] : 0.05);
+            cObj["J"] = formatJSStyleDouble(parsedParams.count("J") ? parsedParams["J"] : 1e-4);
+            cObj["B"] = formatJSStyleDouble(parsedParams.count("B") ? parsedParams["B"] : 1e-4);
+            cObj["omega0"] = formatJSStyleDouble(parsedParams.count("omega0") ? parsedParams["omega0"] : 0.0);
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "BLDC_MOTOR" || t == "PMSM_MOTOR") {
+            // Permanent-magnet three-phase machine. Each phase is R, L and a controlled back-EMF
+            // Ke * omega * shape(theta). BLDC uses a trapezoidal shape and PMSM a sine. The
+            // mechanical equation and the rotor angle live in the control block.
+            const std::vector<std::string> term = {machineNodeAt(formattedNodes, 0),
+                                                   machineNodeAt(formattedNodes, 1),
+                                                   machineNodeAt(formattedNodes, 2)};
+            const double mR = parsedParams.count("Rs") ? parsedParams["Rs"] : 1.0;
+            const double mL = parsedParams.count("Ls") ? parsedParams["Ls"] : 1e-3;
+            const std::vector<std::string> eSig = {comp.id + ".Ea", comp.id + ".Eb", comp.id + ".Ec"};
+            emitMachineStator(physStageObj, comp.id, term, mR, mL, nullptr, eSig);
+
+            cObj["output"] = comp.id + ".Speed";
+            cObj["original_type"] = t;
+            cObj["input"] = getIncomingSignal(comp.id, "TL");
+            cObj["current_a"] = "I_" + comp.id + "_LA";
+            cObj["current_b"] = "I_" + comp.id + "_LB";
+            cObj["current_c"] = "I_" + comp.id + "_LC";
+            cObj["P"] = formatJSStyleDouble(parsedParams.count("P") ? parsedParams["P"] : 2.0);
+            cObj["Ke"] = formatJSStyleDouble(parsedParams.count("Ke") ? parsedParams["Ke"] : 0.05);
+            cObj["J"] = formatJSStyleDouble(parsedParams.count("J") ? parsedParams["J"] : 1e-4);
+            cObj["B"] = formatJSStyleDouble(parsedParams.count("B") ? parsedParams["B"] : 1e-4);
+            cObj["omega0"] = formatJSStyleDouble(parsedParams.count("omega0") ? parsedParams["omega0"] : 0.0);
+            cObj["theta0"] = formatJSStyleDouble(parsedParams.count("theta0") ? parsedParams["theta0"] : 0.0);
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SYNC_MOTOR") {
+            // Wound-field synchronous machine. The stator is as for the PM machines, with EMF
+            // Kf * i_field * omega * sin(theta). The field winding FA-FB is R_f and L_f in series,
+            // and its current I_<id>_Lf drives the EMF amplitude.
+            const std::vector<std::string> term = {machineNodeAt(formattedNodes, 0),
+                                                   machineNodeAt(formattedNodes, 1),
+                                                   machineNodeAt(formattedNodes, 2)};
+            const std::string fA = machineNodeAt(formattedNodes, 3);
+            const std::string fB = machineNodeAt(formattedNodes, 4);
+            const double mR = parsedParams.count("Rs") ? parsedParams["Rs"] : 1.0;
+            const double mL = parsedParams.count("Ls") ? parsedParams["Ls"] : 1e-3;
+            const double rf = parsedParams.count("Rf") ? parsedParams["Rf"] : 10.0;
+            const double lf = parsedParams.count("Lf") ? parsedParams["Lf"] : 0.5;
+            const std::vector<std::string> eSig = {comp.id + ".Ea", comp.id + ".Eb", comp.id + ".Ec"};
+            emitMachineStator(physStageObj, comp.id, term, mR, mL, nullptr, eSig);
+
+            const std::string fMid = "node_" + comp.id + "_Rf";
+            json rfObj;
+            rfObj["id"] = comp.id + "_Rf";
+            rfObj["nodes"] = json::array({fA, fMid});
+            rfObj["value"] = formatJSStyleDouble(rf);
+            rfObj["esr"] = formatJSStyleDouble(0.0);
+            rfObj["src_type"] = "static";
+            physStageObj["resistors"].push_back(rfObj);
+
+            json lfObj;
+            lfObj["id"] = comp.id + "_Lf";
+            lfObj["nodes"] = json::array({fMid, fB});
+            lfObj["L"] = formatJSStyleDouble(lf);
+            lfObj["esr"] = formatJSStyleDouble(0.0);
+            lfObj["iL0"] = formatJSStyleDouble(0.0);
+            lfObj["src_type"] = "static";
+            physStageObj["inductors"].push_back(lfObj);
+
+            cObj["output"] = comp.id + ".Speed";
+            cObj["original_type"] = t;
+            cObj["input"] = getIncomingSignal(comp.id, "TL");
+            cObj["current_a"] = "I_" + comp.id + "_LA";
+            cObj["current_b"] = "I_" + comp.id + "_LB";
+            cObj["current_c"] = "I_" + comp.id + "_LC";
+            cObj["current_f"] = "I_" + comp.id + "_Lf";
+            cObj["P"] = formatJSStyleDouble(parsedParams.count("P") ? parsedParams["P"] : 2.0);
+            cObj["Kf"] = formatJSStyleDouble(parsedParams.count("Kf") ? parsedParams["Kf"] : 0.05);
+            cObj["J"] = formatJSStyleDouble(parsedParams.count("J") ? parsedParams["J"] : 1e-4);
+            cObj["B"] = formatJSStyleDouble(parsedParams.count("B") ? parsedParams["B"] : 1e-4);
+            cObj["omega0"] = formatJSStyleDouble(parsedParams.count("omega0") ? parsedParams["omega0"] : 0.0);
+            cObj["theta0"] = formatJSStyleDouble(parsedParams.count("theta0") ? parsedParams["theta0"] : 0.0);
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "SRM_MOTOR") {
+            // Switched reluctance machine. Each phase inductance is signal driven (VAR_L) from the
+            // control block, L_x(theta) = Lavg + Ldiff cos(theta_x). The EMF i dL/dt is a
+            // controlled source fed by the same block. The converter that switches each phase is
+            // external to this block.
+            const std::vector<std::string> term = {machineNodeAt(formattedNodes, 0),
+                                                   machineNodeAt(formattedNodes, 1),
+                                                   machineNodeAt(formattedNodes, 2)};
+            const double mR = parsedParams.count("Rs") ? parsedParams["Rs"] : 0.5;
+            const double lmin = parsedParams.count("Lmin") ? parsedParams["Lmin"] : 2e-3;
+            const double lmax = parsedParams.count("Lmax") ? parsedParams["Lmax"] : 10e-3;
+            const std::vector<std::string> lSig = {comp.id + ".La", comp.id + ".Lb", comp.id + ".Lc"};
+            const std::vector<std::string> eSig = {comp.id + ".Ea", comp.id + ".Eb", comp.id + ".Ec"};
+            emitMachineStator(physStageObj, comp.id, term, mR, 0.5 * (lmin + lmax), &lSig, eSig);
+
+            cObj["output"] = comp.id + ".Speed";
+            cObj["original_type"] = t;
+            cObj["input"] = getIncomingSignal(comp.id, "TL");
+            cObj["current_a"] = "I_" + comp.id + "_LA";
+            cObj["current_b"] = "I_" + comp.id + "_LB";
+            cObj["current_c"] = "I_" + comp.id + "_LC";
+            cObj["Lmin"] = formatJSStyleDouble(lmin);
+            cObj["Lmax"] = formatJSStyleDouble(lmax);
+            cObj["Nr"] = formatJSStyleDouble(parsedParams.count("Nr") ? parsedParams["Nr"] : 4.0);
+            cObj["J"] = formatJSStyleDouble(parsedParams.count("J") ? parsedParams["J"] : 1e-4);
+            cObj["B"] = formatJSStyleDouble(parsedParams.count("B") ? parsedParams["B"] : 1e-4);
+            cObj["omega0"] = formatJSStyleDouble(parsedParams.count("omega0") ? parsedParams["omega0"] : 0.0);
+            cObj["theta0"] = formatJSStyleDouble(parsedParams.count("theta0") ? parsedParams["theta0"] : 0.0);
+            ctrlLoopsObj["gains"].push_back(cObj);
+        } else if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
+            // Squirrel-cage induction machine. Stator per phase: Rs and the stator leakage
+            // sigma*Ls = Lls + Lm Llr / (Lm + Llr). The back-EMF (Lm / Lr) d psi_r / dt comes from the
+            // rotor flux state in the control block, which also computes the torque.
+            const std::vector<std::string> term = {machineNodeAt(formattedNodes, 0),
+                                                   machineNodeAt(formattedNodes, 1),
+                                                   machineNodeAt(formattedNodes, 2)};
+            const double mRs = parsedParams.count("Rs") ? parsedParams["Rs"] : 1.115;
+            const double mLls = parsedParams.count("Lls") ? parsedParams["Lls"] : 0.005974;
+            const double mRr = parsedParams.count("Rr") ? parsedParams["Rr"] : 1.083;
+            const double mLlr = parsedParams.count("Llr") ? parsedParams["Llr"] : 0.005974;
+            const double mLm = parsedParams.count("Lm") ? parsedParams["Lm"] : 0.1;
+            const double mLr = mLm + mLlr;
+            const double mSigmaL = mLls + mLm * mLlr / mLr;
+            const std::vector<std::string> eSig = {comp.id + ".Ea", comp.id + ".Eb", comp.id + ".Ec"};
+            emitMachineStator(physStageObj, comp.id, term, mRs, mSigmaL, nullptr, eSig);
+
+            cObj["output"] = comp.id + ".Speed";
+            cObj["original_type"] = "IND_MOTOR";
+            cObj["input"] = getIncomingSignal(comp.id, "TL");
+            cObj["current_a"] = "I_" + comp.id + "_LA";
+            cObj["current_b"] = "I_" + comp.id + "_LB";
+            cObj["current_c"] = "I_" + comp.id + "_LC";
+            cObj["Rr"] = formatJSStyleDouble(mRr);
+            cObj["Lr"] = formatJSStyleDouble(mLr);
+            cObj["Lm"] = formatJSStyleDouble(mLm);
+            cObj["P"] = formatJSStyleDouble(parsedParams.count("P") ? parsedParams["P"] : 2.0);
+            cObj["J"] = formatJSStyleDouble(parsedParams.count("J") ? parsedParams["J"] : 0.02);
+            cObj["B"] = formatJSStyleDouble(parsedParams.count("B") ? parsedParams["B"] : 1e-3);
+            cObj["omega0"] = formatJSStyleDouble(parsedParams.count("omega0") ? parsedParams["omega0"] : 0.0);
+            ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "GOTO_SIG" || t == "GOTO") {
             json gObj;
             gObj["id"] = comp.id;
@@ -770,6 +1171,7 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "MULTIPORT_SWITCH";
             cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
+            cObj["inputs_count"] = comp.parameters.count("inputs") ? comp.parameters.at("inputs") : "3";
             int numInp = 3;
             if (parsedParams.count("inputs")) numInp = (int)parsedParams["inputs"];
             json inpsArr = json::array();
@@ -952,7 +1354,9 @@ std::string generateNetlistJson(const CircuitDesign& design) {
         } else if (t == "BITWISE_OP") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "BITWISE_OP";
-            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "AND";
+            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "XOR";
+            // Bit mask applied to both operands before the operation. -1 keeps every bit.
+            cObj["bit_mask"] = comp.parameters.count("bit_mask") ? comp.parameters.at("bit_mask") : "-1";
             cObj["input1"] = getIncomingSignal(comp.id, "In1");
             cObj["input2"] = getIncomingSignal(comp.id, "In2");
             ctrlLoopsObj["gains"].push_back(cObj);
@@ -966,7 +1370,9 @@ std::string generateNetlistJson(const CircuitDesign& design) {
         } else if (t == "EDGE_DETECT") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "EDGE_DETECT";
-            cObj["edge"] = comp.parameters.count("edge") ? comp.parameters.at("edge") : "rising";
+            // Registry parameter is edge_type (rising / falling / either).
+            cObj["edge"] = comp.parameters.count("edge_type") ? comp.parameters.at("edge_type")
+                         : comp.parameters.count("edge") ? comp.parameters.at("edge") : "rising";
             cObj["pulse_width"] = comp.parameters.count("pulse_width") ? comp.parameters.at("pulse_width") : "1e-3";
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
@@ -977,8 +1383,12 @@ std::string generateNetlistJson(const CircuitDesign& design) {
         } else if (t == "MONOSTABLE") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "MONOSTABLE";
-            cObj["duration"] = comp.parameters.count("duration") ? comp.parameters.at("duration") : "0.1";
-            cObj["edge"] = comp.parameters.count("edge") ? comp.parameters.at("edge") : "rising";
+            // Registry parameter names are pulse_width / edge_type. The old code read
+            // "duration" and "edge" (absent), so every monostable ran a 0.1 s pulse.
+            cObj["duration"] = comp.parameters.count("pulse_width") ? comp.parameters.at("pulse_width")
+                             : comp.parameters.count("duration") ? comp.parameters.at("duration") : "0.002";
+            cObj["edge"] = comp.parameters.count("edge_type") ? comp.parameters.at("edge_type")
+                         : comp.parameters.count("edge") ? comp.parameters.at("edge") : "rising";
             std::string inSig = getIncomingSignal(comp.id, "In");
             cObj["input"] = inSig;
             cObj["input1"] = inSig;
@@ -1000,14 +1410,14 @@ std::string generateNetlistJson(const CircuitDesign& design) {
         } else if (t == "RELATIONAL_OPERATOR") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "RELATIONAL_OPERATOR";
-            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "==";
+            cObj["operator"] = comp.parameters.count("operator") ? comp.parameters.at("operator") : "<";
             cObj["input1"] = getIncomingSignal(comp.id, "In1");
             cObj["input2"] = getIncomingSignal(comp.id, "In2");
             ctrlLoopsObj["gains"].push_back(cObj);
         } else if (t == "COMPARE_TO_CONSTANT" || t == "COMP_CONST") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "COMPARE_TO_CONSTANT";
-            std::string op = comp.parameters.count("operator") ? comp.parameters.at("operator") : (comp.parameters.count("op") ? comp.parameters.at("op") : "==");
+            std::string op = comp.parameters.count("operator") ? comp.parameters.at("operator") : (comp.parameters.count("op") ? comp.parameters.at("op") : ">=");
             cObj["operator"] = op;
 
             double cVal = 0.0;
@@ -1034,6 +1444,11 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             cObj["original_type"] = "D_FLIP_FLOP";
             cObj["initial_state"] = formatJSStyleDouble(parsedParams.count("initial_state") ? parsedParams["initial_state"] : 0.0);
             cObj["trigger_edge"] = comp.parameters.count("trigger_edge") ? comp.parameters.at("trigger_edge") : "rising";
+            // The engine binds data to "input" and the clock to "control_signal" (the
+            // keys every other block uses). "D" and "Clk" were never read, so the clock
+            // was always 0 and Q never changed.
+            cObj["input"] = getIncomingSignal(comp.id, "D");
+            cObj["control_signal"] = getIncomingSignal(comp.id, "Ctrl");
             cObj["D"] = getIncomingSignal(comp.id, "D");
             cObj["Clk"] = getIncomingSignal(comp.id, "Ctrl");
             ctrlLoopsObj["gains"].push_back(cObj);
@@ -1251,22 +1666,20 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             cObj["Theta"] = inTheta;
             cObj["theta"] = inTheta;
             ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "PWM_3PH") {
+        } else if (t == "PWM_3PH" || t == "SVPWM") {
             cObj["output_a"] = comp.id + ".OutA";
             cObj["output_b"] = comp.id + ".OutB";
             cObj["output_c"] = comp.id + ".OutC";
-            cObj["original_type"] = "PWM_3PH";
-            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 10000.0);
-            cObj["input_a"] = getIncomingSignal(comp.id, "A");
-            cObj["input_b"] = getIncomingSignal(comp.id, "B");
-            cObj["input_c"] = getIncomingSignal(comp.id, "C");
-            ctrlLoopsObj["gains"].push_back(cObj);
-        } else if (t == "SVPWM") {
-            cObj["output_a"] = comp.id + ".OutA";
-            cObj["output_b"] = comp.id + ".OutB";
-            cObj["output_c"] = comp.id + ".OutC";
-            cObj["original_type"] = "SVPWM";
-            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 10000.0);
+            cObj["original_type"] = t;
+            // The block's carrier parameter is "fc" (and "dead_time"); only
+            // "frequency" was forwarded, so fc was ignored (always 10 kHz) and the
+            // dead time fell back to the simulator default of 1 us.
+            double carrier = 10000.0;
+            if (parsedParams.count("fc")) carrier = parsedParams["fc"];
+            else if (parsedParams.count("frequency")) carrier = parsedParams["frequency"];
+            else if (parsedParams.count("carrier_freq")) carrier = parsedParams["carrier_freq"];
+            cObj["frequency"] = formatJSStyleDouble(carrier);
+            cObj["dead_time"] = formatJSStyleDouble(parsedParams.count("dead_time") ? parsedParams["dead_time"] : 0.0);
             cObj["input_a"] = getIncomingSignal(comp.id, "A");
             cObj["input_b"] = getIncomingSignal(comp.id, "B");
             cObj["input_c"] = getIncomingSignal(comp.id, "C");
@@ -1328,6 +1741,7 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             cObj["Kd"] = formatJSStyleDouble(parsedParams.count("Kd") ? parsedParams["Kd"] : 0.0);
             cObj["Tf"] = formatJSStyleDouble(parsedParams.count("Tf") ? parsedParams["Tf"] : 0.01);
             if (comp.parameters.count("ts")) cObj["ts"] = comp.parameters.at("ts");
+            else if (t == "DISCRETE_PID") cObj["ts"] = "0.01";   // JSON default: a discrete controller always samples
             if (comp.parameters.count("method")) cObj["method"] = comp.parameters.at("method");
             cObj["limit_output"] = comp.parameters.count("limit_output") ? comp.parameters.at("limit_output") : "false";
             cObj["upper_limit"] = comp.parameters.count("upper_limit") ? comp.parameters.at("upper_limit") : "1";
@@ -1382,11 +1796,22 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             if (comp.parameters.count("frequency")) freq = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("frequency"));
             else if (comp.parameters.count("freq")) freq = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("freq"));
 
+            // min, max and amplitude declare "" so the registry leaves them unset unless the user
+            // sets them. amplitude A gives -A..+A. An explicit min or max overrides that side.
+            // With nothing set the range is 0..1.
+            auto isSet = [&](const char* k) {
+                auto it = comp.parameters.find(k);
+                return it != comp.parameters.end() && !it->second.empty();
+            };
             double minV = 0.0;
-            if (comp.parameters.count("min")) minV = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("min"));
-
             double maxV = 1.0;
-            if (comp.parameters.count("max")) maxV = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("max"));
+            if (isSet("amplitude")) {
+                const double amp = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("amplitude"));
+                minV = -amp;
+                maxV = amp;
+            }
+            if (isSet("min")) minV = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("min"));
+            if (isSet("max")) maxV = CircuitSimEngine::ExpressionEvaluator::parseScientific(comp.parameters.at("max"));
 
             cObj["frequency"] = formatJSStyleDouble(roundToDigits(freq, 9));
             cObj["min"] = formatJSStyleDouble(roundToDigits(minV, 9));
@@ -1484,14 +1909,43 @@ std::string generateNetlistJson(const CircuitDesign& design) {
         } else if (t == "PWM" || t == "PWM_GENERATOR") {
             cObj["output"] = comp.id + ".Out";
             cObj["original_type"] = "PWM";
-            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 20000.0);
+            // Registry defaults: frequency 10 kHz, min 0, max 1. The generator used to
+            // default to 20 kHz and never forwarded min/max, so those were ignored.
+            cObj["frequency"] = formatJSStyleDouble(parsedParams.count("frequency") ? parsedParams["frequency"] : 10000.0);
+            cObj["min"] = formatJSStyleDouble(parsedParams.count("min") ? parsedParams["min"] : 0.0);
+            cObj["max"] = formatJSStyleDouble(parsedParams.count("max") ? parsedParams["max"] : 1.0);
             cObj["input"] = getIncomingSignal(comp.id, "In");
             ctrlLoopsObj["pwm_generators"].push_back(cObj);
         } else if (t == "PWM_MASTER" || t == "MASTER_PWM") {
             cObj["original_type"] = "PWM_MASTER";
-            cObj["fc"] = comp.parameters.count("fc") ? comp.parameters.at("fc") : "10k";
+            // Carrier frequency. The JSON parameter is "frequency"; fc, carrier_freq and freq are
+            // accepted too. Only "fc" used to be read, so "frequency" was silently ignored.
+            std::string carrier = "10k";
+            for (const char* key : {"fc", "carrier_freq", "frequency", "freq"}) {
+                if (comp.parameters.count(key) && !comp.parameters.at(key).empty()) {
+                    carrier = comp.parameters.at(key);
+                    break;
+                }
+            }
+            cObj["fc"] = carrier;
             cObj["dead_time"] = comp.parameters.count("dead_time") ? comp.parameters.at("dead_time") : "1u";
-            cObj["num_carriers"] = comp.parameters.count("num_carriers") ? comp.parameters.at("num_carriers") : "3";
+            int nCarriers = 3;
+            if (comp.parameters.count("num_carriers")) {
+                try { nCarriers = std::stoi(comp.parameters.at("num_carriers")); } catch (...) { nCarriers = 3; }
+            }
+            if (nCarriers < 1) nCarriers = 1;
+            if (nCarriers > 32) nCarriers = 32;
+            cObj["num_carriers"] = std::to_string(nCarriers);
+            // Carrier range. The engine scales the triangle to [min, max].
+            cObj["min"] = comp.parameters.count("min") ? comp.parameters.at("min") : "0";
+            cObj["max"] = comp.parameters.count("max") ? comp.parameters.at("max") : "1";
+            if (comp.parameters.count("config")) cObj["config"] = comp.parameters.at("config");
+            // Modulating inputs In1..InN, one per carrier. They were never emitted, so every
+            // carrier compared against 0 and the outputs stayed low.
+            for (int k = 1; k <= nCarriers; ++k) {
+                const std::string pin = "In" + std::to_string(k);
+                cObj[pin] = getIncomingSignal(comp.id, pin);
+            }
             ctrlLoopsObj["pwm_masters"].push_back(cObj);
         } else if (t == "COMP" || t == "COMPARATOR") {
             cObj["output"] = comp.id + ".Out";
@@ -1548,20 +2002,39 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             std::vector<CircuitSimEngine::CScriptPort> discIn, discOut;
             CircuitSimEngine::CScriptEngine::discoverPorts(scriptCode, discIn, discOut);
 
-            json inputsArr = json::array();
-            for (size_t i = 0; i < discIn.size(); ++i) {
-                std::string inSig = getIncomingSignal(comp.id, discIn[i].name);
-                if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In" + std::to_string(i + 1));
-                if (!inSig.empty() && inSig != "0.0") {
-                    inputsArr.push_back(inSig);
-                }
+            // Inputs are positional (inputs[k] <-> array slot k), so order them by
+            // script index and keep a "0.0" placeholder for an unconnected port.
+            // Skipping it shifted every later input down one slot: with In1 open,
+            // inputs[0] silently read the signal wired to In2.
+            int maxInIdx = -1;
+            for (const auto& p : discIn) maxInIdx = std::max(maxInIdx, p.index);
+            std::vector<std::string> inByIdx(maxInIdx + 1);
+            for (const auto& p : discIn) {
+                if (p.index >= 0 && p.index <= maxInIdx && inByIdx[p.index].empty()) inByIdx[p.index] = p.name;
             }
+            json inputsArr = json::array();
+            for (int k = 0; k <= maxInIdx; ++k) {
+                const std::string portName = inByIdx[k].empty() ? ("In" + std::to_string(k + 1)) : inByIdx[k];
+                std::string inSig = getIncomingSignal(comp.id, portName);
+                if (inSig == "0.0") inSig = getIncomingSignal(comp.id, "In" + std::to_string(k + 1));
+                if (inSig.empty()) inSig = "0.0";
+                inputsArr.push_back(inSig);
+            }
+            // Drop trailing placeholders so a fully unconnected script stays as before.
+            while (!inputsArr.empty() && inputsArr.back() == "0.0") inputsArr.erase(inputsArr.size() - 1);
             cObj["inputs"] = inputsArr;
 
+            // Outputs are positional too: order by script index (gaps get OutN names).
             json outputsArr = json::array();
             if (!discOut.empty()) {
-                for (size_t j = 0; j < discOut.size(); ++j) {
-                    outputsArr.push_back(comp.id + "." + discOut[j].name);
+                int maxOutIdx = -1;
+                for (const auto& p : discOut) maxOutIdx = std::max(maxOutIdx, p.index);
+                std::vector<std::string> outByIdx(maxOutIdx + 1);
+                for (const auto& p : discOut) {
+                    if (p.index >= 0 && p.index <= maxOutIdx && outByIdx[p.index].empty()) outByIdx[p.index] = p.name;
+                }
+                for (int k = 0; k <= maxOutIdx; ++k) {
+                    outputsArr.push_back(comp.id + "." + (outByIdx[k].empty() ? ("Out" + std::to_string(k + 1)) : outByIdx[k]));
                 }
             } else {
                 outputsArr.push_back(comp.id + ".Out1");
@@ -1609,6 +2082,30 @@ std::string generateNetlistJson(const CircuitDesign& design) {
             cObj["input"] = getIncomingSignal(comp.id, "Bus");
             cObj["signals"] = comp.parameters.count("signals") ? comp.parameters.at("signals") : "";
             ctrlLoopsObj["buses"].push_back(cObj);
+            // A bus carries one signal per creator input. The engine passes only one value
+            // through a bus, so each selector output is wired directly to the creator input
+            // it reads: a unity gain from that input's signal. Output k is <id>.Outk.
+            const std::string busKey = getIncomingSignal(comp.id, "Bus");
+            size_t nSignals = 1;
+            if (comp.parameters.count("signals")) {
+                nSignals = 1;
+                for (char ch : comp.parameters.at("signals")) if (ch == ',') ++nSignals;
+            }
+            for (const auto& creator : tempDesign.components) {
+                if (upperStr(creator.rawTypeStr) != "BUS_CREATOR") continue;
+                if (busKey != creator.id + ".Bus") continue;
+                for (size_t k = 1; k <= nSignals; ++k) {
+                    json gObj;
+                    gObj["output"] = comp.id + ".Out" + std::to_string(k);
+                    gObj["original_type"] = "GAIN";
+                    const std::string src = getIncomingSignal(creator.id, "In" + std::to_string(k));
+                    gObj["input"] = src;
+                    gObj["input1"] = src;
+                    gObj["input2"] = "0.0";
+                    gObj["K"] = 1.0;
+                    ctrlLoopsObj["gains"].push_back(gObj);
+                }
+            }
         } else if (const BlockDef* nb = BlockRegistry::instance().netlistBlockFor(comp.rawTypeStr)) {
             // No hand-written emitter: the block registry describes the entry
             // (data/blocks/*.json, "netlist"). See docs/adding-a-block.md.

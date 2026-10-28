@@ -1,41 +1,41 @@
 # Export snapshot (schematic SVG, scope SVG, scope selection, HTML report).
 Buck_converter.json schematic 75e0b8699540506c 9837
-Buck_converter.json scope 72ee04042105bfb5 24515
+Buck_converter.json scope 0eccd091d3fc2174 24517
 Buck_converter.json scopes ff2d6db7d5d0a50d 34
-Buck_converter.json html 5e4ec7c410c31aa9 54018
+Buck_converter.json html cc0872586b937124 54020
 boost closed loop.json schematic e61d5acc509cf58e 10466
-boost closed loop.json scope 14f62ea7d4b30632 133044
+boost closed loop.json scope 45cbe8675bc7724b 135063
 boost closed loop.json scopes bef0bb269142a66d 40
-boost closed loop.json html c29e3f6d4fd3324a 169977
+boost closed loop.json html e502615549d20fb3 171996
 fixed_thyristor_bridge.json schematic dbc3ee542fede112 19095
-fixed_thyristor_bridge.json scope 7fb33cb740f722dc 24514
+fixed_thyristor_bridge.json scope 2335612009b34afb 24516
 fixed_thyristor_bridge.json scopes d1ff4836a4d7a7b0 48
-fixed_thyristor_bridge.json html 45690c571a72ae52 81734
+fixed_thyristor_bridge.json html 61b65c91e1c54df7 81740
 Electrical_Semiconductors_Test.json schematic ec9b3be8a6d5b928 43568
-Electrical_Semiconductors_Test.json scope eda315702746fe05 24221
+Electrical_Semiconductors_Test.json scope 43ef4eeb78b61a34 24223
 Electrical_Semiconductors_Test.json scopes 2d4370e143bc118f 48
-Electrical_Semiconductors_Test.json html 861add90be82e6dd 125825
-Electrical_Complex_Transformers_Machines_Test.json schematic c6879080bcf0735a 28072
-Electrical_Complex_Transformers_Machines_Test.json scope f3013c9ad9e6dd09 24189
+Electrical_Semiconductors_Test.json html 5e4341556f49448f 125807
+Electrical_Complex_Transformers_Machines_Test.json schematic fc217c62f7956e7a 28066
+Electrical_Complex_Transformers_Machines_Test.json scope 49165356e21ea0c0 24191
 Electrical_Complex_Transformers_Machines_Test.json scopes ee82c0b090c60393 84
-Electrical_Complex_Transformers_Machines_Test.json html 0438e5d92c4c0f57 111714
+Electrical_Complex_Transformers_Machines_Test.json html c4f050eddc55628e 117336
 Math_Blocks_Test.json schematic 2b16ab14eaa69386 9935
-Math_Blocks_Test.json scope a0c7c0495de6fd37 24101
+Math_Blocks_Test.json scope d19250d3a7b56056 24103
 Math_Blocks_Test.json scopes 66caeba8065966a5 36
-Math_Blocks_Test.json html 9ff59aa98d3a4675 56999
+Math_Blocks_Test.json html 9339a2eccace4398 57001
 three_phase_inverter_basic_spwm_fixed.json schematic 297270de7c357c0e 24549
-three_phase_inverter_basic_spwm_fixed.json scope b667d834c987b139 24713
+three_phase_inverter_basic_spwm_fixed.json scope c580eda9df561ff4 24715
 three_phase_inverter_basic_spwm_fixed.json scopes a820d0f3c914d161 19
-three_phase_inverter_basic_spwm_fixed.json html aebf495136f8dc1d 77292
+three_phase_inverter_basic_spwm_fixed.json html 9c7e0e39b9791346 77294
 test01_buck_pid.json schematic 00dca594edd09a96 14288
-test01_buck_pid.json scope 9bfcb0e78ecf0955 24513
+test01_buck_pid.json scope 617ed1e800d55314 24515
 test01_buck_pid.json scopes 3202587caa989267 19
-test01_buck_pid.json html 47a91bbc299afda9 54965
+test01_buck_pid.json html db54364dfbebe720 54967
 test04_isolated_flyback.json schematic 12ffe002fe20797c 11547
-test04_isolated_flyback.json scope e5986dd2312fa9ae 133046
+test04_isolated_flyback.json scope 8888bdaf38d965fb 133047
 test04_isolated_flyback.json scopes d54bc14aaa9e36ca 4
-test04_isolated_flyback.json html fc188f075abd723b 67857
-functionstables.json schematic 8729e322e5d627f1 33247
-functionstables.json scope 04ac302888dcb3f0 12081
+test04_isolated_flyback.json html c11a33b71661c518 68318
+functionstables.json schematic 07bc28c40db3e601 33418
+functionstables.json scope 0b576fd1218635de 12085
 functionstables.json scopes 7ef4ca69b256630f 159
-functionstables.json html 8d9ab9c13b63ef02 158051
+functionstables.json html df665ede732d7bdf 158634

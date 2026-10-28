@@ -147,6 +147,17 @@ enum class ComponentType {
     TransportDelay,
     TurnOnDelay,
     MemoryBlock,
+    UnitDelay,
+    ZoH,
+    DiscreteInt,
+    DiscreteMean,
+    DiscreteTF,
+    DiscreteSS,
+    DcMotor,
+    BldcMotor,
+    PmsmMotor,
+    SynchronousMotor,
+    SrMotor,
 
     // Control Discontinuous Detailed Library
     Quantizer,
@@ -242,6 +253,11 @@ struct FastCompiledComponent {
     // set and a control signal is bound, the element value is taken from that signal
     // each timestep instead of the fixed nominal parameter.
     bool isVariable = false;
+    bool svpwmAlphaBeta = false;  // SVPWM fed alpha/beta (Valpha/Vbeta keys) rather than a,b,c
+    // PLL: the angular frequency that advanced theta in the last committed step.
+    // Reported as Freq so that mean(Freq) equals d(theta)/dt exactly.
+    double pllOmega = 0.0;
+    bool pllHasOmega = false;
     double nominalVal = 0.0;
 
     // Last conductance/resistance this element contributed to K. Comparing against it
@@ -302,9 +318,32 @@ struct FastCompiledComponent {
     double triggerTime = -1.0;   // Time pulse was triggered
     double pulseDuration = 0.1;  // Duration of pulse output
     std::vector<double> polyCoeffs;
+    long long bitMask = -1;      // BITWISE_OP: bits kept on each operand (-1 keeps all)
+    // Sampled linear systems. DISCRETE_TF: coefficients and past inputs/outputs, most recent
+    // first. DISCRETE_SS: A (n*n, row-major), B, C, state x (length n) and feedthrough D.
+    std::vector<double> dtfNum, dtfDen, dtfU, dtfY;
+    std::vector<double> dssA, dssB, dssC, dssX;
+    double dssD = 0.0;
+    // DC_MOTOR parameters: torque constant, back-EMF constant, inertia and viscous friction.
+    double dcKt = 0.0, dcKe = 0.0, dcJ = 1.0, dcB = 0.0;
+    // Three-phase machines (BLDC, PMSM, SYNC, SRM, induction). stateVal is the shaft speed in
+    // rad/s. mPoles is the pole pair count, or the rotor pole count for SRM. mTheta is the
+    // electrical rotor angle (rad). The rest are model constants or induction rotor flux.
+    double mPoles = 2.0, mKe = 0.0, mKf = 0.0, mJ = 1.0, mB = 0.0, mTheta = 0.0;
+    double mLavg = 0.0, mLdiff = 0.0;     // SRM: L(theta) = Lavg + Ldiff cos(theta)
+    double mRr = 0.0, mLr = 1.0, mLm = 0.0; // induction: rotor R, rotor self-inductance, magnetizing L
+    double mPsiA = 0.0, mPsiB = 0.0;      // induction: rotor flux linkage, stationary alpha/beta
     bool retriggerable = false;  // Whether monoflop is retriggerable
     std::string edgeMode;        // "rising", "falling", "either"
     std::vector<double> shiftBuffer;  // Buffer for SHIFT_REG
+    // Sliding-window state for THD_VAL: ring buffer plus running sums over absolute
+    // sample indices, so each step costs O(1) instead of O(window).
+    double nextSampleTime = 0.0;   // next sample instant for decimated blocks (FOURIER ts)
+    std::vector<double> thdRing;
+    int thdHead = 0;
+    int thdFill = 0;
+    long long thdCount = 0;
+    double thdRe = 0.0, thdIm = 0.0, thdSumSq = 0.0;
     int numInputs = 2;           // Number of inputs for multi-input logic blocks
     int shiftLength = 4;         // Shift register length
 
@@ -326,6 +365,12 @@ struct FastCompiledComponent {
     double stateVal = 0.0;
     double nextStateVal = 0.0;
     double filterState = 0.0;
+    // CONT_PID output limiting and anti-windup (clamping: the integrator holds while
+    // the limited output is saturated and the error would push it further out).
+    bool pidLimitOutput = false;
+    bool pidAntiWindup = false;
+    double pidUpper = 1.0;
+    double pidLower = -1.0;
     std::vector<double> stateVector;
 
     int stateIdx = -1;
@@ -464,7 +509,7 @@ private:
     // to leave alone as well.
     struct SolverSnapshot {
         std::vector<double> X;
-        std::vector<double> capV, indI, indV;
+        std::vector<double> capV, capI, indI, indV;
         std::vector<double> diodeStates, switchStates;
         std::vector<double> gStamped;
         bool trapModeStamped = false;
@@ -601,6 +646,7 @@ private:
     std::vector<double> scriptInValsBuf;
 
     std::vector<double> flatCapVoltages;
+    std::vector<double> flatCapCurrents;   // trapezoidal history term (current of the last accepted step)
     std::vector<double> flatIndCurrents;
     std::vector<double> flatIndVoltages;
     std::vector<double> flatDiodeStates;

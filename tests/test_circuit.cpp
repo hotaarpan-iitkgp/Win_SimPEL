@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
         Circuit c;
         c.add("R", "R1");
         c.add("MOSFET", "Q1", {{"Rn", "5m"}});                 // misspelt Ron
-        c.add("CONST", "K1"); c.add("CONST", "K2"); c.add("GAIN", "G1"); c.add("ZOH", "Z1");
+        c.add("CONST", "K1"); c.add("CONST", "K2"); c.add("GAIN", "G1"); c.add("PI_SECTION", "Z1");   // PI_SECTION is an unsupported block
         c.connect({{"K1", "Out"}, {"K2", "Out"}, {"G1", "In"}});
         auto v = c.validate();
         check(hasIssue(v, "ineffective_param", "Q1"), "misspelt parameter reported");

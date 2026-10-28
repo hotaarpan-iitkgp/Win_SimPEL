@@ -1,9 +1,9 @@
 design Logical_Blocks_Test.json
-netlist_cli 06f21abac6c73e87 3207
-netlist_gui 06f21abac6c73e87 3207
+netlist_cli 46f6c13c9dcc924f 3299
+netlist_gui 46f6c13c9dcc924f 3299
 roundtrip same
 config tstop=0.050000000000000003 dt=1.0000000000000001e-05 solver=euler step=fixed phys=0 ctrl=10
-time 5000 1aedc8efc6bcdac8 0.049990000000004635
+time 5000 cb4e8076c9a87dc5 0.050000000000000003
 sig BITWISE_XOR 5000 f903f2958cba1683 0
 sig BITWISE_XOR.Out 5000 f903f2958cba1683 0
 sig CLOCK_A 5000 1aedc8efc6bcdac8 0.049990000000004635

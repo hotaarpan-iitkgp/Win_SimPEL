@@ -1503,8 +1503,15 @@
         {
           "name": "Roff",
           "default": "1M"
+        },
+        {
+          "name": "state",
+          "default": "A"
         }
       ],
+      "choices": {
+        "state": ["A", "B"]
+      },
       "palette": [
         {
           "order": 141,
@@ -1543,8 +1550,15 @@
         {
           "name": "Roff",
           "default": "1M"
+        },
+        {
+          "name": "state",
+          "default": "A"
         }
       ],
+      "choices": {
+        "state": ["A", "B"]
+      },
       "palette": [
         {
           "order": 142,
@@ -1583,8 +1597,15 @@
         {
           "name": "Roff",
           "default": "1M"
+        },
+        {
+          "name": "state",
+          "default": "closed"
         }
       ],
+      "choices": {
+        "state": ["open", "closed"]
+      },
       "palette": [
         {
           "order": 143,
@@ -1951,32 +1972,42 @@
     },
     {
       "type": "INDUCTION_MOTOR",
-      "name": "Induction Motor (1-Phase/3-Phase)",
+      "name": "Induction Motor (3-Phase)",
       "subcategory": "Electrical Machines",
       "ui_type": "InductionMotor",
       "aliases": [
         "InductionMotor"
       ],
       "params": [
-        {
-          "name": "Rs",
-          "default": "1.115"
-        }
+        { "name": "Rs", "default": "1.115" },
+        { "name": "Lls", "default": "0.005974" },
+        { "name": "Rr", "default": "1.083" },
+        { "name": "Llr", "default": "0.005974" },
+        { "name": "Lm", "default": "0.1" },
+        { "name": "P", "default": "2" },
+        { "name": "J", "default": "0.02" },
+        { "name": "B", "default": "1e-3" },
+        { "name": "omega0", "default": "0" }
       ],
       "palette": [
         {
           "order": 153,
-          "text": "Induction Motor (1-Phase/3-Phase) (INDUCTION_MOTOR)",
-          "label": "Ind Motor 1Ph/3Ph",
+          "text": "Induction Motor 3-Phase (INDUCTION_MOTOR)",
+          "label": "Ind Motor 3Ph",
           "prefix": "INDUCTION_MOTOR",
           "ui_type": "InductionMotor",
           "subcategory": "Electrical Machines",
           "basic": false,
           "params": [
-            [
-              "Rs",
-              "1.115"
-            ]
+            ["Rs", "1.115"],
+            ["Lls", "0.005974"],
+            ["Rr", "1.083"],
+            ["Llr", "0.005974"],
+            ["Lm", "0.1"],
+            ["P", "2"],
+            ["J", "0.02"],
+            ["B", "1e-3"],
+            ["omega0", "0"]
           ]
         }
       ]
@@ -1987,10 +2018,15 @@
       "subcategory": "Electrical Machines",
       "ui_type": "InductionMotor",
       "params": [
-        {
-          "name": "Rs",
-          "default": "1.115"
-        }
+        { "name": "Rs", "default": "1.115" },
+        { "name": "Lls", "default": "0.005974" },
+        { "name": "Rr", "default": "1.083" },
+        { "name": "Llr", "default": "0.005974" },
+        { "name": "Lm", "default": "0.1" },
+        { "name": "P", "default": "2" },
+        { "name": "J", "default": "0.02" },
+        { "name": "B", "default": "1e-3" },
+        { "name": "omega0", "default": "0" }
       ],
       "palette": [
         {
@@ -2002,10 +2038,15 @@
           "subcategory": "Electrical Machines",
           "basic": false,
           "params": [
-            [
-              "Rs",
-              "1.115"
-            ]
+            ["Rs", "1.115"],
+            ["Lls", "0.005974"],
+            ["Rr", "1.083"],
+            ["Llr", "0.005974"],
+            ["Lm", "0.1"],
+            ["P", "2"],
+            ["J", "0.02"],
+            ["B", "1e-3"],
+            ["omega0", "0"]
           ]
         }
       ]
@@ -2022,6 +2063,10 @@
         {
           "name": "gain",
           "default": "1e5"
+        },
+        {
+          "name": "rail",
+          "default": "12"
         }
       ],
       "palette": [
@@ -2054,6 +2099,10 @@
         {
           "name": "gain",
           "default": "1e5"
+        },
+        {
+          "name": "rail",
+          "default": "12"
         }
       ],
       "palette": [
@@ -2107,76 +2156,191 @@
       ]
     },
     {
-      "type": "IC_555",
-      "name": "555 Timer",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
+      "type": "DC_MOTOR",
+      "name": "DC Motor",
+      "subcategory": "Electrical Machines",
+      "ui_type": "DCMotor",
+      "params": [
+        { "name": "Ra", "default": "1" },
+        { "name": "La", "default": "1e-3" },
+        { "name": "Ke", "default": "0.05" },
+        { "name": "Kt", "default": "0.05" },
+        { "name": "J", "default": "1e-4" },
+        { "name": "B", "default": "1e-4" },
+        { "name": "omega0", "default": "0" }
+      ],
+      "palette": [
+        {
+          "order": 170,
+          "text": "DC Motor (DC_MOTOR)",
+          "label": "DC Motor",
+          "prefix": "DCM",
+          "ui_type": "DCMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            ["Ra", "1"],
+            ["La", "1e-3"],
+            ["Ke", "0.05"],
+            ["Kt", "0.05"],
+            ["J", "1e-4"],
+            ["B", "1e-4"],
+            ["omega0", "0"]
+          ]
+        }
+      ]
     },
     {
-      "type": "IC_7400",
-      "name": "7400 Quad NAND",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
+      "type": "BLDC_MOTOR",
+      "name": "BLDC Motor (Trapezoidal Back-EMF)",
+      "subcategory": "Electrical Machines",
+      "ui_type": "BLDCMotor",
+      "params": [
+        { "name": "Rs", "default": "1" },
+        { "name": "Ls", "default": "1e-3" },
+        { "name": "Ke", "default": "0.05" },
+        { "name": "P", "default": "2" },
+        { "name": "J", "default": "1e-4" },
+        { "name": "B", "default": "1e-4" },
+        { "name": "omega0", "default": "0" },
+        { "name": "theta0", "default": "0" }
+      ],
+      "palette": [
+        {
+          "order": 166,
+          "text": "BLDC Motor (BLDC_MOTOR)",
+          "label": "BLDC",
+          "prefix": "BLDC",
+          "ui_type": "BLDCMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            ["Rs", "1"],
+            ["Ls", "1e-3"],
+            ["Ke", "0.05"],
+            ["P", "2"],
+            ["J", "1e-4"],
+            ["B", "1e-4"],
+            ["omega0", "0"],
+            ["theta0", "0"]
+          ]
+        }
+      ]
     },
     {
-      "type": "IC_7404",
-      "name": "7404 Hex Inverter",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
+      "type": "PMSM_MOTOR",
+      "name": "PMSM Motor (Sinusoidal Back-EMF)",
+      "subcategory": "Electrical Machines",
+      "ui_type": "PMSMMotor",
+      "params": [
+        { "name": "Rs", "default": "1" },
+        { "name": "Ls", "default": "1e-3" },
+        { "name": "Ke", "default": "0.05" },
+        { "name": "P", "default": "2" },
+        { "name": "J", "default": "1e-4" },
+        { "name": "B", "default": "1e-4" },
+        { "name": "omega0", "default": "0" },
+        { "name": "theta0", "default": "0" }
+      ],
+      "palette": [
+        {
+          "order": 167,
+          "text": "PMSM Motor (PMSM_MOTOR)",
+          "label": "PMSM",
+          "prefix": "PMSM",
+          "ui_type": "PMSMMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            ["Rs", "1"],
+            ["Ls", "1e-3"],
+            ["Ke", "0.05"],
+            ["P", "2"],
+            ["J", "1e-4"],
+            ["B", "1e-4"],
+            ["omega0", "0"],
+            ["theta0", "0"]
+          ]
+        }
+      ]
     },
     {
-      "type": "IC_7408",
-      "name": "7408 Quad AND",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
+      "type": "SYNC_MOTOR",
+      "name": "Synchronous Motor (Wound Field)",
+      "subcategory": "Electrical Machines",
+      "ui_type": "SynchronousMotor",
+      "params": [
+        { "name": "Rs", "default": "1" },
+        { "name": "Ls", "default": "1e-3" },
+        { "name": "Rf", "default": "10" },
+        { "name": "Lf", "default": "0.5" },
+        { "name": "Kf", "default": "0.05" },
+        { "name": "P", "default": "2" },
+        { "name": "J", "default": "1e-4" },
+        { "name": "B", "default": "1e-4" },
+        { "name": "omega0", "default": "0" },
+        { "name": "theta0", "default": "0" }
+      ],
+      "palette": [
+        {
+          "order": 168,
+          "text": "Synchronous Motor (SYNC_MOTOR)",
+          "label": "Sync Motor",
+          "prefix": "SYNC",
+          "ui_type": "SynchronousMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            ["Rs", "1"],
+            ["Ls", "1e-3"],
+            ["Rf", "10"],
+            ["Lf", "0.5"],
+            ["Kf", "0.05"],
+            ["P", "2"],
+            ["J", "1e-4"],
+            ["B", "1e-4"],
+            ["omega0", "0"],
+            ["theta0", "0"]
+          ]
+        }
+      ]
     },
     {
-      "type": "IC_7432",
-      "name": "7432 Quad OR",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
-    },
-    {
-      "type": "IC_LM317",
-      "name": "LM317 Adjustable Regulator",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
-    },
-    {
-      "type": "IC_LM7805",
-      "name": "LM7805 5 V Regulator",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
-    },
-    {
-      "type": "IC_PC817",
-      "name": "PC817 Optocoupler",
-      "subcategory": "Integrated Circuits",
-      "ui_type": "Unknown",
-      "role": "unsupported",
-      "params": [],
-      "palette": []
+      "type": "SRM_MOTOR",
+      "name": "Switched Reluctance Motor",
+      "subcategory": "Electrical Machines",
+      "ui_type": "SRMotor",
+      "params": [
+        { "name": "Rs", "default": "0.5" },
+        { "name": "Lmin", "default": "2e-3" },
+        { "name": "Lmax", "default": "10e-3" },
+        { "name": "Nr", "default": "4" },
+        { "name": "J", "default": "1e-4" },
+        { "name": "B", "default": "1e-4" },
+        { "name": "omega0", "default": "0" },
+        { "name": "theta0", "default": "0" }
+      ],
+      "palette": [
+        {
+          "order": 169,
+          "text": "Switched Reluctance Motor (SRM_MOTOR)",
+          "label": "SRM",
+          "prefix": "SRM",
+          "ui_type": "SRMotor",
+          "subcategory": "Electrical Machines",
+          "basic": false,
+          "params": [
+            ["Rs", "0.5"],
+            ["Lmin", "2e-3"],
+            ["Lmax", "10e-3"],
+            ["Nr", "4"],
+            ["J", "1e-4"],
+            ["B", "1e-4"],
+            ["omega0", "0"],
+            ["theta0", "0"]
+          ]
+        }
+      ]
     },
     {
       "type": "TRPL_SWITCH",

@@ -217,8 +217,8 @@ inline const auto& table() {
             { "Saturable Transformer (SAT_XFMR)", "Sat XFMR", "SAT_XFMR", ComponentType::SaturableTransformer, "SAT_XFMR", "electrical", "Transformers", {{"primary_turns", "100"}, {"secondary_turns", "100"}}, false },
             { "Transformers (3-Phase 2-Winding) (XFMR_3PH_2W)", "3Ph 2W XFMR", "XFMR_3PH_2W", ComponentType::Transformer3Ph2W, "XFMR_3PH_2W", "electrical", "Transformers", {}, false },
             // Electrical Domain Electrical Machines sub-library
-            { "Induction Motor (1-Phase/3-Phase) (INDUCTION_MOTOR)", "Ind Motor 1Ph/3Ph", "INDUCTION_MOTOR", ComponentType::InductionMotor, "INDUCTION_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}}, false },
-            { "Induction Motor (IND_MOTOR)", "Ind Motor", "IND_MOTOR", ComponentType::InductionMotor, "IND_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}}, false },
+            { "Induction Motor 3-Phase (INDUCTION_MOTOR)", "Ind Motor 3Ph", "INDUCTION_MOTOR", ComponentType::InductionMotor, "INDUCTION_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}, {"Lls", "0.005974"}, {"Rr", "1.083"}, {"Llr", "0.005974"}, {"Lm", "0.1"}, {"P", "2"}, {"J", "0.02"}, {"B", "1e-3"}, {"omega0", "0"}}, false },
+            { "Induction Motor (IND_MOTOR)", "Ind Motor", "IND_MOTOR", ComponentType::InductionMotor, "IND_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1.115"}, {"Lls", "0.005974"}, {"Rr", "1.083"}, {"Llr", "0.005974"}, {"Lm", "0.1"}, {"P", "2"}, {"J", "0.02"}, {"B", "1e-3"}, {"omega0", "0"}}, false },
 
             // Electrical Domain Electronics sub-library
             { "Operational Amplifier (OPAMP)", "OpAmp", "OPAMP", ComponentType::OpAmp, "OPAMP", "electrical", "Electronics", {{"gain", "1e5"}}, false },
@@ -243,6 +243,11 @@ inline const auto& table() {
             { "Air Gap (AIR_GAP)", "Air Gap", "GAP", ComponentType::AirGap, "AIR_GAP", "magnetic", "Components", {{"A", "1e-4"}, {"l", "1m"}, {"F0", "0"}}, false },
             { "Leakage Flux Path (LEAKAGE_PATH)", "Leakage", "PLK", ComponentType::LeakageFluxPath, "LEAKAGE_PATH", "magnetic", "Components", {{"P", "10n"}, {"F0", "0"}}, false },
             { "Magnetic Resistance (MAG_RESISTANCE)", "Rm", "RM", ComponentType::MagneticResistance, "MAG_RESISTANCE", "magnetic", "Components", {{"Rm", "1M"}}, false },
+            { "BLDC Motor (BLDC_MOTOR)", "BLDC", "BLDC", ComponentType::BLDCMotor, "BLDC_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1"}, {"Ls", "1e-3"}, {"Ke", "0.05"}, {"P", "2"}, {"J", "1e-4"}, {"B", "1e-4"}, {"omega0", "0"}, {"theta0", "0"}}, false },
+            { "PMSM Motor (PMSM_MOTOR)", "PMSM", "PMSM", ComponentType::PMSMMotor, "PMSM_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1"}, {"Ls", "1e-3"}, {"Ke", "0.05"}, {"P", "2"}, {"J", "1e-4"}, {"B", "1e-4"}, {"omega0", "0"}, {"theta0", "0"}}, false },
+            { "Synchronous Motor (SYNC_MOTOR)", "Sync Motor", "SYNC", ComponentType::SynchronousMotor, "SYNC_MOTOR", "electrical", "Electrical Machines", {{"Rs", "1"}, {"Ls", "1e-3"}, {"Rf", "10"}, {"Lf", "0.5"}, {"Kf", "0.05"}, {"P", "2"}, {"J", "1e-4"}, {"B", "1e-4"}, {"omega0", "0"}, {"theta0", "0"}}, false },
+            { "Switched Reluctance Motor (SRM_MOTOR)", "SRM", "SRM", ComponentType::SRMotor, "SRM_MOTOR", "electrical", "Electrical Machines", {{"Rs", "0.5"}, {"Lmin", "2e-3"}, {"Lmax", "10e-3"}, {"Nr", "4"}, {"J", "1e-4"}, {"B", "1e-4"}, {"omega0", "0"}, {"theta0", "0"}}, false },
+            { "DC Motor (DC_MOTOR)", "DC Motor", "DCM", ComponentType::DCMotor, "DC_MOTOR", "electrical", "Electrical Machines", {{"Ra", "1"}, {"La", "1e-3"}, {"Ke", "0.05"}, {"Kt", "0.05"}, {"J", "1e-4"}, {"B", "1e-4"}, {"omega0", "0"}}, false },
         };
         return allComponents;
 }

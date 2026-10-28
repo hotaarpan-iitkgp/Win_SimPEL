@@ -3,7 +3,7 @@ netlist_cli 57f94f9a62eaede9 2971
 netlist_gui 57f94f9a62eaede9 2971
 roundtrip same
 config tstop=0.050000000000000003 dt=1.0000000000000001e-05 solver=euler step=fixed phys=5 ctrl=6
-time 5000 1aedc8efc6bcdac8 0.049990000000004635
+time 5000 cb4e8076c9a87dc5 0.050000000000000003
 sig FROM_SIG1 5000 f903f2958cba1683 0
 sig FROM_SIG1.Out 5000 f903f2958cba1683 0
 sig FROM_SIG_VM1 5000 f903f2958cba1683 0

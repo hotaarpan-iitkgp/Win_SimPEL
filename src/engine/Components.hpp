@@ -110,6 +110,12 @@ enum class ComponentType {
     TransportDelay,   // TRANSPORT_DELAY
     TurnOnDelay,      // TURN_ON_DELAY
     MemoryBlock,      // MEMORY_BLOCK
+    UnitDelay,        // UNIT_DELAY
+    ZoH,              // ZOH
+    DiscreteInt,      // DISCRETE_INT
+    DiscreteMean,     // DISCRETE_MEAN
+    DiscreteTF,       // DISCRETE_TF
+    DiscreteSS,       // DISCRETE_SS
 
     // Control Discontinuous Detailed Library
     Quantizer,        // QUANTIZER
@@ -216,6 +222,11 @@ enum class ComponentType {
 
     // Electrical Machines & Custom
     InductionMotor,       // INDUCTION_MOTOR, IND_MOTOR
+    DCMotor,              // DC_MOTOR
+    BLDCMotor,            // BLDC_MOTOR
+    PMSMMotor,            // PMSM_MOTOR
+    SynchronousMotor,     // SYNC_MOTOR
+    SRMotor,              // SRM_MOTOR
 
     // Magnetic domain (permeance-capacitance analogy).
     // MMF <-> node potential, flux rate <-> branch current, permeance <-> capacitance.

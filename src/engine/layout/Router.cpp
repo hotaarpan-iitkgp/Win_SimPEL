@@ -275,14 +275,13 @@ bool insideAny(const Point2D& q, const std::vector<RouteRect>& obs) {
 
 RouteStats routeDesign(CircuitDesign& design, const RouteOptions& o) {
     RouteStats st;
-    // See NetlistBuilder::firstGroundPinIsSetRoot: the rebuilt ground net is wired
-    // so that this stays as it was (GND attached last when it was the
-    // representative, GND as the tree root otherwise).
-    std::string groundId;
-    const bool groundWasRoot = NetlistBuilder::firstGroundPinIsSetRoot(design, &groundId);
     const float G = o.grid;
     std::unordered_map<std::string, const ComponentInstance*> comps;
     for (const auto& c : design.components) comps[c.id] = &c;
+    // Ground nets are drawn as a tree grown from the GND symbol.
+    std::unordered_set<std::string> groundIds;
+    for (const auto& c : design.components)
+        if (upper(c.rawTypeStr) == "GND" || upper(c.rawTypeStr) == "GROUND") groundIds.insert(c.id);
 
     RouteOccupancy occ;
     std::vector<RouteRect> obs;
@@ -330,10 +329,9 @@ RouteStats routeDesign(CircuitDesign& design, const RouteOptions& o) {
         }
     }
     // firstWire: index of the earliest original wire touching the pin. New wires
-    // are put at that position, because the netlist generator resolves a control
-    // input from the first wire in list order whose terminal matches (with
-    // aliases: a query for "Ctrl" also matches "In1"); reordering would change
-    // which signal such an input reads.
+    // are put at that position so the wire list keeps its order; the netlist does
+    // not depend on it (signals resolve by net driver, ground by net membership),
+    // but node numbering follows first appearance and stays stable this way.
     struct NetPin { std::string comp, term; PinGeo geo; bool control = false, output = false; size_t firstWire = 0; };
     struct Net { std::vector<size_t> wires; std::vector<NetPin> pins; std::set<std::string> seen; bool ok = true; };
     std::map<std::string, Net> nets;   // ordered: deterministic
@@ -377,9 +375,9 @@ RouteStats routeDesign(CircuitDesign& design, const RouteOptions& o) {
         if (!power && drivers.size() != 1) { ++st.netsKept; continue; }
         size_t root = (!power) ? drivers[0] : 0;
         size_t groundPin = n.pins.size();
-        for (size_t i = 0; i < n.pins.size(); ++i)
-            if (!groundId.empty() && n.pins[i].comp == groundId && upper(n.pins[i].term) == "GND") groundPin = i;
-        if (groundPin < n.pins.size() && !groundWasRoot) root = groundPin;
+        for (size_t i = 0; i < n.pins.size() && groundPin == n.pins.size(); ++i)
+            if (groundIds.count(n.pins[i].comp)) groundPin = i;
+        if (groundPin < n.pins.size()) root = groundPin;
         std::vector<size_t> rest;
         for (size_t i = 0; i < n.pins.size(); ++i) if (i != root) rest.push_back(i);
         // Nearest pins first, so the tree grows outwards from the root.
@@ -388,10 +386,6 @@ RouteStats routeDesign(CircuitDesign& design, const RouteOptions& o) {
             auto dist = [&](size_t i) { return std::fabs(n.pins[i].geo.pos.x - rp.x) + std::fabs(n.pins[i].geo.pos.y - rp.y); };
             return dist(a) < dist(b);
         });
-        if (groundPin < n.pins.size() && groundWasRoot) {   // attach GND last
-            rest.erase(std::remove(rest.begin(), rest.end(), groundPin), rest.end());
-            rest.push_back(groundPin);
-        }
 
         struct Routed { std::string id; std::vector<Point2D> path; };
         std::vector<Routed> tree;
@@ -470,10 +464,7 @@ RouteStats routeDesign(CircuitDesign& design, const RouteOptions& o) {
             w.manualPath = path;
             occ.addPath(path, netIndex, G);
             tree.push_back({w.id, path});
-            // The GND wire of a net whose GND must stay representative goes after
-            // every other wire, so it is the last union on that set.
-            const bool lastUnion = groundWasRoot && rest[idx] == groundPin;
-            added.emplace_back(lastUnion ? std::numeric_limits<size_t>::max() : target.firstWire, w);
+            added.emplace_back(target.firstWire, w);
             ++st.wires;
         }
         for (size_t wi : n.wires) drop[wi] = true;

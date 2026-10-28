@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
     {
         int spec = 0;
         for (const auto& b : reg.blocks()) spec += b.netlist.present;
-        check(spec == 40, "40 blocks emitted from registry specs (" + std::to_string(spec) + ")");
+        check(spec == 46, "46 blocks emitted from registry specs (" + std::to_string(spec) + ")");
         check(reg.netlistBlockFor("inductor") == reg.find("L"), "netlist lookup is case-insensitive");
         check(reg.netlistBlockFor("MOSFET") == nullptr, "hand-written blocks have no spec");
     }

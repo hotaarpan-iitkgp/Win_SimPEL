@@ -125,10 +125,23 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
     if (t == "CONST" || t == "TRI" || t == "TRI_GEN" || t == "PULSE" || t == "PULSE_GEN" || t == "STEP" || t == "RAMP" || t == "SINE_WAVE" || t == "CLOCK" || t == "RANDOM_NUM" || t == "WHITE_NOISE") {
         return {{"Out", 20, 0, 1, 0, true}};
     }
+    if (t == "DC_MOTOR") {
+        // Electrical armature terminals A and B. TL takes the load torque signal and Speed
+        // outputs the shaft speed.
+        return {{"A", 0, -40, 0, -1, false}, {"B", 0, 40, 0, 1, false}, {"TL", -30, 0, -1, 0, true}, {"Speed", 30, 0, 1, 0, true}};
+    }
+    if (t == "LUT_2D") {
+        // Two signal inputs: first and second table axis.
+        return {{"In", -20, -10, -1, 0, true}, {"In2", -20, 10, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
+    if (t == "LUT_3D") {
+        // Three signal inputs: x, y and z table axes.
+        return {{"In", -20, -20, -1, 0, true}, {"In2", -20, 0, -1, 0, true}, {"In3", -20, 20, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
+    }
     if (t == "GAIN" || t == "PID" || t == "PWM" || t == "FCN" || t == "MATH_FCN" || t == "POLYNOMIAL" || t == "ALGEBRAIC_CONSTRAINT" || t == "NOT" || t == "INIT_COND" ||
         t == "TRIG_FCN" || t == "ABS" || t == "SIGN" || t == "ROUND" || t == "LUT_1D" || t == "LUT_2D" || t == "LUT_3D" || t == "DLL" || t == "FMU" || t == "FOURIER_SERIES" ||
         t == "INTEGRATOR" || t == "DERIVATIVE" || t == "TRANSFER_FCN" || t == "STATE_SPACE" || t == "CONT_PID" || t == "DISCRETE_PID" || t == "PLL_1PH" ||
-        t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" ||
+        t == "DELAY" || t == "TRANSPORT_DELAY" || t == "TURN_ON_DELAY" || t == "MEMORY_BLOCK" || t == "UNIT_DELAY" || t == "ZOH" || t == "DISCRETE_INT" || t == "DISCRETE_MEAN" || t == "DISCRETE_TF" || t == "DISCRETE_SS" ||
         t == "QUANTIZER" || t == "HIT_CROSSING" || t == "SATURATION" || t == "DEAD_ZONE" || t == "RATE_LIMITER" || t == "RELAY") {
         return {{"In", -20, 0, -1, 0, true}, {"Out", 20, 0, 1, 0, true}};
     }
@@ -339,8 +352,17 @@ std::vector<TerminalDef> getTerminals(const ComponentInstance& comp) {
         // covers the alternate spelling and must stay identical to it.
         return {{"D", 0, -40, 0, -1, false}, {"S", 0, 40, 0, 1, false}, {"G", -20, 0, -1, 0, true}};
     }
-    if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR") {
-        return {{"A", -20, -15, -1, 0, true}, {"B", -20, 0, -1, 0, true}, {"C", -20, 15, -1, 0, true}, {"TL", -20, 30, -1, 0, true}, {"Speed", 20, 0, 1, 0, true}};
+    if (t == "INDUCTION_MOTOR" || t == "IND_MOTOR" || t == "BLDC_MOTOR" || t == "PMSM_MOTOR" || t == "SRM_MOTOR") {
+        // Three stator phases A, B, C (electrical). TL takes the load torque signal and Speed
+        // outputs the shaft speed.
+        return {{"A", -30, -20, -1, 0, false}, {"B", -30, 0, -1, 0, false}, {"C", -30, 20, -1, 0, false},
+                {"TL", 0, -40, 0, -1, true}, {"Speed", 30, 0, 1, 0, true}};
+    }
+    if (t == "SYNC_MOTOR") {
+        // Stator phases A, B, C and the field winding FA, FB (electrical).
+        return {{"A", -30, -20, -1, 0, false}, {"B", -30, 0, -1, 0, false}, {"C", -30, 20, -1, 0, false},
+                {"FA", 30, -20, 1, 0, false}, {"FB", 30, 20, 1, 0, false},
+                {"TL", 0, -40, 0, -1, true}, {"Speed", 30, 0, 1, 0, true}};
     }
     if (t == "GEN_EBLOCK") {
         int n = 3;

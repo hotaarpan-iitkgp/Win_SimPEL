@@ -3,7 +3,7 @@ netlist_cli ba6faa54718481dc 4052
 netlist_gui f73b15867e2a0b0a 4052
 roundtrip same
 config tstop=0.20000000000000001 dt=1.0000000000000001e-05 solver=euler step=fixed phys=0 ctrl=12
-time 20000 81c79239e60d95ed 0.19999000000005923
+time 20000 33c99d937963149c 0.20000000000000001
 sig COMP1 20000 7edfdf97f1d384fa 0
 sig COMP1.Out 20000 7edfdf97f1d384fa 0
 sig CONV1 20000 7edfdf97f1d384fa 0

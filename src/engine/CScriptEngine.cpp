@@ -54,8 +54,8 @@ static int precedence(const std::string& op) {
     if (op == "==" || op == "!=") return 3;
     if (op == "<" || op == ">" || op == "<=" || op == ">=") return 4;
     if (op == "+" || op == "-") return 5;
-    if (op == "*" || op == "/") return 6;
-    if (op == "UNARY-") return 7;
+    if (op == "*" || op == "/" || op == "%") return 6;  // '%' was 0, so `1 + a % b` parsed as (1 + a) % b
+    if (op == "UNARY-" || op == "UNARY+" || op == "UNARY!") return 7;
     return 0;
 }
 
@@ -122,7 +122,10 @@ FastCompiledRPNExpr CScriptEngine::compileToRPN(const std::string& exprStr) {
             }
             infixTokens.push_back(std::string(1, s[i]));
             i++;
-        } else if (s[i] == '<' || s[i] == '>' || s[i] == '!') {
+        } else if (s[i] == '<' || s[i] == '>' || s[i] == '!' || s[i] == '=') {
+            // '=' must be handled here: "==" used to fall into the operand scanner
+            // below, which stops on '=' without consuming it, so `a == b` looped
+            // forever and hung the whole simulation.
             if (i + 1 < s.size() && s[i + 1] == '=') {
                 infixTokens.push_back(s.substr(i, 2));
                 i += 2;
@@ -147,9 +150,32 @@ FastCompiledRPNExpr CScriptEngine::compileToRPN(const std::string& exprStr) {
                 }
                 i++;
             }
+            if (i == start) {
+                // A stray separator ('&', '|', '?', ':' on its own). Consume it so the
+                // tokenizer always makes progress; an unknown token evaluates to 0
+                // instead of hanging the simulator.
+                infixTokens.push_back(std::string(1, s[i]));
+                i++;
+                continue;
+            }
             infixTokens.push_back(s.substr(start, i - start));
         }
     }
+
+    // Function names recognised by the compiler, with their opcodes. Kept in one
+    // table so the push, pop and emit paths cannot disagree (they used to: "fabs",
+    // "asin", "acos" and "atan" were popped but never pushed or emitted).
+    static const std::unordered_map<std::string, OpCode> kFunctions = {
+        {"sin", OpCode::Sin}, {"cos", OpCode::Cos}, {"tan", OpCode::Tan},
+        {"abs", OpCode::Abs}, {"fabs", OpCode::Abs}, {"sqrt", OpCode::Sqrt},
+        {"exp", OpCode::Exp}, {"log", OpCode::Log}, {"log10", OpCode::Log10},
+        {"max", OpCode::Max}, {"fmax", OpCode::Max}, {"min", OpCode::Min}, {"fmin", OpCode::Min},
+        {"pow", OpCode::Pow}, {"atan", OpCode::Atan}, {"asin", OpCode::Asin}, {"acos", OpCode::Acos},
+        {"atan2", OpCode::Atan2}, {"floor", OpCode::Floor}, {"ceil", OpCode::Ceil},
+        {"round", OpCode::Round}, {"fmod", OpCode::Fmod}, {"sign", OpCode::Sign}, {"sgn", OpCode::Sign},
+        {"tanh", OpCode::Tanh}, {"sinh", OpCode::Sinh}, {"cosh", OpCode::Cosh}, {"hypot", OpCode::Hypot},
+    };
+    auto isFunction = [&](const std::string& name) { return kFunctions.count(name) != 0; };
 
     std::vector<std::string> opStack;
     bool expectUnary = true;
@@ -162,16 +188,9 @@ FastCompiledRPNExpr CScriptEngine::compileToRPN(const std::string& exprStr) {
         else if (opStr == "/") tok.op = OpCode::Div;
         else if (opStr == "%") tok.op = OpCode::Mod;
         else if (opStr == "UNARY-") tok.op = OpCode::UnaryMinus;
-        else if (opStr == "sin") tok.op = OpCode::Sin;
-        else if (opStr == "cos") tok.op = OpCode::Cos;
-        else if (opStr == "tan") tok.op = OpCode::Tan;
-        else if (opStr == "abs") tok.op = OpCode::Abs;
-        else if (opStr == "sqrt") tok.op = OpCode::Sqrt;
-        else if (opStr == "exp") tok.op = OpCode::Exp;
-        else if (opStr == "log") tok.op = OpCode::Log;
-        else if (opStr == "max") tok.op = OpCode::Max;
-        else if (opStr == "min") tok.op = OpCode::Min;
-        else if (opStr == "pow") tok.op = OpCode::Pow;
+        else if (opStr == "UNARY+") return;  // no-op; used to emit PushNum 0 and corrupt the stack
+        else if (opStr == "UNARY!") tok.op = OpCode::Not;
+        else if (kFunctions.count(opStr)) tok.op = kFunctions.at(opStr);
         else if (opStr == "<") tok.op = OpCode::Lt;
         else if (opStr == ">") tok.op = OpCode::Gt;
         else if (opStr == "<=") tok.op = OpCode::LtEq;
@@ -199,24 +218,22 @@ FastCompiledRPNExpr CScriptEngine::compileToRPN(const std::string& exprStr) {
                 opStack.pop_back();
             }
             if (!opStack.empty() && opStack.back() == "(") opStack.pop_back();
-            if (!opStack.empty() && (opStack.back() == "sin" || opStack.back() == "cos" || opStack.back() == "tan" ||
-                                     opStack.back() == "abs" || opStack.back() == "fabs" || opStack.back() == "sqrt" ||
-                                     opStack.back() == "max" || opStack.back() == "min" || opStack.back() == "pow" ||
-                                     opStack.back() == "exp" || opStack.back() == "log" || opStack.back() == "asin" ||
-                                     opStack.back() == "acos" || opStack.back() == "atan")) {
+            if (!opStack.empty() && isFunction(opStack.back())) {
                 pushOpToken(opStack.back());
                 opStack.pop_back();
             }
             expectUnary = false;
-        } else if (tok == "sin" || tok == "cos" || tok == "tan" || tok == "abs" || tok == "sqrt" || tok == "max" || tok == "min" || tok == "pow" || tok == "exp" || tok == "log") {
+        } else if (isFunction(tok)) {
             opStack.push_back(tok);
             expectUnary = true;
         } else if (tok == "+" || tok == "-" || tok == "*" || tok == "/" || tok == "%" ||
                    tok == "<" || tok == ">" || tok == "<=" || tok == ">=" || tok == "==" || tok == "!=" ||
-                   tok == "&&" || tok == "||") {
+                   tok == "&&" || tok == "||" || tok == "!") {
             std::string op = tok;
-            if (expectUnary && (op == "-" || op == "+")) {
-                op = (op == "-") ? "UNARY-" : "UNARY+";
+            if (expectUnary && (op == "-" || op == "+" || op == "!")) {
+                op = (op == "-") ? "UNARY-" : (op == "+") ? "UNARY+" : "UNARY!";
+            } else if (op == "!") {
+                op = "UNARY!";
             } else {
                 while (!opStack.empty() && precedence(opStack.back()) >= precedence(op)) {
                     pushOpToken(opStack.back());
@@ -301,6 +318,21 @@ double CScriptEngine::evalRPN(const FastCompiledRPNExpr& rpn) {
             case OpCode::Max: top--; stack[top - 1] = std::max(stack[top - 1], stack[top]); break;
             case OpCode::Min: top--; stack[top - 1] = std::min(stack[top - 1], stack[top]); break;
             case OpCode::Pow: top--; stack[top - 1] = std::pow(stack[top - 1], stack[top]); break;
+            case OpCode::Atan: stack[top - 1] = std::atan(stack[top - 1]); break;
+            case OpCode::Asin: stack[top - 1] = std::asin(std::max(-1.0, std::min(1.0, stack[top - 1]))); break;
+            case OpCode::Acos: stack[top - 1] = std::acos(std::max(-1.0, std::min(1.0, stack[top - 1]))); break;
+            case OpCode::Atan2: top--; stack[top - 1] = std::atan2(stack[top - 1], stack[top]); break;
+            case OpCode::Floor: stack[top - 1] = std::floor(stack[top - 1]); break;
+            case OpCode::Ceil: stack[top - 1] = std::ceil(stack[top - 1]); break;
+            case OpCode::Round: stack[top - 1] = std::round(stack[top - 1]); break;
+            case OpCode::Fmod: top--; stack[top - 1] = (stack[top] != 0) ? std::fmod(stack[top - 1], stack[top]) : 0.0; break;
+            case OpCode::Sign: stack[top - 1] = (stack[top - 1] > 0.0) ? 1.0 : ((stack[top - 1] < 0.0) ? -1.0 : 0.0); break;
+            case OpCode::Tanh: stack[top - 1] = std::tanh(stack[top - 1]); break;
+            case OpCode::Sinh: stack[top - 1] = std::sinh(stack[top - 1]); break;
+            case OpCode::Cosh: stack[top - 1] = std::cosh(stack[top - 1]); break;
+            case OpCode::Log10: stack[top - 1] = std::log10(std::fabs(stack[top - 1]) + 1e-300); break;
+            case OpCode::Hypot: top--; stack[top - 1] = std::hypot(stack[top - 1], stack[top]); break;
+            case OpCode::Not: stack[top - 1] = (stack[top - 1] == 0.0) ? 1.0 : 0.0; break;
             case OpCode::Lt: top--; stack[top - 1] = (stack[top - 1] < stack[top]) ? 1.0 : 0.0; break;
             case OpCode::Gt: top--; stack[top - 1] = (stack[top - 1] > stack[top]) ? 1.0 : 0.0; break;
             case OpCode::LtEq: top--; stack[top - 1] = (stack[top - 1] <= stack[top]) ? 1.0 : 0.0; break;

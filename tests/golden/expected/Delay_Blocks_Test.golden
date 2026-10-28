@@ -3,7 +3,7 @@ netlist_cli 6f743d6c0f1457a4 2428
 netlist_gui 6f743d6c0f1457a4 2428
 roundtrip same
 config tstop=0.050000000000000003 dt=1.0000000000000001e-05 solver=euler step=fixed phys=0 ctrl=6
-time 5000 1aedc8efc6bcdac8 0.049990000000004635
+time 5000 cb4e8076c9a87dc5 0.050000000000000003
 sig DELAY1 5000 aa4cf2b3afb5072b 1
 sig DELAY1.Out 5000 aa4cf2b3afb5072b 1
 sig MEM1 5000 f07ded38edb42123 1

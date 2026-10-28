@@ -17,6 +17,10 @@ enum class OpCode : uint8_t {
     UnaryMinus,
     Sin, Cos, Tan, Abs, Sqrt, Exp, Log,
     Max, Min, Pow,
+    // C-library functions scripts commonly use. Before these existed, a call such
+    // as atan2(y, x) compiled "atan2" as an unknown variable (always 0).
+    Atan, Asin, Acos, Atan2, Floor, Ceil, Round, Fmod, Sign, Tanh, Sinh, Cosh, Log10, Hypot,
+    Not,
     Lt, Gt, LtEq, GtEq, Eq, NotEq,
     And, Or,
     Ternary

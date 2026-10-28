@@ -441,14 +441,27 @@ void SchematicCanvas::rebuildNetlist() {
         }
     }
 
-    // 3. Assign merged net names to component nodes for simulation
+    // 3. Assign merged net names to component nodes for simulation. A net is ground
+    // when it contains a GND block's terminal; testing the representative's name
+    // for "GND" depended on wire order and matched ids like "AGND_R1".
+    std::unordered_set<std::string> groundNets;
+    std::unordered_set<std::string> groundIds;
+    for (const auto& comp : design.components)
+        if (comp.rawTypeStr == "GND") groundIds.insert(comp.id);
+    std::vector<std::string> keys;
+    for (const auto& kv : parent) keys.push_back(kv.first);
+    for (const auto& k : keys) {
+        // Any spelling of the ground terminal ("Gnd", "A", ...) counts.
+        const auto dot = k.find('.');
+        if (dot != std::string::npos && groundIds.count(k.substr(0, dot))) groundNets.insert(findRoot(k));
+    }
     for (auto& comp : design.components) {
         auto terms = getTerminals(comp);
         comp.nodes.clear();
         for (const auto& t : terms) {
             std::string key = comp.id + "." + t.name;
             std::string rootNet = findRoot(key);
-            if (comp.rawTypeStr == "GND" || rootNet.find("GND") != std::string::npos) {
+            if (comp.rawTypeStr == "GND" || groundNets.count(rootNet)) {
                 comp.nodes.push_back("0");
             } else {
                 comp.nodes.push_back("net_" + rootNet);
